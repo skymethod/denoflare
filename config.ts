@@ -1,38 +1,49 @@
-export async function loadConfig(): Promise<Config> {
-    const config = JSON.parse(await Deno.readTextFile(`${Deno.env.get('HOME')}/.denoflare`));
-    return config as Config;
-}
 
 export function isTextBinding(binding: Binding): binding is TextBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).value === 'string';
 }
 
+export function isSecretBinding(binding: Binding): binding is SecretBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).secret === 'string';
+}
+
+export function isKVNamespaceBinding(binding: Binding): binding is KVNamespaceBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).kvNamespace === 'string';
+}
+
+export function isDONamespaceBinding(binding: Binding): binding is DONamespaceBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).doNamespace === 'string';
+}
+
 //
 
-type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding;
 
-interface TextBinding {
+export interface TextBinding {
     value: string;
 }
 
-interface SecretBinding {
+export interface SecretBinding {
     secret: string;
 }
 
-interface KVNamespaceBinding {
+export interface KVNamespaceBinding {
     kvNamespace: string;
 }
 
-interface DONamespaceBinding {
+export interface DONamespaceBinding {
     doNamespace: string;
 }
 
-interface Script {
+export interface Script {
     readonly path: string;
     readonly bindings: Record<string, Binding>;
 }
 
-interface Config {
+export interface Config {
     readonly scripts: Record<string, Script>;
 }

@@ -26,7 +26,7 @@ export function makeBodyResolverOverRpc(channel: RpcChannel): BodyResolver {
     });
 }
 
-export function setReadBodyChunkRequestHandler(channel: RpcChannel, bodies: Bodies) {
+export function addRequestHandlerForReadBodyChunk(channel: RpcChannel, bodies: Bodies) {
     channel.addRequestHandler('read-body-chunk', async requestData => {
         const { bodyId } = requestData;
         const { value, done } = await bodies.readBodyChunk(bodyId);

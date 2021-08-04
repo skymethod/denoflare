@@ -50,7 +50,7 @@ export class RpcChannel {
         return false;
     }
 
-    sendRequest<T>(rpcMethod: string, data: Data, unpackResponseDataFn: (data: Data) => T): Promise<T> {
+    sendRequest<T>(rpcMethod: string, data: Data, unpackResponseDataFn: (data: Data) => T, transfer: Transferable[] = []): Promise<T> {
         const num = this.nextRequestNum++;
         const request: Request = { num, onRpcResponse: () => {}};
         this.requests.set(num, request);
@@ -68,8 +68,8 @@ export class RpcChannel {
             }
         });
         const rpcRequest: RpcRequest = { requestKind: 'rpc', rpcMethod, num, data };
-        _consoleLog(`${this.tag}: sendRequest`, rpcRequest);
-        this.postMessage(rpcRequest, []);
+        _consoleLog(`${this.tag}: sendRequest ${rpcRequest.rpcMethod}`);
+        this.postMessage(rpcRequest, transfer);
         return rt;
     }
 
