@@ -1,6 +1,7 @@
-import { loadConfig } from './config_loader.ts';
+import { loadConfig, resolveBindings } from './config_loader.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { Bodies, makeBodyResolverOverRpc, PackedRequest, packRequest, packResponse, addRequestHandlerForReadBodyChunk, unpackResponse } from './rpc_fetch.ts';
+import { addRequestHandlerForRpcKvNamespace } from './rpc_kv_namespace.ts';
 import { runScript } from './rpc_script.ts';
 
 if (Deno.args.length === 0) {
@@ -12,6 +13,7 @@ const config = await loadConfig();
 const scriptName = Deno.args[0];
 const script = config.scripts[scriptName];
 if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
+const bindings = await resolveBindings(script.bindings);
 const scriptContents = await Deno.readFile(script.path);
 
 // compile the permissionless deno worker
@@ -44,9 +46,12 @@ rpcChannel.addRequestHandler('fetch', async requestData => {
 });
 addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
 
+// handle rpc kv requests
+addRequestHandlerForRpcKvNamespace(rpcChannel);
+
 // run the script in the deno worker
 try {
-    await runScript({ scriptContents, bindings: script.bindings }, rpcChannel);
+    await runScript({ scriptContents, bindings }, rpcChannel);
 } catch (e) {   
     console.error(e);
     Deno.exit(1);

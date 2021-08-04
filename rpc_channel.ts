@@ -39,7 +39,7 @@ export class RpcChannel {
                     error = e;
                 }
                 if (error) {
-                    this.postMessage({ responseKind: 'error', num, rpcMethod, error } as RpcErrorResponse, []);
+                    this.postMessage({ responseKind: 'error', num, rpcMethod, error: { message: error.message, name: error.name, stack: error.stack} } as RpcErrorResponse, []);
                 } else {
                     this.postMessage({ responseKind: 'ok', num, rpcMethod, data: responseData } as RpcOkResponse, []);
                 }
@@ -59,6 +59,7 @@ export class RpcChannel {
                 if (rpcResponse.rpcMethod !== rpcMethod) {
                     reject(new Error(`Bad rpcResponse.rpcMethod: ${rpcResponse.rpcMethod}, expected ${rpcMethod}`));
                 } else if (rpcResponse.responseKind === 'error') {
+                    // console.log('ERROR', rpcResponse);
                     reject(rpcResponse.error);
                 } else if (rpcResponse.responseKind === 'ok') {
                     resolve(unpackResponseDataFn(rpcResponse.data));
