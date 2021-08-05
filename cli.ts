@@ -1,4 +1,5 @@
 import { loadConfig, resolveBindings, resolveCredential } from './config_loader.ts';
+import { InProcessScriptServer } from "./in_process_script_server.ts";
 import { WorkerManager } from './worker_manager.ts';
 
 if (Deno.args.length === 0) {
@@ -14,36 +15,47 @@ const port = script.localPort || 8080;
 const bindings = await resolveBindings(script.bindings, port);
 const credential = await resolveCredential(config);
 
-// start the host for the permissionless deno workers
-const workerManager = await WorkerManager.start();
+const runInProcess = !!script.localInProcess;
 
-// run the cloudflare worker script inside deno worker
-const runScript = async () => {
-    console.log(`runScript: ${script.path}`);
-    const scriptContents = await Deno.readFile(script.path);
-    try {
-        await workerManager.run(scriptContents, { bindings, credential });
-    } catch (e) {
-        console.error(e);
-        Deno.exit(1);
+const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
+    if (runInProcess) {
+        return await InProcessScriptServer.start(script.path, bindings, credential);
+    } else {
+        // start the host for the permissionless deno workers
+        const workerManager = await WorkerManager.start();
+    
+        // run the cloudflare worker script inside deno worker
+        const runScript = async () => {
+            console.log(`runScript: ${script.path}`);
+            const scriptContents = await Deno.readFile(script.path);
+            try {
+                await workerManager.run(scriptContents, { bindings, credential });
+            } catch (e) {
+                console.error(e);
+                Deno.exit(1);
+            }
+        };
+        await runScript();
+    
+        // when the script changes, recreate the deno worker
+        const watcher = Deno.watchFs(script.path);
+        (async () => {
+            let timeoutId: number | undefined;
+            for await (const event of watcher) {
+                if (event.kind === 'modify' && event.paths.includes(script.path)) {
+                    // a single file modification sends two modify events, so coalesce them
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(runScript, 500);
+                }
+            }
+        })();
+        return workerManager;
     }
-};
-await runScript();
+}
 
-// when the script changes, recreate the deno worker
-const watcher = Deno.watchFs(script.path);
-(async () => {
-    let timeoutId: number | undefined;
-    for await (const event of watcher) {
-        if (event.kind === 'modify' && event.paths.includes(script.path)) {
-            // a single file modification sends two modify events, so coalesce them
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(runScript, 500);
-        }
-    }
-})();
+const localRequestServer = await createLocalRequestServer();
 
-// start local server, send requests to deno worker
+// start local server
 function memoize<T>(fn: () => Promise<T>): () => Promise<T> {
     let cached: T | undefined;
     return async () => {
@@ -70,17 +82,26 @@ const computeExternalIp = memoize(fetchExternalIp);
 async function handle(conn: Deno.Conn) {
     const httpConn = Deno.serveHttp(conn);
     for await (const { request, respondWith } of httpConn) {
-        const res = await workerManager.fetch(request, await computeExternalIp());
         try {
-            await respondWith(res);
+            const res = await localRequestServer.fetch(request, await computeExternalIp());
+            await respondWith(res).catch(e => console.log(`Error in respondWith`, e));
         } catch (e) {
-            console.error('Error in respondWith', e);
+            console.error('Error servicing request', e);
         }
     }
 }
 
 const server = Deno.listen({ port });
-console.log(`Local server running on http://localhost:${port}`)
+console.log(`Local server running on http://localhost:${port}`);
+
 for await (const conn of server) {
-    handle(conn);
+    handle(conn).catch(e => console.error('error in handle', e));
+}
+
+console.log('end of cli');
+
+//
+
+interface LocalRequestServer {
+    fetch(request: Request, cfConnectingIp: string): Promise<Response>;
 }

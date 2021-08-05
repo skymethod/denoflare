@@ -1,5 +1,6 @@
 // /// <reference lib="deno.worker" />
 
+import { dispatchFetchEvent } from './cloudflare_workers_runtime.ts';
 import { Data, RpcChannel } from './rpc_channel.ts';
 import { addRequestHandlerForReadBodyChunk, Bodies, makeBodyResolverOverRpc, makeFetchOverRpc, packResponse, unpackRequest } from './rpc_fetch.ts';
 import { addRequestHandlerForRunScript } from './rpc_script.ts';
@@ -7,32 +8,10 @@ import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
 
 (function() {
     const _consoleLog = console.log;
-    const _consoleWarn = console.warn;
     
     _consoleLog('worker: start');
     
     SubtleCryptoPolyfill.applyIfNecessary();
-    
-    class FetchEvent extends Event {
-        readonly request: Request;
-        responseFn: Promise<Response> | undefined;
-    
-        constructor(request: Request) {
-            super('fetch');
-            this.request = request;
-        }
-    
-        waitUntil(promise: Promise<unknown>) {
-            // _consoleLog('waitUntil', promise);
-            promise.then(() => _consoleLog(`waitUntil complete`), e => _consoleWarn(e));
-        }
-    
-        respondWith(responseFn: Promise<Response>) {
-            // _consoleLog('respondWith', responseFn);
-            if (this.responseFn) throw new Error(`respondWith: already called`);
-            this.responseFn = responseFn;
-        }
-    }
     
     interface SmallDedicatedWorkerGlobalScope {
         onmessage: ((this: SmallDedicatedWorkerGlobalScope, ev: MessageEvent) => Data) | null;
@@ -67,16 +46,12 @@ import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
     const afterScript = () => {
         _consoleLog(`worker: afterScript fetchListener=${!!fetchListener}`);
 
-        if (fetchListener) {
-            const listener = fetchListener;
+        if (fetchListener !== undefined) {
+            const fetchListenerF = fetchListener;
             addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
             rpcChannel.addRequestHandler('fetch', async requestData => {
                 const request = unpackRequest(requestData, makeBodyResolverOverRpc(rpcChannel));
-                // deno-lint-ignore no-explicit-any
-                (request as any).cf = { colo: 'DNO' };
-                const e = new FetchEvent(request);
-                await listener(e);
-                const response = e.responseFn ? await e.responseFn : new Response('FetchEvent: no response');
+                const response = await dispatchFetchEvent(request, { colo: 'DNO' }, fetchListenerF)
                 const responseData = packResponse(response, bodies);
                 return responseData;
             });
