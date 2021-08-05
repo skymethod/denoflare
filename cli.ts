@@ -14,7 +14,8 @@ const config = await loadConfig();
 const scriptName = Deno.args[0];
 const script = config.scripts[scriptName];
 if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
-const bindings = await resolveBindings(script.bindings);
+const port = script.localPort || 8080;
+const bindings = await resolveBindings(script.bindings, port);
 const scriptContents = await Deno.readFile(script.path);
 
 // compile the permissionless deno worker
@@ -91,11 +92,14 @@ async function handle(conn: Deno.Conn) {
         const res = await rpcChannel.sendRequest('fetch', packedRequest, responseData => {
             return unpackResponse(responseData, makeBodyResolverOverRpc(rpcChannel));
         });
-        await respondWith(res);
+        try {
+            await respondWith(res);
+        } catch (e) {
+            console.error('Error in respondWith', e);
+        }
     }
 }
 
-const port = 8080;
 const server = Deno.listen({ port });
 console.log(`Local server running on http://localhost:${port}`)
 for await (const conn of server) {

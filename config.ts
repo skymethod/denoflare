@@ -21,6 +21,17 @@ export function isDONamespaceBinding(binding: Binding): binding is DONamespaceBi
 
 //
 
+export interface Config {
+    readonly scripts: Record<string, Script>;
+    readonly credentials: Record<string, Credential>;
+}
+
+export interface Script {
+    readonly path: string;
+    readonly bindings: Record<string, Binding>;
+    readonly localPort?: number;
+}
+
 export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding;
 
 export interface TextBinding {
@@ -37,16 +48,6 @@ export interface KVNamespaceBinding {
 
 export interface DONamespaceBinding {
     doNamespace: string;
-}
-
-export interface Script {
-    readonly path: string;
-    readonly bindings: Record<string, Binding>;
-}
-
-export interface Config {
-    readonly scripts: Record<string, Script>;
-    readonly credentials: Record<string, Credential>;
 }
 
 export interface Credential {

@@ -57,6 +57,9 @@ export function packRequest(info: RequestInfo, init: RequestInit |  undefined, b
         const headers = [...info.headers.entries()];
         const bodyId = bodies.computeBodyId(info.body);
         return { method, url, headers, bodyId };
+    } else if (typeof info === 'string' && init === undefined) {
+        // url String
+        return { method: 'GET', url: info, headers: [], bodyId: undefined };
     }
     throw new Error(`packRequest: implement info=${info} ${typeof info} init=${init}`);
 }

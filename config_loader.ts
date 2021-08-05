@@ -1,25 +1,28 @@
-import { Binding, Config, Credential, isSecretBinding } from './config.ts';
+import { Binding, Config, Credential, isSecretBinding, isTextBinding } from './config.ts';
 
 export async function loadConfig(): Promise<Config> {
     const config = JSON.parse(await Deno.readTextFile(`${Deno.env.get('HOME')}/.denoflare`));
     return config as Config;
 }
 
-export async function resolveBindings(bindings: Record<string, Binding>): Promise<Record<string, Binding>> {
+export async function resolveBindings(bindings: Record<string, Binding>, localPort: number): Promise<Record<string, Binding>> {
     const rt: Record<string, Binding> = {};
     for (const [name, binding] of Object.entries(bindings)) {
-        rt[name] = await resolveBinding(binding);
+        rt[name] = await resolveBinding(binding, localPort);
     }
     return rt;
 }
 
-export async function resolveBinding(binding: Binding): Promise<Binding> {
+export async function resolveBinding(binding: Binding, localPort: number): Promise<Binding> {
     if (isSecretBinding(binding)) {
         const m = /^aws:(.*?)$/.exec(binding.secret);
         if (m) {
             const creds = await loadAwsCredentialsForProfile(m[1]);
             return { secret: `${creds.accessKeyId}:${creds.secretAccessKey}` };
         }
+    } else if (isTextBinding(binding)) {
+        const value = binding.value.replaceAll('${localPort}', localPort.toString());
+        return { value };
     }
     return binding;
 }
