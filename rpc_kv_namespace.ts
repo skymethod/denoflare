@@ -1,11 +1,15 @@
 import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVValueAndMetadata, KVPutOptions } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
-export function addRequestHandlerForRpcKvNamespace(channel: RpcChannel) {
-    channel.addRequestHandler('kv-namespace-get', requestData => {
+export function addRequestHandlerForRpcKvNamespace(channel: RpcChannel, kvNamespaceResolver: (kvNamespace: string) => KVNamespace) {
+    channel.addRequestHandler('kv-namespace-get', async requestData => {
         const req = requestData as KVNamespaceGetArrayBufferRequest;
         if (req.type === 'arrayBuffer') {
-            return Promise.resolve({ type: 'arrayBuffer', buffer: null });
+            const { cacheTtl, kvNamespace, key } = req;
+            const target = kvNamespaceResolver(kvNamespace);
+            const buffer = await target.get(key, { type: 'arrayBuffer', cacheTtl });
+            const res: KVNamespaceGetArrayBufferResponse = { type: req.type, buffer };
+            return res;
         }
         throw new Error(`RequestHandlerForRpcKvNamespace: Implement ${req.type}, req=${JSON.stringify(req)}`);
     });
@@ -69,9 +73,10 @@ export class RpcKVNamespace implements KVNamespace {
 type KVNamespaceGetRequest = KVNamespaceGetArrayBufferRequest;
 
 interface KVNamespaceGetArrayBufferRequest {
+    readonly kvNamespace: string;
     readonly type: 'arrayBuffer';
     readonly key: string;
-    readonly kvNamespace: string;
+    readonly cacheTtl?: number;
 }
 
 type KVNamespaceGetResponse = KVNamespaceGetArrayBufferResponse;

@@ -1,4 +1,5 @@
-import { loadConfig, resolveBindings } from './config_loader.ts';
+import { ApiKVNamespace } from './api_kv_namespace.ts';
+import { loadConfig, resolveBindings, resolveCredential } from './config_loader.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { Bodies, makeBodyResolverOverRpc, PackedRequest, packRequest, packResponse, addRequestHandlerForReadBodyChunk, unpackResponse } from './rpc_fetch.ts';
 import { addRequestHandlerForRpcKvNamespace } from './rpc_kv_namespace.ts';
@@ -46,13 +47,14 @@ rpcChannel.addRequestHandler('fetch', async requestData => {
 });
 addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
 
-// handle rpc kv requests
-addRequestHandlerForRpcKvNamespace(rpcChannel);
+// handle rpc kv requests, forward to cloudflare api
+const { accountId, apiToken } = await resolveCredential(config);
+addRequestHandlerForRpcKvNamespace(rpcChannel, kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace));
 
 // run the script in the deno worker
 try {
     await runScript({ scriptContents, bindings }, rpcChannel);
-} catch (e) {   
+} catch (e) {
     console.error(e);
     Deno.exit(1);
 }

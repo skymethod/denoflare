@@ -1,4 +1,4 @@
-import { Binding, Config, isSecretBinding } from './config.ts';
+import { Binding, Config, Credential, isSecretBinding } from './config.ts';
 
 export async function loadConfig(): Promise<Config> {
     const config = JSON.parse(await Deno.readTextFile(`${Deno.env.get('HOME')}/.denoflare`));
@@ -24,7 +24,33 @@ export async function resolveBinding(binding: Binding): Promise<Binding> {
     return binding;
 }
 
+export async function resolveCredential(config: Config): Promise<Credential> {
+    const entries = [...Object.entries(config.credentials)];
+    if (entries.length !== 1) throw new Error(`Unable to resolve credential, found ${entries.length} credentials`);
+    const credential = entries[0][1];
+    const accountId = await resolveString(credential.accountId);
+    const apiToken = await resolveString(credential.apiToken);
+    return { accountId, apiToken };
+}
+
 //
+
+async function resolveString(string: string): Promise<string> {
+    if (string.startsWith('regex:')) {
+        const str = string.substring('regex:'.length);
+        const i = str.indexOf(':');
+        if (i > -1) {
+            const path = str.substring(0, i);
+            const txt = await Deno.readTextFile(path);
+            const pattern = str.substring(i + 1);
+            const m = txt.match(new RegExp(pattern));
+            if (m) {
+                return m[1];
+            }
+        }
+    }
+    return string;
+}
 
 async function loadAwsCredentialsForProfile(profile: string): Promise<AwsCredentials> {
     const txt = await Deno.readTextFile(`${Deno.env.get('HOME')}/.aws/credentials`);

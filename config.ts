@@ -46,4 +46,10 @@ export interface Script {
 
 export interface Config {
     readonly scripts: Record<string, Script>;
+    readonly credentials: Record<string, Credential>;
+}
+
+export interface Credential {
+    readonly accountId: string;
+    readonly apiToken: string;
 }
