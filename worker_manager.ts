@@ -1,5 +1,6 @@
 import { ApiKVNamespace } from './api_kv_namespace.ts';
 import { Credential, Binding } from './config.ts';
+import { consoleError, consoleLog } from './console.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from './rpc_fetch.ts';
 import { addRequestHandlerForRpcKvNamespace } from './rpc_kv_namespace.ts';
@@ -20,7 +21,7 @@ export class WorkerManager {
         const result = await Deno.emit('worker.ts', {
             bundle: 'module',
         });
-        console.log(result);
+        consoleLog(result);
         const workerJs = result.files['deno:///bundle.js'];
         const contents = new TextEncoder().encode(workerJs);
         const blob = new Blob([contents]);
@@ -41,11 +42,11 @@ export class WorkerManager {
 
         // init rpc
         const rpcChannel = new RpcChannel('host', worker.postMessage.bind(worker));
-        worker.onerror = e => console.error('onerror', e);
+        worker.onerror = e => consoleError('onerror', e);
         worker.onmessage = async event => {
             if (await rpcChannel.receiveMessage(event.data)) return;
         };
-        worker.onmessageerror = e => console.log('host: onmessageerror', e);
+        worker.onmessageerror = e => consoleError('host: onmessageerror', e);
 
         // make external fetch calls on behalf of the worker
         const bodies = new Bodies();

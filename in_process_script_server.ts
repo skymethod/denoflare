@@ -2,6 +2,7 @@ import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from 'http
 import { ApiKVNamespace } from './api_kv_namespace.ts';
 import { defineGlobals, dispatchFetchEvent } from './cloudflare_workers_runtime.ts';
 import { Binding, Credential } from './config.ts';
+import { consoleLog } from './console.ts';
 import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
 
 export class InProcessScriptServer {
@@ -22,7 +23,7 @@ export class InProcessScriptServer {
         let fetchListener: EventListener | undefined;
     
         const addEventListener = (type: string, listener: EventListener) => {
-            _consoleLog(`worker: addEventListener type=${type}`);
+            consoleLog(`worker: addEventListener type=${type}`);
             if (type === 'fetch') {
                 fetchListener = listener;
             }
@@ -38,16 +39,12 @@ export class InProcessScriptServer {
     }
 
     async fetch(request: Request, cfConnectingIp: string): Promise<Response> {
-        _consoleLog(`${request.method} ${request.url}`);
+        consoleLog(`${request.method} ${request.url}`);
         const req = new Request(request, { headers: [ ...request.headers, ['cf-connecting-ip', cfConnectingIp] ] });
         const response = await dispatchFetchEvent(req, { colo: 'DNO' }, this.fetchListener);
         return response;
     }
 }
-
-//
-
-const _consoleLog = console.log;
 
 //
 

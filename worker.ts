@@ -1,15 +1,14 @@
 // /// <reference lib="deno.worker" />
 
 import { dispatchFetchEvent } from './cloudflare_workers_runtime.ts';
+import { consoleLog } from './console.ts';
 import { Data, RpcChannel } from './rpc_channel.ts';
 import { addRequestHandlerForReadBodyChunk, Bodies, makeBodyResolverOverRpc, makeFetchOverRpc, packResponse, unpackRequest } from './rpc_fetch.ts';
 import { addRequestHandlerForRunScript } from './rpc_script.ts';
 import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
 
 (function() {
-    const _consoleLog = console.log;
-    
-    _consoleLog('worker: start');
+    consoleLog('worker: start');
     
     SubtleCryptoPolyfill.applyIfNecessary();
     
@@ -26,10 +25,10 @@ import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
     const rpcChannel = new RpcChannel('worker', selfWorker.postMessage.bind(selfWorker));
     selfWorker.onmessage = function(event) {
         if (rpcChannel.receiveMessage(event.data)) return;
-        _consoleLog('worker: onmessage', event.data);
+        consoleLog('worker: onmessage', event.data);
     };
     selfWorker.onmessageerror = function(event) {
-        _consoleLog('worker: onmessageerror', event);
+        consoleLog('worker: onmessageerror', event);
     };
     const bodies = new Bodies();
     globalThisAny.fetch = makeFetchOverRpc(rpcChannel, bodies);
@@ -37,14 +36,14 @@ import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
     let fetchListener: EventListener | undefined;
     
     const addEventListener = (type: string, listener: EventListener) => {
-        _consoleLog(`worker: addEventListener type=${type}`);
+        consoleLog(`worker: addEventListener type=${type}`);
         if (type === 'fetch') {
             fetchListener = listener;
         }
     }
     
     const afterScript = () => {
-        _consoleLog(`worker: afterScript fetchListener=${!!fetchListener}`);
+        consoleLog(`worker: afterScript fetchListener=${!!fetchListener}`);
 
         if (fetchListener !== undefined) {
             const fetchListenerF = fetchListener;

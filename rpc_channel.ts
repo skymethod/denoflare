@@ -1,3 +1,5 @@
+import { consoleLog } from './console.ts';
+
 // deno-lint-ignore no-explicit-any
 export type Data = any;
 
@@ -17,7 +19,7 @@ export class RpcChannel {
 
     async receiveMessage(data: Data): Promise<boolean> /*handled*/ {
         if (isRpcResponse(data)) {
-            _consoleLog(`${this.tag}: receiveMessage response ${data.rpcMethod}`);
+            consoleLog(`${this.tag}: receiveMessage response ${data.rpcMethod}`);
             const request = this.requests.get(data.num);
             if (request) {
                 this.requests.delete(data.num);
@@ -27,7 +29,7 @@ export class RpcChannel {
         }
 
         if (isRpcRequest(data)) {
-            _consoleLog(`${this.tag}: receiveMessage request ${data.rpcMethod}`);
+            consoleLog(`${this.tag}: receiveMessage request ${data.rpcMethod}`);
             const { rpcMethod, num } = data;
             const handler = this.requestDataHandlers.get(rpcMethod);
             if (handler) {
@@ -59,7 +61,6 @@ export class RpcChannel {
                 if (rpcResponse.rpcMethod !== rpcMethod) {
                     reject(new Error(`Bad rpcResponse.rpcMethod: ${rpcResponse.rpcMethod}, expected ${rpcMethod}`));
                 } else if (rpcResponse.responseKind === 'error') {
-                    // console.log('ERROR', rpcResponse);
                     reject(rpcResponse.error);
                 } else if (rpcResponse.responseKind === 'ok') {
                     resolve(unpackResponseDataFn(rpcResponse.data));
@@ -69,7 +70,7 @@ export class RpcChannel {
             }
         });
         const rpcRequest: RpcRequest = { requestKind: 'rpc', rpcMethod, num, data };
-        _consoleLog(`${this.tag}: sendRequest ${rpcRequest.rpcMethod}`);
+        consoleLog(`${this.tag}: sendRequest ${rpcRequest.rpcMethod}`);
         this.postMessage(rpcRequest, transfer);
         return rt;
     }
@@ -81,8 +82,6 @@ export class RpcChannel {
 }
 
 //
-
-const _consoleLog = console.log;
 
 function isRpcResponse(data: Data): data is RpcResponse {
     return typeof data.num === 'number' && typeof data.rpcMethod === 'string' && typeof data.responseKind === 'string';

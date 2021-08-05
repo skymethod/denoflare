@@ -1,5 +1,6 @@
 import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isSecretBinding, isTextBinding } from './config.ts';
 import { KVNamespace, DurableObjectNamespace, CfCache, CfCacheOptions, CfGlobalCaches } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { consoleWarn } from './console.ts';
 
 export function defineGlobals(bindings: Record<string, Binding>, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace) {
     // deno-lint-ignore no-explicit-any
@@ -22,8 +23,6 @@ export async function dispatchFetchEvent(request: Request, cf: { colo: string },
 }
 
 //
-
-const _consoleWarn = console.warn;
 
 function computeBindingValue(binding: Binding, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace): string | KVNamespace | DurableObjectNamespace {
     if (isTextBinding(binding)) return binding.value;
@@ -63,14 +62,14 @@ export class FetchEvent extends Event {
     }
 
     waitUntil(promise: Promise<unknown>) {
-        // _consoleLog('waitUntil', promise);
+        // consoleLog('waitUntil', promise);
         promise.then(() => { 
-            // _consoleLog(`waitUntil complete`); 
-        }, e => _consoleWarn(e));
+            // consoleLog(`waitUntil complete`); 
+        }, e => consoleWarn(e));
     }
 
     respondWith(responseFn: Promise<Response>) {
-        // _consoleLog('respondWith', responseFn);
+        // consoleLog('respondWith', responseFn);
         if (this.responseFn) throw new Error(`respondWith: already called`);
         this.responseFn = responseFn;
     }

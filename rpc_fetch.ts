@@ -1,3 +1,4 @@
+import { consoleLog } from './console.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
 export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies): (info: RequestInfo, init?: RequestInit) => Promise<Response> {
@@ -10,10 +11,10 @@ export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies): (info: Re
 export function makeBodyResolverOverRpc(channel: RpcChannel): BodyResolver {
     return bodyId => new ReadableStream({
         start(_controller)  {
-            // _consoleLog(`RpcBodyResolver(${bodyId}): start controller.desiredSize=${controller.desiredSize}`);
+            // consoleLog(`RpcBodyResolver(${bodyId}): start controller.desiredSize=${controller.desiredSize}`);
         },
         async pull(controller): Promise<void> {
-            // _consoleLog(`RpcBodyResolver(${bodyId}): pull controller.desiredSize=${controller.desiredSize}`);
+            // consoleLog(`RpcBodyResolver(${bodyId}): pull controller.desiredSize=${controller.desiredSize}`);
             const { value, done } = await channel.sendRequest('read-body-chunk', { bodyId }, responseData => {
                 return responseData as ReadableStreamReadResult<Uint8Array>;
             });
@@ -21,7 +22,7 @@ export function makeBodyResolverOverRpc(channel: RpcChannel): BodyResolver {
             if (done) controller.close();
         },
         cancel(reason) {
-            _consoleLog(`RpcBodyResolver(${bodyId}): cancel reason=${reason}`);
+            consoleLog(`RpcBodyResolver(${bodyId}): cancel reason=${reason}`);
         },
     });
 }
@@ -70,10 +71,6 @@ export function unpackRequest(packedRequest: PackedRequest, bodyResolver: BodyRe
     const body = bodyId === undefined ? undefined : bodyResolver(bodyId);
     return new Request(url, { method, headers, body });
 }
-
-//
-
-const _consoleLog = console.log;
 
 //
 

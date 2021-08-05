@@ -3,6 +3,7 @@ import { RpcChannel } from './rpc_channel.ts';
 import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
 import { RpcKVNamespace } from './rpc_kv_namespace.ts';
 import { defineGlobals } from './cloudflare_workers_runtime.ts';
+import { consoleError, consoleLog } from './console.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel, onSuccess: () => void) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -13,10 +14,10 @@ export function addRequestHandlerForRunScript(channel: RpcChannel, onSuccess: ()
             const b = new Blob([ scriptDef.scriptContents ]);
             const u = URL.createObjectURL(b);
             await import(u);
-            console.log(`worker: Ran script in ${Date.now() - start}ms`);
+            consoleLog(`worker: Ran script in ${Date.now() - start}ms`);
             onSuccess();
         } catch (e) {
-            console.error('worker: Error in run-script', e);
+            consoleError('worker: Error in run-script', e);
         }
     });
 }

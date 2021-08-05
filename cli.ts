@@ -1,4 +1,5 @@
 import { loadConfig, resolveBindings, resolveCredential } from './config_loader.ts';
+import { consoleError, consoleLog } from './console.ts';
 import { InProcessScriptServer } from "./in_process_script_server.ts";
 import { WorkerManager } from './worker_manager.ts';
 
@@ -16,6 +17,7 @@ const bindings = await resolveBindings(script.bindings, port);
 const credential = await resolveCredential(config);
 
 const runInProcess = !!script.localInProcess;
+consoleLog(`runInProcess=${runInProcess}`);
 
 const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
     if (runInProcess) {
@@ -26,12 +28,12 @@ const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
     
         // run the cloudflare worker script inside deno worker
         const runScript = async () => {
-            console.log(`runScript: ${script.path}`);
+            consoleLog(`runScript: ${script.path}`);
             const scriptContents = await Deno.readFile(script.path);
             try {
                 await workerManager.run(scriptContents, { bindings, credential });
             } catch (e) {
-                console.error(e);
+                consoleError('Error running script', e);
                 Deno.exit(1);
             }
         };
@@ -67,13 +69,13 @@ function memoize<T>(fn: () => Promise<T>): () => Promise<T> {
 }
 
 async function fetchExternalIp(): Promise<string> {
-    console.log('fetchExternalIp: Fetching...');
+    consoleLog('fetchExternalIp: Fetching...');
     const start = Date.now();
     const trace = await (await fetch('https://cloudflare.com/cdn-cgi/trace')).text();
     const m = /ip=([^\s]*)/.exec(trace);
     if (!m) throw new Error(`computeExternalIp: Unexpected trace: ${trace}`);
     const externalIp = m[1];
-    console.log(`fetchExternalIp: Determined to be ${externalIp} in ${Date.now() - start}ms`)
+    consoleLog(`fetchExternalIp: Determined to be ${externalIp} in ${Date.now() - start}ms`)
     return externalIp;
 }
 
@@ -84,21 +86,21 @@ async function handle(conn: Deno.Conn) {
     for await (const { request, respondWith } of httpConn) {
         try {
             const res = await localRequestServer.fetch(request, await computeExternalIp());
-            await respondWith(res).catch(e => console.log(`Error in respondWith`, e));
+            await respondWith(res).catch(e => consoleError(`Error in respondWith`, e));
         } catch (e) {
-            console.error('Error servicing request', e);
+            consoleError('Error servicing request', e);
         }
     }
 }
 
 const server = Deno.listen({ port });
-console.log(`Local server running on http://localhost:${port}`);
+consoleLog(`Local server running on http://localhost:${port}`);
 
 for await (const conn of server) {
-    handle(conn).catch(e => console.error('error in handle', e));
+    handle(conn).catch(e => consoleError('Error in handle', e));
 }
 
-console.log('end of cli');
+consoleLog('end of cli');
 
 //
 
