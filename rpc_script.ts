@@ -2,7 +2,7 @@ import { Binding } from './config.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
 import { RpcKVNamespace } from './rpc_kv_namespace.ts';
-import { defineGlobals } from './cloudflare_workers_runtime.ts';
+import { defineScriptGlobals } from './cloudflare_workers_runtime.ts';
 import { consoleError, consoleLog } from './console.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel, onSuccess: () => void) {
@@ -10,7 +10,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel, onSuccess: ()
         try {
             const start = Date.now();
             const scriptDef = requestData as ScriptDef;
-            defineGlobals(scriptDef.bindings, kvNamespace => new RpcKVNamespace(kvNamespace, channel), doNamespace => new DurableObjectNamespaceRpcClient(doNamespace));
+            defineScriptGlobals(scriptDef.bindings, kvNamespace => new RpcKVNamespace(kvNamespace, channel), doNamespace => new DurableObjectNamespaceRpcClient(doNamespace));
             const b = new Blob([ scriptDef.scriptContents ]);
             const u = URL.createObjectURL(b);
             await import(u);

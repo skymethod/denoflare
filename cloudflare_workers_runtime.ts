@@ -2,14 +2,24 @@ import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isSecretBinding, i
 import { KVNamespace, DurableObjectNamespace, CfCache, CfCacheOptions, CfGlobalCaches } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
 import { consoleWarn } from './console.ts';
 
-export function defineGlobals(bindings: Record<string, Binding>, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace) {
+export function defineModuleGlobals() {
     // deno-lint-ignore no-explicit-any
     const globalThisAny = globalThis as any;
-    for (const [ name, binding ] of Object.entries(bindings)) {
-        globalThisAny[name] = computeBindingValue(binding, kvNamespaceResolver, doNamespaceResolver);
-    }
     const caches: CfGlobalCaches = { default: new NoopCfCache() };
     globalThisAny['caches'] = caches;
+}
+
+export function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace) {
+    for (const [ name, binding ] of Object.entries(bindings)) {
+        target[name] = computeBindingValue(binding, kvNamespaceResolver, doNamespaceResolver);
+    }
+}
+
+export function defineScriptGlobals(bindings: Record<string, Binding>, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace) {
+    // deno-lint-ignore no-explicit-any
+    const globalThisAny = globalThis as any;
+    applyWorkerEnv(globalThisAny, bindings, kvNamespaceResolver, doNamespaceResolver);
+    defineModuleGlobals();
 }
 
 export async function dispatchFetchEvent(request: Request, cf: { colo: string }, listener: EventListener): Promise<Response> {

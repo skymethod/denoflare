@@ -21,7 +21,8 @@ consoleLog(`runInProcess=${runInProcess}`);
 
 const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
     if (runInProcess) {
-        return await InProcessScriptServer.start(script.path, bindings, credential);
+        const scriptType = script.path.endsWith('.ts') ? 'module' : 'script';
+        return await InProcessScriptServer.start(script.path, scriptType, bindings, credential);
     } else {
         // start the host for the permissionless deno workers
         const workerManager = await WorkerManager.start();

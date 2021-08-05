@@ -1,74 +1,102 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { ModuleWorkerContext } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
 import { ApiKVNamespace } from './api_kv_namespace.ts';
-import { defineGlobals, dispatchFetchEvent } from './cloudflare_workers_runtime.ts';
+import { applyWorkerEnv, defineModuleGlobals, defineScriptGlobals, dispatchFetchEvent } from './cloudflare_workers_runtime.ts';
 import { Binding, Credential } from './config.ts';
-import { consoleLog } from './console.ts';
+import { consoleLog, consoleWarn } from './console.ts';
+import { DurableObjectConstructor, InProcessDurableObjects } from './in_process_durable_objects.ts';
 import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
+import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 
 export class InProcessScriptServer {
 
-    private readonly fetchListener: EventListener;
+    private readonly handler: Handler;
 
-    private constructor(fetchListener: EventListener) {
-        this.fetchListener = fetchListener;
+    private constructor(handler: Handler) {
+        this.handler = handler;
     }
 
-    static async start(scriptPath: string, bindings: Record<string, Binding>, credential: Credential): Promise<InProcessScriptServer> {
+    static async start(scriptPath: string, scriptType: 'script' | 'module', bindings: Record<string, Binding>, credential: Credential): Promise<InProcessScriptServer> {
         const { accountId, apiToken } = credential;
 
         SubtleCryptoPolyfill.applyIfNecessary();
 
-        defineGlobals(bindings, kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace), doNamespace => new UnimplementedDurableObjectNamespace(doNamespace));
-
-        let fetchListener: EventListener | undefined;
-    
-        const addEventListener = (type: string, listener: EventListener) => {
-            consoleLog(`worker: addEventListener type=${type}`);
-            if (type === 'fetch') {
-                fetchListener = listener;
+        if (scriptType === 'module') {
+            defineModuleGlobals();
+            const module = await import(scriptPath);
+            consoleLog(module);
+            const moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor> = {};
+            for (const [ name, value ] of Object.entries(module)) {
+                if (typeof value === 'function') {
+                    moduleWorkerExportedFunctions[name] = value as DurableObjectConstructor;
+                }
             }
-        };
-        // deno-lint-ignore no-explicit-any
-        (self as any).addEventListener = addEventListener;
+            const moduleWorkerEnv: Record<string, unknown> = {};
+            const objects = new InProcessDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
+            applyWorkerEnv(moduleWorkerEnv, bindings, kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace), doNamespace => objects.resolveDoNamespace(doNamespace));
+            if (module === undefined) throw new Error('Bad module: undefined');
+            if (module.default === undefined) throw new Error('Bad module.default: undefined');
+            if (typeof module.default.fetch !== 'function') throw new Error(`Bad module.default.fetch: ${typeof module.default.fetch}`);
+            return new InProcessScriptServer({ kind: 'module', fetch: module.default.fetch, moduleWorkerEnv });
+        } else {
+            defineScriptGlobals(bindings, kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace), doNamespace => new UnimplementedDurableObjectNamespace(doNamespace));
 
-        await import(scriptPath);
+            let fetchListener: EventListener | undefined;
+        
+            const addEventListener = (type: string, listener: EventListener) => {
+                consoleLog(`worker: addEventListener type=${type}`);
+                if (type === 'fetch') {
+                    fetchListener = listener;
+                }
+            };
+            // deno-lint-ignore no-explicit-any
+            (self as any).addEventListener = addEventListener;
 
-        if (fetchListener === undefined) throw new Error(`Script did not add a fetch listener`);
+            await import(scriptPath);
 
-        return new InProcessScriptServer(fetchListener);
+            if (fetchListener === undefined) throw new Error(`Script did not add a fetch listener`);
+
+            return new InProcessScriptServer({ kind: 'script', fetchListener });
+        }
     }
 
     async fetch(request: Request, cfConnectingIp: string): Promise<Response> {
         consoleLog(`${request.method} ${request.url}`);
         const req = new Request(request, { headers: [ ...request.headers, ['cf-connecting-ip', cfConnectingIp] ] });
-        const response = await dispatchFetchEvent(req, { colo: 'DNO' }, this.fetchListener);
-        return response;
+        if (this.handler.kind === 'script') {
+            return await dispatchFetchEvent(req, { colo: 'DNO' }, this.handler.fetchListener);
+        } else {
+            return await this.handler.fetch(req, this.handler.moduleWorkerEnv, new DefaultModuleWorkerContext()); 
+        }
     }
 }
 
 //
 
-class UnimplementedDurableObjectNamespace implements DurableObjectNamespace {
-    readonly doNamespace: string;
+type Handler = ScriptHandler | ModuleHandler;
 
-    constructor(doNamespace: string) {
-        this.doNamespace = doNamespace;
+interface ScriptHandler {
+    readonly kind: 'script';
+    readonly fetchListener: EventListener;
+}
+
+interface ModuleHandler {
+    readonly kind: 'module';
+    readonly moduleWorkerEnv: Record<string, unknown>;
+    // deno-lint-ignore no-explicit-any
+    fetch(request: Request, env: any, ctx: ModuleWorkerContext): Promise<Response>;
+}
+
+class DefaultModuleWorkerContext implements ModuleWorkerContext {
+
+    passThroughOnException(): void {
+        // noop
     }
 
-    newUniqueId(_opts?: { jurisdiction: 'eu' }): DurableObjectId {
-        throw new Error(`UnimplementedDurableObjectNamespace.newUniqueId not implemented.`);
-    }
-
-    idFromName(_name: string): DurableObjectId {
-        throw new Error(`UnimplementedDurableObjectNamespace.idFromName not implemented.`);
-    }
-
-    idFromString(_hexStr: string): DurableObjectId {
-        throw new Error(`UnimplementedDurableObjectNamespace.idFromString not implemented.`);
-    }
-
-    get(_id: DurableObjectId): DurableObjectStub {
-        throw new Error(`UnimplementedDurableObjectNamespace.get not implemented.`);
+    waitUntil(promise: Promise<unknown>): void {
+        // consoleLog('waitUntil', promise);
+        promise.then(() => { 
+            // consoleLog(`waitUntil complete`); 
+        }, e => consoleWarn(e));
     }
 
 }
