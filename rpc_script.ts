@@ -1,6 +1,6 @@
 import { Binding } from './config.ts';
 import { RpcChannel } from './rpc_channel.ts';
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from './deps_cf.ts';
 import { RpcKVNamespace } from './rpc_kv_namespace.ts';
 import { defineScriptGlobals } from './cloudflare_workers_runtime.ts';
 import { consoleError, consoleLog } from './console.ts';

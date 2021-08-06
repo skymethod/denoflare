@@ -1,4 +1,4 @@
-import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVValueAndMetadata, KVPutOptions } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVValueAndMetadata, KVPutOptions } from './deps_cf.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
 export function addRequestHandlerForRpcKvNamespace(channel: RpcChannel, kvNamespaceResolver: (kvNamespace: string) => KVNamespace) {

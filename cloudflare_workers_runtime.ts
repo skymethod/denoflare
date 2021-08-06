@@ -1,5 +1,5 @@
 import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isSecretBinding, isTextBinding } from './config.ts';
-import { KVNamespace, DurableObjectNamespace, CfCache, CfCacheOptions, CfGlobalCaches } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { KVNamespace, DurableObjectNamespace, CfCache, CfCacheOptions, CfGlobalCaches } from './deps_cf.ts';
 import { consoleWarn } from './console.ts';
 
 export function defineModuleGlobals() {

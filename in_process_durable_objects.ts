@@ -1,9 +1,11 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage } from './deps_cf.ts';
+import { Bytes } from './bytes.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 
 export class InProcessDurableObjects {
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
     private readonly moduleWorkerEnv: Record<string, unknown>;
+    private readonly durableObjects = new Map<string, Map<string, DurableObject>>(); // className -> hex id -> do
 
     constructor(moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>, moduleWorkerEnv: Record<string, unknown>) {
         this.moduleWorkerExportedFunctions = moduleWorkerExportedFunctions;
@@ -13,14 +15,36 @@ export class InProcessDurableObjects {
     resolveDoNamespace(doNamespace: string): DurableObjectNamespace {
         if (doNamespace.startsWith('local:')) {
             const className = doNamespace.substring('local:'.length);
-            const ctor = this.moduleWorkerExportedFunctions[className];
-            if (ctor === undefined) throw new Error(`Durable object class '${className}' not found, candidates: ${Object.keys(this.moduleWorkerExportedFunctions).join(', ')}`);
-            const state: DurableObjectState = new LocalDurableObjectState();
-            const durableObject = new ctor(state, this.moduleWorkerEnv);
-            return new LocalDurableObjectNamespace(durableObject);
-    
+            this.findConstructorForClassName(className); // will throw if not found
+            return new LocalDurableObjectNamespace(className, this.resolveDurableObject.bind(this));
         }
         return new UnimplementedDurableObjectNamespace(doNamespace);
+    }
+
+    //
+
+    private findConstructorForClassName(className: string): DurableObjectConstructor {
+        const ctor = this.moduleWorkerExportedFunctions[className];
+        if (ctor === undefined) throw new Error(`Durable object class '${className}' not found, candidates: ${Object.keys(this.moduleWorkerExportedFunctions).join(', ')}`);
+        return ctor;
+    }
+
+    private resolveDurableObject(className: string, id: DurableObjectId): DurableObject {
+        const idStr = id.toString();
+        let classObjects = this.durableObjects.get(className);
+        if (classObjects !== undefined) {
+            const existing = classObjects.get(idStr);
+            if (existing) return existing;
+        }
+        const ctor = this.findConstructorForClassName(className);
+        const state: DurableObjectState = new LocalDurableObjectState();
+        const durableObject = new ctor(state, this.moduleWorkerEnv);
+        if (classObjects === undefined) {
+            classObjects = new Map();
+            this.durableObjects.set(className, classObjects);
+        }
+        classObjects.set(idStr, durableObject);
+        return durableObject;
     }
 
 }
@@ -34,27 +58,63 @@ export interface DurableObject {
 //
 
 class LocalDurableObjectNamespace implements DurableObjectNamespace {
+    private readonly className: string;
+    private readonly resolver: DurableObjectResolver;
 
-    private readonly durableObject: DurableObject;
-
-    constructor(durableObject: DurableObject) {
-        this.durableObject = durableObject;
+    constructor(className: string, resolver: DurableObjectResolver) {
+        this.className = className;
+        this.resolver = resolver;
     }
 
     newUniqueId(_opts?: { jurisdiction: 'eu' }): DurableObjectId {
         throw new Error(`LocalDurableObjectNamespace.newUniqueId not implemented.`);
     }
 
-    idFromName(_name: string): DurableObjectId {
-        throw new Error(`LocalDurableObjectNamespace.idFromName not implemented.`);
+    idFromName(name: string): DurableObjectId {
+        return new LocalDurableObjectId(Bytes.ofUtf8(name).hex());
     }
 
-    idFromString(_hexStr: string): DurableObjectId {
-        throw new Error(`LocalDurableObjectNamespace.idFromString not implemented.`);
+    idFromString(hexStr: string): DurableObjectId {
+        return new LocalDurableObjectId(hexStr);
     }
 
-    get(_id: DurableObjectId): DurableObjectStub {
-        throw new Error(`LocalDurableObjectNamespace.get not implemented.`);
+    get(id: DurableObjectId): DurableObjectStub {
+        return new LocalDurableObjectStub(this.className, id, this.resolver);
+    }
+}
+
+type DurableObjectResolver = (className: string, id: DurableObjectId) => DurableObject;
+
+class LocalDurableObjectStub implements DurableObjectStub {
+    private readonly className: string;
+    private readonly id: DurableObjectId;
+    private readonly resolver: DurableObjectResolver;
+
+    constructor(className: string, id: DurableObjectId, resolver: DurableObjectResolver) {
+        this.className = className;
+        this.id = id;
+        this.resolver = resolver;
+    }
+
+    fetch(url: RequestInfo, init?: RequestInit): Promise<Response> {
+        if (typeof url === 'string' && url.startsWith('/')) {
+            url = 'https://fake-host' + url;
+        }
+        const req = typeof url === 'string' ? new Request(url, init) : init ? new Request(url, init) : url;
+        return this.resolver(this.className, this.id).fetch(req);
+    }
+
+}
+
+class LocalDurableObjectId implements DurableObjectId {
+    private readonly hexString: string;
+
+    constructor(hexString: string) {
+        this.hexString = hexString;
+    }
+
+    toString(): string {
+        return this.hexString;
     }
 }
 

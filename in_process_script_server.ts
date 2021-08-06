@@ -1,4 +1,4 @@
-import { ModuleWorkerContext } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { ModuleWorkerContext } from './deps_cf.ts';
 import { ApiKVNamespace } from './api_kv_namespace.ts';
 import { applyWorkerEnv, defineModuleGlobals, defineScriptGlobals, dispatchFetchEvent } from './cloudflare_workers_runtime.ts';
 import { Binding, Credential } from './config.ts';

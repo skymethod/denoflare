@@ -1,4 +1,4 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from 'https://github.com/skymethod/cloudflare-workers-types/raw/ab2ff7fd2ce19f35efdf0ab0fdcf857404ab0c17/cloudflare_workers_types.d.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from './deps_cf.ts';
 
 export class UnimplementedDurableObjectNamespace implements DurableObjectNamespace {
     readonly doNamespace: string;
