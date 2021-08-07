@@ -86,7 +86,9 @@ async function handle(conn: Deno.Conn) {
     const httpConn = Deno.serveHttp(conn);
     for await (const { request, respondWith } of httpConn) {
         try {
-            const res = await localRequestServer.fetch(request, await computeExternalIp());
+            const cfConnectingIp = await computeExternalIp();
+            const hostname = script.localHostname;
+            const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
             await respondWith(res).catch(e => consoleError(`Error in respondWith`, e));
         } catch (e) {
             consoleError('Error servicing request', e);
@@ -106,5 +108,5 @@ consoleLog('end of cli');
 //
 
 interface LocalRequestServer {
-    fetch(request: Request, cfConnectingIp: string): Promise<Response>;
+    fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response>;
 }

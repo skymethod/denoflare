@@ -30,6 +30,7 @@ export interface Script {
     readonly path: string;
     readonly bindings: Record<string, Binding>;
     readonly localPort?: number;
+    readonly localHostname?: string;
     readonly localInProcess?: boolean;
 }
 

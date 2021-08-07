@@ -67,8 +67,10 @@ export class WorkerManager {
         this.currentWorker = { worker, rpcChannel, bodies };
     }
 
-    async fetch(request: Request, cfConnectingIp: string): Promise<Response> {
+    async fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response> {
         const { currentWorker } = this;
+        const { cfConnectingIp } = opts;
+        // TODO implement hostname
         if (currentWorker === undefined) throw new Error(`Must call run() before calling fetch()`);
         const { bodies, rpcChannel } = currentWorker;
         const packedRequest = packRequest(request, undefined, bodies);

@@ -3,10 +3,8 @@ import { KVNamespace, DurableObjectNamespace, CfCache, CfCacheOptions, CfGlobalC
 import { consoleWarn } from './console.ts';
 
 export function defineModuleGlobals() {
-    // deno-lint-ignore no-explicit-any
-    const globalThisAny = globalThis as any;
-    const caches: CfGlobalCaches = { default: new NoopCfCache() };
-    globalThisAny['caches'] = caches;
+    defineGlobalCaches();
+    redefineGlobalFetch();
 }
 
 export function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace) {
@@ -16,10 +14,8 @@ export function applyWorkerEnv(target: Record<string, unknown>, bindings: Record
 }
 
 export function defineScriptGlobals(bindings: Record<string, Binding>, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace) {
-    // deno-lint-ignore no-explicit-any
-    const globalThisAny = globalThis as any;
-    applyWorkerEnv(globalThisAny, bindings, kvNamespaceResolver, doNamespaceResolver);
-    defineModuleGlobals();
+    applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceResolver, doNamespaceResolver);
+    defineGlobalCaches();
 }
 
 export async function dispatchFetchEvent(request: Request, cf: { colo: string }, listener: EventListener): Promise<Response> {
@@ -33,6 +29,36 @@ export async function dispatchFetchEvent(request: Request, cf: { colo: string },
 }
 
 //
+
+const _fetch = fetch;
+
+function redefineGlobalFetch() {
+    // https://github.com/denoland/deno/issues/7660
+
+    // deno-lint-ignore no-explicit-any
+    const fetchFromDeno = function(arg1: any, arg2: any) {
+        if (typeof arg1 === 'string' && arg2 === undefined) {
+            let url = arg1 as string;
+            if (url.startsWith('https://1.1.1.1/')) {
+                url = 'https://one.one.one.one/' + url.substring('https://1.1.1.1/'.length);
+            }
+            arg1 = url;
+        }
+        return _fetch(arg1, arg2);
+    };
+
+    globalThisAsAny().fetch = fetchFromDeno;
+}
+
+function defineGlobalCaches() {
+    const caches: CfGlobalCaches = { default: new NoopCfCache() };
+    globalThisAsAny()['caches'] = caches;
+}
+
+// deno-lint-ignore no-explicit-any
+function globalThisAsAny(): any {
+    return globalThis;
+}
 
 function computeBindingValue(binding: Binding, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace): string | KVNamespace | DurableObjectNamespace {
     if (isTextBinding(binding)) return binding.value;

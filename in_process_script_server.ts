@@ -59,15 +59,31 @@ export class InProcessScriptServer {
         }
     }
 
-    async fetch(request: Request, cfConnectingIp: string): Promise<Response> {
+    async fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response> {
         consoleLog(`${request.method} ${request.url}`);
+        const { cfConnectingIp, hostname } = opts;
+        if (hostname) request = cloneRequestWithHostname(request, hostname);
         const req = new Request(request, { headers: [ ...request.headers, ['cf-connecting-ip', cfConnectingIp] ] });
+        const cf = { colo: 'DNO' };
         if (this.handler.kind === 'script') {
-            return await dispatchFetchEvent(req, { colo: 'DNO' }, this.handler.fetchListener);
+            return await dispatchFetchEvent(req, cf, this.handler.fetchListener);
         } else {
+            // deno-lint-ignore no-explicit-any
+            (req as any).cf = cf;
             return await this.handler.fetch(req, this.handler.moduleWorkerEnv, new DefaultModuleWorkerContext()); 
         }
     }
+}
+
+//
+
+function cloneRequestWithHostname(request: Request, hostname: string): Request {
+    const url = new URL(request.url);
+    if (url.hostname === hostname) return request;
+    const newUrl = url.origin.replace(url.host, hostname) + request.url.substring(url.origin.length);
+    // console.log(`${url} + ${hostname} = ${newUrl}`);
+    const { method, headers, body } = request;
+    return new Request(newUrl, { method, headers, body });
 }
 
 //

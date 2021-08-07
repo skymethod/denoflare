@@ -1,5 +1,5 @@
 import { CryptoKey, HmacImportParams, SubtleCrypto } from './subtle_crypto_types.d.ts';
-import { HmacSha256 } from 'https://deno.land/std@0.103.0/hash/sha256.ts';
+import { HmacSha256, Sha256 } from 'https://deno.land/std@0.103.0/hash/sha256.ts';
 import { Sha1 } from 'https://deno.land/std@0.103.0/hash/sha1.ts';
 
 // https://deno.land/std@0.103.0/hash
@@ -31,6 +31,9 @@ export class SubtleCryptoPolyfill implements SubtleCrypto {
     digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer> {
         if (algorithm === 'SHA-1') {
             return Promise.resolve(new Sha1().update(data).arrayBuffer());
+        }
+        if (algorithm === 'SHA-256') {
+            return Promise.resolve(new Sha256().update(data).arrayBuffer());
         }
         throw new Error(`digest not implemented: algorithm=${algorithm} data.length=${data.length}`);
     }
