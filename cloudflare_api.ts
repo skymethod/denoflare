@@ -50,6 +50,11 @@ export async function getKeyValue(accountId: string, namespaceId: string, key: s
     return await execute('getKeyValue', 'GET', url, apiToken, undefined, 'bytes');
 }
 
+export async function getKeyMetadata(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Record<string, string>> {
+    const url = `${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/metadata/${key}`;
+    return (await execute('getKeyMetadata', 'GET', url, apiToken, undefined) as GetKeyMetadataResponse).result;
+}
+
 //#endregion
 
 //
@@ -152,4 +157,8 @@ export interface DeleteScriptResponse extends CloudflareApiResponse {
 
 export interface DeleteScriptResult {
     readonly id: string;
+}
+
+export interface GetKeyMetadataResponse extends CloudflareApiResponse {
+    readonly result: Record<string, string>;
 }

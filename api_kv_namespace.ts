@@ -1,5 +1,5 @@
 import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVPutOptions, KVValueAndMetadata } from './deps_cf.ts';
-import { getKeyValue } from './cloudflare_api.ts';
+import { getKeyMetadata, getKeyValue } from './cloudflare_api.ts';
 
 export class ApiKVNamespace implements KVNamespace {
 
@@ -22,8 +22,14 @@ export class ApiKVNamespace implements KVNamespace {
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'arrayBuffer' }): Promise<KVValueAndMetadata<ArrayBuffer> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'stream' }): Promise<KVValueAndMetadata<ReadableStream> | null>;
     // deno-lint-ignore no-explicit-any
-    getWithMetadata(_key: any, _opts: any): Promise<any> {
-        throw new Error(`ApiKVNamespace.getWithMetadata not implemented.`);
+    async getWithMetadata(key: string, opts: any): Promise<any> {
+        const bytes = await getKeyValue(this.accountId, this.namespaceId, key, this.apiToken);
+        const metadata = await getKeyMetadata(this.accountId, this.namespaceId, key, this.apiToken);
+        if (opts.type === 'arrayBuffer') {
+            const rt: KVValueAndMetadata<ArrayBuffer> = { value: bytes.buffer, metadata };
+            return rt;
+        }
+        throw new Error(`ApiKVNamespace.getWithMetadata not implemented. key=${key} opts=${JSON.stringify(opts)}`);
     } 
     
     put(_key: string, _value: string | ReadableStream | ArrayBuffer, _opts?: KVPutOptions): Promise<void> {

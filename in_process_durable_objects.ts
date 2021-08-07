@@ -257,7 +257,7 @@ class InMemoryDurableObjectStorage implements DurableObjectStorage {
         return this._delete(keyOrKeys, opts);
     }
 
-    _delete(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
+    _delete(_keyOrKeys: string | readonly string[], _opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
         throw new Error(`InMemoryDurableObjectStorage.delete not implemented`);
     }
    
