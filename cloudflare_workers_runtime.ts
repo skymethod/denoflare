@@ -20,6 +20,7 @@ export function applyWorkerEnv(target: Record<string, unknown>, bindings: Record
 export function defineScriptGlobals(bindings: Record<string, Binding>, kvNamespaceResolver: (kvNamespace: string) => KVNamespace, doNamespaceResolver: (doNamespace: string) => DurableObjectNamespace) {
     applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceResolver, doNamespaceResolver);
     defineGlobalCaches();
+    redefineGlobalResponse();
 }
 
 export async function dispatchFetchEvent(request: Request, cf: { colo: string }, listener: EventListener): Promise<Response> {

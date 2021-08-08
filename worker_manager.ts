@@ -1,6 +1,7 @@
 import { ApiKVNamespace } from './api_kv_namespace.ts';
 import { Credential, Binding } from './config.ts';
 import { consoleError, consoleLog } from './console.ts';
+import { cloneRequestWithHostname } from './fetch_util.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from './rpc_fetch.ts';
 import { addRequestHandlerForRpcKvNamespace } from './rpc_kv_namespace.ts';
@@ -69,11 +70,10 @@ export class WorkerManager {
 
     async fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response> {
         const { currentWorker } = this;
-        const { cfConnectingIp } = opts;
-        // TODO implement hostname
+        const { cfConnectingIp, hostname } = opts;
         if (currentWorker === undefined) throw new Error(`Must call run() before calling fetch()`);
         const { bodies, rpcChannel } = currentWorker;
-        const packedRequest = packRequest(request, undefined, bodies);
+        const packedRequest = packRequest(hostname ? cloneRequestWithHostname(request, hostname) : request, undefined, bodies);
         packedRequest.headers.push(['cf-connecting-ip', cfConnectingIp]);
         const res = await rpcChannel.sendRequest('fetch', packedRequest, responseData => {
             return unpackResponse(responseData, makeBodyResolverOverRpc(rpcChannel));

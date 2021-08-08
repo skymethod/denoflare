@@ -80,11 +80,13 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
     }
     const fetchResponse = await fetch(url, { method, headers, body });
     const contentType = fetchResponse.headers.get('Content-Type') || '';
-    if (responseType === 'bytes' && contentType === APPLICATION_OCTET_STREAM) {
+    if ((responseType === 'bytes' || responseType === 'bytes?') && contentType === APPLICATION_OCTET_STREAM) {
         const buffer = await fetchResponse.arrayBuffer();
         return new Uint8Array(buffer);
     }
-    if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType)) throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+    if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType)) {
+        throw new Error(`Unexpected content-type: ${contentType},  fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+    }
     const apiResponse = await fetchResponse.json() as CloudflareApiResponse;
     if (DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {

@@ -2,6 +2,7 @@
 
 import { dispatchFetchEvent } from './cloudflare_workers_runtime.ts';
 import { consoleLog } from './console.ts';
+import { DenoflareResponse } from './denoflare_response.ts';
 import { Data, RpcChannel } from './rpc_channel.ts';
 import { addRequestHandlerForReadBodyChunk, Bodies, makeBodyResolverOverRpc, makeFetchOverRpc, packResponse, unpackRequest } from './rpc_fetch.ts';
 import { addRequestHandlerForRunScript } from './rpc_script.ts';
@@ -50,7 +51,10 @@ import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
             addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
             rpcChannel.addRequestHandler('fetch', async requestData => {
                 const request = unpackRequest(requestData, makeBodyResolverOverRpc(rpcChannel));
-                const response = await dispatchFetchEvent(request, { colo: 'DNO' }, fetchListenerF)
+                let response = await dispatchFetchEvent(request, { colo: 'DNO' }, fetchListenerF);
+                if (DenoflareResponse.is(response)) {
+                    response = response.toRealResponse();
+                }
                 const responseData = packResponse(response, bodies);
                 return responseData;
             });

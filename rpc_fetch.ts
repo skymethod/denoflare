@@ -1,4 +1,5 @@
 import { consoleLog } from './console.ts';
+import { DenoflareResponse } from './denoflare_response.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
 export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies): (info: RequestInfo, init?: RequestInit) => Promise<Response> {
@@ -40,15 +41,28 @@ export type BodyResolver = (bodyId: number) => ReadableStream<Uint8Array>;
 export function packResponse(response: Response, bodies: Bodies): PackedResponse {
     const { status } = response;
     const headers = [...response.headers.entries()];
+    if (DenoflareResponse.is(response)) {
+        if (typeof response.bodyInit === 'string') {
+            const bodyText = response.bodyInit;
+            return { status, headers, bodyId: undefined, bodyText };
+        } else if (response.bodyInit instanceof ReadableStream) {
+            const bodyId = bodies.computeBodyId(response.bodyInit);
+            return { status, headers, bodyId, bodyText: undefined };
+        } else {
+            throw new Error(`packResponse: DenoflareResponse bodyInit=${response.bodyInit}`);
+        }
+    }
     const bodyId = bodies.computeBodyId(response.body);
-    return { status, headers, bodyId };
+    return { status, headers, bodyId, bodyText: undefined };
 }
 
+const _Response = Response;
+
 export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolver): Response {
-    const { status, bodyId } = packed;
+    const { status, bodyId, bodyText } = packed;
     const headers = new Headers(packed.headers);
-    const body = bodyId === undefined ? undefined : bodyResolver(bodyId);
-    return new Response(body, { status, headers });
+    const body = bodyText !== undefined ? bodyText : bodyId === undefined ? undefined : bodyResolver(bodyId);
+    return new _Response(body, { status, headers });
 }
 
 export function packRequest(info: RequestInfo, init: RequestInit |  undefined, bodies: Bodies): PackedRequest {
@@ -85,6 +99,7 @@ export interface PackedResponse {
     readonly status: number;
     readonly headers: [string, string][];
     readonly bodyId: number | undefined;
+    readonly bodyText: string | undefined;
 }
 
 export class Bodies {

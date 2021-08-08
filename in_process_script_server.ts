@@ -6,6 +6,7 @@ import { consoleLog, consoleWarn } from './console.ts';
 import { DurableObjectConstructor, InProcessDurableObjects } from './in_process_durable_objects.ts';
 import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
+import { cloneRequestWithHostname } from './fetch_util.ts';
 
 export class InProcessScriptServer {
 
@@ -43,7 +44,7 @@ export class InProcessScriptServer {
             let fetchListener: EventListener | undefined;
         
             const addEventListener = (type: string, listener: EventListener) => {
-                consoleLog(`worker: addEventListener type=${type}`);
+                consoleLog(`script: addEventListener type=${type}`);
                 if (type === 'fetch') {
                     fetchListener = listener;
                 }
@@ -73,18 +74,6 @@ export class InProcessScriptServer {
             return await this.handler.fetch(req, this.handler.moduleWorkerEnv, new DefaultModuleWorkerContext());
         }
     }
-}
-
-//
-
-function cloneRequestWithHostname(request: Request, hostname: string): Request {
-    const url = new URL(request.url);
-    if (url.hostname === hostname) return request;
-    const newUrl = url.origin.replace(url.host, hostname) + request.url.substring(url.origin.length);
-    console.log(`${url} + ${hostname} = ${newUrl}`);
-    const { method, headers } = request;
-    const body = (method === 'GET' || method === 'HEAD') ? undefined : request.body;
-    return new Request(newUrl, { method, headers, body });
 }
 
 //
