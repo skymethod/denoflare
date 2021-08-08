@@ -11,6 +11,7 @@ export class ApiKVNamespace implements KVNamespace {
     // deno-lint-ignore no-explicit-any
     async get(key: any, opts: any): Promise<any> {
         const bytes = await getKeyValue(this.accountId, this.namespaceId, key, this.apiToken);
+        if (bytes === undefined) return null;
         if (opts.type === 'arrayBuffer') {
             return bytes.buffer;
         }
@@ -24,6 +25,7 @@ export class ApiKVNamespace implements KVNamespace {
     // deno-lint-ignore no-explicit-any
     async getWithMetadata(key: string, opts: any): Promise<any> {
         const bytes = await getKeyValue(this.accountId, this.namespaceId, key, this.apiToken);
+        if (bytes === undefined) return null;
         const metadata = await getKeyMetadata(this.accountId, this.namespaceId, key, this.apiToken);
         if (opts.type === 'arrayBuffer') {
             const rt: KVValueAndMetadata<ArrayBuffer> = { value: bytes.buffer, metadata };

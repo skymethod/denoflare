@@ -70,7 +70,7 @@ export class InProcessScriptServer {
         } else {
             // deno-lint-ignore no-explicit-any
             (req as any).cf = cf;
-            return await this.handler.fetch(req, this.handler.moduleWorkerEnv, new DefaultModuleWorkerContext()); 
+            return await this.handler.fetch(req, this.handler.moduleWorkerEnv, new DefaultModuleWorkerContext());
         }
     }
 }
@@ -81,8 +81,9 @@ function cloneRequestWithHostname(request: Request, hostname: string): Request {
     const url = new URL(request.url);
     if (url.hostname === hostname) return request;
     const newUrl = url.origin.replace(url.host, hostname) + request.url.substring(url.origin.length);
-    // console.log(`${url} + ${hostname} = ${newUrl}`);
-    const { method, headers, body } = request;
+    console.log(`${url} + ${hostname} = ${newUrl}`);
+    const { method, headers } = request;
+    const body = (method === 'GET' || method === 'HEAD') ? undefined : request.body;
     return new Request(newUrl, { method, headers, body });
 }
 

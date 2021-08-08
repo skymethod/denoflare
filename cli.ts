@@ -1,6 +1,7 @@
 import { loadConfig, resolveBindings, resolveCredential } from './config_loader.ts';
 import { consoleError, consoleLog } from './console.ts';
-import { InProcessScriptServer } from "./in_process_script_server.ts";
+import { DenoflareResponse } from './denoflare_response.ts';
+import { InProcessScriptServer } from './in_process_script_server.ts';
 import { WorkerManager } from './worker_manager.ts';
 
 if (Deno.args.length === 0) {
@@ -88,8 +89,34 @@ async function handle(conn: Deno.Conn) {
         try {
             const cfConnectingIp = await computeExternalIp();
             const hostname = script.localHostname;
-            const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
-            await respondWith(res).catch(e => consoleError(`Error in respondWith`, e));
+            const upgrade = request.headers.get('upgrade') || undefined;
+            if (upgrade !== undefined) {
+                // websocket upgrade request
+                if (upgrade !== 'websocket') throw new Error(`Unsupported upgrade: ${upgrade}`);
+                const { websocket, response } = Deno.upgradeWebSocket(request);
+                websocket.onopen = () => consoleLog('cli: socket opened');
+                websocket.onmessage = (e) => {
+                    consoleLog('cli: socket message:', e.data);
+                };
+                websocket.onerror = (e) => consoleLog('cli: socket errored:', e);
+                websocket.onclose = () => consoleLog('cli: socket closed');
+
+                const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
+                if (DenoflareResponse.is(res) && res.init && res.init.webSocket) {
+                    if (res.init?.status !== 101) throw new Error(`Bad response status: expected 101, found ${res.init?.status}`);
+                    const serverWebsocket = res.getDenoflareServerWebSocket();
+                    if (serverWebsocket === undefined) throw new Error(`Bad response: expected websocket`);
+                    serverWebsocket.setRealWebsocket(websocket);
+                }
+                await respondWith(response).catch(e => consoleError(`Error in respondWith`, e));
+            } else {
+                // normal request
+                let res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
+                if (DenoflareResponse.is(res)) {
+                    res = res.toRealResponse();
+                }
+                await respondWith(res).catch(e => consoleError(`Error in respondWith`, e));
+            }
         } catch (e) {
             consoleError('Error servicing request', e);
         }

@@ -45,9 +45,9 @@ export async function deleteScript(accountId: string, scriptName: string, apiTok
 
 //#region Workers KV
 
-export async function getKeyValue(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Uint8Array> {
+export async function getKeyValue(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Uint8Array | undefined> {
     const url = `${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/values/${key}`;
-    return await execute('getKeyValue', 'GET', url, apiToken, undefined, 'bytes');
+    return await execute('getKeyValue', 'GET', url, apiToken, undefined, 'bytes?');
 }
 
 export async function getKeyMetadata(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Record<string, string>> {
@@ -71,7 +71,8 @@ function computeAccountBaseUrl(accountId: string): string {
 
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType: 'json' | 'bytes' = 'json'): Promise<CloudflareApiResponse | Uint8Array> {
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType: 'json' | 'bytes' | 'bytes?' = 'json'): Promise<CloudflareApiResponse | Uint8Array | undefined> {
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     if (typeof body === 'string') {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
@@ -87,7 +88,8 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
     const apiResponse = await fetchResponse.json() as CloudflareApiResponse;
     if (DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
-        throw new Error(`${op} failed: errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`);
+        if (fetchResponse.status === 404 && responseType === 'bytes?') return undefined;
+        throw new Error(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`);
     }
     return apiResponse;
 }
