@@ -72,9 +72,27 @@ export function packRequest(info: RequestInfo, init: RequestInit |  undefined, b
         const headers = [...info.headers.entries()];
         const bodyId = bodies.computeBodyId(info.body);
         return { method, url, headers, bodyId };
-    } else if (typeof info === 'string' && init === undefined) {
+    } else if (typeof info === 'string') {
         // url String
-        return { method: 'GET', url: info, headers: [], bodyId: undefined };
+        const url = info;
+        let method = 'GET';
+        let headers: [string, string][] = [];
+        if (init !== undefined) {
+            if (init.method !== undefined) method = init.method;
+            if (init.headers !== undefined) headers = [...new Headers(init.headers).entries()];
+            if (init.body !== undefined) throw new Error(`packRequest: init.body`);
+            if (init.cache !== undefined) throw new Error(`packRequest: init.cache`);
+            if (init.credentials !== undefined) throw new Error(`packRequest: init.credentials`);
+            if (init.integrity !== undefined) throw new Error(`packRequest: init.integrity`);
+            if (init.keepalive !== undefined) throw new Error(`packRequest: init.keepalive`);
+            if (init.mode !== undefined) throw new Error(`packRequest: init.mode`);
+            if (init.redirect !== undefined && init.redirect !== 'follow') throw new Error(`packRequest: init.redirect ${init.redirect}`);
+            if (init.referrer !== undefined) throw new Error(`packRequest: init.referrer`);
+            if (init.referrerPolicy !== undefined) throw new Error(`packRequest: init.referrerPolicy`);
+            if (init.signal !== undefined) throw new Error(`packRequest: init.signal`);
+            if (init.window !== undefined) throw new Error(`packRequest: init.window`);
+        }
+        return { method, url, headers, bodyId: undefined };
     }
     throw new Error(`packRequest: implement info=${info} ${typeof info} init=${init}`);
 }
