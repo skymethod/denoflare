@@ -87,7 +87,7 @@ function cloneBodyInit(bodyInit: BodyInit | null | undefined): BodyInit | null |
     if (bodyInit == undefined || bodyInit === null || typeof bodyInit === 'string') return bodyInit;
     if (typeof bodyInit === 'object') {
         if (bodyInit instanceof ArrayBuffer) {
-            return cloneArrayBuffer(bodyInit);
+            return bodyInit.slice(0);
         }
     }
     throw new Error(`cloneBodyInit(); bodyInit=${typeof bodyInit} ${bodyInit}`);
@@ -99,12 +99,6 @@ function cloneInit(init?: ResponseInit & CloudflareResponseInitExtensions): Resp
     const { status, statusText } = init;
     const headers = cloneHeadersInit(init.headers);
     return { headers, status, statusText };
-}
-
-function cloneArrayBuffer(arrayBuffer: ArrayBuffer): ArrayBuffer {
-    const rt = new ArrayBuffer(arrayBuffer.byteLength);
-    new Uint8Array(rt).set(new Uint8Array(arrayBuffer));
-    return rt;
 }
 
 function cloneHeadersInit(headers?: HeadersInit): HeadersInit | undefined {
