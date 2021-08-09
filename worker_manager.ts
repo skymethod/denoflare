@@ -54,7 +54,7 @@ export class WorkerManager {
         rpcChannel.addRequestHandler('fetch', async requestData => {
             const { method, url, headers } = requestData as PackedRequest;
             const res = await fetch(url, { method, headers });
-            return packResponse(res, bodies);
+            return await packResponse(res, bodies);
         });
         addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
 

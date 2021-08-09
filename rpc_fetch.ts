@@ -1,4 +1,5 @@
 import { consoleLog } from './console.ts';
+import { Constants } from './constants.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
@@ -38,30 +39,39 @@ export function addRequestHandlerForReadBodyChunk(channel: RpcChannel, bodies: B
 
 export type BodyResolver = (bodyId: number) => ReadableStream<Uint8Array>;
 
-export function packResponse(response: Response, bodies: Bodies): PackedResponse {
+export async function packResponse(response: Response, bodies: Bodies): Promise<PackedResponse> {
     const { status } = response;
     const headers = [...response.headers.entries()];
     if (DenoflareResponse.is(response)) {
         if (typeof response.bodyInit === 'string') {
             const bodyText = response.bodyInit;
-            return { status, headers, bodyId: undefined, bodyText };
+            return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined };
         } else if (response.bodyInit instanceof ReadableStream) {
             const bodyId = bodies.computeBodyId(response.bodyInit);
-            return { status, headers, bodyId, bodyText: undefined };
+            return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined };
         } else {
             throw new Error(`packResponse: DenoflareResponse bodyInit=${response.bodyInit}`);
         }
     }
+    const contentLength = parseInt(response.headers.get('content-length') || '-1');
+    if (contentLength > -1 && contentLength <= Constants.MAX_CONTENT_LENGTH_TO_PACK_OVER_RPC) {
+        const bodyBytes = await response.arrayBuffer();
+        // consoleLog(`packResponse: contentLength=${contentLength} bodyBytes.byteLength=${bodyBytes.byteLength} url=${response.url}`);
+        return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes };
+    }
     const bodyId = bodies.computeBodyId(response.body);
-    return { status, headers, bodyId, bodyText: undefined };
+    return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined };
 }
 
 const _Response = Response;
 
 export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolver): Response {
-    const { status, bodyId, bodyText } = packed;
+    const { status, bodyId, bodyText, bodyBytes } = packed;
     const headers = new Headers(packed.headers);
-    const body = bodyText !== undefined ? bodyText : bodyId === undefined ? undefined : bodyResolver(bodyId);
+    const body = bodyText !== undefined ? bodyText
+        : bodyBytes !== undefined ? bodyBytes
+        : bodyId === undefined ? undefined 
+        : bodyResolver(bodyId);
     return new _Response(body, { status, headers });
 }
 
@@ -118,6 +128,7 @@ export interface PackedResponse {
     readonly headers: [string, string][];
     readonly bodyId: number | undefined;
     readonly bodyText: string | undefined;
+    readonly bodyBytes: ArrayBuffer | undefined;
 }
 
 export class Bodies {

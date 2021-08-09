@@ -55,7 +55,7 @@ import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
                 if (DenoflareResponse.is(response)) {
                     response = response.toRealResponse();
                 }
-                const responseData = packResponse(response, bodies);
+                const responseData = await packResponse(response, bodies);
                 return responseData;
             });
         }
