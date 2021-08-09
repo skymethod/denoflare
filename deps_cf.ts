@@ -1,1 +1,1 @@
-export * from 'https://github.com/skymethod/cloudflare-workers-types/raw/7d0923a411d307edf59e066187d3d8395650ba25/cloudflare_workers_types.d.ts';
+export * from 'https://github.com/skymethod/cloudflare-workers-types/raw/ac8ba3b8a30807c00c7d19152c6f956a9e8dc84d/cloudflare_workers_types.d.ts';
