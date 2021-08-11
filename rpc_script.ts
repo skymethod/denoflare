@@ -1,24 +1,58 @@
 import { Binding } from './config.ts';
 import { RpcChannel } from './rpc_channel.ts';
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from './deps_cf.ts';
 import { RpcKVNamespace } from './rpc_kv_namespace.ts';
-import { defineScriptGlobals } from './cloudflare_workers_runtime.ts';
-import { consoleError, consoleLog } from './console.ts';
+import { NoopCfGlobalCaches } from './noop_cf_global_caches.ts';
+import { WorkerExecution } from './worker_execution.ts';
+import { Bodies } from './rpc_fetch.ts';
+import { makeFetchOverRpc } from './rpc_fetch.ts';
+import { addRequestHandlerForReadBodyChunk } from './rpc_fetch.ts';
+import { unpackRequest } from './rpc_fetch.ts';
+import { makeBodyResolverOverRpc } from './rpc_fetch.ts';
+import { PackedRequest } from './rpc_fetch.ts';
+import { DenoflareResponse } from './denoflare_response.ts';
+import { packResponse } from './rpc_fetch.ts';
+import { makeIncomingRequestCfProperties } from './incoming_request_cf_properties.ts';
+import { InProcessDurableObjects } from './in_process_durable_objects.ts';
+import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 
-export function addRequestHandlerForRunScript(channel: RpcChannel, onSuccess: () => void) {
+export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
-        try {
-            const start = Date.now();
-            const scriptDef = requestData as ScriptDef;
-            defineScriptGlobals(scriptDef.bindings, kvNamespace => new RpcKVNamespace(kvNamespace, channel), doNamespace => new DurableObjectNamespaceRpcClient(doNamespace));
-            const b = new Blob([ scriptDef.scriptContents ]);
-            const u = URL.createObjectURL(b);
-            await import(u);
-            consoleLog(`worker: Ran script in ${Date.now() - start}ms`);
-            onSuccess();
-        } catch (e) {
-            consoleError('worker: Error in run-script', e);
-        }
+        const scriptDef = requestData as ScriptDef;
+        const b = new Blob([ scriptDef.scriptContents ]);
+        const u = URL.createObjectURL(b);
+
+        let objects: InProcessDurableObjects | undefined; 
+        const exec = await WorkerExecution.start(u, scriptDef.scriptType, scriptDef.bindings, {
+            onModuleWorkerInfo: moduleWorkerInfo => { 
+                const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
+                objects = new InProcessDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
+            },
+            globalCachesProvider: () => new NoopCfGlobalCaches(),
+            kvNamespaceProvider: kvNamespace => new RpcKVNamespace(kvNamespace, channel),
+            doNamespaceProvider: doNamespace => {
+                // console.log(`doNamespaceProvider`, doNamespace, objects);
+                if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
+                return objects.resolveDoNamespace(doNamespace);
+            },
+            incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
+        });
+
+        const bodies = new Bodies();
+        // deno-lint-ignore no-explicit-any
+        (globalThis as any).fetch = makeFetchOverRpc(channel, bodies);
+        addRequestHandlerForReadBodyChunk(channel, bodies);
+        channel.addRequestHandler('worker-fetch', async workerFetchData => {
+            const workerFetch = workerFetchData as WorkerFetch;
+            const request = unpackRequest(workerFetch.packedRequest, makeBodyResolverOverRpc(channel));
+
+            let response = await exec.fetch(request, workerFetch.opts);
+
+            if (DenoflareResponse.is(response)) {
+                response = response.toRealResponse();
+            }
+            const responseData = await packResponse(response, bodies);
+            return responseData;
+        });
     });
 }
 
@@ -30,32 +64,13 @@ export async function runScript(script: ScriptDef, channel: RpcChannel) {
 
 //
 
-interface ScriptDef {
-    readonly scriptContents: Uint8Array;
-    readonly bindings: Record<string, Binding>;
+export interface WorkerFetch {
+    readonly packedRequest: PackedRequest;
+    readonly opts: { cfConnectingIp: string, hostname?: string };
 }
 
-class DurableObjectNamespaceRpcClient implements DurableObjectNamespace {
-    readonly doNamespace: string;
-
-    constructor(doNamespace: string) {
-        this.doNamespace = doNamespace;
-    }
-
-    newUniqueId(_opts?: { jurisdiction: 'eu' }): DurableObjectId {
-        throw new Error(`DurableObjectNamespaceRpcStub.newUniqueId not implemented.`);
-    }
-
-    idFromName(_name: string): DurableObjectId {
-        throw new Error(`DurableObjectNamespaceRpcStub.idFromName not implemented.`);
-    }
-
-    idFromString(_hexStr: string): DurableObjectId {
-        throw new Error(`DurableObjectNamespaceRpcStub.idFromString not implemented.`);
-    }
-
-    get(_id: DurableObjectId): DurableObjectStub {
-        throw new Error(`DurableObjectNamespaceRpcStub.get not implemented.`);
-    }
-
+export interface ScriptDef {
+    readonly scriptType: 'module' | 'script';
+    readonly scriptContents: Uint8Array;
+    readonly bindings: Record<string, Binding>;
 }

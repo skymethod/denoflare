@@ -1,8 +1,13 @@
 import { loadConfig, resolveBindings, resolveCredential } from './config_loader.ts';
 import { consoleError, consoleLog } from './console.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
-import { InProcessScriptServer } from './in_process_script_server.ts';
+import { InProcessDurableObjects } from './in_process_durable_objects.ts';
+import { NoopCfGlobalCaches } from './noop_cf_global_caches.ts';
 import { WorkerManager } from './worker_manager.ts';
+import { ApiKVNamespace } from './api_kv_namespace.ts';
+import { WorkerExecution, WorkerExecutionCallbacks } from './worker_execution.ts';
+import { makeIncomingRequestCfProperties } from './incoming_request_cf_properties.ts';
+import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 
 if (Deno.args.length === 0) {
     throw new Error(`Must provide a script name argument`);
@@ -20,10 +25,39 @@ const credential = await resolveCredential(config);
 const runInProcess = !!script.localInProcess;
 consoleLog(`runInProcess=${runInProcess}`);
 
+const computeScriptContents = async (scriptPath: string, scriptType: 'module' | 'script'): Promise<Uint8Array> => {
+    if (scriptType === 'script') return await Deno.readFile(scriptPath);
+    const start = Date.now();
+    const result = await Deno.emit(scriptPath, {
+        bundle: 'module',
+    });
+    consoleLog(result);
+    const workerJs = result.files['deno:///bundle.js'];
+    const rt = new TextEncoder().encode(workerJs);
+    console.log(`Compiled ${scriptPath} into module contents in ${Date.now() - start}ms`);
+    return rt;
+}
+
 const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
+    const scriptType = script.path.endsWith('.ts') ? 'module' : 'script';
     if (runInProcess) {
-        const scriptType = script.path.endsWith('.ts') ? 'module' : 'script';
-        return await InProcessScriptServer.start(script.path, scriptType, bindings, credential);
+        const { accountId, apiToken } = credential;
+        let objects: InProcessDurableObjects | undefined; 
+        const callbacks: WorkerExecutionCallbacks = {
+            onModuleWorkerInfo: moduleWorkerInfo => { 
+                const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
+                objects = new InProcessDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
+            },
+            globalCachesProvider: () => new NoopCfGlobalCaches(),
+            kvNamespaceProvider: kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace),
+            doNamespaceProvider: doNamespace => {
+                // console.log(`doNamespaceProvider`, doNamespace, objects);
+                if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
+                return objects.resolveDoNamespace(doNamespace);
+            },
+            incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
+        };
+        return await WorkerExecution.start(script.path, scriptType, bindings, callbacks);
     } else {
         // start the host for the permissionless deno workers
         const workerManager = await WorkerManager.start();
@@ -31,9 +65,10 @@ const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
         // run the cloudflare worker script inside deno worker
         const runScript = async () => {
             consoleLog(`runScript: ${script.path}`);
-            const scriptContents = await Deno.readFile(script.path);
+
+            const scriptContents = await computeScriptContents(script.path, scriptType);
             try {
-                await workerManager.run(scriptContents, { bindings, credential });
+                await workerManager.run(scriptContents, scriptType, { bindings, credential });
             } catch (e) {
                 consoleError('Error running script', e);
                 Deno.exit(1);
