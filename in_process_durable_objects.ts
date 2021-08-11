@@ -206,7 +206,7 @@ class InMemoryDurableObjectStorage implements DurableObjectStorage {
     _get(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageReadOptions): Promise<Map<string, DurableObjectStorageValue> | DurableObjectStorageValue | undefined> {
         if (typeof keyOrKeys === 'string' && opts === undefined) {
             const key = keyOrKeys;
-            return Promise.resolve(this.values.get(key));
+            return Promise.resolve(structuredClone(this.values.get(key)));
         }
         throw new Error(`InMemoryDurableObjectStorage.get not implemented`);
     }
@@ -279,28 +279,4 @@ class InMemoryDurableObjectStorage implements DurableObjectStorage {
         throw new Error(`InMemoryDurableObjectStorage.list not implemented options=${JSON.stringify(options)}`);
     }
 
-}
-
-function structuredClone<T>(value: T): T {
-    if (typeof value === 'string') return value;
-    if (typeof value === 'object') {
-        if (!isJsonSafe(value)) throw new Error(`structuredClone: object value is not json-safe: ${value}`);
-        return JSON.parse(JSON.stringify(value));
-    }
-    throw new Error(`structuredClone not implemented for ${typeof value} ${value}`);
-}
-
-function isJsonSafe(value: unknown): boolean {
-    if (value === undefined) return true;
-    if (value === null) return true;
-    if (typeof value === 'boolean') return true;
-    if (typeof value === 'string') return true;
-    if (typeof value === 'number') return true;
-    if (typeof value === 'object') {
-        if (Array.isArray(value)) {
-            return value.every(isJsonSafe);
-        }
-        return Object.values(value as Record<string, unknown>).every(isJsonSafe);
-    }
-    throw new Error(`isJsonSafe not implemented for ${typeof value} ${value}`);
 }
