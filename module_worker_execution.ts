@@ -2,7 +2,6 @@ import { applyWorkerEnv, defineModuleGlobals } from './cloudflare_workers_runtim
 import { Binding } from './config.ts';
 import { consoleLog, consoleWarn } from './console.ts';
 import { DurableObjectConstructor } from './in_process_durable_objects.ts';
-import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
 import { IncomingRequestCf, ModuleWorkerContext } from './deps_cf.ts';
 import { WorkerExecutionCallbacks } from './worker_execution.ts';
 
@@ -15,7 +14,6 @@ export class ModuleWorkerExecution {
 
     static async create(scriptPath: string, bindings: Record<string, Binding>, callbacks: WorkerExecutionCallbacks): Promise<ModuleWorkerExecution> {
         const { globalCachesProvider, onModuleWorkerInfo, kvNamespaceProvider, doNamespaceProvider } = callbacks;
-        SubtleCryptoPolyfill.applyIfNecessary();
         defineModuleGlobals(globalCachesProvider);
         const module = await import(scriptPath);
         consoleLog(module);

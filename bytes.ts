@@ -1,5 +1,3 @@
-import { SubtleCrypto } from './subtle_crypto_types.d.ts';
-
 export class Bytes {
     public static EMPTY = new Bytes(new Uint8Array(0));
     

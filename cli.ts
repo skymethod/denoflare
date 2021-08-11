@@ -128,20 +128,20 @@ async function handle(conn: Deno.Conn) {
             if (upgrade !== undefined) {
                 // websocket upgrade request
                 if (upgrade !== 'websocket') throw new Error(`Unsupported upgrade: ${upgrade}`);
-                const { websocket, response } = Deno.upgradeWebSocket(request);
-                websocket.onopen = () => consoleLog('cli: socket opened');
-                websocket.onmessage = (e) => {
+                const { socket, response } = Deno.upgradeWebSocket(request);
+                socket.onopen = () => consoleLog('cli: socket opened');
+                socket.onmessage = (e) => {
                     consoleLog('cli: socket message:', e.data);
                 };
-                websocket.onerror = (e) => consoleLog('cli: socket errored:', e);
-                websocket.onclose = () => consoleLog('cli: socket closed');
+                socket.onerror = (e) => consoleLog('cli: socket errored:', e);
+                socket.onclose = () => consoleLog('cli: socket closed');
 
                 const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
                 if (DenoflareResponse.is(res) && res.init && res.init.webSocket) {
                     if (res.init?.status !== 101) throw new Error(`Bad response status: expected 101, found ${res.init?.status}`);
                     const serverWebsocket = res.getDenoflareServerWebSocket();
                     if (serverWebsocket === undefined) throw new Error(`Bad response: expected websocket`);
-                    serverWebsocket.setRealWebsocket(websocket);
+                    serverWebsocket.setRealWebsocket(socket);
                 }
                 await respondWith(response).catch(e => consoleError(`Error in respondWith`, e));
             } else {

@@ -3,12 +3,9 @@
 import { consoleLog } from './console.ts';
 import { Data, RpcChannel } from './rpc_channel.ts';
 import { addRequestHandlerForRunScript } from './rpc_script.ts';
-import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
 
 (function() {
     consoleLog('worker: start');
-    
-    SubtleCryptoPolyfill.applyIfNecessary();
     
     interface SmallDedicatedWorkerGlobalScope {
         onmessage: ((this: SmallDedicatedWorkerGlobalScope, ev: MessageEvent) => Data) | null;

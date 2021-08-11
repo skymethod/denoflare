@@ -2,7 +2,6 @@ import { defineScriptGlobals } from './cloudflare_workers_runtime.ts';
 import { Binding } from './config.ts';
 import { consoleLog, consoleWarn } from './console.ts';
 import { IncomingRequestCf } from './deps_cf.ts';
-import { SubtleCryptoPolyfill } from './subtle_crypto_polyfill.ts';
 import { WorkerExecutionCallbacks } from './worker_execution.ts';
 
 export class ScriptWorkerExecution {
@@ -14,7 +13,6 @@ export class ScriptWorkerExecution {
 
     static async create(scriptPath: string, bindings: Record<string, Binding>, callbacks: WorkerExecutionCallbacks): Promise<ScriptWorkerExecution> {
         const { globalCachesProvider, kvNamespaceProvider, doNamespaceProvider } = callbacks;
-        SubtleCryptoPolyfill.applyIfNecessary();
 
         defineScriptGlobals(bindings, globalCachesProvider, kvNamespaceProvider, doNamespaceProvider);
 
