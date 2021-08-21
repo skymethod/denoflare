@@ -57,6 +57,67 @@ export async function getKeyMetadata(accountId: string, namespaceId: string, key
 
 //#endregion
 
+//#region Workers Tails
+
+/**
+ * List Tails
+ * Lists all active Tail sessions for a given Worker
+ * https://api.cloudflare.com/#worker-tails-list-tails
+ */
+export async function listTails(accountId: string, scriptName: string, apiToken: string): Promise<readonly Tail[]> {
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
+    return (await execute('listTails', 'GET', url, apiToken) as ListTailsResponse).result;
+}
+
+/**
+ * Create Tail
+ * https://api.cloudflare.com/#worker-create-tail
+ * 
+ * Constrained to at most one tail per script
+ */
+export async function createTail(accountId: string, scriptName: string, apiToken: string): Promise<Tail> {
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
+    return (await execute('createTail', 'POST', url, apiToken) as CreateTailResponse).result;
+}
+
+/**
+ * Send Tail Heartbeat
+ * https://api.cloudflare.com/#worker-tail-heartbeat
+ */
+export async function sendTailHeartbeat(accountId: string, scriptName: string, tailId: string, apiToken: string): Promise<Tail> {
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails/${tailId}/heartbeat`;
+    return (await execute('sendTailHeartbeat', 'POST', url, apiToken) as SendTailHeartbeatResponse).result;
+}
+
+/**
+ * Delete Tail
+ * https://api.cloudflare.com/#worker-delete-tail
+ */
+export async function deleteTail(accountId: string, scriptName: string, tailId: string, apiToken: string): Promise<void> {
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails/${tailId}`;
+    await execute('deleteTail', 'DELETE', url, apiToken); // result = null
+}
+
+export interface CreateTailResponse extends CloudflareApiResponse {
+    readonly result: Tail;
+}
+
+export interface Tail {
+    readonly id: string; // cf id
+    readonly url: string // e.g. wss://tail.developers.workers.dev/<tail-id>
+    readonly 'expires_at': string; // e.g. 2021-08-20T23:45:17Z  (6 hrs from creation)
+}
+
+export interface ListTailsResponse extends CloudflareApiResponse {
+    readonly result: readonly Tail[];
+}
+
+export interface SendTailHeartbeatResponse extends CloudflareApiResponse {
+    readonly result: Tail;
+}
+
+//#endregion
+
 //
 
 const DEBUG = false;
