@@ -2,8 +2,41 @@ import { IncomingRequestCfProperties } from './deps_cf.ts';
 
 // Types For Found Tail Websocket Message Payloads
 
+export interface TailOptions {
+    readonly filters: readonly TailFilter[];
+}
+
+export type TailFilter = ClientIpFilter | QueryFilter | HeaderFilter | MethodFilter | SampleRateFilter | OutcomeFilter;
+
+export interface ClientIpFilter {
+    readonly 'client_ip': string; // ip address or "self" (which doesn't seem to work)
+}
+
+export interface QueryFilter {
+    readonly query: string; // text match on console.log messages
+}
+
+export interface HeaderFilter {
+    readonly key: string;
+    readonly value?: string;
+}
+
+export interface MethodFilter {
+    readonly method: readonly string[]; // GET, POST, etc
+}
+
+export interface SampleRateFilter {
+    readonly 'sampling_rate': number; // e.g. 0.01 for 1%
+}
+
+export interface OutcomeFilter {
+    readonly outcome: readonly Outcome[];
+}
+
+export type Outcome = 'ok' | 'exception' | 'exceededCpu' | 'canceled' | 'unknown';
+
 export interface TailMessage {
-    readonly outcome: 'ok' | 'exception';
+    readonly outcome: Outcome;
     readonly scriptName: null;
     readonly exceptions: readonly TailMessageException[];
     readonly logs: readonly TailMessageLog[];
@@ -15,13 +48,15 @@ export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
 
+const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'unknown']);
+
 export function parseTailMessage(obj: unknown): TailMessage {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS);
     // deno-lint-ignore no-explicit-any
     const objAsAny = obj as any;
     const { outcome, scriptName, eventTimestamp } = objAsAny;
-    if (outcome !== 'ok' && outcome !== 'exception') throw new Error(`Bad outcome: expected "ok" or "exception", found ${JSON.stringify(outcome)}`);
+    if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[...KNOWN_OUTCOMES].join(', ')}], found ${JSON.stringify(outcome)}`);
     if (scriptName !== null) throw new Error(`Bad scriptName: expected null, found ${JSON.stringify(scriptName)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);

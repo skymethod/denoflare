@@ -1,64 +1,62 @@
 import { createTail } from './cloudflare_api.ts';
 import { loadConfig, resolveCredential } from './config_loader.ts';
-import { isTailMessageCronEvent, parseTailMessage } from './tail.ts';
+import { isTailMessageCronEvent, TailOptions } from './tail.ts';
+import { TailConnection, TailConnectionCallbacks } from './tail_connection.ts';
 
 export async function tail(scriptName: string) {
     const config = await loadConfig();
     const { accountId, apiToken } = await resolveCredential(config);
     
+    console.log('creating tail...');
     const tail = await createTail(accountId, scriptName, apiToken);
 
     return new Promise((resolve, _reject) => {
-        const ws = new WebSocket(tail.url, 'trace-v1'); // else 406 Not Acceptable
-        ws.addEventListener('open', event => {
-            const timeStamp = new Date(event.timeStamp).toISOString();
-            console.log(` open: ${timeStamp}`);
-        });
-        ws.addEventListener('message', async event => {
-            if (event.data instanceof Blob) {
-                const text = await event.data.text();
-                const obj = JSON.parse(text); // only seen json object payloads
-                try {
-                    const tm = parseTailMessage(obj);
-                    const time = new Date(tm.eventTimestamp).toISOString();
-                    if (isTailMessageCronEvent(tm.event)) {
-                        const scheduledTime = new Date(tm.event.scheduledTime).toISOString();
-                        console.log(` cron: ${time} ${tm.event.cron} ${scheduledTime}`);
-                    } else {
-                        console.log(`  req: ${time} ${tm.event.request.method} ${tm.event.request.url}`);
-                        const userAgent = tm.event.request.headers['user-agent'];
-                        if (userAgent) {
-                            console.log(`                                ${userAgent}`);
-                        }
+        const callbacks: TailConnectionCallbacks = {
+            onOpen: (_cn, timeStamp) => {
+                const timeStampStr = new Date(timeStamp).toISOString();
+                console.log(` open: ${timeStampStr}`);
+            },
+            onClose: (_cn, timeStamp, code, reason, wasClean) => {
+                const timeStampStr = new Date(timeStamp).toISOString();
+                console.log(`close: ${timeStampStr} ${JSON.stringify({ code, reason, wasClean })}`);
+                resolve(undefined);
+            },
+            onError: (_cn, timeStamp, event) => {
+                const timeStampStr = new Date(timeStamp).toISOString();
+                console.error(`error: ${timeStampStr}`, event);
+                resolve(undefined);
+            },
+            onUnparsedMessage: (cn, _timeStamp, message, parseError) => {
+                console.log('Unparsed message', message);
+                console.error('Error parsing tail message', parseError);
+                cn.close();
+                resolve(undefined);
+            },
+            onTailMessage: (_cn, _timeStamp, message) => {
+                const time = new Date(message.eventTimestamp).toISOString();
+                if (isTailMessageCronEvent(message.event)) {
+                    const scheduledTime = new Date(message.event.scheduledTime).toISOString();
+                    console.log(` cron: ${time} ${message.event.cron} ${scheduledTime}`);
+                } else {
+                    console.log(`  req: ${time} ${message.event.request.method} ${message.event.request.url}`);
+                    const userAgent = message.event.request.headers['user-agent'];
+                    if (userAgent) {
+                        console.log(`                                ${userAgent}`);
                     }
-                    for (const log of tm.logs) {
-                        const timestamp = new Date(log.timestamp).toISOString();
-                        console.log(`      ${[timestamp, log.level, log.message.join(', ')].join(' ')}`);
-                    }
-                    for (const exception of tm.exceptions) {
-                        const timestamp = new Date(exception.timestamp).toISOString();
-                        console.log(`      ${[timestamp, exception.name, exception.message].join(' ')}`);
-                    }
-                } catch (e) {
-                    console.log(obj);
-                    console.error('Error parsing tail message', e);
-                    ws.close();
-                    resolve(undefined);
                 }
-            } else {
-                throw new Error(`Expected event.data to be Blob`, event.data);
+                for (const log of message.logs) {
+                    const timestamp = new Date(log.timestamp).toISOString();
+                    console.log(`      ${[timestamp, log.level, log.message.join(', ')].join(' ')}`);
+                }
+                for (const exception of message.exceptions) {
+                    const timestamp = new Date(exception.timestamp).toISOString();
+                    console.log(`      ${[timestamp, exception.name, exception.message].join(' ')}`);
+                }
             }
-        });
-        ws.addEventListener('close', event => {
-            const { code, reason, wasClean } = event;
-            const timeStamp = new Date(event.timeStamp).toISOString();
-            console.log('close', `close: ${timeStamp} ${JSON.stringify({ code, reason, wasClean })}`);
-            resolve(undefined);
-        });
-        ws.addEventListener('error', event => {
-            const timeStamp = new Date(event.timeStamp).toISOString();
-            console.error('error', `error: ${timeStamp} ${event}`);
-            resolve(undefined);
-        });
+        };
+        const options: TailOptions = { filters: [
+            // { query: 'bar' } // QueryFilter  text match on console.log messages
+        ]};
+        const _cn = new TailConnection(tail.url, callbacks).setOptions(options);
     });
 }
