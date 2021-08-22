@@ -1,0 +1,1 @@
+export const TAILWEB_APP_DATA = 'data:text/javascript;base64,Y29uc3QgZG9jdW1lbnQgPSBnbG9iYWxUaGlzLmRvY3VtZW50Owpkb2N1bWVudC5ib2R5LmFwcGVuZENoaWxkKGRvY3VtZW50LmNyZWF0ZVRleHROb2RlKCdUT0RPJykpOwo=';

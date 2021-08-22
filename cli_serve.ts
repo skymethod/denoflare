@@ -8,6 +8,7 @@ import { ApiKVNamespace } from './api_kv_namespace.ts';
 import { WorkerExecution, WorkerExecutionCallbacks } from './worker_execution.ts';
 import { makeIncomingRequestCfProperties } from './incoming_request_cf_properties.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
+import { ModuleWatcher } from './module_watcher.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
     const scriptName = args[0];
@@ -16,6 +17,11 @@ export async function serve(args: (string | number)[], options: Record<string, u
         return;
     }
 
+    const verbose = !!options.verbose;
+    if (verbose) {
+        ModuleWatcher.VERBOSE = verbose;
+    }
+    
     // read the script-based cloudflare worker contents
     const config = await loadConfig();
     const script = config.scripts[scriptName];
@@ -79,17 +85,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             await runScript();
         
             // when the script changes, recreate the deno worker
-            const watcher = Deno.watchFs(script.path);
-            (async () => {
-                let timeoutId: number | undefined;
-                for await (const event of watcher) {
-                    if (event.kind === 'modify' && event.paths.includes(script.path)) {
-                        // a single file modification sends two modify events, so coalesce them
-                        clearTimeout(timeoutId);
-                        timeoutId = setTimeout(runScript, 500);
-                    }
-                }
-            })();
+            const _moduleWatcher = new ModuleWatcher(script.path, runScript);
             return workerManager;
         }
     }

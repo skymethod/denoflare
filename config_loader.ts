@@ -7,7 +7,7 @@ export async function loadConfig(): Promise<Config> {
 
 export async function resolveBindings(bindings: Record<string, Binding>, localPort: number): Promise<Record<string, Binding>> {
     const rt: Record<string, Binding> = {};
-    for (const [name, binding] of Object.entries(bindings)) {
+    for (const [name, binding] of Object.entries(bindings || {})) {
         rt[name] = await resolveBinding(binding, localPort);
     }
     return rt;
