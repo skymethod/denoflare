@@ -9,7 +9,7 @@ export interface TailOptions {
 export type TailFilter = ClientIpFilter | QueryFilter | HeaderFilter | MethodFilter | SampleRateFilter | OutcomeFilter;
 
 export interface ClientIpFilter {
-    readonly 'client_ip': string; // ip address or "self" (which doesn't seem to work)
+    readonly 'client_ip': string[]; // ip address or "self" (which doesn't seem to work)
 }
 
 export interface QueryFilter {
@@ -18,7 +18,7 @@ export interface QueryFilter {
 
 export interface HeaderFilter {
     readonly key: string;
-    readonly value?: string;
+    readonly query?: string;
 }
 
 export interface MethodFilter {

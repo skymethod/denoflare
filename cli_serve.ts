@@ -9,7 +9,13 @@ import { WorkerExecution, WorkerExecutionCallbacks } from './worker_execution.ts
 import { makeIncomingRequestCfProperties } from './incoming_request_cf_properties.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 
-export async function serve(scriptName: string) {
+export async function serve(args: (string | number)[], options: Record<string, unknown>) {
+    const scriptName = args[0];
+    if (options.help || typeof scriptName !== 'string') {
+        console.log('serve help!');
+        return;
+    }
+
     // read the script-based cloudflare worker contents
     const config = await loadConfig();
     const script = config.scripts[scriptName];

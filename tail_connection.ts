@@ -2,6 +2,8 @@ import { parseTailMessage, TailMessage, TailOptions } from './tail.ts';
 
 export class TailConnection {
 
+    static VERBOSE = false;
+
     private readonly ws: WebSocket;
     private readonly callbacks: TailConnectionCallbacks;
 
@@ -25,8 +27,9 @@ export class TailConnection {
         });
         this.ws.addEventListener('error', event => {
             const { timeStamp } = event;
+            const errorInfo = computeErrorInfo(event);
             if (callbacks.onError) {
-                callbacks.onError(this, timeStamp, event);
+                callbacks.onError(this, timeStamp, errorInfo);
             }
         });
         this.ws.addEventListener('message', async event => {
@@ -62,17 +65,40 @@ export class TailConnection {
 
     private sendOptionsIfOpen() {
         if (this.options && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify(this.options));
+            const payload = JSON.stringify(this.options);
+            if (TailConnection.VERBOSE) console.log(`sendOptionsIfOpen: sending ${payload}`);
+            this.ws.send(payload);
         }
     }
     
 }
 
+//
+
+function computeErrorInfo(event: Event): ErrorInfo | undefined {
+    if (event.type === 'error') {
+        const { message, filename, lineno, colno, error } = event as ErrorEvent;
+        return { message, filename, lineno, colno, error };
+    }
+    return undefined;
+}
+
+//
+
 export interface TailConnectionCallbacks {
     onOpen?(cn: TailConnection, timeStamp: number): void;
     onClose?(cn: TailConnection, timeStamp: number, code: number, reason: string, wasClean: boolean): void;
-    onError(cn: TailConnection, timeStamp: number, event: Event): void;
+    onError(cn: TailConnection, timeStamp: number, errorInfo?: ErrorInfo): void;
     onTailMessage(cn: TailConnection, timeStamp: number, message: TailMessage): void;
     // deno-lint-ignore no-explicit-any
     onUnparsedMessage(cn: TailConnection, timeStamp: number, message: any, parseError: Error): void;
+}
+
+export interface ErrorInfo {
+    readonly message: string;
+    readonly filename: string;
+    readonly lineno: number;
+    readonly colno: number;
+    // deno-lint-ignore no-explicit-any
+    readonly error: any;
 }
