@@ -105,7 +105,7 @@ export interface CreateTailResponse extends CloudflareApiResponse {
 export interface Tail {
     readonly id: string; // cf id
     readonly url: string // e.g. wss://tail.developers.workers.dev/<tail-id>
-    readonly 'expires_at': string; // e.g. 2021-08-20T23:45:17Z  (6 hrs from creation)
+    readonly 'expires_at': string; // e.g. 2021-08-20T23:45:17Z  (4-6 hrs from creation)
 }
 
 export interface ListTailsResponse extends CloudflareApiResponse {

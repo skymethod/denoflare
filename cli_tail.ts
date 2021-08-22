@@ -1,4 +1,4 @@
-import { createTail } from './cloudflare_api.ts';
+import { createTail, sendTailHeartbeat } from './cloudflare_api.ts';
 import { loadConfig, resolveCredential } from './config_loader.ts';
 import { HeaderFilter, isTailMessageCronEvent, Outcome, TailFilter, TailMessage } from './tail.ts';
 import { TailConnection, TailConnectionCallbacks } from './tail_connection.ts';
@@ -10,7 +10,8 @@ export async function tail(args: (string | number)[], options: Record<string, un
         return;
     }
     const format = computeFormat(options);
-    if (options.verbose && format !== 'json') TailConnection.VERBOSE = true;
+    const verbose = !!options.verbose;
+    if (verbose && format !== 'json') TailConnection.VERBOSE = true;
     const filters = computeFiltersFromOptions(options);
     const once = !!options.once;
     const config = await loadConfig();
@@ -18,8 +19,10 @@ export async function tail(args: (string | number)[], options: Record<string, un
     
     if (format !== 'json') console.log('creating tail...');
     const tail = await createTail(accountId, scriptName, apiToken);
-
+    
     return new Promise((resolve, _reject) => {
+        let sendHeartbeatOnExpiryTimeout = 0;
+
         const callbacks: TailConnectionCallbacks = {
             onOpen: (_cn, timeStamp) => {
                 const timeStampStr = new Date(timeStamp).toISOString();
@@ -31,11 +34,13 @@ export async function tail(args: (string | number)[], options: Record<string, un
             onClose: (_cn, timeStamp, code, reason, wasClean) => {
                 const timeStampStr = new Date(timeStamp).toISOString();
                 if (format === 'compact') console.log(`close: ${timeStampStr} ${JSON.stringify({ code, reason, wasClean })}`);
+                clearTimeout(sendHeartbeatOnExpiryTimeout);
                 resolve(undefined);
             },
             onError: (_cn, timeStamp, errorInfo) => {
                 const timeStampStr = new Date(timeStamp).toISOString();
                 if (format === 'compact') console.error(`error: ${timeStampStr}`, errorInfo);
+                clearTimeout(sendHeartbeatOnExpiryTimeout);
                 resolve(undefined);
             },
             onUnparsedMessage: (cn, _timeStamp, message, parseError) => {
@@ -44,6 +49,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
                     console.error('Error parsing tail message', parseError);
                 }
                 cn.close();
+                clearTimeout(sendHeartbeatOnExpiryTimeout);
                 resolve(undefined);
             },
             onTailMessage: (cn, _timeStamp, message) => {
@@ -56,11 +62,27 @@ export async function tail(args: (string | number)[], options: Record<string, un
                 }
                 if (once) {
                     cn.close();
+                    clearTimeout(sendHeartbeatOnExpiryTimeout);
                     resolve(undefined);
                 }
             }
         };
         const _cn = new TailConnection(tail.url, callbacks).setOptions({ filters });
+
+        let currentTail = tail;
+        const sendHeartbeatOnExpiry = () => {
+            const expiresInMillis = new Date(currentTail.expires_at).getTime() - Date.now();
+            if (verbose) console.log(`Sending heartbeat in ${(expiresInMillis / 1000 / 60 / 60).toFixed(2)} hrs`);
+            sendHeartbeatOnExpiryTimeout = setTimeout(async () => {
+                if (verbose) console.log('Sending heartbeat...');
+                const oldExpiry = currentTail.expires_at;
+                currentTail = await sendTailHeartbeat(accountId, scriptName, currentTail.id, apiToken);
+                const newExpiry = currentTail.expires_at;
+                if (verbose) console.log(`Sent heartbeat${oldExpiry === newExpiry ? '' : `, expiry changed: ${oldExpiry} -> ${newExpiry}`}`)
+                sendHeartbeatOnExpiry();
+            }, expiresInMillis);
+        }
+        sendHeartbeatOnExpiry();
     });
 }
 
