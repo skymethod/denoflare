@@ -12,6 +12,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
     const format = computeFormat(options);
     if (options.verbose && format !== 'json') TailConnection.VERBOSE = true;
     const filters = computeFiltersFromOptions(options);
+    const once = !!options.once;
     const config = await loadConfig();
     const { accountId, apiToken } = await resolveCredential(config);
     
@@ -23,6 +24,9 @@ export async function tail(args: (string | number)[], options: Record<string, un
             onOpen: (_cn, timeStamp) => {
                 const timeStampStr = new Date(timeStamp).toISOString();
                 if (format === 'compact') console.log(` open: ${timeStampStr}`);
+                if (format === 'pretty') {
+                    console.log(`Connected! Streaming logs from %c${scriptName}%c... (ctrl-c to quit)`, 'color: red', '');
+                }
             },
             onClose: (_cn, timeStamp, code, reason, wasClean) => {
                 const timeStampStr = new Date(timeStamp).toISOString();
@@ -42,13 +46,17 @@ export async function tail(args: (string | number)[], options: Record<string, un
                 cn.close();
                 resolve(undefined);
             },
-            onTailMessage: (_cn, _timeStamp, message) => {
+            onTailMessage: (cn, _timeStamp, message) => {
                 if (format === 'compact') {
                     dumpMessageCompact(message);
                 } else if (format === 'pretty') {
                     dumpMessagePretty(message);
                 } else {
                     dumpMessageJson(message);
+                }
+                if (once) {
+                    cn.close();
+                    resolve(undefined);
                 }
             }
         };
@@ -84,8 +92,49 @@ function dumpMessageCompact(message: TailMessage) {
 }
 
 function dumpMessagePretty(message: TailMessage) {
-    console.log(message);
+    const time = formatLocalYyyyMmDdHhMmSs(new Date(message.eventTimestamp));
+    const outcome = PRETTY_OUTCOMES.get(message.outcome) || message.outcome;
+    const outcomeColor = message.outcome === 'ok' ? 'green' : 'red';
+    if (isTailMessageCronEvent(message.event)) {
+        console.log(`[%c${time}%c] [%c$???%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else {
+        const { method, url, cf } = message.event.request;
+        const colo = cf?.colo || '???';
+        console.log(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] ${method} %c${url}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    }
+    for (const { level, message: logMessage } of message.logs) {
+        const levelColor = LOG_LEVEL_COLORS.get(level) || 'gray';
+        console.log(` %c|%c [%c${level}%c] ${logMessage}`, 'color: gray', '', `color: ${levelColor}`, '');
+    }
+    for (const { name, message: exceptionMessage } of message.exceptions) {
+        console.log(` %c|%c [%c${name}%c] %c${exceptionMessage}`, 'color: gray', '', `color: red; font-style: bold`, '', 'color: red');
+    }
 }
+
+function pad2(num: number): string {
+    return num.toString().padStart(2, '0');
+}
+
+function formatLocalYyyyMmDdHhMmSs(date: Date): string {
+    return [date.getFullYear(), '-', pad2(date.getMonth() + 1), '-', pad2(date.getDate()), ' ', pad2(date.getHours()), ':', pad2(date.getMinutes()), ':', pad2(date.getSeconds())].join('');
+}
+
+const PRETTY_OUTCOMES = new Map<Outcome, string>([
+    ['ok', 'Ok'],
+    ['exception', 'Error'],
+    ['exceededCpu', 'Exceeded Limit'],
+    ['canceled', 'Canceled'],
+    ['unknown', 'Unknown'],
+]);
+
+const LOG_LEVEL_COLORS = new Map<string, string>([
+    ['trace', 'gray'],
+    ['debug', 'purple'],
+    ['log', 'gray'],
+    ['info', 'gray'],
+    ['warn', 'red'],
+    ['error', 'red'],
+]);
 
 function dumpMessageJson(message: TailMessage) {
     console.log(JSON.stringify(message));
