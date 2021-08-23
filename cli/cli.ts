@@ -3,7 +3,7 @@ import { tail } from './cli_tail.ts';
 import { push } from './cli_push.ts';
 import { tailweb } from './cli_tailweb.ts';
 
-import { parse } from 'https://deno.land/std@0.105.0/flags/mod.ts';
+import { parse } from './deps_cli.ts';
 
 const args = parse(Deno.args);
 // console.log(args);

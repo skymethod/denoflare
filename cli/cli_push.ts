@@ -1,5 +1,5 @@
 import { loadConfig, resolveCredential } from './config_loader.ts';
-import { basename } from 'https://deno.land/std@0.105.0/path/mod.ts';
+import { basename } from './deps_cli.ts';
 import { putScript } from '../common/cloudflare_api.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {

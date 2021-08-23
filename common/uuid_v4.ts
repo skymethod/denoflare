@@ -16,8 +16,10 @@ export function validateUuid(id: string): boolean {
 /** Generates a RFC4122 v4 UUID (pseudo-randomly-based) */
 export function generateUuid(): string {
     // https://wicg.github.io/uuid/
-    if (typeof crypto.randomUUID === 'function') {
-        return crypto.randomUUID();
+    // deno-lint-ignore no-explicit-any
+    const cryptoAsAny = crypto as any;
+    if (typeof cryptoAsAny.randomUUID === 'function') {
+        return cryptoAsAny.randomUUID();
     }
     
     const rnds = crypto.getRandomValues(new Uint8Array(16));

@@ -1,4 +1,4 @@
-import { basename, dirname, join, fromFileUrl, resolve } from 'https://deno.land/std@0.105.0/path/mod.ts';
+import { basename, dirname, join, fromFileUrl, resolve } from './deps_cli.ts';
 import { Bytes } from '../common/bytes.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 
@@ -20,7 +20,9 @@ export async function tailweb(args: (string | number)[], options: Record<string,
     const regenerateAppContents = async () => {
         console.log(`bundling ${basename(appPath)} into bundle.js...`);
         const start = Date.now();
-        const result = await Deno.emit(appPath, { bundle: 'module' });
+        const result = await Deno.emit(appPath, { bundle: 'module', compilerOptions: {
+            lib: ['esnext', 'dom'],
+        } });
         console.log(`bundle finished in ${Date.now() - start}ms`);
     
         if (result.diagnostics.length > 0) {

@@ -1,5 +1,5 @@
 import { computeDenoInfo, DenoInfo } from './deno_info.ts';
-import { fromFileUrl } from 'https://deno.land/std@0.105.0/path/mod.ts';
+import { fromFileUrl } from './deps_cli.ts';
 
 export class ModuleWatcher {
     static VERBOSE = false;

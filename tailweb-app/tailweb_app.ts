@@ -1,4 +1,4 @@
-// /// <reference lib="dom" />
+/// <reference lib="dom" />
 
 import { CloudflareApi, createTail } from '../common/cloudflare_api.ts';
 import { TailMessage } from '../common/tail.ts';
@@ -6,26 +6,23 @@ import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../common/ta
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { TailwebAppVM } from './tailweb_app_vm.ts';
 
-// deno-lint-ignore no-explicit-any
-const document = (globalThis as any).document;
+const profileSelect = document.getElementById('profile') as HTMLSelectElement;
+const profileEditButton = document.getElementById('profile-edit')!;
+const profileNewButton = document.getElementById('profile-new')!;
 
-const profileSelect = document.getElementById('profile');
-const profileEditButton = document.getElementById('profile-edit');
-const profileNewButton = document.getElementById('profile-new');
-
-const profileForm = document.getElementById('profile-form');
-const profileNameInput = document.getElementById('profile-name');
-const profileAccountIdInput = document.getElementById('profile-account-id');
-const profileApiTokenInput = document.getElementById('profile-api-token');
-const profileDeleteButton = document.getElementById('profile-delete');
-const profileCancelButton = document.getElementById('profile-cancel');
-const profileSaveButton = document.getElementById('profile-save');
+const profileForm = document.getElementById('profile-form')!;
+const profileNameInput = document.getElementById('profile-name') as HTMLInputElement;
+const profileAccountIdInput = document.getElementById('profile-account-id') as HTMLInputElement;
+const profileApiTokenInput = document.getElementById('profile-api-token') as HTMLInputElement;
+const profileDeleteButton = document.getElementById('profile-delete') as HTMLButtonElement;
+const profileCancelButton = document.getElementById('profile-cancel') as HTMLButtonElement;
+const profileSaveButton = document.getElementById('profile-save') as HTMLButtonElement;
 
 const vm = new TailwebAppVM();
 vm.onchange = () => {
     while (profileSelect.firstChild) profileSelect.removeChild(profileSelect.firstChild);
     for (const option of vm.profiles) {
-        const optionElement = document.createElement('OPTION');
+        const optionElement = document.createElement('option');
         optionElement.value = option.id;
         optionElement.textContent = option.text;
         profileSelect.appendChild(optionElement);
@@ -43,7 +40,7 @@ vm.onchange = () => {
 };
 profileSelect.onchange = () => {
     console.log(profileSelect);
-    profileSelect.setCurrentProfileId(profileSelect.selectedOptions[0].value);
+    vm.setCurrentProfileId(profileSelect.selectedOptions[0].value);
 }
 profileEditButton.onclick = () => {
     vm.editProfile();

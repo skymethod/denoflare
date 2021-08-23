@@ -5,6 +5,8 @@ import { RpcChannel } from '../common/rpc_channel.ts';
 import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from '../common/rpc_fetch.ts';
 import { addRequestHandlerForRpcKvNamespace } from '../common/rpc_kv_namespace.ts';
 import { runScript, WorkerFetch } from '../common/rpc_script.ts';
+import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
+
 
 export class WorkerManager {
     private readonly workerUrl: string;
@@ -17,7 +19,10 @@ export class WorkerManager {
 
     static async start(): Promise<WorkerManager> {
         // compile the permissionless deno worker (once)
-        const result = await Deno.emit('worker.ts', {
+        const thisPath = fromFileUrl(import.meta.url);
+        const denoflareCliPath = dirname(thisPath);
+        const webworkerPath = resolve(denoflareCliPath, '..', 'cli-webworker', 'worker.ts');
+        const result = await Deno.emit(webworkerPath, {
             bundle: 'module',
         });
         consoleLog(result);
