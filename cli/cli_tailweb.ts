@@ -1,5 +1,5 @@
-import { basename, dirname, join, fromFileUrl } from 'https://deno.land/std@0.105.0/path/mod.ts';
-import { Bytes } from './bytes.ts';
+import { basename, dirname, join, fromFileUrl, resolve } from 'https://deno.land/std@0.105.0/path/mod.ts';
+import { Bytes } from '../common/bytes.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 
 export async function tailweb(args: (string | number)[], options: Record<string, unknown>) {
@@ -10,10 +10,12 @@ export async function tailweb(args: (string | number)[], options: Record<string,
     }
 
     const thisPath = fromFileUrl(import.meta.url);
-    const denoflarePath = dirname(thisPath);
-    const tailwebPath = join(denoflarePath, 'tailweb');
-    const appPath = join(tailwebPath, 'tailweb_app.ts');
-    const dataPath = join(tailwebPath, 'tailweb_data.ts');
+    const denoflareCliPath = dirname(thisPath);
+    const denoflarePath = resolve(denoflareCliPath, '..');
+    const tailwebAppPath = join(denoflarePath, 'tailweb-app');
+    const tailwebWorkerPath = join(denoflarePath, 'tailweb-worker');
+    const appPath = join(tailwebAppPath, 'tailweb_app.ts');
+    const dataPath = join(tailwebWorkerPath, 'tailweb_data.ts');
 
     const regenerateAppContents = async () => {
         console.log(`bundling ${basename(appPath)} into bundle.js...`);

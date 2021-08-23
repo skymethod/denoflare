@@ -1,8 +1,8 @@
-import { createTail, sendTailHeartbeat } from './cloudflare_api.ts';
+import { createTail, sendTailHeartbeat } from '../common/cloudflare_api.ts';
 import { loadConfig, resolveCredential } from './config_loader.ts';
-import { HeaderFilter, isTailMessageCronEvent, Outcome, TailFilter, TailMessage } from './tail.ts';
-import { TailConnection, TailConnectionCallbacks } from './tail_connection.ts';
-import { dumpMessagePretty } from './tail_pretty.ts';
+import { HeaderFilter, isTailMessageCronEvent, Outcome, TailFilter, TailMessage } from '../common/tail.ts';
+import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
+import { dumpMessagePretty } from '../common/tail_pretty.ts';
 
 export async function tail(args: (string | number)[], options: Record<string, unknown>) {
     const scriptName = args[0];

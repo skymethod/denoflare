@@ -1,13 +1,13 @@
 import { loadConfig, resolveBindings, resolveCredential } from './config_loader.ts';
-import { consoleError, consoleLog } from './console.ts';
-import { DenoflareResponse } from './denoflare_response.ts';
-import { InProcessDurableObjects } from './in_process_durable_objects.ts';
-import { NoopCfGlobalCaches } from './noop_cf_global_caches.ts';
+import { consoleError, consoleLog } from '../common/console.ts';
+import { DenoflareResponse } from '../common/denoflare_response.ts';
+import { InProcessDurableObjects } from '../common/in_process_durable_objects.ts';
+import { NoopCfGlobalCaches } from '../common/noop_cf_global_caches.ts';
 import { WorkerManager } from './worker_manager.ts';
 import { ApiKVNamespace } from './api_kv_namespace.ts';
-import { WorkerExecution, WorkerExecutionCallbacks } from './worker_execution.ts';
-import { makeIncomingRequestCfProperties } from './incoming_request_cf_properties.ts';
-import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
+import { WorkerExecution, WorkerExecutionCallbacks } from '../common/worker_execution.ts';
+import { makeIncomingRequestCfProperties } from '../common/incoming_request_cf_properties.ts';
+import { UnimplementedDurableObjectNamespace } from '../common/unimplemented_cloudflare_stubs.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {

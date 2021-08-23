@@ -1,8 +1,8 @@
 // /// <reference lib="deno.worker" />
 
-import { consoleLog } from './console.ts';
-import { Data, RpcChannel } from './rpc_channel.ts';
-import { addRequestHandlerForRunScript } from './rpc_script.ts';
+import { consoleLog } from '../common/console.ts';
+import { Data, RpcChannel } from '../common/rpc_channel.ts';
+import { addRequestHandlerForRunScript } from '../common/rpc_script.ts';
 
 (function() {
     consoleLog('worker: start');

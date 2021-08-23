@@ -1,9 +1,9 @@
 // /// <reference lib="dom" />
 
-import { CloudflareApi, createTail } from '../cloudflare_api.ts';
-import { TailMessage } from '../tail.ts';
-import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../tail_connection.ts';
-import { dumpMessagePretty } from '../tail_pretty.ts';
+import { CloudflareApi, createTail } from '../common/cloudflare_api.ts';
+import { TailMessage } from '../common/tail.ts';
+import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
+import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { TailwebAppVM } from './tailweb_app_vm.ts';
 
 // deno-lint-ignore no-explicit-any

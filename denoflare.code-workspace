@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"path": "common"
+		},
+		{
+			"path": "cli"
+		},
+		{
+			"path": "cli-webworker"
+		},
+		{
+			"path": "tailweb-worker"
+		},
+		{
+			"path": "tailweb-app"
+		}
+	],
+	"settings": {
+		"deno.lint": true,
+		"deno.unstable": true,
+		"deno.suggest.imports.hosts": {
+			"https://github.com": false,
+			"https://deno.land": false
+		},
+		"deno.enable": true
+	}
+}

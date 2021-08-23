@@ -1,4 +1,4 @@
-import { generateUuid } from '../uuid_v4.ts';
+import { generateUuid } from '../common/uuid_v4.ts';
 
 export class TailwebAppVM {
     

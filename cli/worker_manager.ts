@@ -1,10 +1,10 @@
 import { ApiKVNamespace } from './api_kv_namespace.ts';
-import { Credential, Binding } from './config.ts';
-import { consoleError, consoleLog } from './console.ts';
-import { RpcChannel } from './rpc_channel.ts';
-import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from './rpc_fetch.ts';
-import { addRequestHandlerForRpcKvNamespace } from './rpc_kv_namespace.ts';
-import { runScript, WorkerFetch } from './rpc_script.ts';
+import { Credential, Binding } from '../common/config.ts';
+import { consoleError, consoleLog } from '../common/console.ts';
+import { RpcChannel } from '../common/rpc_channel.ts';
+import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from '../common/rpc_fetch.ts';
+import { addRequestHandlerForRpcKvNamespace } from '../common/rpc_kv_namespace.ts';
+import { runScript, WorkerFetch } from '../common/rpc_script.ts';
 
 export class WorkerManager {
     private readonly workerUrl: string;

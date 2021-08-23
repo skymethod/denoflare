@@ -1,4 +1,4 @@
-import { IncomingRequestCf, ModuleWorkerContext } from '../deps_cf.ts';
+import { IncomingRequestCf, ModuleWorkerContext } from '../common/deps_cf.ts';
 import { TAILWEB_APP_DATA } from './tailweb_data.ts';
 
 export default {

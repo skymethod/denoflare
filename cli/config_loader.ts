@@ -1,4 +1,4 @@
-import { Binding, Config, Credential, isSecretBinding, isTextBinding } from './config.ts';
+import { Binding, Config, Credential, isSecretBinding, isTextBinding } from '../common/config.ts';
 
 export async function loadConfig(): Promise<Config> {
     const config = JSON.parse(await Deno.readTextFile(`${Deno.env.get('HOME')}/.denoflare`));
