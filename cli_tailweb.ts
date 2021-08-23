@@ -23,7 +23,7 @@ export async function tailweb(args: (string | number)[], options: Record<string,
     
         if (result.diagnostics.length > 0) {
             console.warn(Deno.formatDiagnostics(result.diagnostics));
-            throw new Error('bundle failed');
+            return;
         }
     
         const scriptContentsStr = result.files['deno:///bundle.js'];

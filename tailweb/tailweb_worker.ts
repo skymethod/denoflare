@@ -12,6 +12,17 @@ export default {
         } else if (url.pathname === '/app.js') {
             const response = await fetch(TAILWEB_APP_DATA);
             return new Response(await response.blob(), { headers: { 'Content-Type': 'text/javascript; charset=utf-8' }});
+        } else if (url.pathname.startsWith('/fetch/')) {
+            const fetchUrlStr = 'https://' + url.pathname.substring('/fetch/'.length);
+            const fetchUrl = new URL(fetchUrlStr);
+            if (fetchUrl.origin === 'https://api.cloudflare.com') {
+                const { method } = request;
+                const headers = [...request.headers].filter(v => !v[0].startsWith('cf-'));
+                const body = undefined;
+                console.log(method, fetchUrl, headers);
+                return await fetch(fetchUrlStr, { method, headers, body });
+            }
+            throw new Response(`Unable to fetch ${fetchUrl}`, { status: 400 });
         }
 
         return new Response(`hello ${cfConnectingIp}`);
@@ -40,7 +51,6 @@ function computeHtml(url: URL) {
     document.documentElement.classList.add('js');
 </script>
 
-<link rel="stylesheet" href="/styles.css">
 
 <meta name="description" content="Page description">
 <meta property="og:title" content="Unique page title - My Site">
@@ -58,9 +68,73 @@ function computeHtml(url: URL) {
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/my.webmanifest">
 <meta name="theme-color" content="#FF00FF">
+
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir, helvetica neue, helvetica, Ubuntu, roboto, noto, segoe ui, arial, sans-serif;
+
+    background-color: #050510;
+    background-image: linear-gradient(147deg, #050510 0%, #101020 74%);
+    background-attachment: fixed;
+    
+    color: rgb(238, 238, 238); /* #eeeeee; */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+
+}
+
+header {
+    position: sticky;
+}
+
+form {
+    display: grid;
+}
+
+label {
+    grid-column: 1;
+}
+
+input, .formvalue {
+    grid-column: 2;
+}
+</style>
+
 </head>
 
 <body>
+<header>
+  Profile:
+  <select id="profile"></select>
+  <button id="profile-edit">Edit</button>
+  <button id="profile-new">New</button>
+
+  Script:
+  <select id="script"></select>
+  <a id="add-script" href="#">Add script...</a>
+</header>
+<main>
+<form id="profile-form" autocomplete="off">
+  <h3>Profile</h3>
+  <label for="profile-name">Profile name:</label>
+  <input id="profile-name" type="text">
+
+  <label for="account-id">Cloudflare Account ID:</label>
+  <input id="profile-account-id" type="text">
+
+  <label for="api-token">Cloudflare API Token:</label>
+  <input id="profile-api-token" type="text">
+
+  <div class="formvalue">
+    <button id="profile-delete">Delete</button>
+    <button id="profile-cancel">Cancel</button>
+    <button id="profile-save">Save</button>
+  </div>
+</form>
+
+</main>
 <script src="/app.js" type="module"></script>
 </body>
 </html>`;

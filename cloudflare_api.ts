@@ -118,16 +118,20 @@ export interface SendTailHeartbeatResponse extends CloudflareApiResponse {
 
 //#endregion
 
+export class CloudflareApi {
+    static DEBUG = false;
+    static URL_TRANSFORMER: (url: string) => string = v => v;
+}
+
 //
 
-const DEBUG = false;
 
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=UTF-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
 
 function computeAccountBaseUrl(accountId: string): string {
-    return `https://api.cloudflare.com/client/v4/accounts/${accountId}`;
+    return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4/accounts/${accountId}`);
 }
 
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
@@ -137,7 +141,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     if (typeof body === 'string') {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
-        if (DEBUG) console.log(body);
+        if (CloudflareApi.DEBUG) console.log(body);
     }
     const fetchResponse = await fetch(url, { method, headers, body });
     const contentType = fetchResponse.headers.get('Content-Type') || '';
@@ -149,7 +153,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
         throw new Error(`Unexpected content-type: ${contentType},  fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json() as CloudflareApiResponse;
-    if (DEBUG) console.log(apiResponse);
+    if (CloudflareApi.DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
         if (fetchResponse.status === 404 && responseType === 'bytes?') return undefined;
         throw new Error(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`);
