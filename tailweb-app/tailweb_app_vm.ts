@@ -1,12 +1,11 @@
 import { generateUuid } from '../common/uuid_v4.ts';
 
 export class TailwebAppVM {
-    
-    profiles: Option[] = [];
-    profilesEnabled = false;
+    profiles: SidebarItem[] = [];
+    selectedProfileId: string | undefined;
     profileForm = new ProfileFormVM();
+    message = '';
 
-    private currentProfileId: string | undefined;
     private readonly state = loadState();
 
     onchange: () => void = () => {};
@@ -17,25 +16,42 @@ export class TailwebAppVM {
 
     start() {
         this.reloadProfiles();
+        if (this.profiles.length > 0) {
+            this.selectedProfileId = this.profiles[0].id;
+        }
         this.onchange();
     }
 
     newProfile() {
-        this.currentProfileId = generateUuid();
+        this.profileForm.profileId = generateUuid();
         this.profileForm.showing = true;
-        this.profileForm.name = 'default';
+        this.profileForm.name = this.profiles.length === 0 ? 'default' : `profile${this.profiles.length + 1}`;
         this.profileForm.accountId = '';
         this.profileForm.apiToken = '';
+        this.profileForm.deleteVisible = false;
+        this.profileForm.enabled = true;
+        this.profileForm.computeSaveEnabled();
+        this.onchange();
+    }
+
+    editProfile(profileId: string) {
+        const profile = this.state.profiles[profileId];
+        if (!profileId) throw new Error(`Profile ${profileId} not found`);
+        this.selectedProfileId = profileId;
+        const { name, accountId, apiToken } = profile;
+        this.profileForm.profileId = profileId;
+        this.profileForm.showing = true;
+        this.profileForm.name = name;
+        this.profileForm.accountId = accountId;
+        this.profileForm.apiToken = apiToken;
+        this.profileForm.deleteVisible = true;
+        this.profileForm.enabled = true;
+        this.profileForm.computeSaveEnabled();
         this.onchange();
     }
 
     cancelProfile() {
         this.profileForm.showing = false;
-        this.onchange();
-    }
-
-    setCurrentProfileId(profileId: string) {
-        this.currentProfileId = profileId;
         this.onchange();
     }
 
@@ -58,8 +74,10 @@ export class TailwebAppVM {
     }
 
     saveProfile() {
-        if (!this.currentProfileId) return;
-        this.state.profiles[this.currentProfileId] = {
+        const { profileId } = this.profileForm;
+        // this.message = 'Saving...';
+        // this.profileForm.enabled = false;
+        this.state.profiles[profileId] = {
             name: this.profileForm.name.trim(), 
             accountId: this.profileForm.accountId.trim(), 
             apiToken: this.profileForm.apiToken.trim(),
@@ -70,52 +88,46 @@ export class TailwebAppVM {
         this.onchange();
     }
 
-    editProfile() {
-        if (!this.currentProfileId) return;
-        const { name, accountId, apiToken } = this.state.profiles[this.currentProfileId];
-
-        this.profileForm.showing = true;
-        this.profileForm.name = name;
-        this.profileForm.accountId = accountId;
-        this.profileForm.apiToken = apiToken;
-        this.profileForm.computeSaveEnabled();
+    deleteProfile() {
+        const { profileId } = this.profileForm;
+        delete this.state.profiles[profileId];
+        saveState(this.state);
+        this.profileForm.showing = false;
+        this.reloadProfiles();
         this.onchange();
     }
-
+        
     //
 
     private reloadProfiles() {
         const { state } = this;
 
-        this.profilesEnabled = Object.keys(state.profiles).length > 0;
         this.profiles.splice(0);
 
         for (const [profileId, profile] of Object.entries(state.profiles)) {
             const name = profile.name || '(unnamed)';
             this.profiles.push({ id: profileId, text: name });
         }
-        if (!this.profilesEnabled) {
-            this.profiles.push({ id: 'none', text: '(none)' });
-        }
-        this.currentProfileId = this.profiles[0].id;
     }
 
 }
 
 export class ProfileFormVM {
     showing = false;
+    enabled = false;
     name = '';
     accountId = '';
     apiToken = '';
     deleteVisible = false;
     saveEnabled = false;
+    profileId = '';
 
     computeSaveEnabled() {
         this.saveEnabled = this.name.trim().length > 0 && this.apiToken.trim().length > 0 && this.accountId.trim().length > 0;
     }
 }
 
-export interface Option {
+export interface SidebarItem {
     readonly id: string;
     readonly text: string;
 }

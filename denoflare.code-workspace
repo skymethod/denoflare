@@ -21,7 +21,8 @@
 		"deno.unstable": true,
 		"deno.suggest.imports.hosts": {
 			"https://github.com": false,
-			"https://deno.land": false
+			"https://deno.land": false,
+			"https://cdn.skypack.dev": false
 		},
 		"deno.enable": true
 	}
