@@ -7,27 +7,14 @@ import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../common/ta
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { updateSidebarView } from './sidebar_view.ts';
 import { TailwebAppVM } from './tailweb_app_vm.ts';
-import { css, html } from 'https://cdn.skypack.dev/lit-element';
+import { css, html, LitElement } from './deps_app.ts';
+import { MATERIAL_CSS } from './material.ts';
 
 const appCss = css`
+
 header {
     position: sticky;
     display: flex;
-}
-
-fieldset {
-    display: grid;
-}
-
-label, .form-lhs {
-    grid-column: 1;
-}
-
-input, .form-rhs {
-    grid-column: 2;
-}
-
-header {
     padding: 1rem;
 }
 
@@ -36,43 +23,29 @@ main {
 }
 
 #sidebar {
-    display: flex;
-    flex-direction: column;
+    margin-left: 1rem;
 }
 
-button {
-    border: solid 1px white;
-    padding: 0.5rem 1rem;
-    text-align: center;
-    text-decoration: none;
-    color:  rgba(255,255,255,0.9);
-    cursor: pointer;
-    user-select: none;
-    background: inherit;
+.button-grid {
+    display: grid;
+    grid-template-columns: 1fr 2rem;
+    grid-gap: 1px;
+    margin-left: 1px;
+    margin-top: 1rem;
+}
+
+.button-grid-new {
+    grid-column: 1;
     min-width: 8rem;
 }
 
-button:hover {
-    background: rgba(255,255,255,0.5);
-    color: #fff;
+#sidebar button {
+    grid-column: 1;
 }
 
-button.selected {
-    background: blue;
-}
-
-button:disabled {
-    border-color: rgba(255,255,255,0.5);
-    color:  rgba(255,255,255,0.5);
-}
-
-button:disabled:hover {
-    background: inherit;
-    cursor: default;
-}
 `;
 
-const appHtml = html`<header>
+const appHtml = html`<header class="h6 high-emphasis-text">
 <div style="flex-grow: 1;">Denoflare Tail</div>
 <div id="message">Saving profile...</div>
 </header>
@@ -82,7 +55,7 @@ const appHtml = html`<header>
 <div id="content">
 <form id="profile-form" autocomplete="off">
 <fieldset id="profile-fieldset">
-  <h3>Profile</h3>
+  <div id="profile-form-title" class="h6 high-emphasis-text">Profile</div>
   <label for="profile-name">Profile name:</label>
   <input id="profile-name" type="text">
 
@@ -106,14 +79,14 @@ const appHtml = html`<header>
 
 const styleSheet = document.createElement('style');
 styleSheet.type = 'text/css';
-styleSheet.innerText = appCss.cssText;
+styleSheet.textContent = MATERIAL_CSS.cssText + '\n\n' + appCss.cssText;
 document.head.appendChild(styleSheet);
 
-document.body.innerHTML = appHtml.getHTML();
+LitElement.render(appHtml, document.body);
 
 const sidebarDiv = document.getElementById('sidebar') as HTMLDivElement;
-
 const profileForm = document.getElementById('profile-form') as HTMLFormElement;
+const profileFormTitleDiv = document.getElementById('profile-form-title') as HTMLElement;
 const profileFieldset = document.getElementById('profile-fieldset') as HTMLFieldSetElement;
 const profileNameInput = document.getElementById('profile-name') as HTMLInputElement;
 const profileAccountIdInput = document.getElementById('profile-account-id') as HTMLInputElement;
@@ -130,6 +103,7 @@ vm.onchange = () => {
 
     profileForm.style.display = vm.profileForm.showing ? 'grid' : 'none';
     profileFieldset.disabled = !vm.profileForm.enabled;
+    profileFormTitleDiv.textContent = vm.profileForm.title;
     profileNameInput.value = vm.profileForm.name;
     profileAccountIdInput.value = vm.profileForm.accountId;
     profileApiTokenInput.value = vm.profileForm.apiToken;
@@ -154,7 +128,7 @@ profileSaveButton.onclick = () => {
     vm.saveProfile();
 }
 profileDeleteButton.onclick =() => {
-    vm.deleteProfile();
+    vm.deleteProfile(vm.profileForm.profileId);
 }
 
 vm.start();

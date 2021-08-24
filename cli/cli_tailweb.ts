@@ -19,21 +19,25 @@ export async function tailweb(args: (string | number)[], options: Record<string,
 
     const regenerateAppContents = async () => {
         console.log(`bundling ${basename(appPath)} into bundle.js...`);
-        const start = Date.now();
-        const result = await Deno.emit(appPath, { bundle: 'module', compilerOptions: {
-            lib: ['esnext', 'dom'],
-        } });
-        console.log(`bundle finished in ${Date.now() - start}ms`);
-    
-        if (result.diagnostics.length > 0) {
-            console.warn(Deno.formatDiagnostics(result.diagnostics));
-            return;
-        }
-    
-        const scriptContentsStr = result.files['deno:///bundle.js'];
-        if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
+        try {
+            const start = Date.now();
+            const result = await Deno.emit(appPath, { bundle: 'module', compilerOptions: {
+                lib: ['esnext', 'dom'],
+            } });
+            console.log(`bundle finished in ${Date.now() - start}ms`);
+        
+            if (result.diagnostics.length > 0) {
+                console.warn(Deno.formatDiagnostics(result.diagnostics));
+                return;
+            }
+        
+            const scriptContentsStr = result.files['deno:///bundle.js'];
+            if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
 
-        await updateData('TAILWEB_APP_DATA', 'text/javascript', Bytes.ofUtf8(scriptContentsStr), dataPath);
+            await updateData('TAILWEB_APP_DATA', 'text/javascript', Bytes.ofUtf8(scriptContentsStr), dataPath);
+        } catch (e) {
+            console.warn('error in regenerateAppContents', e);
+        }   
     }
 
     await regenerateAppContents();

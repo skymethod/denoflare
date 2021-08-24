@@ -74,12 +74,8 @@ function computeHtml(url: URL) {
 <style>
 body {
     font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir, helvetica neue, helvetica, Ubuntu, roboto, noto, segoe ui, arial, sans-serif;
-
-    background-color: #050510;
-    background-image: linear-gradient(147deg, #050510 0%, #101020 74%);
-    background-attachment: fixed;
-    
-    color: rgb(238, 238, 238); /* #eeeeee; */
+    background-color: #121212;
+    color: red; /* to catch non-explicit text colors */
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     margin: 0;

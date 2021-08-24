@@ -2,11 +2,18 @@ import { generateUuid } from '../common/uuid_v4.ts';
 
 export class TailwebAppVM {
     profiles: SidebarItem[] = [];
-    selectedProfileId: string | undefined;
+
+    get selectedProfileId(): string | undefined { return this._selectedProfileId; }
+    set selectedProfileId(value: string | undefined) {
+        if (this._selectedProfileId === value) return;
+        this._selectedProfileId = value; 
+        this.onchange() 
+    }
     profileForm = new ProfileFormVM();
     message = '';
 
     private readonly state = loadState();
+    private _selectedProfileId: string | undefined;
 
     onchange: () => void = () => {};
 
@@ -17,7 +24,7 @@ export class TailwebAppVM {
     start() {
         this.reloadProfiles();
         if (this.profiles.length > 0) {
-            this.selectedProfileId = this.profiles[0].id;
+            this._selectedProfileId = this.profiles[0].id;
         }
         this.onchange();
     }
@@ -25,6 +32,7 @@ export class TailwebAppVM {
     newProfile() {
         this.profileForm.profileId = generateUuid();
         this.profileForm.showing = true;
+        this.profileForm.title = 'New Profile';
         this.profileForm.name = this.profiles.length === 0 ? 'default' : `profile${this.profiles.length + 1}`;
         this.profileForm.accountId = '';
         this.profileForm.apiToken = '';
@@ -36,17 +44,29 @@ export class TailwebAppVM {
 
     editProfile(profileId: string) {
         const profile = this.state.profiles[profileId];
-        if (!profileId) throw new Error(`Profile ${profileId} not found`);
-        this.selectedProfileId = profileId;
+        if (!profile) throw new Error(`Profile ${profileId} not found`);
+        this._selectedProfileId = profileId;
         const { name, accountId, apiToken } = profile;
         this.profileForm.profileId = profileId;
         this.profileForm.showing = true;
+        this.profileForm.title = 'Edit Profile';
         this.profileForm.name = name;
         this.profileForm.accountId = accountId;
         this.profileForm.apiToken = apiToken;
         this.profileForm.deleteVisible = true;
         this.profileForm.enabled = true;
         this.profileForm.computeSaveEnabled();
+        this.onchange();
+    }
+
+    deleteProfile(profileId: string) {
+        console.log('delete profile', profileId);
+        const profile = this.state.profiles[profileId];
+        if (!profile) throw new Error(`Profile ${profileId} not found`);
+        delete this.state.profiles[profileId];
+        saveState(this.state);
+        this.profileForm.showing = false;
+        this.reloadProfiles();
         this.onchange();
     }
 
@@ -87,15 +107,6 @@ export class TailwebAppVM {
         this.reloadProfiles();
         this.onchange();
     }
-
-    deleteProfile() {
-        const { profileId } = this.profileForm;
-        delete this.state.profiles[profileId];
-        saveState(this.state);
-        this.profileForm.showing = false;
-        this.reloadProfiles();
-        this.onchange();
-    }
         
     //
 
@@ -121,6 +132,7 @@ export class ProfileFormVM {
     deleteVisible = false;
     saveEnabled = false;
     profileId = '';
+    title = '';
 
     computeSaveEnabled() {
         this.saveEnabled = this.name.trim().length > 0 && this.apiToken.trim().length > 0 && this.accountId.trim().length > 0;

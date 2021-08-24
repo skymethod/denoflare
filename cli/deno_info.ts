@@ -1,3 +1,10 @@
+import { fromFileUrl } from './deps_cli.ts';
+
+export async function computeDenoInfoLocalPaths(path: string): Promise<string[]> {
+    const info = await computeDenoInfo(path);
+    return findLocalPaths(info);
+}
+
 export async function computeDenoInfo(path: string): Promise<DenoInfo> {
     const p = Deno.run({
         cmd: [Deno.execPath(), 'info', '--json', path],
@@ -15,6 +22,18 @@ export async function computeDenoInfo(path: string): Promise<DenoInfo> {
     const obj = JSON.parse(stdout);
     // console.log(JSON.stringify(obj, undefined, 2));
     return obj as DenoInfo;
+}
+
+//
+
+function findLocalPaths(info: DenoInfo): string[] {
+    const rt = new Set<string>();
+    const rootPath = fromFileUrl(info.root);
+    rt.add(rootPath);
+    for (const moduleInfo of info.modules) {
+        rt.add(moduleInfo.local);
+    }
+    return [...rt].sort();
 }
 
 //

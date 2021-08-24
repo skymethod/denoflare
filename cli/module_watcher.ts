@@ -1,5 +1,4 @@
-import { computeDenoInfo, DenoInfo } from './deno_info.ts';
-import { fromFileUrl } from './deps_cli.ts';
+import { computeDenoGraphLocalPaths } from './deno_graph.ts';
 
 export class ModuleWatcher {
     static VERBOSE = false;
@@ -29,8 +28,7 @@ export class ModuleWatcher {
     }
 
     private async initWatcher() {
-        const info = await computeDenoInfo(this.entryPointPath);
-        const paths = findLocalPaths(info);
+        const paths = await computeDenoGraphLocalPaths(this.entryPointPath);
         if (ModuleWatcher.VERBOSE) console.log('watching', paths);
         const watcher = Deno.watchFs(paths);
         this.watcher = watcher;
@@ -44,16 +42,4 @@ export class ModuleWatcher {
         }
     }
 
-}
-
-//
-
-function findLocalPaths(info: DenoInfo): string[] {
-    const rt = new Set<string>();
-    const rootPath = fromFileUrl(info.root);
-    rt.add(rootPath);
-    for (const moduleInfo of info.modules) {
-        rt.add(moduleInfo.local);
-    }
-    return [...rt].sort();
 }
