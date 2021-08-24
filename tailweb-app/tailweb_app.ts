@@ -5,12 +5,13 @@ import { CloudflareApi, createTail } from '../common/cloudflare_api.ts';
 import { TailMessage } from '../common/tail.ts';
 import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
-import { initSidebar, SIDEBAR_CSS, SIDEBAR_HTML } from './sidebar_view.ts';
+import { initSidebar, SIDEBAR_CSS, SIDEBAR_HTML } from './views/sidebar_view.ts';
 import { TailwebAppVM } from './tailweb_app_vm.ts';
 import { css, html, LitElement } from './deps_app.ts';
 import { MATERIAL_CSS } from './material.ts';
-import { initModals, MODALS_HTML } from './modals.ts';
-import { HEADER_CSS, HEADER_HTML, initHeader } from './header_view.ts';
+import { initModal, MODAL_CSS, MODAL_HTML } from './views/modal_view.ts';
+import { HEADER_CSS, HEADER_HTML, initHeader } from './views/header_view.ts';
+import { PROFILE_EDITOR_CSS } from './views/profile_editor_view.ts';
 
 const appCss = css`
 
@@ -26,7 +27,7 @@ ${HEADER_HTML}
 ${SIDEBAR_HTML}
 <div id="content">
 </div>
-${MODALS_HTML}
+${MODAL_HTML}
 </main>`;
 
 function appendStylesheets(cssTexts: string[]) {
@@ -41,6 +42,8 @@ appendStylesheets([
     appCss.cssText, 
     HEADER_CSS.cssText, 
     SIDEBAR_CSS.cssText,
+    MODAL_CSS.cssText,
+    PROFILE_EDITOR_CSS.cssText,
 ]);
 
 LitElement.render(appHtml, document.body);
@@ -48,12 +51,12 @@ LitElement.render(appHtml, document.body);
 const vm = new TailwebAppVM();
 const updateHeader = initHeader(document, vm);
 const updateSidebar = initSidebar(document, vm);
-const updateModals = initModals(document, vm);
+const updateModal = initModal(document, vm);
 
 vm.onchange = () => {
     updateHeader();
     updateSidebar();
-    updateModals();
+    updateModal();
 };
 
 vm.start();

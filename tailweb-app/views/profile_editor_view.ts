@@ -1,7 +1,7 @@
-import { html } from './deps_app.ts';
-import { TailwebAppVM } from './tailweb_app_vm.ts';
+import { css, html } from '../deps_app.ts';
+import { TailwebAppVM } from '../tailweb_app_vm.ts';
 
-const profilesForm = html`
+export const PROFILE_EDITOR_HTML = html`
 <form id="profile-form" autocomplete="off">
 <fieldset id="profile-fieldset">
   <div id="profile-form-title" class="h6 high-emphasis-text">Profile</div>
@@ -18,7 +18,7 @@ const profilesForm = html`
   <div class="form-lhs">
     <button id="profile-delete">Delete</button>
   </div>
-  <div class="form-rhs">
+  <div id="profile-form-buttons" class="form-rhs">
     <button id="profile-cancel">Cancel</button>
     <button id="profile-save">Save</button>
   </div>
@@ -26,15 +26,15 @@ const profilesForm = html`
 </form>
 `;
 
-export const MODALS_HTML = html`
-<div id="modal" class="modal">
-    <div class="modal-content">
-    ${profilesForm}
-    </div>
-</div>
+export const PROFILE_EDITOR_CSS = css`
+    #profile-form-buttons {
+        justify-self: end;
+        display: flex;
+        gap: 1rem;
+    }
 `;
 
-export function initModals(document: HTMLDocument, vm: TailwebAppVM): () => void {
+export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () => void {
     const profileForm = document.getElementById('profile-form') as HTMLFormElement;
     const profileFormTitleDiv = document.getElementById('profile-form-title') as HTMLElement;
     const profileFieldset = document.getElementById('profile-fieldset') as HTMLFieldSetElement;

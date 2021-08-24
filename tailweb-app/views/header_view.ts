@@ -1,5 +1,5 @@
-import { css, html } from './deps_app.ts';
-import { TailwebAppVM } from './tailweb_app_vm.ts';
+import { css, html } from '../deps_app.ts';
+import { TailwebAppVM } from '../tailweb_app_vm.ts';
 
 export const HEADER_HTML = html`
 <header class="h6 high-emphasis-text">

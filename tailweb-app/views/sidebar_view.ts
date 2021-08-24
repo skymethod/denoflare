@@ -1,6 +1,6 @@
-import { svg, html, LitElement, SVGTemplateResult, css } from './deps_app.ts';
-import { Material } from './material.ts';
-import { TailwebAppVM } from './tailweb_app_vm.ts';
+import { svg, html, LitElement, SVGTemplateResult, css } from '../deps_app.ts';
+import { Material } from '../material.ts';
+import { TailwebAppVM } from '../tailweb_app_vm.ts';
 
 export const SIDEBAR_HTML = html`
 <div id="sidebar">
@@ -50,7 +50,7 @@ const template = (vm: TailwebAppVM) => html`
 
 function actionIcon(icon: SVGTemplateResult, opts: { text?: string, onclick?: () => void } = {}) {
     const { text, onclick } = opts;
-    return html`<div class="action-icon" @click=${() => onclick && onclick()}>${icon}${text || ''}</div>`;
+    return html`<div class="action-icon" @click=${(e: Event) => { e.preventDefault(); onclick && onclick(); }}>${icon}${text || ''}</div>`;
 }
 
 
