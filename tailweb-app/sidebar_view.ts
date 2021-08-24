@@ -1,12 +1,40 @@
-/// <reference lib="dom" />
-/// <reference lib="dom.iterable" />
-
-import { svg, html, LitElement, SVGTemplateResult } from './deps_app.ts';
+import { svg, html, LitElement, SVGTemplateResult, css } from './deps_app.ts';
 import { Material } from './material.ts';
 import { TailwebAppVM } from './tailweb_app_vm.ts';
 
-export function updateSidebarView(div: HTMLDivElement, vm: TailwebAppVM) {
-    LitElement.render(template(vm), div);
+export const SIDEBAR_HTML = html`
+<div id="sidebar">
+</div>
+`;
+
+export const SIDEBAR_CSS = css`
+
+#sidebar {
+    margin-left: 1rem;
+}
+
+#sidebar .button-grid {
+    display: grid;
+    grid-template-columns: 1fr 2rem;
+    grid-gap: 1px;
+    margin-left: 1px;
+    margin-top: 1rem;
+}
+
+#sidebar .button-grid-new {
+    grid-column: 1;
+    min-width: 8rem;
+}
+
+#sidebar button {
+    grid-column: 1;
+}
+
+`;
+
+export function initSidebar(document: HTMLDocument, vm: TailwebAppVM): () => void {
+    const sidebarDiv = document.getElementById('sidebar') as HTMLDivElement;
+    return () => LitElement.render(template(vm), sidebarDiv);
 }
 
 //
