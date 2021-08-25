@@ -24,6 +24,11 @@ export async function deleteDurableObjectsNamespace(accountId: string, apiToken:
 
 //#region Worker scripts
 
+export async function listScripts(accountId: string, apiToken: string): Promise<readonly Script[]> {
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts`;
+    return (await execute('listScripts', 'GET', url, apiToken) as ListScriptsResponse).result;
+}
+
 export async function putScript(accountId: string, scriptName: string, scriptContents: Uint8Array, bindings: Binding[], apiToken: string): Promise<Script> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
@@ -237,6 +242,10 @@ export interface DeleteScriptResponse extends CloudflareApiResponse {
 
 export interface DeleteScriptResult {
     readonly id: string;
+}
+
+export interface ListScriptsResponse extends CloudflareApiResponse {
+    readonly result: readonly Script[];
 }
 
 export interface GetKeyMetadataResponse extends CloudflareApiResponse {

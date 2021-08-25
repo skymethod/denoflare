@@ -4,22 +4,18 @@ import { TailwebAppVM } from '../tailweb_app_vm.ts';
 export const HEADER_HTML = html`
 <header class="h6 high-emphasis-text">
     <div style="flex-grow: 1;">Denoflare Tail</div>
-    <div id="message">Saving profile...</div>
 </header>
 `;
 
 export const HEADER_CSS = css`
 header {
-    position: sticky;
     display: flex;
-    padding: 1rem;
+    padding: 1rem 0;
 }
 `;
 
-export function initHeader(document: HTMLDocument, vm: TailwebAppVM): () => void {
-    const messageDiv = document.getElementById('message') as HTMLElement;
+export function initHeader(_document: HTMLDocument, _vm: TailwebAppVM): () => void {
 
     return () => {
-        messageDiv.textContent = vm.message;
     }
 }

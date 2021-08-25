@@ -1,5 +1,11 @@
-import { CloudflareApiError, listTails } from '../common/cloudflare_api.ts';
+import { CloudflareApiError, createTail, listScripts, listTails } from '../common/cloudflare_api.ts';
+import { TailMessage } from '../common/tail.ts';
+import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
+import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
+
+// deno-lint-ignore no-explicit-any
+export type ConsoleLogger = (...data: any[]) => void;
 
 export class TailwebAppVM {
     profiles: SidebarItem[] = [];
@@ -8,15 +14,28 @@ export class TailwebAppVM {
     set selectedProfileId(value: string | undefined) {
         if (this._selectedProfileId === value) return;
         this._selectedProfileId = value; 
-        this.onchange() 
+        this.onchange();
+        this.findScripts();
+    }
+
+    scripts: SidebarItem[] = [];
+    get selectedScriptId(): string | undefined { return this._selectedScriptId; }
+    set selectedScriptId(value: string | undefined) {
+        if (this._selectedScriptId === value) return;
+        this._selectedScriptId = value; 
+        this.onchange();
+        if (this._selectedScriptId) {
+            this.startTail(this._selectedScriptId);
+        }
     }
     profileForm = new ProfileFormVM();
-    message = '';
 
     private readonly state = loadState();
     private _selectedProfileId: string | undefined;
+    private _selectedScriptId: string | undefined;
 
     onchange: () => void = () => {};
+    logger: ConsoleLogger = () => {};
 
     constructor() {
 
@@ -25,9 +44,10 @@ export class TailwebAppVM {
     start() {
         this.reloadProfiles();
         if (this.profiles.length > 0) {
-            this._selectedProfileId = this.profiles[0].id;
+            this.selectedProfileId = this.profiles[0].id;
+        } else {
+            this.onchange();
         }
-        this.onchange();
     }
 
     newProfile() {
@@ -144,6 +164,62 @@ export class TailwebAppVM {
             const name = profile.name || '(unnamed)';
             this.profiles.push({ id: profileId, text: name });
         }
+    }
+
+    private async findScripts() {
+        try {
+            if (this.selectedProfileId === undefined) return;
+            const profile = this.state.profiles[this.selectedProfileId];
+            if (profile === undefined) return;
+            const { accountId, apiToken } = profile;
+            const scripts = await listScripts(accountId, apiToken);
+            this.logger(`Found ${scripts.length} scripts`);
+            this.scripts.splice(0);
+            this.selectedScriptId = undefined;
+            for (const script of scripts) {
+                this.logger(`Found script ${script.id}`);
+                this.scripts.push({ id: script.id, text: script.id });
+            }
+            this.scripts.sort((lhs, rhs) => lhs.text.localeCompare(rhs.text));
+            if (this.scripts.length > 0) {
+                this.selectedScriptId = this.scripts[0].id;
+            } else {
+                this.onchange();
+            }
+        } catch (e) {
+            this.logger(`Error in findScripts: ${e.stack}`);
+        }
+    }
+
+    private async startTail(scriptId: string) {
+        if (this.selectedProfileId === undefined) return;
+        const profile = this.state.profiles[this.selectedProfileId];
+        if (profile === undefined) return;
+        const { accountId, apiToken } = profile;
+        const tail = await createTail(accountId, scriptId, apiToken);
+        this.logger(JSON.stringify(tail, undefined, 2));
+
+        const { logger } = this;
+        const callbacks: TailConnectionCallbacks = {
+            onOpen(_cn: TailConnection, timeStamp: number) {
+                logger('open', { timeStamp });
+            },
+            onClose(_cn: TailConnection, timeStamp: number, code: number, reason: string, wasClean: boolean) {
+                logger('close', { timeStamp, code, reason, wasClean });
+            },
+            onError(_cn: TailConnection, timeStamp: number, errorInfo?: ErrorInfo) {
+                logger('error', { timeStamp, errorInfo });
+            },
+            onTailMessage(_cn: TailConnection, _timeStamp: number, message: TailMessage) {
+                // console.log('tailMessage', { timeStamp, message });
+                dumpMessagePretty(message, logger);
+            },
+            // deno-lint-ignore no-explicit-any
+            onUnparsedMessage(_cn: TailConnection, timeStamp: number, message: any, parseError: Error) {
+                logger('unparsedMessage', { timeStamp, message, parseError });
+            },
+        };
+        const _cn = new TailConnection(tail.url, callbacks);
     }
 
 }

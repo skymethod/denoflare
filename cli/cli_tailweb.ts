@@ -56,5 +56,5 @@ async function updateData(name: string, value: string, dataPath: string) {
     const newText = oldText.replaceAll(new RegExp(`export const ${name} = '.*?';`, 'g'), `export const ${name} = '${value}';`);
     if (oldText == newText) return;
     await Deno.writeTextFile(dataPath, newText);
-    console.log('Regenerated app data');
+    console.log(`Updated ${name}`);
 }

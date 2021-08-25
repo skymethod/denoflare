@@ -1,23 +1,22 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { CloudflareApi, createTail } from '../common/cloudflare_api.ts';
-import { TailMessage } from '../common/tail.ts';
-import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
-import { dumpMessagePretty } from '../common/tail_pretty.ts';
+import { CloudflareApi } from '../common/cloudflare_api.ts';
 import { initSidebar, SIDEBAR_CSS, SIDEBAR_HTML } from './views/sidebar_view.ts';
 import { TailwebAppVM } from './tailweb_app_vm.ts';
 import { css, html, LitElement } from './deps_app.ts';
 import { MATERIAL_CSS } from './material.ts';
 import { initModal, MODAL_CSS, MODAL_HTML } from './views/modal_view.ts';
-import { HEADER_CSS, HEADER_HTML, initHeader } from './views/header_view.ts';
+import { HEADER_CSS } from './views/header_view.ts';
 import { PROFILE_EDITOR_CSS } from './views/profile_editor_view.ts';
 import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
+import { CONSOLE_CSS, CONSOLE_HTML, initConsole } from './views/console_view.ts';
 
 const appCss = css`
 
 main {
     display: flex;
+    gap: 0.5rem;
 }
 
 :root {
@@ -26,11 +25,9 @@ main {
 `;
 
 const appHtml = html`
-${HEADER_HTML}
 <main>
 ${SIDEBAR_HTML}
-<div id="content">
-</div>
+${CONSOLE_HTML}
 ${MODAL_HTML}
 </main>`;
 
@@ -46,6 +43,7 @@ appendStylesheets([
     appCss.cssText, 
     HEADER_CSS.cssText, 
     SIDEBAR_CSS.cssText,
+    CONSOLE_CSS.cssText,
     MODAL_CSS.cssText,
     PROFILE_EDITOR_CSS.cssText,
     CIRCULAR_PROGRESS_CSS.cssText,
@@ -54,65 +52,16 @@ appendStylesheets([
 LitElement.render(appHtml, document.body);
 
 const vm = new TailwebAppVM();
-const updateHeader = initHeader(document, vm);
 const updateSidebar = initSidebar(document, vm);
+const updateConsole = initConsole(document, vm);
 const updateModal = initModal(document, vm);
 
 vm.onchange = () => {
-    updateHeader();
     updateSidebar();
+    updateConsole();
     updateModal();
 };
 
-vm.start();
-
 CloudflareApi.URL_TRANSFORMER = v => `/fetch/${v.substring('https://'.length)}`;
 
-if (false) {
-    const accountId = '';
-    const apiToken = '';
-    const scriptName = '';
-    try {
-        
-        const tail = await createTail(accountId, scriptName, apiToken);
-        document.body.appendChild(document.createTextNode(JSON.stringify(tail, undefined, 2)));
-
-        // deno-lint-ignore no-explicit-any
-        const logger = (...data: any[]) => {
-            const div = document.createElement('DIV');
-            const msg = data[0];
-            const tokens = msg.split('%c');
-            for (let i = 0; i < tokens.length; i++) {
-                const span = document.createElement('SPAN');
-                const style = data[i];
-                span.setAttribute('style', style);
-                span.textContent = tokens[i];
-                div.appendChild(span);
-            }
-            document.body.appendChild(div);
-        };
-        const callbacks: TailConnectionCallbacks = {
-            onOpen(_cn: TailConnection, timeStamp: number) {
-                console.log('open', { timeStamp });
-            },
-            onClose(_cn: TailConnection, timeStamp: number, code: number, reason: string, wasClean: boolean) {
-                console.log('close', { timeStamp, code, reason, wasClean });
-            },
-            onError(_cn: TailConnection, timeStamp: number, errorInfo?: ErrorInfo) {
-                console.log('error', { timeStamp, errorInfo });
-            },
-            onTailMessage(_cn: TailConnection, timeStamp: number, message: TailMessage) {
-                console.log('tailMessage', { timeStamp, message });
-                dumpMessagePretty(message, logger);
-            },
-            // deno-lint-ignore no-explicit-any
-            onUnparsedMessage(_cn: TailConnection, timeStamp: number, message: any, parseError: Error) {
-                console.log('unparsedMessage', { timeStamp, message, parseError });
-            },
-        };
-        const _cn = new TailConnection(tail.url, callbacks);
-        
-    } catch (e) {
-        document.body.appendChild(document.createTextNode(e.stack));
-    }
-}
+vm.start();

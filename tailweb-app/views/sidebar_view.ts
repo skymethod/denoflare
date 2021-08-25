@@ -1,9 +1,13 @@
 import { svg, html, LitElement, SVGTemplateResult, css } from '../deps_app.ts';
 import { Material } from '../material.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { HEADER_HTML, initHeader } from './header_view.ts';
 
 export const SIDEBAR_HTML = html`
 <div id="sidebar">
+    ${HEADER_HTML}
+    <div id="profiles"></div>
+    <div id="scripts"></div>
 </div>
 `;
 
@@ -11,6 +15,8 @@ export const SIDEBAR_CSS = css`
 
 #sidebar {
     margin-left: 1rem;
+    height: 100vh;
+    overflow-y: hidden;
 }
 
 #sidebar .button-grid {
@@ -33,18 +39,33 @@ export const SIDEBAR_CSS = css`
 `;
 
 export function initSidebar(document: HTMLDocument, vm: TailwebAppVM): () => void {
-    const sidebarDiv = document.getElementById('sidebar') as HTMLDivElement;
-    return () => LitElement.render(template(vm), sidebarDiv);
+    const updateHeader = initHeader(document, vm);
+
+    const profilesDiv = document.getElementById('profiles') as HTMLDivElement;
+    const scriptsDiv = document.getElementById('scripts') as HTMLDivElement;
+    return () => {
+        updateHeader();
+        LitElement.render(PROFILES_HTML(vm), profilesDiv);
+        LitElement.render(SCRIPTS_HTML(vm), scriptsDiv);
+    };
 }
 
 //
 
-const template = (vm: TailwebAppVM) => html`
+const PROFILES_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Profiles</div>
     <div class="button-grid">
     ${vm.profiles.map(profile => html`<button class="${profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }}>${profile.text}</button>
     ${profile.id === vm.selectedProfileId ? html`${actionIcon(editIcon, { onclick: () => vm.editProfile(profile.id) })}` : ''}`)}
     <div class="button-grid-new">${actionIcon(addIcon, { text: 'New', onclick: () => vm.newProfile() })}</div>
+    </div>
+`;
+
+const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
+    <div class="overline medium-emphasis-text">Scripts</div>
+    <div class="button-grid">
+    ${vm.scripts.map(script => html`<button class="${script.id === vm.selectedScriptId ? 'selected' : ''}" @click=${() => { vm.selectedScriptId = script.id; }}>${script.text}</button>
+    `)}
     </div>
 `;
 
