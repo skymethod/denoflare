@@ -28,6 +28,7 @@ export const MODAL_CSS = css`
 .modal-content {
     margin: 15% auto;
     width: 80%;
+    max-width: 40rem;
     background-color: #121212;
 }
 `;

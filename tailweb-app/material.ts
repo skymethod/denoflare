@@ -24,7 +24,7 @@ export const MATERIAL_CSS = css`
     font-weight: bolder;
 }
 
-.body2, fieldset label, fieldset output {
+.body2, fieldset label, fieldset output, fieldset details {
     font-size: 0.875rem;
     letter-spacing: 0.01786rem;
     font-weight: normal;
@@ -160,6 +160,10 @@ fieldset input[type=text] {
 
 fieldset output {
     padding: 0.5rem 0;
+    color: var(--medium-emphasis-text-color);
+}
+
+fieldset details {
     color: var(--medium-emphasis-text-color);
 }
 

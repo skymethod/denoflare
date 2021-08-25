@@ -114,6 +114,7 @@ export class TailwebAppVM {
         profileForm.enabled = false;
         profileForm.progressVisible = true;
         profileForm.outputMessage = 'Checking profile...';
+        this.onchange();
         try {
             const canListTails = await computeCanListTails(profile.accountId, profile.apiToken);
             if (canListTails) {

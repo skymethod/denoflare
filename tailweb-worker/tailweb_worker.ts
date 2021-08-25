@@ -69,7 +69,7 @@ function computeHtml(url: URL) {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/my.webmanifest">
-<meta name="theme-color" content="#FF00FF">
+<meta name="theme-color" content="#bb86fc">
 
 <style>
 body {
