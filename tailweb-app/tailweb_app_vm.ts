@@ -1,3 +1,4 @@
+import { CloudflareApiError, listTails } from '../common/cloudflare_api.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
 
 export class TailwebAppVM {
@@ -38,6 +39,7 @@ export class TailwebAppVM {
         this.profileForm.apiToken = '';
         this.profileForm.deleteVisible = false;
         this.profileForm.enabled = true;
+        this.profileForm.outputMessage = '';
         this.profileForm.computeSaveEnabled();
         this.onchange();
     }
@@ -55,6 +57,7 @@ export class TailwebAppVM {
         this.profileForm.apiToken = apiToken;
         this.profileForm.deleteVisible = true;
         this.profileForm.enabled = true;
+        this.profileForm.outputMessage = '';
         this.profileForm.computeSaveEnabled();
         this.onchange();
     }
@@ -94,21 +97,42 @@ export class TailwebAppVM {
     }
 
     saveProfile() {
-        const { profileId } = this.profileForm;
-        // this.message = 'Saving...';
-        // this.profileForm.enabled = false;
-        this.state.profiles[profileId] = {
-            name: this.profileForm.name.trim(), 
-            accountId: this.profileForm.accountId.trim(), 
-            apiToken: this.profileForm.apiToken.trim(),
+        const { profileForm } = this;
+        const { profileId } = profileForm;
+        const newProfile: ProfileState = {
+            name: profileForm.name.trim(), 
+            accountId: profileForm.accountId.trim(), 
+            apiToken: profileForm.apiToken.trim(),
         };
-        saveState(this.state);
-        this.profileForm.showing = false;
-        this.reloadProfiles();
-        this.onchange();
+        this.trySaveProfile(profileId, newProfile);
     }
         
     //
+
+    private async trySaveProfile(profileId: string, profile: ProfileState) {
+        const { profileForm } = this;
+        profileForm.enabled = false;
+        profileForm.progressVisible = true;
+        profileForm.outputMessage = 'Checking profile...';
+        try {
+            const canListTails = await computeCanListTails(profile.accountId, profile.apiToken);
+            if (canListTails) {
+                this.state.profiles[profileId] = profile;
+                saveState(this.state);
+                profileForm.outputMessage = '';
+                this.reloadProfiles();
+                profileForm.showing = false;
+            } else {
+                profileForm.outputMessage = `These credentials do not have permission to tail`;
+            }
+        } catch (e) {
+            profileForm.outputMessage = `Error: ${e.message}`;
+        } finally {
+            profileForm.progressVisible = false;
+            profileForm.enabled = true;
+            this.onchange();
+        }
+    }
 
     private reloadProfiles() {
         const { state } = this;
@@ -133,6 +157,8 @@ export class ProfileFormVM {
     saveEnabled = false;
     profileId = '';
     title = '';
+    progressVisible = false;
+    outputMessage = '';
 
     computeSaveEnabled() {
         this.saveEnabled = this.name.trim().length > 0 && this.apiToken.trim().length > 0 && this.accountId.trim().length > 0;
@@ -186,6 +212,21 @@ function parseProfileState(parsed: any): ProfileState {
 
 function saveState(state: State) {
     localStorage.setItem(STATE_KEY, JSON.stringify(state));
+}
+
+async function computeCanListTails(accountId: string, apiToken: string): Promise<boolean> {
+    try {
+        await listTails(accountId, '' /*unlikely script name*/, apiToken);
+        return true;
+    } catch (e) {
+        if (e instanceof CloudflareApiError && e.status === 404) {
+            // status=404, errors=10007 workers.api.error.script_not_found
+            return true;
+        } else {
+            // status=400, errors=7003 Could not route to /accounts/.../workers/scripts/tails, perhaps your object identifier is invalid?, 7000 No route for that URI
+        }
+        return false;
+    }
 }
 
 //

@@ -1,3 +1,6 @@
+/// <reference lib="dom" />
+/// <reference lib="dom.iterable" />
+
 import { css, html } from '../deps_app.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
 
@@ -14,6 +17,11 @@ export const PROFILE_EDITOR_HTML = html`
 
   <label for="api-token">Cloudflare API Token:</label>
   <input id="profile-api-token" type="text">
+
+  <div id="profile-form-output-row" class="form-row">
+    <output id="profile-form-output"></output>
+    <progress id="profile-form-progress" class="pure-material-progress-circular"></progress>
+  </div>
 
   <div class="form-lhs">
     <button id="profile-delete">Delete</button>
@@ -32,6 +40,22 @@ export const PROFILE_EDITOR_CSS = css`
         display: flex;
         gap: 1rem;
     }
+
+    #profile-form-output-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        min-height: 2.5rem;
+    }
+
+    #profile-form-output-row output {
+        flex-grow: 1;
+    }
+
+    #profile-form-progress {
+        font-size: 0.5rem; /* default 3em => 1.5rem */
+    }
+
 `;
 
 export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () => void {
@@ -44,6 +68,8 @@ export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () 
     const profileDeleteButton = document.getElementById('profile-delete') as HTMLButtonElement;
     const profileCancelButton = document.getElementById('profile-cancel') as HTMLButtonElement;
     const profileSaveButton = document.getElementById('profile-save') as HTMLButtonElement;
+    const profileFormProgress = document.getElementById('profile-form-progress') as HTMLProgressElement;
+    const profileFormOutput = document.getElementById('profile-form-output') as HTMLOutputElement;
 
     profileCancelButton.onclick = () => {
         vm.cancelProfile();
@@ -73,5 +99,7 @@ export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () 
         profileApiTokenInput.value = vm.profileForm.apiToken;
         profileDeleteButton.style.display = vm.profileForm.deleteVisible ? 'inline-block' : 'none';
         profileSaveButton.disabled = !vm.profileForm.saveEnabled;
+        profileFormProgress.style.display = vm.profileForm.progressVisible ? 'block' : 'none';
+        profileFormOutput.textContent = vm.profileForm.outputMessage;
     };    
 }

@@ -156,12 +156,23 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
     if (CloudflareApi.DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
         if (fetchResponse.status === 404 && responseType === 'bytes?') return undefined;
-        throw new Error(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`);
+        throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
     }
     return apiResponse;
 }
 
 //
+
+export class CloudflareApiError extends Error {
+    readonly status: number;
+    readonly errors: readonly Message[];
+
+    constructor(message: string, status: number, errors: readonly Message[]) {
+        super(message);
+        this.status = status;
+        this.errors = errors;
+    }
+}
 
 export type Binding = DurableObjectNamespaceBinding;
 

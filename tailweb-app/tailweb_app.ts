@@ -12,6 +12,7 @@ import { MATERIAL_CSS } from './material.ts';
 import { initModal, MODAL_CSS, MODAL_HTML } from './views/modal_view.ts';
 import { HEADER_CSS, HEADER_HTML, initHeader } from './views/header_view.ts';
 import { PROFILE_EDITOR_CSS } from './views/profile_editor_view.ts';
+import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 
 const appCss = css`
 
@@ -19,6 +20,9 @@ main {
     display: flex;
 }
 
+:root {
+    --pure-material-primary-rgb: rgb(187, 134, 252);
+}
 `;
 
 const appHtml = html`
@@ -44,6 +48,7 @@ appendStylesheets([
     SIDEBAR_CSS.cssText,
     MODAL_CSS.cssText,
     PROFILE_EDITOR_CSS.cssText,
+    CIRCULAR_PROGRESS_CSS.cssText,
 ]);
 
 LitElement.render(appHtml, document.body);
@@ -61,12 +66,14 @@ vm.onchange = () => {
 
 vm.start();
 
+CloudflareApi.URL_TRANSFORMER = v => `/fetch/${v.substring('https://'.length)}`;
+
 if (false) {
     const accountId = '';
     const apiToken = '';
     const scriptName = '';
     try {
-        CloudflareApi.URL_TRANSFORMER = v => `/fetch/${v.substring('https://'.length)}`;
+        
         const tail = await createTail(accountId, scriptName, apiToken);
         document.body.appendChild(document.createTextNode(JSON.stringify(tail, undefined, 2)));
 

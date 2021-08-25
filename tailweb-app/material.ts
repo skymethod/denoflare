@@ -24,7 +24,7 @@ export const MATERIAL_CSS = css`
     font-weight: bolder;
 }
 
-.body2, fieldset label {
+.body2, fieldset label, fieldset output {
     font-size: 0.875rem;
     letter-spacing: 0.01786rem;
     font-weight: normal;
@@ -146,12 +146,21 @@ input, .form-rhs {
     grid-column: 2;
 }
 
+.form-row {
+    grid-column: 1 / span 2;
+}
+
 fieldset input[type=text] {
     padding: 0.5rem;
     background-color: var(--surface-01-background-color);
     color: var(--high-emphasis-text-color);
     border: solid 1px var(--medium-emphasis-text-color);
     border-radius: var(--button-border-radius);
+}
+
+fieldset output {
+    padding: 0.5rem 0;
+    color: var(--medium-emphasis-text-color);
 }
 
 `;
