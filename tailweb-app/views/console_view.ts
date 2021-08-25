@@ -18,7 +18,7 @@ export const CONSOLE_CSS = css`
     color: var(--high-emphasis-text-color);
     height: 100vh;
     width: 100%;
-    background-color: #121212;
+    background-color: var(--background-color);
     overflow-y: scroll;
     overflow-x: hidden;
 }
@@ -26,7 +26,7 @@ export const CONSOLE_CSS = css`
 #console::-webkit-scrollbar {
     width: 1rem;
     height: 3rem;
-    background-color: #121212;
+    background-color: var(--background-color);
 }
 
 #console::-webkit-scrollbar-thumb {
@@ -37,7 +37,7 @@ export const CONSOLE_CSS = css`
     position: sticky;
     top: 0;
     height: 5rem;
-    background-color: #121212;
+    background-color: var(--background-color);
 }
 
 #console .line {
@@ -60,19 +60,49 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
         const msg = data[0];
         const tokens = msg.split('%c');
         for (let i = 0; i < tokens.length; i++) {
-            const span = document.createElement('SPAN');
+            const span = document.createElement('span');
             const style = data[i];
             span.setAttribute('style', style);
-            span.textContent = tokens[i];
+            renderTextIntoSpan(tokens[i], span);
             lineDiv.appendChild(span);
         }
         consoleDiv.insertBefore(lineDiv, consoleLastLineDiv);
-        consoleLastLineDiv.scrollIntoView(false /* alignToTop */);
+        const { scrollHeight, scrollTop, clientHeight } = consoleDiv;
+        const diff = scrollHeight - scrollTop;
+        const autoscroll = diff - 16 * 4 <= clientHeight;
+        // console.log({scrollHeight, scrollTop, clientHeight, diff, autoscroll });
+        if (autoscroll) {
+            consoleLastLineDiv.scrollIntoView(false /* alignToTop */);
+        }
     };
 
-    // for (let i = 0; i < 100; i++) vm.logger(`item ${i}`); // generate a bunch of lines to test scrolling
+    // for (let i = 0; i < 100; i++) vm.logger(`line ${i}`); // generate a bunch of lines to test scrolling
+    // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll
 
     return () => {
 
     };
+}
+
+//
+
+function renderTextIntoSpan(text: string, span: HTMLSpanElement) {
+    const pattern = /https:\/\/[^\s]+/g;
+    let m: RegExpExecArray | null;
+    let i = 0;
+    while(null !== (m = pattern.exec(text))) {
+        if (m.index > i) {
+            span.appendChild(document.createTextNode(text.substring(i, m.index)));
+        }
+        const url = m[0];
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.appendChild(document.createTextNode(url));
+        span.appendChild(a);
+        i = m.index + url.length;
+    }
+    if (i < text.length) {
+        span.appendChild(document.createTextNode(text.substring(i)));
+    }
 }

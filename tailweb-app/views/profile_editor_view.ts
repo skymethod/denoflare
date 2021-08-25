@@ -60,11 +60,6 @@ export const PROFILE_EDITOR_CSS = css`
         cursor: default
     }
 
-    #profile-form-help-row a {
-        color: #bb86fc;
-        text-underline-offset: 0.25rem;
-    }
-
     #profile-form-output-row {
         display: flex;
         align-items: center;

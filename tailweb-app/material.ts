@@ -14,6 +14,8 @@ export const MATERIAL_CSS = css`
   --medium-emphasis-text-color: rgba(255, 255, 255, 0.60);
   --disabled-text-color: rgba(255, 255, 255, 0.38);
   --button-border-radius: 0.25rem;
+  --primary-color: #bb86fc;
+  --background-color: #121212;
 }
 
 /** text size classes */
@@ -122,7 +124,20 @@ button:disabled:hover {
     cursor: default;
 }
 
+/** anchors */
+
+a {
+    color: var(--primary-color);
+    text-underline-offset: 0.25rem;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 /** forms */
+
 fieldset {
     border: solid 1px rgba(255, 255, 255, 0.60);
     border-radius: var(--button-border-radius);

@@ -29,7 +29,7 @@ export const MODAL_CSS = css`
     margin: 15% auto;
     width: 80%;
     max-width: 40rem;
-    background-color: #121212;
+    background-color: var(--background-color);
 }
 `;
 

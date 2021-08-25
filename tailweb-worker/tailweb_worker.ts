@@ -1,6 +1,7 @@
 import { Bytes } from '../common/bytes.ts';
 import { IncomingRequestCf, ModuleWorkerContext } from '../common/deps_cf.ts';
 import { TAILWEB_APP_B64, TAILWEB_APP_HASH } from './tailweb_data.ts';
+import { Material } from './material.ts';
 
 export default {
 
@@ -78,12 +79,12 @@ function computeHtml(url: URL) {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/my.webmanifest">
-<meta name="theme-color" content="#bb86fc">
+<meta name="theme-color" content="${Material.primaryColorHex}">
 
 <style>
 body {
     font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir, helvetica neue, helvetica, Ubuntu, roboto, noto, segoe ui, arial, sans-serif;
-    background-color: #121212;
+    background-color: ${Material.backgroundColorHex};
     color: red; /* to catch non-explicit text colors */
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;

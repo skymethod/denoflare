@@ -47,7 +47,7 @@ export class TailwebAppVM {
         const dis = this;
         const callbacks: TailControllerCallbacks = {
             onTailCreating(_accountId: string, scriptId: string) {
-                dis.logger(`Creating tail for ${scriptId}`);
+                dis.logger(`Creating tail for ${scriptId}...`);
             },
             onTailCreated(_accountId: string, scriptId: string, tookMillis: number, _tail: Tail) {
                 dis.logger(`Created tail for ${scriptId} in ${tookMillis}ms`);
