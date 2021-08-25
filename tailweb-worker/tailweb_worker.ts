@@ -1,5 +1,6 @@
+import { Bytes } from '../common/bytes.ts';
 import { IncomingRequestCf, ModuleWorkerContext } from '../common/deps_cf.ts';
-import { TAILWEB_APP_DATA } from './tailweb_data.ts';
+import { TAILWEB_APP_B64, TAILWEB_APP_HASH } from './tailweb_data.ts';
 
 export default {
 
@@ -9,9 +10,8 @@ export default {
 
         if (url.pathname === '/') {
             return new Response(computeHtml(url), { headers: { 'Content-Type': 'text/html; charset=utf-8' }});
-        } else if (url.pathname === '/app.js') {
-            const response = await fetch(TAILWEB_APP_DATA);
-            return new Response(await response.blob(), { headers: { 'Content-Type': 'text/javascript; charset=utf-8' }});
+        } else if (url.pathname === computeAppJsPath()) {
+            return computeAppResponse();
         } else if (url.pathname.startsWith('/fetch/')) {
             const fetchUrlStr = 'https://' + url.pathname.substring('/fetch/'.length);
             const fetchUrl = new URL(fetchUrlStr);
@@ -19,7 +19,6 @@ export default {
                 const { method } = request;
                 const headers = [...request.headers].filter(v => !v[0].startsWith('cf-'));
                 const body = undefined;
-                console.log(method, fetchUrl, headers);
                 return await fetch(fetchUrlStr, { method, headers, body });
             }
             throw new Response(`Unable to fetch ${fetchUrl}`, { status: 400 });
@@ -37,7 +36,17 @@ export interface WorkerEnv {
 
 //
 
+function computeAppJsPath(): string {
+    return `/app.${TAILWEB_APP_HASH}.js`;
+}
+
+function computeAppResponse(): Response {
+    const array = Bytes.ofBase64(TAILWEB_APP_B64).array();
+    return new Response(array, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=604800, immutable' }});
+}
+
 function computeHtml(url: URL) {
+    const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>
 <html lang="en" class="no-js">
 <head>
@@ -51,8 +60,8 @@ function computeHtml(url: URL) {
     document.documentElement.classList.add('js');
 </script>
 
-<link rel="modulepreload" href="/app.js" as="script" />
-<script type="module" src="/app.js"></script>
+<link rel="modulepreload" href="${appJsPath}" as="script" />
+<script type="module" src="${appJsPath}"></script>
 
 <meta name="description" content="Page description">
 <meta property="og:title" content="Unique page title - My Site">

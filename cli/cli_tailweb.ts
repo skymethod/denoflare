@@ -34,7 +34,10 @@ export async function tailweb(args: (string | number)[], options: Record<string,
             const scriptContentsStr = result.files['deno:///bundle.js'];
             if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
 
-            await updateData('TAILWEB_APP_DATA', 'text/javascript', Bytes.ofUtf8(scriptContentsStr), dataPath);
+            const scriptBytes = Bytes.ofUtf8(scriptContentsStr);
+            const scriptBytesSha1 = await scriptBytes.sha1();
+            await updateData('TAILWEB_APP_B64', scriptBytes.base64(), dataPath);
+            await updateData('TAILWEB_APP_HASH', scriptBytesSha1.hex(), dataPath);
         } catch (e) {
             console.warn('error in regenerateAppContents', e);
         }   
@@ -48,9 +51,9 @@ export async function tailweb(args: (string | number)[], options: Record<string,
     });
 }
 
-async function updateData(name: string, mimeType: string, bytes: Bytes, dataPath: string) {
+async function updateData(name: string, value: string, dataPath: string) {
     const oldText = await Deno.readTextFile(dataPath);
-    const newText = oldText.replaceAll(new RegExp(`export const ${name} = '.*?';`, 'g'), `export const ${name} = 'data:${mimeType};base64,${bytes.base64()}';`);
+    const newText = oldText.replaceAll(new RegExp(`export const ${name} = '.*?';`, 'g'), `export const ${name} = '${value}';`);
     if (oldText == newText) return;
     await Deno.writeTextFile(dataPath, newText);
     console.log('Regenerated app data');
