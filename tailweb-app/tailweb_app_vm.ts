@@ -1,8 +1,9 @@
-import { CloudflareApiError, createTail, listScripts, listTails } from '../common/cloudflare_api.ts';
-import { TailMessage } from '../common/tail.ts';
-import { ErrorInfo, TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
-import { dumpMessagePretty } from '../common/tail_pretty.ts';
+import { CloudflareApiError, listScripts, listTails, Tail } from '../common/cloudflare_api.ts';
+import { TailMessage } from "../common/tail.ts";
+import { ErrorInfo, UnparsedMessage } from "../common/tail_connection.ts";
+import { dumpMessagePretty } from "../common/tail_pretty.ts";
 import { generateUuid } from '../common/uuid_v4.ts';
+import { TailController, TailControllerCallbacks } from './tail_controller.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
@@ -30,7 +31,11 @@ export class TailwebAppVM {
     }
     profileForm = new ProfileFormVM();
 
+    //
+
     private readonly state = loadState();
+    private readonly tailController: TailController;
+
     private _selectedProfileId: string | undefined;
     private _selectedScriptId: string | undefined;
 
@@ -38,7 +43,33 @@ export class TailwebAppVM {
     logger: ConsoleLogger = () => {};
 
     constructor() {
-
+        // deno-lint-ignore no-this-alias
+        const dis = this;
+        const callbacks: TailControllerCallbacks = {
+            onTailCreating(_accountId: string, scriptId: string) {
+                dis.logger(`Creating tail for ${scriptId}`);
+            },
+            onTailCreated(_accountId: string, scriptId: string, tookMillis: number, _tail: Tail) {
+                dis.logger(`Created tail for ${scriptId} in ${tookMillis}ms`);
+            },
+            onTailConnectionOpen(_accountId: string, scriptId: string, _timeStamp: number, tookMillis: number) {
+                dis.logger(`Opened tail for ${scriptId} in ${tookMillis}ms`);
+            },
+            onTailConnectionClose(_accountId: string, scriptId: string, _timeStamp: number, code: number, reason: string, wasClean: boolean) {
+                dis.logger(`Closed tail for ${scriptId}`, {code, reason, wasClean });
+            },
+            onTailConnectionError(_accountId: string, scriptId: string, _timeStamp: number, errorInfo?: ErrorInfo) {
+                dis.logger(`Error in tail for ${scriptId}`, { errorInfo });
+            },
+            onTailConnectionMessage(_accountId: string, _scriptId: string, _timeStamp: number, message: TailMessage) {
+                dumpMessagePretty(message, dis.logger);
+            },
+            onTailConnectionUnparsedMessage(_accountId: string, scriptId: string, _timeStamp: number, message: UnparsedMessage, parseError: Error) {
+                console.log(message);
+                dis.logger(`Unparsed message in tail for ${scriptId}`, parseError.stack || parseError.message);
+            },
+        };
+        this.tailController = new TailController(callbacks);
     }
 
     start() {
@@ -196,30 +227,7 @@ export class TailwebAppVM {
         const profile = this.state.profiles[this.selectedProfileId];
         if (profile === undefined) return;
         const { accountId, apiToken } = profile;
-        const tail = await createTail(accountId, scriptId, apiToken);
-        this.logger(JSON.stringify(tail, undefined, 2));
-
-        const { logger } = this;
-        const callbacks: TailConnectionCallbacks = {
-            onOpen(_cn: TailConnection, timeStamp: number) {
-                logger('open', { timeStamp });
-            },
-            onClose(_cn: TailConnection, timeStamp: number, code: number, reason: string, wasClean: boolean) {
-                logger('close', { timeStamp, code, reason, wasClean });
-            },
-            onError(_cn: TailConnection, timeStamp: number, errorInfo?: ErrorInfo) {
-                logger('error', { timeStamp, errorInfo });
-            },
-            onTailMessage(_cn: TailConnection, _timeStamp: number, message: TailMessage) {
-                // console.log('tailMessage', { timeStamp, message });
-                dumpMessagePretty(message, logger);
-            },
-            // deno-lint-ignore no-explicit-any
-            onUnparsedMessage(_cn: TailConnection, timeStamp: number, message: any, parseError: Error) {
-                logger('unparsedMessage', { timeStamp, message, parseError });
-            },
-        };
-        const _cn = new TailConnection(tail.url, callbacks);
+        await this.tailController.startTail(accountId, scriptId, apiToken);
     }
 
 }

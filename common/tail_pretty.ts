@@ -6,7 +6,7 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
     const outcome = PRETTY_OUTCOMES.get(message.outcome) || message.outcome;
     const outcomeColor = message.outcome === 'ok' ? 'green' : 'red';
     if (isTailMessageCronEvent(message.event)) {
-        logger(`[%c${time}%c] [%c$???%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+        logger(`[%c${time}%c] [%c???%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
         const { method, url, cf } = message.event.request;
         const colo = cf?.colo || '???';

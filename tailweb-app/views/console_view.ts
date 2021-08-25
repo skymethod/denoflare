@@ -42,6 +42,7 @@ export const CONSOLE_CSS = css`
 
 #console .line {
     padding: 0.1rem 0;
+    white-space: pre;
 }
 
 #console-last-line {

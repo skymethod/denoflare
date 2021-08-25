@@ -85,13 +85,15 @@ function computeErrorInfo(event: Event): ErrorInfo | undefined {
 
 //
 
+// deno-lint-ignore no-explicit-any
+export type UnparsedMessage = any;
+
 export interface TailConnectionCallbacks {
     onOpen?(cn: TailConnection, timeStamp: number): void;
     onClose?(cn: TailConnection, timeStamp: number, code: number, reason: string, wasClean: boolean): void;
     onError(cn: TailConnection, timeStamp: number, errorInfo?: ErrorInfo): void;
     onTailMessage(cn: TailConnection, timeStamp: number, message: TailMessage): void;
-    // deno-lint-ignore no-explicit-any
-    onUnparsedMessage(cn: TailConnection, timeStamp: number, message: any, parseError: Error): void;
+    onUnparsedMessage(cn: TailConnection, timeStamp: number, message: UnparsedMessage, parseError: Error): void;
 }
 
 export interface ErrorInfo {
