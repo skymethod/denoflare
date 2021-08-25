@@ -3,6 +3,7 @@ import { loadConfig, resolveCredential } from './config_loader.ts';
 import { HeaderFilter, isTailMessageCronEvent, Outcome, TailFilter, TailMessage } from '../common/tail.ts';
 import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
+import { CLI_VERSION } from './cli_version.ts';
 
 export async function tail(args: (string | number)[], options: Record<string, unknown>) {
     const scriptName = args[0];
@@ -193,7 +194,7 @@ function optionStrings(name: string, options: Record<string, unknown>): string[]
 
 function dumpHelp() {
     const lines = [
-        'denoflare-tail 0.1.0',
+        `denoflare-tail ${CLI_VERSION}`,
         'View a stream of logs from a published worker',
         '',
         'USAGE:',
