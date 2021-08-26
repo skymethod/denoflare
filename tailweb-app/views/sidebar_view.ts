@@ -17,6 +17,7 @@ export const SIDEBAR_CSS = css`
     margin-left: 1rem;
     height: 100vh;
     overflow-y: hidden;
+    min-width: 15rem;
 }
 
 #sidebar .button-grid {

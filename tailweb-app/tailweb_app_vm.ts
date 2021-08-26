@@ -16,6 +16,8 @@ export class TailwebAppVM {
         if (this._selectedProfileId === value) return;
         this._selectedProfileId = value; 
         this.onchange();
+        this.state.selectedProfileId = value;
+        saveState(this.state);
         this.findScripts();
     }
 
@@ -74,11 +76,7 @@ export class TailwebAppVM {
 
     start() {
         this.reloadProfiles();
-        if (this.profiles.length > 0) {
-            this.selectedProfileId = this.profiles[0].id;
-        } else {
-            this.onchange();
-        }
+        this.performInitialSelection();
     }
 
     newProfile() {
@@ -121,7 +119,7 @@ export class TailwebAppVM {
         saveState(this.state);
         this.profileForm.showing = false;
         this.reloadProfiles();
-        this.onchange();
+        this.performInitialSelection();
     }
 
     cancelProfile() {
@@ -160,6 +158,16 @@ export class TailwebAppVM {
         
     //
 
+    private performInitialSelection() {
+        const initiallySelectedProfileId = computeInitiallySelectedProfileId(this.state, this.profiles);
+        if (initiallySelectedProfileId) {
+            console.log(`Initially selecting profile: ${this.state.profiles[initiallySelectedProfileId].name}`);
+            this.selectedProfileId = initiallySelectedProfileId;
+        } else {
+            this.onchange();
+        }
+    }
+
     private async trySaveProfile(profileId: string, profile: ProfileState) {
         const { profileForm } = this;
         profileForm.enabled = false;
@@ -174,6 +182,7 @@ export class TailwebAppVM {
                 profileForm.outputMessage = '';
                 this.reloadProfiles();
                 profileForm.showing = false;
+                this.selectedProfileId = profileId;
             } else {
                 profileForm.outputMessage = `These credentials do not have permission to tail`;
             }
@@ -314,10 +323,17 @@ async function computeCanListTails(accountId: string, apiToken: string): Promise
     }
 }
 
+function computeInitiallySelectedProfileId(state: State, profiles: SidebarItem[]) {
+    if (state.selectedProfileId && state.profiles[state.selectedProfileId]) return state.selectedProfileId;
+    if (profiles.length > 0) return profiles[0].id;
+    return undefined;
+}
+
 //
 
 interface State {
     readonly profiles: Record<string, ProfileState>; // profileId -> state
+    selectedProfileId?: string;
 }
 
 interface ProfileState {

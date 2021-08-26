@@ -21,6 +21,7 @@ export const CONSOLE_CSS = css`
     background-color: var(--background-color);
     overflow-y: scroll;
     overflow-x: hidden;
+    flex-grow: 1;
 }
 
 #console::-webkit-scrollbar {
