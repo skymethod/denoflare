@@ -58,15 +58,27 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     vm.logger = (...data) => {
         const lineDiv = document.createElement('div');
         lineDiv.className = 'line';
-        const msg = data[0];
-        const tokens = msg.split('%c');
-        for (let i = 0; i < tokens.length; i++) {
-            const span = document.createElement('span');
-            const style = data[i];
-            span.setAttribute('style', style);
-            renderTextIntoSpan(tokens[i], span);
-            lineDiv.appendChild(span);
+        let pos = 0;
+        while (pos < data.length) {
+            const msg = data[pos];
+            if (typeof msg === 'string') {
+                const tokens = msg.split('%c');
+                for (let i = 0; i < tokens.length; i++) {
+                    const span = document.createElement('span');
+                    if (i > 0 && i < tokens.length - 1) {
+                        const style = data[pos + i];
+                        span.setAttribute('style', style);
+                    }
+                    renderTextIntoSpan(tokens[i], span);
+                    lineDiv.appendChild(span);
+                }
+                pos += 1 + tokens.length - 1;
+            } else {
+                lineDiv.textContent = JSON.stringify(msg);
+                pos++;
+            }
         }
+
         consoleDiv.insertBefore(lineDiv, consoleLastLineDiv);
         const { scrollHeight, scrollTop, clientHeight } = consoleDiv;
         const diff = scrollHeight - scrollTop;

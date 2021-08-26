@@ -51,8 +51,8 @@ export class TailwebAppVM {
             onTailCreating(_accountId: string, scriptId: string) {
                 dis.logger(`Creating tail for ${scriptId}...`);
             },
-            onTailCreated(_accountId: string, scriptId: string, tookMillis: number, _tail: Tail) {
-                dis.logger(`Created tail for ${scriptId} in ${tookMillis}ms`);
+            onTailCreated(_accountId: string, scriptId: string, tookMillis: number, tail: Tail) {
+                dis.logger(`Created tail for ${scriptId} in ${tookMillis}ms`, tail);
             },
             onTailConnectionOpen(_accountId: string, scriptId: string, _timeStamp: number, tookMillis: number) {
                 dis.logger(`Opened tail for ${scriptId} in ${tookMillis}ms`);
