@@ -2,7 +2,7 @@ import { CloudflareApiError, listScripts, listTails, Tail } from '../common/clou
 import { setEqual, setIntersect, setSubtract } from '../common/sets.ts';
 import { TailMessage } from '../common/tail.ts';
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
-import { dumpMessagePretty } from '../common/tail_pretty.ts';
+import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
 import { TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
 
@@ -54,41 +54,44 @@ export class TailwebAppVM {
         const dis = this;
 
         const logTailsChange = (action: string, tailKeys: ReadonlySet<TailKey>) => {
-            if (tailKeys.size > 0) dis.logger(`${action} ${[...tailKeys].map(v => unpackTailKey(v).scriptId).sort().join(', ')}`);
+            if (tailKeys.size > 0) this.logWithPrefix(`${action} ${[...tailKeys].map(v => unpackTailKey(v).scriptId).sort().join(', ')}`);
         };
+
+        const logWithPrefix = this.logWithPrefix.bind(this);
+        const verboseWithPrefix = this.verboseWithPrefix.bind(this);
 
         const callbacks: TailControllerCallbacks = {
             onTailCreating(_accountId: string, scriptId: string) {
-                dis.logger(`Creating tail for ${scriptId}...`);
+                verboseWithPrefix(`Creating tail for ${scriptId}...`);
             },
             onTailCreated(_accountId: string, scriptId: string, tookMillis: number, tail: Tail) {
-                dis.logger(`Created tail for ${scriptId} in ${tookMillis}ms`, tail);
+                verboseWithPrefix(`Created tail for ${scriptId} in ${tookMillis}ms, ${JSON.stringify(tail)}`);
             },
             onTailConnectionOpen(_accountId: string, scriptId: string, _timeStamp: number, tookMillis: number) {
-                dis.logger(`Opened tail for ${scriptId} in ${tookMillis}ms`);
+                verboseWithPrefix(`Opened tail for ${scriptId} in ${tookMillis}ms`);
             },
             onTailConnectionClose(accountId: string, scriptId: string, timeStamp: number, code: number, reason: string, wasClean: boolean) {
                 console.log('onTailConnectionClose', { accountId, scriptId, timeStamp, code, reason, wasClean });
-                dis.logger(`Closed tail for ${scriptId}`, {code, reason, wasClean });
+                verboseWithPrefix(`Closed tail for ${scriptId}, ${JSON.stringify({code, reason, wasClean })}`);
             },
             onTailConnectionError(accountId: string, scriptId: string, timeStamp: number, errorInfo?: ErrorInfo) {
                 console.log('onTailConnectionError', { accountId, scriptId, timeStamp, errorInfo });
-                dis.logger(`Error in tail for ${scriptId}`, { errorInfo });
+                logWithPrefix(`Error in tail for ${scriptId}`, { errorInfo });
             },
             onTailConnectionMessage(_accountId: string, _scriptId: string, _timeStamp: number, message: TailMessage) {
                 dumpMessagePretty(message, dis.logger);
             },
             onTailConnectionUnparsedMessage(_accountId: string, scriptId: string, _timeStamp: number, message: UnparsedMessage, parseError: Error) {
                 console.log(message);
-                dis.logger(`Unparsed message in tail for ${scriptId}`, parseError.stack || parseError.message);
+                logWithPrefix(`Unparsed message in tail for ${scriptId}`, parseError.stack || parseError.message);
             },
             onTailsChanged(tails: ReadonlySet<TailKey>) {
                 if (setEqual(dis.tails, tails)) return;
                 // dis.logger('onTailsChanged', [...tails].map(v => unpackTailKey(v).scriptId));
                 const removed = setSubtract(dis.tails, tails);
-                logTailsChange('Removed', removed);
+                logTailsChange('Untailing', removed);
                 const added = setSubtract(tails, dis.tails);
-                logTailsChange('Added', added);
+                logTailsChange('Tailing', added);
                 dis.tails = tails;
                 dis.onchange();
             }
@@ -180,6 +183,20 @@ export class TailwebAppVM {
         
     //
 
+    // deno-lint-ignore no-explicit-any
+    private logWithPrefix(...data: any) {
+        const time = formatLocalYyyyMmDdHhMmSs(new Date());
+        if (data.length > 0 && typeof data[0] === 'string') {
+            data = [`[%c${time}%c] ${data[0]}`, 'color: gray', '', ...data.slice(1)];
+        }
+        this.logger(...data);
+    }
+
+    private verboseWithPrefix(message: string) {
+        const time = formatLocalYyyyMmDdHhMmSs(new Date());
+        this.logger(`[%c${time}%c] %c${message}%c`, 'color: gray', '', 'color: gray');
+    }
+
     private performInitialSelection() {
         const initiallySelectedProfileId = computeInitiallySelectedProfileId(this.state, this.profiles);
         if (initiallySelectedProfileId) {
@@ -234,8 +251,10 @@ export class TailwebAppVM {
             const profile = this.state.profiles[this.selectedProfileId];
             if (profile === undefined) return;
             const { accountId, apiToken } = profile;
+            this.verboseWithPrefix(`Finding scripts for ${profile.name.toUpperCase()}...`);
+            const start = Date.now();
             const scripts = await listScripts(accountId, apiToken);
-            this.logger(`Found ${scripts.length} scripts`);
+            this.verboseWithPrefix(`Found ${scripts.length} scripts in ${Date.now() - start}ms`);
             this.scripts.splice(0);
             for (const script of scripts) {
                 // this.logger(`Found script ${script.id}`);

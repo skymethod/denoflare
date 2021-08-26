@@ -21,14 +21,14 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
     }
 }
 
+export function formatLocalYyyyMmDdHhMmSs(date: Date): string {
+    return [date.getFullYear(), '-', pad2(date.getMonth() + 1), '-', pad2(date.getDate()), ' ', pad2(date.getHours()), ':', pad2(date.getMinutes()), ':', pad2(date.getSeconds())].join('');
+}
+
 //
 
 function pad2(num: number): string {
     return num.toString().padStart(2, '0');
-}
-
-function formatLocalYyyyMmDdHhMmSs(date: Date): string {
-    return [date.getFullYear(), '-', pad2(date.getMonth() + 1), '-', pad2(date.getDate()), ' ', pad2(date.getHours()), ':', pad2(date.getMinutes()), ':', pad2(date.getSeconds())].join('');
 }
 
 const PRETTY_OUTCOMES = new Map<Outcome, string>([
