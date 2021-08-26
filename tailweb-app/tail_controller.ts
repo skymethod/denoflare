@@ -10,6 +10,7 @@ export interface TailControllerCallbacks {
     onTailConnectionError(accountId: string, scriptId: string, timeStamp: number, errorInfo?: ErrorInfo): void;
     onTailConnectionMessage(accountId: string, scriptId: string, timeStamp: number, message: TailMessage): void;
     onTailConnectionUnparsedMessage(accountId: string, scriptId: string, timeStamp: number, message: UnparsedMessage, parseError: Error): void;
+    onTailCountChanged(tailCount: number): void;
 }
 
 export class TailController {
@@ -53,6 +54,7 @@ export class TailController {
         };
         record.connection = new TailConnection(tail.url, tailConnectionCallbacks);
         record.state = 'started';
+        callbacks.onTailCountChanged(this.records.size);
     }
     
 }

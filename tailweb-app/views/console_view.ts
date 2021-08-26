@@ -5,7 +5,10 @@ import { TailwebAppVM } from '../tailweb_app_vm.ts';
 
 export const CONSOLE_HTML = html`
 <div id="console">
-    <div id="console-settings"></div>
+    <div id="console-header">
+        <div id="console-header-filters"></div>
+        <div id="console-header-tails" class="overline medium-emphasis-text"></div>
+    </div>
     <div id="console-last-line" class="line">spacer</div>
 </div>
 
@@ -34,11 +37,17 @@ export const CONSOLE_CSS = css`
     background-color: var(--medium-emphasis-text-color);
 }
 
-#console-settings {
+#console-header {
     position: sticky;
     top: 0;
     height: 5rem;
     background-color: var(--background-color);
+    display: flex;
+    padding: 1rem;
+}
+
+#console-header-filters {
+    flex-grow: 1;
 }
 
 #console .line {
@@ -54,6 +63,7 @@ export const CONSOLE_CSS = css`
 
 export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => void {
     const consoleDiv = document.getElementById('console') as HTMLDivElement;
+    const consoleHeaderTailsDiv = document.getElementById('console-header-tails') as HTMLDivElement;
     const consoleLastLineDiv = document.getElementById('console-last-line') as HTMLDivElement;
     vm.logger = (...data) => {
         const lineDiv = document.createElement('div');
@@ -93,11 +103,17 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll
 
     return () => {
-
+        consoleHeaderTailsDiv.textContent = computeTailsText(vm.tailCount);
     };
 }
 
 //
+
+function computeTailsText(tailCount: number): string {
+    return tailCount === 0 ? 'no tails'
+        : tailCount === 1 ? '1 tail'
+        : `${tailCount} tails`;
+}
 
 function renderTextIntoSpan(text: string, span: HTMLSpanElement) {
     const pattern = /https:\/\/[^\s]+/g;

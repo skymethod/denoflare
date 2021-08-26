@@ -32,6 +32,7 @@ export class TailwebAppVM {
         }
     }
     profileForm = new ProfileFormVM();
+    tailCount = 0;
 
     //
 
@@ -70,6 +71,10 @@ export class TailwebAppVM {
                 console.log(message);
                 dis.logger(`Unparsed message in tail for ${scriptId}`, parseError.stack || parseError.message);
             },
+            onTailCountChanged(tailCount: number) {
+                dis.tailCount = tailCount;
+                dis.onchange();
+            }
         };
         this.tailController = new TailController(callbacks);
     }
