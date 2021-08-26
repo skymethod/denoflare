@@ -46,6 +46,12 @@ export const MATERIAL_CSS = css`
     font-weight: normal;
 }
 
+.caption {
+    font-size: 0.75rem;
+    letter-spacing: 0.03333rem;
+    font-weight: normal;
+}
+
 /* light text on dark background colors */
 
 .high-emphasis-text {

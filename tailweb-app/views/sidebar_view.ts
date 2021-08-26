@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 
+import { setSubtract, setUnion } from '../../common/sets.ts';
 import { svg, html, LitElement, SVGTemplateResult, css } from '../deps_app.ts';
 import { Material } from '../material.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
@@ -39,11 +40,16 @@ export const SIDEBAR_CSS = css`
     grid-column: 1;
 }
 
+#sidebar .button-grid .hint {
+    grid-column: 1; 
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
 `;
 
 export function initSidebar(document: HTMLDocument, vm: TailwebAppVM): () => void {
     const updateHeader = initHeader(document, vm);
-
     const profilesDiv = document.getElementById('profiles') as HTMLDivElement;
     const scriptsDiv = document.getElementById('scripts') as HTMLDivElement;
     return () => {
@@ -58,19 +64,40 @@ export function initSidebar(document: HTMLDocument, vm: TailwebAppVM): () => voi
 const PROFILES_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Profiles</div>
     <div class="button-grid">
-    ${vm.profiles.map(profile => html`<button class="${profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }} ?disabled="${vm.profileForm.showing}">${profile.text}</button>
-    ${profile.id === vm.selectedProfileId ? html`${actionIcon(editIcon, { onclick: () => vm.editProfile(profile.id) })}` : ''}`)}
-    <div class="button-grid-new">${actionIcon(addIcon, { text: 'New', onclick: () => vm.newProfile() })}</div>
+        ${vm.profiles.map(profile => html`<button class="${profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }} ?disabled="${vm.profileForm.showing}">${profile.text}</button>
+        ${profile.id === vm.selectedProfileId ? html`${actionIcon(editIcon, { onclick: () => vm.editProfile(profile.id) })}` : ''}`)}
+        <div class="button-grid-new">${actionIcon(addIcon, { text: 'New', onclick: () => vm.newProfile() })}</div>
     </div>
 `;
 
 const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Scripts</div>
     <div class="button-grid">
-    ${vm.scripts.map(script => html`<button class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" @click=${() => { vm.selectedScriptIds = new Set([script.id]); }} ?disabled="${vm.profileForm.showing}">${script.text}</button>
-    `)}
+        ${vm.scripts.map(script => html`<button class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" @click=${(e: MouseEvent) => handleScriptClick(e, script.id, vm)} ?disabled="${vm.profileForm.showing}">${script.text}</button>
+        `)}
+        <div class="caption medium-emphasis-text hint">${computeMetaKeyChar()}-click to multiselect</div>
     </div>
 `;
+
+function computeMetaKeyChar() {
+    return isMacintosh() ? '⌘' : isWindows() ? '⊞' : 'meta';
+}
+
+function isMacintosh() {
+    return navigator.platform.indexOf('Mac') > -1;
+}
+
+function isWindows() {
+    return navigator.platform.indexOf('Win') > -1;
+}
+
+function handleScriptClick(e: MouseEvent, scriptId: string, vm: TailwebAppVM) {
+    e.preventDefault();
+    const newScriptIds = new Set([scriptId]);
+    vm.selectedScriptIds = e.metaKey
+        ? (vm.selectedScriptIds.has(scriptId) ? setSubtract(vm.selectedScriptIds, newScriptIds) : setUnion(vm.selectedScriptIds, newScriptIds))
+        : newScriptIds;
+}
 
 function actionIcon(icon: SVGTemplateResult, opts: { text?: string, onclick?: () => void } = {}) {
     const { text, onclick } = opts;
