@@ -56,7 +56,7 @@ export function initSidebar(document: HTMLDocument, vm: TailwebAppVM): () => voi
 const PROFILES_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Profiles</div>
     <div class="button-grid">
-    ${vm.profiles.map(profile => html`<button class="${profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }}>${profile.text}</button>
+    ${vm.profiles.map(profile => html`<button class="${profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }} ?disabled="${vm.profileForm.showing}">${profile.text}</button>
     ${profile.id === vm.selectedProfileId ? html`${actionIcon(editIcon, { onclick: () => vm.editProfile(profile.id) })}` : ''}`)}
     <div class="button-grid-new">${actionIcon(addIcon, { text: 'New', onclick: () => vm.newProfile() })}</div>
     </div>
@@ -65,7 +65,7 @@ const PROFILES_HTML = (vm: TailwebAppVM) => html`
 const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Scripts</div>
     <div class="button-grid">
-    ${vm.scripts.map(script => html`<button class="${script.id === vm.selectedScriptId ? 'selected' : ''}" @click=${() => { vm.selectedScriptId = script.id; }}>${script.text}</button>
+    ${vm.scripts.map(script => html`<button class="${script.id === vm.selectedScriptId ? 'selected' : ''}" @click=${() => { vm.selectedScriptId = script.id; }} ?disabled="${vm.profileForm.showing}">${script.text}</button>
     `)}
     </div>
 `;

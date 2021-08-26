@@ -116,9 +116,6 @@ export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () 
     return () => {
         const wasHidden = profileForm.style.display === 'none';
         profileForm.style.display = vm.profileForm.showing ? 'grid' : 'none';
-        if (wasHidden && vm.profileForm.showing) {
-            profileFormHelpDetails.open = false; // reset details on initial display
-        }
         profileFieldset.disabled = !vm.profileForm.enabled;
         profileFormTitleDiv.textContent = vm.profileForm.title;
         profileNameInput.value = vm.profileForm.name;
@@ -128,5 +125,13 @@ export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () 
         profileSaveButton.disabled = !vm.profileForm.saveEnabled;
         profileFormProgress.style.display = vm.profileForm.progressVisible ? 'block' : 'none';
         profileFormOutput.textContent = vm.profileForm.outputMessage;
+        if (wasHidden && vm.profileForm.showing) {
+            // console.log('profile form open');
+            profileFormHelpDetails.open = false; // collapse details
+            setTimeout(() => { 
+                profileNameInput.focus();
+                profileNameInput.select(); 
+            }, 0); 
+        }
     };    
 }
