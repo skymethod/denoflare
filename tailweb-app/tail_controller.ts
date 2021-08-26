@@ -27,7 +27,7 @@ export class TailController {
     }
 
     async setTails(accountId: string, apiToken: string, scriptIds: ReadonlySet<string>) {
-        const stopKeys = setSubtract(new Set(this.records.keys()), scriptIds);
+        const stopKeys = setSubtract(this.computeStartingOrStartedTailKeys(), new Set([...scriptIds].map(v => computeTailKey(accountId, v))));
         for (const stopKey of stopKeys) {
             const record = this.records.get(stopKey)!;
             record.state = 'inactive';
@@ -61,6 +61,9 @@ export class TailController {
                 this.callbacks.onTailCreating(accountId, scriptId);
                 const tail = await createTail(accountId, scriptId, apiToken);
                 this.callbacks.onTailCreated(accountId, scriptId, Date.now() - tailCreatingTime, tail);
+                
+                // we might have been inactivated already, don't start the ws
+                if (record.state !== 'starting') return;
 
                 const { callbacks } = this;
                 const openingTime = Date.now();
@@ -94,6 +97,10 @@ export class TailController {
     private dispatchTailsChanged() {
         const tailKeys = new Set([...this.records.values()].filter(v => v.state === 'started').map(v => v.tailKey));
         this.callbacks.onTailsChanged(tailKeys);
+    }
+
+    private computeStartingOrStartedTailKeys(): Set<TailKey> {
+        return new Set([...this.records.values()].filter(v => v.state === 'starting' || v.state === 'started').map(v => v.tailKey))
     }
     
 }

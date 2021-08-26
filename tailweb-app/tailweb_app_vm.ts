@@ -84,6 +84,7 @@ export class TailwebAppVM {
             },
             onTailsChanged(tails: ReadonlySet<TailKey>) {
                 if (setEqual(dis.tails, tails)) return;
+                // dis.logger('onTailsChanged', [...tails].map(v => unpackTailKey(v).scriptId));
                 const removed = setSubtract(dis.tails, tails);
                 logTailsChange('Removed', removed);
                 const added = setSubtract(tails, dis.tails);
