@@ -1,4 +1,5 @@
 import { createTail, Tail } from '../common/cloudflare_api.ts';
+import { setSubtract } from '../common/sets.ts';
 import { TailMessage } from '../common/tail.ts';
 import { ErrorInfo, TailConnection, TailConnectionCallbacks, UnparsedMessage } from '../common/tail_connection.ts';
 
@@ -24,10 +25,17 @@ export class TailController {
     }
 
     async setTails(accountId: string, apiToken: string, scriptIds: ReadonlySet<string>) {
-        const stopKeys = new Set(this.records.keys());
+        const stopKeys = setSubtract(new Set(this.records.keys()), scriptIds);
+        for (const stopKey of stopKeys) {
+            const record = this.records.get(stopKey)!;
+            record.state = 'stopping';
+            // record.connection?.close(1000 /* normal closure */, 'no longer interested');
+        }
+        if (stopKeys.size > 0) {
+            this.dispatchTailsChanged();
+        }
         for (const scriptId of scriptIds) {
             const tailKey = computeTailKey(accountId, scriptId);
-            stopKeys.delete(tailKey);
             const existingRecord = this.records.get(tailKey);
             if (existingRecord) {
                 existingRecord.state = 'started';
@@ -63,12 +71,6 @@ export class TailController {
                 record.connection = new TailConnection(tail.url, tailConnectionCallbacks);
                 record.state = 'started';
             }
-            this.dispatchTailsChanged();
-        }
-        for (const stopKey of stopKeys) {
-            const record = this.records.get(stopKey)!;
-            record.state = 'stopping';
-            // record.connection?.close(1000 /* normal closure */, 'no longer interested');
             this.dispatchTailsChanged();
         }
     }

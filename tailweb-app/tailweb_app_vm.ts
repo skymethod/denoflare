@@ -1,5 +1,5 @@
 import { CloudflareApiError, listScripts, listTails, Tail } from '../common/cloudflare_api.ts';
-import { setEqual, setSubtract } from '../common/sets.ts';
+import { setEqual, setIntersect, setSubtract } from '../common/sets.ts';
 import { TailMessage } from '../common/tail.ts';
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
@@ -28,6 +28,11 @@ export class TailwebAppVM {
         if (setEqual(this._selectedScriptIds, scriptIds)) return;
         this._selectedScriptIds = new Set(scriptIds);
         this.onchange();
+        const profile = this.selectedProfileId && this.state.profiles[this.selectedProfileId];
+        if (profile) {
+            profile.selectedScriptIds = [...scriptIds];
+            saveState(this.state);
+        }
         this.setTails();
     }
     profileForm = new ProfileFormVM();
@@ -49,7 +54,7 @@ export class TailwebAppVM {
         const dis = this;
 
         const logTailsChange = (action: string, tailKeys: ReadonlySet<TailKey>) => {
-            if (tailKeys.size > 0) dis.logger(`${action} ${[...tailKeys].map(v => unpackTailKey(v).scriptId).join(', ')}`);
+            if (tailKeys.size > 0) dis.logger(`${action} ${[...tailKeys].map(v => unpackTailKey(v).scriptId).sort().join(', ')}`);
         };
 
         const callbacks: TailControllerCallbacks = {
@@ -231,20 +236,40 @@ export class TailwebAppVM {
             const scripts = await listScripts(accountId, apiToken);
             this.logger(`Found ${scripts.length} scripts`);
             this.scripts.splice(0);
-            this.selectedScriptIds = new Set();
             for (const script of scripts) {
-                this.logger(`Found script ${script.id}`);
+                // this.logger(`Found script ${script.id}`);
                 this.scripts.push({ id: script.id, text: script.id });
             }
             this.scripts.sort((lhs, rhs) => lhs.text.localeCompare(rhs.text));
-            if (this.scripts.length > 0) {
-                this.selectedScriptIds = new Set([this.scripts[0].id]);
-            } else {
-                this.onchange();
+            const selectedScriptIds = this.computeSelectedScriptIdsAfterFindScripts();
+            if (selectedScriptIds.size > 0) {
+                this.selectedScriptIds = selectedScriptIds;
             }
+            this.onchange();
         } catch (e) {
             this.logger(`Error in findScripts: ${e.stack}`);
         }
+    }
+
+    private computeSelectedScriptIdsAfterFindScripts(): Set<string> {
+        if (this.scripts.length === 0) {
+            console.log('Initially selecting no scripts, no scripts to select');
+            return new Set();
+        }
+        if (this.selectedProfileId && this.selectedProfileId && this.selectedProfileId === this.state.selectedProfileId) {
+            const initialProfile = this.state.profiles[this.selectedProfileId];
+            if (initialProfile && initialProfile.selectedScriptIds && initialProfile.selectedScriptIds.length > 0) {
+                const currentScriptIds = new Set(this.scripts.map(v => v.id));
+                const candidates = setIntersect(currentScriptIds, new Set(initialProfile.selectedScriptIds));
+                if (candidates.size > 0) {
+                    console.log(`Initially selecting script${candidates.size === 1 ? '' : 's'} ${[...candidates].sort().join(', ')}: remembered from last time`);
+                    return candidates;
+                }
+            }
+        }
+        const firstScriptId = this.scripts[0].id
+        console.log(`Initially selecting script ${firstScriptId}: first one in the list`);
+        return new Set([this.scripts[0].id]); // first one in the list
     }
 
     private async setTails() {
@@ -360,4 +385,5 @@ interface ProfileState {
     readonly name: string;
     readonly accountId: string;
     readonly apiToken: string;
+    selectedScriptIds?: string[];
 }
