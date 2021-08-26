@@ -16,8 +16,8 @@ export default {
         } else if (url.pathname.startsWith('/fetch/')) {
             const fetchUrlStr = 'https://' + url.pathname.substring('/fetch/'.length);
             const fetchUrl = new URL(fetchUrlStr);
-            if (fetchUrl.origin === 'https://api.cloudflare.com') {
-                const { method } = request;
+            const { method } = request;
+            if (isFetchAllowed(method, fetchUrl)) {
                 const headers = [...request.headers].filter(v => !v[0].startsWith('cf-'));
                 const body = undefined;
                 return await fetch(fetchUrlStr, { method, headers, body });
@@ -36,6 +36,13 @@ export interface WorkerEnv {
 }
 
 //
+
+function isFetchAllowed(method: string, url: URL): boolean {
+    return /^(GET|POST)$/.test(method) 
+        && url.origin === 'https://api.cloudflare.com'
+        && url.pathname.startsWith('/client/v4/accounts/') 
+        && url.pathname.includes('/workers/scripts');
+}
 
 function computeAppJsPath(): string {
     return `/app.${TAILWEB_APP_HASH}.js`;
