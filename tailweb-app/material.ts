@@ -16,6 +16,7 @@ export const MATERIAL_CSS = css`
   --button-border-radius: 0.25rem;
   --primary-color: #bb86fc;
   --background-color: #121212;
+  --sans-serif-font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir, helvetica neue, helvetica, Ubuntu, roboto, noto, segoe ui, arial, sans-serif;
 }
 
 /** text size classes */

@@ -10,6 +10,7 @@ import { TailController, TailControllerCallbacks, TailKey, unpackTailKey } from 
 export type ConsoleLogger = (...data: any[]) => void;
 
 export class TailwebAppVM {
+
     profiles: SidebarItem[] = [];
 
     get selectedProfileId(): string | undefined { return this._selectedProfileId; }
@@ -37,6 +38,7 @@ export class TailwebAppVM {
     }
     profileForm = new ProfileFormVM();
     tails: ReadonlySet<TailKey> = new Set();
+    filter: FilterState = {};
 
     //
 
@@ -179,6 +181,34 @@ export class TailwebAppVM {
             apiToken: profileForm.apiToken.trim(),
         };
         this.trySaveProfile(profileId, newProfile);
+    }
+
+    editEventFilter() {
+        console.log('TODO editEventFilter!');
+    }
+
+    editStatusFilter() {
+        console.log('TODO editStatusFilter!');
+    }
+
+    editIpAddressFilter() {
+        console.log('TODO editIpAddressFilter!');
+    }
+
+    editMethodFilter() {
+        console.log('TODO editMethodFilter!');
+    }
+
+    editSamplingRateFilter() {
+        console.log('TODO editSamplingRateFilter!');
+    }
+
+    editSearchFilter() {
+        console.log('TODO editSearchFilter!');
+    }
+
+    editHeaderFilter() {
+        console.log('TODO editHeaderFilter!');
     }
         
     //
@@ -329,6 +359,16 @@ export interface SidebarItem {
     readonly text: string;
 }
 
+export interface FilterState {
+    event1?: string; // all, cron, http
+    status1?: string; // all, error, success
+    ipAddress1?: string[]; // addresses, or self
+    method1?: string[]; // GET, POST, etc
+    samplingRate1?: number;  // 0 to 1
+    search1?: string; // search string
+    header1?: string[]; // foo, or foo:bar
+}
+
 //
 
 const STATE_KEY = 'state1';
@@ -399,6 +439,7 @@ function computeInitiallySelectedProfileId(state: State, profiles: SidebarItem[]
 interface State {
     readonly profiles: Record<string, ProfileState>; // profileId -> state
     selectedProfileId?: string;
+    filter?: FilterState;
 }
 
 interface ProfileState {

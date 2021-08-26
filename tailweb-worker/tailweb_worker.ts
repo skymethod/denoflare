@@ -90,7 +90,7 @@ function computeHtml(url: URL) {
 
 <style>
 body {
-    font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir, helvetica neue, helvetica, Ubuntu, roboto, noto, segoe ui, arial, sans-serif;
+    font-family: ${Material.sansSerifFontFamily};
     background-color: ${Material.backgroundColorHex};
     color: red; /* to catch non-explicit text colors */
     text-rendering: optimizeLegibility;

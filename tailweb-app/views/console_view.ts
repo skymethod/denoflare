@@ -1,12 +1,12 @@
 /// <reference lib="dom" />
 
-import { css, html } from '../deps_app.ts';
-import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { css, html, LitElement, TemplateResult } from '../deps_app.ts';
+import { FilterState, TailwebAppVM } from '../tailweb_app_vm.ts';
 
 export const CONSOLE_HTML = html`
 <div id="console">
     <div id="console-header">
-        <div id="console-header-filters"></div>
+        <div id="console-header-filters" class="body2"></div>
         <div id="console-header-tails" class="overline medium-emphasis-text"></div>
     </div>
     <div id="console-last-line" class="line">spacer</div>
@@ -43,11 +43,13 @@ export const CONSOLE_CSS = css`
     height: 5rem;
     background-color: var(--background-color);
     display: flex;
-    padding: 1rem;
+    padding: 1rem 1rem 1rem 0;
 }
 
 #console-header-filters {
     flex-grow: 1;
+    color: var(--medium-emphasis-text-color);
+    font-family: var(--sans-serif-font-family);
 }
 
 #console .line {
@@ -63,6 +65,7 @@ export const CONSOLE_CSS = css`
 
 export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => void {
     const consoleDiv = document.getElementById('console') as HTMLDivElement;
+    const consoleHeaderFiltersDiv = document.getElementById('console-header-filters') as HTMLDivElement;
     const consoleHeaderTailsDiv = document.getElementById('console-header-tails') as HTMLDivElement;
     const consoleLastLineDiv = document.getElementById('console-last-line') as HTMLDivElement;
     vm.logger = (...data) => {
@@ -107,10 +110,68 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
 
     return () => {
         consoleHeaderTailsDiv.textContent = computeTailsText(vm.tails.size);
+        LitElement.render(FILTERS_HTML(vm), consoleHeaderFiltersDiv);
     };
 }
 
 //
+
+const FILTERS_HTML = (vm: TailwebAppVM) => {
+    return html`Showing <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editEventFilter(); }}>${computeEventFilterText(vm.filter)}</a>
+     with <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editStatusFilter(); }}>${computeStatusFilterText(vm.filter)}</a>,
+     <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editIpAddressFilter(); }}>${computeIpAddressFilterText(vm.filter)}</a>,
+     <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editMethodFilter(); }}>${computeMethodFilterText(vm.filter)}</a>,
+     <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSamplingRateFilter(); }}>${computeSamplingRateFilterText(vm.filter)}</a>, 
+     <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSearchFilter(); }}>${computeSearchFilterText(vm.filter)}</a>, 
+     and <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editHeaderFilter(); }}>${computeHeaderFilterText(vm.filter)}</a>.`;
+};
+
+function computeEventFilterText(filter: FilterState): string {
+    const { event1 } = filter;
+    return event1 === 'cron' ? 'CRON trigger events' 
+        : event1 === 'http' ? 'HTTP request events' 
+        : 'all events';
+}
+
+function computeStatusFilterText(filter: FilterState): string {
+    const { status1 } = filter;
+    return status1 === 'error' ? 'error status' 
+        : status1 === 'success' ? 'success status' 
+        : 'any status';
+}
+
+function computeIpAddressFilterText(filter: FilterState): string {
+    const ipAddress1 = filter.ipAddress1 || [];
+    return ipAddress1.length === 0 ? 'any IP address'
+        : ipAddress1.length === 1 ? `IP address of ${ipAddress1[0]}`
+        : `IP address in [${ipAddress1.join(', ')}]`;
+}
+
+function computeMethodFilterText(filter: FilterState): string {
+    const method1 = filter.method1 || [];
+    return method1.length === 0 ? 'any method'
+        : method1.length === 1 ? `method of ${method1[0]}`
+        : `method in [${method1.join(', ')}]`;
+}
+
+function computeSamplingRateFilterText(filter: FilterState): string {
+    const samplingRate1 = typeof filter.samplingRate1 === 'number' ? filter.samplingRate1 : 1;
+    return samplingRate1 >= 1 ? 'no sampling'
+        : `${(Math.max(0, samplingRate1) * 100).toFixed(2)}% sampling rate`;
+}
+
+function computeSearchFilterText(filter: FilterState): string {
+    const search1 = { filter };
+    return typeof search1 === 'string' ? `console logs containing "${search1}"`
+        : 'no search filter';
+}
+
+function computeHeaderFilterText(filter: FilterState): string {
+    const header1 = filter.header1 || [];
+    return header1.length === 0 ? 'no header filter'
+        : header1.length === 1 ? `header filter of ${header1[0]}`
+        : `header filters of [${header1.join(', ')}]`;
+}
 
 function computeTailsText(tailCount: number): string {
     return tailCount === 0 ? 'no tails'
