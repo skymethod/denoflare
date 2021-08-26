@@ -1,4 +1,5 @@
 import { IncomingRequestCfProperties } from './deps_cf.ts';
+import { setEqual, setSubtract, setUnion } from './sets.ts';
 
 // Types For Found Tail Websocket Message Payloads
 
@@ -221,24 +222,4 @@ function parseIncomingRequestCfProperties(obj: unknown): IncomingRequestCfProper
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad cf: Expected object, found ${JSON.stringify(obj)}`);
     // good enough
     return obj as IncomingRequestCfProperties;
-}
-
-function setSubtract<T>(lhs: Set<T>, rhs: Set<T>): Set<T> {
-    const rt = new Set(lhs);
-    for (const item of rhs) {
-        rt.delete(item);
-    }
-    return rt;
-}
-
-function setUnion<T>(lhs: Set<T>, rhs: Set<T>): Set<T> {
-    const rt = new Set(lhs);
-    for (const item of rhs) {
-        rt.add(item);
-    }
-    return rt;
-}
-
-function setEqual<T>(lhs: Set<T>, rhs: Set<T>): boolean {
-    return lhs.size === rhs.size && [...lhs].every(v => rhs.has(v));
 }

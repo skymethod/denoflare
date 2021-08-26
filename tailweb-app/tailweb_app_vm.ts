@@ -1,9 +1,10 @@
 import { CloudflareApiError, listScripts, listTails, Tail } from '../common/cloudflare_api.ts';
-import { TailMessage } from "../common/tail.ts";
-import { ErrorInfo, UnparsedMessage } from "../common/tail_connection.ts";
-import { dumpMessagePretty } from "../common/tail_pretty.ts";
+import { setEqual, setSubtract } from '../common/sets.ts';
+import { TailMessage } from '../common/tail.ts';
+import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
+import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
-import { TailController, TailControllerCallbacks } from './tail_controller.ts';
+import { TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
@@ -22,17 +23,15 @@ export class TailwebAppVM {
     }
 
     scripts: SidebarItem[] = [];
-    get selectedScriptId(): string | undefined { return this._selectedScriptId; }
-    set selectedScriptId(value: string | undefined) {
-        if (this._selectedScriptId === value) return;
-        this._selectedScriptId = value; 
+    get selectedScriptIds(): ReadonlySet<string> { return this._selectedScriptIds; }
+    set selectedScriptIds(scriptIds: ReadonlySet<string>) {
+        if (setEqual(this._selectedScriptIds, scriptIds)) return;
+        this._selectedScriptIds = new Set(scriptIds);
         this.onchange();
-        if (this._selectedScriptId) {
-            this.startTail(this._selectedScriptId);
-        }
+        this.setTails();
     }
     profileForm = new ProfileFormVM();
-    tailCount = 0;
+    tails: ReadonlySet<TailKey> = new Set();
 
     //
 
@@ -40,7 +39,7 @@ export class TailwebAppVM {
     private readonly tailController: TailController;
 
     private _selectedProfileId: string | undefined;
-    private _selectedScriptId: string | undefined;
+    private _selectedScriptIds: ReadonlySet<string> = new Set<string>();
 
     onchange: () => void = () => {};
     logger: ConsoleLogger = () => {};
@@ -48,6 +47,11 @@ export class TailwebAppVM {
     constructor() {
         // deno-lint-ignore no-this-alias
         const dis = this;
+
+        const logTailsChange = (action: string, tailKeys: ReadonlySet<TailKey>) => {
+            if (tailKeys.size > 0) dis.logger(`${action} ${[...tailKeys].map(v => unpackTailKey(v).scriptId).join(', ')}`);
+        };
+
         const callbacks: TailControllerCallbacks = {
             onTailCreating(_accountId: string, scriptId: string) {
                 dis.logger(`Creating tail for ${scriptId}...`);
@@ -58,10 +62,12 @@ export class TailwebAppVM {
             onTailConnectionOpen(_accountId: string, scriptId: string, _timeStamp: number, tookMillis: number) {
                 dis.logger(`Opened tail for ${scriptId} in ${tookMillis}ms`);
             },
-            onTailConnectionClose(_accountId: string, scriptId: string, _timeStamp: number, code: number, reason: string, wasClean: boolean) {
+            onTailConnectionClose(accountId: string, scriptId: string, timeStamp: number, code: number, reason: string, wasClean: boolean) {
+                console.log('onTailConnectionClose', { accountId, scriptId, timeStamp, code, reason, wasClean });
                 dis.logger(`Closed tail for ${scriptId}`, {code, reason, wasClean });
             },
-            onTailConnectionError(_accountId: string, scriptId: string, _timeStamp: number, errorInfo?: ErrorInfo) {
+            onTailConnectionError(accountId: string, scriptId: string, timeStamp: number, errorInfo?: ErrorInfo) {
+                console.log('onTailConnectionError', { accountId, scriptId, timeStamp, errorInfo });
                 dis.logger(`Error in tail for ${scriptId}`, { errorInfo });
             },
             onTailConnectionMessage(_accountId: string, _scriptId: string, _timeStamp: number, message: TailMessage) {
@@ -71,8 +77,13 @@ export class TailwebAppVM {
                 console.log(message);
                 dis.logger(`Unparsed message in tail for ${scriptId}`, parseError.stack || parseError.message);
             },
-            onTailCountChanged(tailCount: number) {
-                dis.tailCount = tailCount;
+            onTailsChanged(tails: ReadonlySet<TailKey>) {
+                if (setEqual(dis.tails, tails)) return;
+                const removed = setSubtract(dis.tails, tails);
+                logTailsChange('Removed', removed);
+                const added = setSubtract(tails, dis.tails);
+                logTailsChange('Added', added);
+                dis.tails = tails;
                 dis.onchange();
             }
         };
@@ -220,14 +231,14 @@ export class TailwebAppVM {
             const scripts = await listScripts(accountId, apiToken);
             this.logger(`Found ${scripts.length} scripts`);
             this.scripts.splice(0);
-            this.selectedScriptId = undefined;
+            this.selectedScriptIds = new Set();
             for (const script of scripts) {
                 this.logger(`Found script ${script.id}`);
                 this.scripts.push({ id: script.id, text: script.id });
             }
             this.scripts.sort((lhs, rhs) => lhs.text.localeCompare(rhs.text));
             if (this.scripts.length > 0) {
-                this.selectedScriptId = this.scripts[0].id;
+                this.selectedScriptIds = new Set([this.scripts[0].id]);
             } else {
                 this.onchange();
             }
@@ -236,12 +247,16 @@ export class TailwebAppVM {
         }
     }
 
-    private async startTail(scriptId: string) {
+    private async setTails() {
         if (this.selectedProfileId === undefined) return;
         const profile = this.state.profiles[this.selectedProfileId];
         if (profile === undefined) return;
         const { accountId, apiToken } = profile;
-        await this.tailController.startTail(accountId, scriptId, apiToken);
+        try {
+            await this.tailController.setTails(accountId, apiToken, this._selectedScriptIds);
+        } catch (e) {
+            this.logger('Error in setTails', e.stack || e.message);
+        }
     }
 
 }

@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import { svg, html, LitElement, SVGTemplateResult, css } from '../deps_app.ts';
 import { Material } from '../material.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
@@ -65,7 +67,7 @@ const PROFILES_HTML = (vm: TailwebAppVM) => html`
 const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Scripts</div>
     <div class="button-grid">
-    ${vm.scripts.map(script => html`<button class="${script.id === vm.selectedScriptId ? 'selected' : ''}" @click=${() => { vm.selectedScriptId = script.id; }} ?disabled="${vm.profileForm.showing}">${script.text}</button>
+    ${vm.scripts.map(script => html`<button class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" @click=${() => { vm.selectedScriptIds = new Set([script.id]); }} ?disabled="${vm.profileForm.showing}">${script.text}</button>
     `)}
     </div>
 `;

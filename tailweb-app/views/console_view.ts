@@ -70,6 +70,9 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
         lineDiv.className = 'line';
         let pos = 0;
         while (pos < data.length) {
+            if (pos > 0) {
+                lineDiv.appendChild(document.createTextNode(', '));
+            }
             const msg = data[pos];
             if (typeof msg === 'string') {
                 const tokens = msg.split('%c');
@@ -84,7 +87,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
                 }
                 pos += 1 + tokens.length - 1;
             } else {
-                lineDiv.textContent = JSON.stringify(msg);
+                lineDiv.appendChild(document.createTextNode(JSON.stringify(msg)));
                 pos++;
             }
         }
@@ -103,7 +106,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll
 
     return () => {
-        consoleHeaderTailsDiv.textContent = computeTailsText(vm.tailCount);
+        consoleHeaderTailsDiv.textContent = computeTailsText(vm.tails.size);
     };
 }
 
