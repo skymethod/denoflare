@@ -16,6 +16,8 @@ export interface TailControllerCallbacks {
     onTailsChanged(tailKeys: ReadonlySet<TailKey>): void;
 }
 
+const INACTIVE_TAIL_MILLIS = 5000; // reclaim inactive tails older than this
+
 export class TailController {
     private readonly callbacks: TailControllerCallbacks;
     private readonly records = new Map<TailKey, Record>();
@@ -28,8 +30,16 @@ export class TailController {
         const stopKeys = setSubtract(new Set(this.records.keys()), scriptIds);
         for (const stopKey of stopKeys) {
             const record = this.records.get(stopKey)!;
-            record.state = 'stopping';
-            // record.connection?.close(1000 /* normal closure */, 'no longer interested');
+            record.state = 'inactive';
+            record.stopRequestedTime = Date.now();
+            setTimeout(() => {
+                if (record.state === 'inactive' && record.stopRequestedTime && (Date.now() - record.stopRequestedTime) >= INACTIVE_TAIL_MILLIS) {
+                    record.state = 'closing';
+                    console.log(`Closing ${unpackTailKey(record.tailKey).scriptId}, inactive for ${Date.now() - record.stopRequestedTime}ms`);
+                    record.connection?.close(1000 /* normal closure */, 'no longer interested');
+                    this.records.delete(record.tailKey);
+                }
+            }, INACTIVE_TAIL_MILLIS);
         }
         if (stopKeys.size > 0) {
             this.dispatchTailsChanged();
@@ -38,7 +48,11 @@ export class TailController {
             const tailKey = computeTailKey(accountId, scriptId);
             const existingRecord = this.records.get(tailKey);
             if (existingRecord) {
+                if (existingRecord.state === 'inactive') {
+                    console.log(`Reviving inactive ${scriptId}`);
+                }
                 existingRecord.state = 'started';
+                existingRecord.stopRequestedTime = undefined;
             } else {
                 const record: Record = { state: 'starting', tailKey };
                 this.records.set(tailKey, record);
@@ -100,6 +114,7 @@ function computeTailKey(accountId: string, scriptId: string) {
 
 interface Record {
     readonly tailKey: TailKey;
-    state: 'starting' | 'started' | 'stopping';
+    state: 'starting' | 'started' | 'inactive' | 'closing';
     connection?: TailConnection;
+    stopRequestedTime?: number;
 }
