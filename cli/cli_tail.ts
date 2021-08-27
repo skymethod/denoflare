@@ -1,6 +1,6 @@
 import { createTail, sendTailHeartbeat } from '../common/cloudflare_api.ts';
 import { loadConfig, resolveCredential } from './config_loader.ts';
-import { HeaderFilter, isTailMessageCronEvent, Outcome, TailFilter, TailMessage } from '../common/tail.ts';
+import { isTailMessageCronEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage } from '../common/tail.ts';
 import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { CLI_VERSION } from './cli_version.ts';
@@ -156,14 +156,6 @@ function computeFormat(options: Record<string, unknown>): Format {
     if (format === undefined) return 'json';
     if (typeof format === 'string' && FORMATS.has(format)) return format as Format;
     throw new Error(`Invalid format: ${format}`);
-}
-
-function parseHeaderFilter(header: string): HeaderFilter {
-    const i = header.indexOf(':');
-    if (i < 0) return { key: header };
-    const key = header.substring(0, i).trim();
-    const query = header.substring(i + 1).trim();
-    return { key, query };
 }
 
 function computeOutcomesForStatuses(statuses: string[]): Outcome[] {

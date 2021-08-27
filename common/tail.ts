@@ -22,6 +22,14 @@ export interface HeaderFilter {
     readonly query?: string;
 }
 
+export function parseHeaderFilter(header: string): HeaderFilter {
+    const i = header.indexOf(':');
+    if (i < 0) return { key: header };
+    const key = header.substring(0, i).trim();
+    const query = header.substring(i + 1).trim();
+    return { key, query };
+}
+
 export interface MethodFilter {
     readonly method: readonly string[]; // GET, POST, etc
 }

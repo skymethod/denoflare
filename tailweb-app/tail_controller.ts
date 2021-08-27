@@ -28,6 +28,7 @@ export class TailController {
     }
 
     setTailOptions(tailOptions: TailOptions) {
+        console.log(`TailController.setTailOptions ${JSON.stringify(tailOptions)}`);
         this.tailOptions = tailOptions;
         for (const record of this.records.values()) {
             if (record.connection) {

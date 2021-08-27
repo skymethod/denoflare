@@ -55,6 +55,7 @@ export const CONSOLE_CSS = css`
 
 #console-header-tails {
     white-space: nowrap;
+    min-width: 4rem;
 }
 
 #console .line {
@@ -128,7 +129,8 @@ const FILTERS_HTML = (vm: TailwebAppVM) => {
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editMethodFilter(); }}>${computeMethodFilterText(vm.filter)}</a>,
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSamplingRateFilter(); }}>${computeSamplingRateFilterText(vm.filter)}</a>, 
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSearchFilter(); }}>${computeSearchFilterText(vm.filter)}</a>, 
-     and <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editHeaderFilter(); }}>${computeHeaderFilterText(vm.filter)}</a>.`;
+     and <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editHeaderFilter(); }}>${computeHeaderFilterText(vm.filter)}</a>.
+     ${vm.hasAnyFilters() ? html`(<a href="#" @click=${(e: Event) => { e.preventDefault(); vm.resetFilters(); }}>reset</a>)` : ''}`;
 };
 
 function computeEventFilterText(filter: FilterState): string {

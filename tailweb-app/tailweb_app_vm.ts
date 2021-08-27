@@ -1,6 +1,6 @@
 import { CloudflareApiError, listScripts, listTails, Tail } from '../common/cloudflare_api.ts';
 import { setEqual, setIntersect, setSubtract } from '../common/sets.ts';
-import { isTailMessageCronEvent, TailFilter, TailMessage, TailOptions } from '../common/tail.ts';
+import { isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions } from '../common/tail.ts';
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
 import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
@@ -104,7 +104,7 @@ export class TailwebAppVM {
         this.tailController = new TailController(callbacks);
 
         this.filter = this.state.filter || {};
-        this.applyFilter(false);
+        this.applyFilter({ save: false });
     }
 
     start() {
@@ -204,7 +204,7 @@ export class TailwebAppVM {
         filterForm.applyValue = () => {
             if (filter.event1 === filterForm.fieldValue) return;
             filter.event1 = filterForm.fieldValue;
-            this.applyFilter(true /*save*/);
+            this.applyFilter({ save: true });
             const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === filterForm.fieldValue)!.text;
             this.logWithPrefix(`Event type filter changed to: ${selectedChoiceText}`)
         };
@@ -226,7 +226,7 @@ export class TailwebAppVM {
         filterForm.applyValue = () => {
             if (filter.status1 === filterForm.fieldValue) return;
             filter.status1 = filterForm.fieldValue;
-            this.applyFilter(true /*save*/);
+            this.applyFilter({ save: true });
             const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === filterForm.fieldValue)!.text;
             this.logWithPrefix(`Status filter changed to: ${selectedChoiceText}`)
         };
@@ -261,7 +261,7 @@ export class TailwebAppVM {
             const newValue = parseFilterIpAddressesFromFieldValue();
             if (setEqual(new Set(filter.ipAddress1 || []), new Set(newValue))) return;
             filter.ipAddress1 = newValue;
-            this.applyFilter(true /*save*/);
+            this.applyFilter({ save: true });
             const text = newValue.length === 0 ? 'any IP address' : newValue.join(', ');
             this.logWithPrefix(`IP address filter changed to: ${text}`);
         };
@@ -289,7 +289,7 @@ export class TailwebAppVM {
             const newValue = parseFilterMethodsFromFieldValue();
             if (setEqual(new Set(filter.method1 || []), new Set(newValue))) return;
             filter.method1 = newValue;
-            this.applyFilter(true /*save*/);
+            this.applyFilter({ save: true });
             const text = newValue.length === 0 ? 'any method' : newValue.join(', ');
             this.logWithPrefix(`Method filter changed to: ${text}`);
         };
@@ -316,7 +316,7 @@ export class TailwebAppVM {
             const newValue = parseSampleRateFromFieldValue();
             if (filter.samplingRate1 === newValue) return;
             filter.samplingRate1 = newValue;
-            this.applyFilter(true /*save*/);
+            this.applyFilter({ save: true });
             const text = newValue === 1 ? 'no sampling' : `${newValue} (${(newValue * 100).toFixed(2)}%)`;
             this.logWithPrefix(`Sample rate filter changed to: ${text}`);
         };
@@ -334,7 +334,7 @@ export class TailwebAppVM {
         filterForm.applyValue = () => {
             if (filter.search1 === filterForm.fieldValue) return;
             filter.search1 = filterForm.fieldValue;
-            this.applyFilter(true /*save*/);
+            this.applyFilter({ save: true });
             const text = (filter.search1 || '').length === 0 ? 'no search filter' : `'${filter.search1}'`;
             this.logWithPrefix(`Search filter changed to: ${text}`);
         };
@@ -342,7 +342,44 @@ export class TailwebAppVM {
     }
 
     editHeaderFilter() {
-        console.log('TODO editHeaderFilter!');
+        const { filter, filterForm } = this;
+        const parseFilterHeadersFromFieldValue = () => {
+            const { fieldValue } = filterForm;
+            const v = (fieldValue || '').trim();
+            if (v === '') return [];
+            return distinct(v.split(',').map(v => v.trim()).filter(v => v !== ''));
+        };
+        const computeFieldValueFromFilterHeaders = () => {
+            return distinct(filter.header1 || []).join(', ');
+        };
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'Header(s):';
+        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValue = computeFieldValueFromFilterHeaders();
+        filterForm.helpText = `'key', or 'key:query', comma-separated if multiple`;
+        filterForm.applyValue = () => {
+            const newValue = parseFilterHeadersFromFieldValue();
+            if (setEqual(new Set(filter.header1 || []), new Set(newValue))) return;
+            filter.header1 = newValue;
+            this.applyFilter({ save: true });
+            const text = newValue.length === 0 ? 'no header filter' : newValue.join(', ');
+            this.logWithPrefix(`Header filter changed to: ${text}`);
+        };
+        this.onchange();
+    }
+
+    hasAnyFilters(): boolean {
+        const { filter } = this;
+        const { event1 } = filter;
+        return computeTailOptionsForFilter(filter).filters.length > 0 || typeof event1 === 'string' && event1 !== '' && event1 !== 'all';
+    }
+
+    resetFilters() {
+        this.filter = {};
+        this.applyFilter({ save: true });
+        this.logWithPrefix(`Filters reset`);
+        this.onchange();
     }
 
     cancelFilter() {
@@ -377,7 +414,8 @@ export class TailwebAppVM {
         
     //
 
-    private applyFilter(save: boolean) {
+    private applyFilter(opts: { save: boolean }) {
+        const { save } = opts;
         this.state.filter = this.filter;
         if (save) saveState(this.state);
         const tailOptions = computeTailOptionsForFilter(this.filter);
@@ -638,6 +676,11 @@ function computeTailOptionsForFilter(filter: FilterState): TailOptions {
     }
     if (filter.ipAddress1 && filter.ipAddress1.length > 0) {
         filters.push({ client_ip: filter.ipAddress1 });
+    }
+    if (filter.header1 && filter.header1.length > 0) {
+        for (const header of filter.header1) {
+            filters.push(parseHeaderFilter(header));
+        }
     }
     return { filters };
 }
