@@ -21,8 +21,8 @@ export const FILTER_EDITOR_HTML = html`
   </div>
 
   <div id="filter-form-buttons" class="form-rhs">
+    <button id="filter-apply" type="submit">Apply</button><!-- first so it is default button on return -->
     <button id="filter-cancel">Cancel</button>
-    <button id="filter-apply">Apply</button>
   </div>
 </fieldset>
 </form>
@@ -37,6 +37,7 @@ export const FILTER_EDITOR_CSS = css`
     #filter-form-buttons {
         justify-self: end;
         display: flex;
+        flex-direction: row-reverse;
         gap: 1rem;
     }
 

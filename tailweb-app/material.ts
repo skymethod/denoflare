@@ -31,6 +31,7 @@ export const MATERIAL_CSS = css`
     font-size: 0.875rem;
     letter-spacing: 0.01786rem;
     font-weight: normal;
+    line-height: 1.25rem;
 }
 
 .button, button, .action-icon {

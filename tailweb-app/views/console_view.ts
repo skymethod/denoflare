@@ -43,6 +43,7 @@ export const CONSOLE_CSS = css`
     height: 5rem;
     background-color: var(--background-color);
     display: flex;
+    gap: 1rem;
     padding: 1rem 1rem 1rem 0;
 }
 
@@ -50,6 +51,10 @@ export const CONSOLE_CSS = css`
     flex-grow: 1;
     color: var(--medium-emphasis-text-color);
     font-family: var(--sans-serif-font-family);
+}
+
+#console-header-tails {
+    white-space: nowrap;
 }
 
 #console .line {

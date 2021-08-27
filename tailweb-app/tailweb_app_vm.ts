@@ -234,11 +234,66 @@ export class TailwebAppVM {
     }
 
     editIpAddressFilter() {
-        console.log('TODO editIpAddressFilter!');
+        const { filter, filterForm } = this;
+        const isValidIpAddress = (ipAddress: string) => {
+            return /^(self|[\d\.:a-f]{3,})$/.test(ipAddress); // 2001:db8:3:4::192.0.2.33, doesn't need to be comprehensive
+        };
+        const checkValidIpAddress = (ipAddress: string) => {
+            if (!isValidIpAddress(ipAddress)) throw new Error(`Bad ip address: ${ipAddress}`);
+            return ipAddress;
+        };
+        const parseFilterIpAddressesFromFieldValue = () => {
+            const { fieldValue } = filterForm;
+            const v = (fieldValue || '').trim();
+            if (v === '') return [];
+            return distinct(v.split(',').map(v => v.trim().toLowerCase()).filter(v => v !== '').map(checkValidIpAddress));
+        };
+        const computeFieldValueFromFilterIpAddresses = () => {
+            return distinct(filter.ipAddress1 || []).join(', ');
+        };
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'IP address(s):';
+        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValue = computeFieldValueFromFilterIpAddresses();
+        filterForm.helpText = `'self' to filter your own address, comma-separated if multiple, e.g. self, 1.1.1.1`;
+        filterForm.applyValue = () => {
+            const newValue = parseFilterIpAddressesFromFieldValue();
+            if (setEqual(new Set(filter.ipAddress1 || []), new Set(newValue))) return;
+            filter.ipAddress1 = newValue;
+            this.applyFilter(true /*save*/);
+            const text = newValue.length === 0 ? 'any IP address' : newValue.join(', ');
+            this.logWithPrefix(`IP address filter changed to: ${text}`);
+        };
+        this.onchange();
     }
 
     editMethodFilter() {
-        console.log('TODO editMethodFilter!');
+        const { filter, filterForm } = this;
+        const parseFilterMethodsFromFieldValue = () => {
+            const { fieldValue } = filterForm;
+            const v = (fieldValue || '').trim();
+            if (v === '') return [];
+            return distinct(v.split(',').map(v => v.trim().toUpperCase()).filter(v => v !== ''));
+        };
+        const computeFieldValueFromFilterMethods = () => {
+            return distinct(filter.method1 || []).map(v => v.toUpperCase()).join(', ');
+        };
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'HTTP Method(s):';
+        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValue = computeFieldValueFromFilterMethods();
+        filterForm.helpText = 'comma-separated if multiple, e.g. GET, POST';
+        filterForm.applyValue = () => {
+            const newValue = parseFilterMethodsFromFieldValue();
+            if (setEqual(new Set(filter.method1 || []), new Set(newValue))) return;
+            filter.method1 = newValue;
+            this.applyFilter(true /*save*/);
+            const text = newValue.length === 0 ? 'any method' : newValue.join(', ');
+            this.logWithPrefix(`Method filter changed to: ${text}`);
+        };
+        this.onchange();
     }
 
     editSamplingRateFilter() {
@@ -291,11 +346,13 @@ export class TailwebAppVM {
     }
 
     cancelFilter() {
+        console.log('cancelFilter');
         this.filterForm.showing = false;
         this.onchange();
     }
 
     saveFilter() {
+        console.log('saveFilter');
         const { filterForm } = this;
         filterForm.enabled = false;
         filterForm.outputMessage = 'Checking filter...';
@@ -576,6 +633,12 @@ function computeTailOptionsForFilter(filter: FilterState): TailOptions {
     if (filter.search1 !== undefined && filter.search1.length > 0) {
         filters.push({ query: filter.search1 });
     }
+    if (filter.method1 && filter.method1.length > 0) {
+        filters.push({ method: filter.method1 });
+    }
+    if (filter.ipAddress1 && filter.ipAddress1.length > 0) {
+        filters.push({ client_ip: filter.ipAddress1 });
+    }
     return { filters };
 }
 
@@ -585,6 +648,16 @@ function computeMessagePassesFilter(message: TailMessage, filter: FilterState): 
         return isCron && filter.event1 === 'cron' || !isCron && filter.event1 === 'http';
     }
     return true;
+}
+
+function distinct(values: string[]): string[] { // and maintain order
+    const rt: string[] = [];
+    for (const value of values) {
+        if (!rt.includes(value)) {
+            rt.push(value);
+        }
+    }
+    return rt;
 }
 
 //
