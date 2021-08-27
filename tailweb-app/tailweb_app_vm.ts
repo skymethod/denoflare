@@ -11,7 +11,7 @@ export type ConsoleLogger = (...data: any[]) => void;
 
 export class TailwebAppVM {
 
-    profiles: SidebarItem[] = [];
+    profiles: TextItem[] = [];
 
     get selectedProfileId(): string | undefined { return this._selectedProfileId; }
     set selectedProfileId(value: string | undefined) {
@@ -23,7 +23,7 @@ export class TailwebAppVM {
         this.findScripts();
     }
 
-    scripts: SidebarItem[] = [];
+    scripts: TextItem[] = [];
     get selectedScriptIds(): ReadonlySet<string> { return this._selectedScriptIds; }
     set selectedScriptIds(scriptIds: ReadonlySet<string>) {
         if (setEqual(this._selectedScriptIds, scriptIds)) return;
@@ -37,8 +37,9 @@ export class TailwebAppVM {
         this.setTails();
     }
     profileForm = new ProfileFormVM();
-    tails: ReadonlySet<TailKey> = new Set();
+    filterForm = new FilterFormVM();
     filter: FilterState = {};
+    tails: ReadonlySet<TailKey> = new Set();
 
     //
 
@@ -184,7 +185,17 @@ export class TailwebAppVM {
     }
 
     editEventFilter() {
-        console.log('TODO editEventFilter!');
+        this.filterForm.showing = true;
+        this.filterForm.enabled = true;
+        this.filterForm.fieldName = 'Event type:';
+        this.filterForm.fieldValueChoices = [
+            { id: 'all', text: 'All', helpText: 'Show all event types' }, 
+            { id: 'cron', text: 'CRON trigger', helpText: 'Show only CRON trigger events' }, 
+            { id: 'http', text: 'HTTP request', helpText: 'Show only HTTP requests' },
+        ];
+        this.filterForm.fieldValueSelectedChoiceId = 'all';
+        this.filterForm.helpText = this.filterForm.fieldValueChoices.find(v => v.id === 'all')!.helpText!;
+        this.onchange();
     }
 
     editStatusFilter() {
@@ -209,6 +220,22 @@ export class TailwebAppVM {
 
     editHeaderFilter() {
         console.log('TODO editHeaderFilter!');
+    }
+
+    cancelFilter() {
+        this.filterForm.showing = false;
+        this.onchange();
+    }
+
+    saveFilter() {
+        this.trySaveFilter();
+    }
+
+    selectFilterChoice(id: string) {
+        if (this.filterForm.fieldValueSelectedChoiceId === id) return;
+        this.filterForm.fieldValueSelectedChoiceId = id;
+        this.filterForm.helpText = this.filterForm.fieldValueChoices.find(v => v.id === id)!.helpText || '';
+        this.onchange();
     }
         
     //
@@ -260,6 +287,24 @@ export class TailwebAppVM {
         } finally {
             profileForm.progressVisible = false;
             profileForm.enabled = true;
+            this.onchange();
+        }
+    }
+
+    private async trySaveFilter() {
+        const { filterForm } = this;
+        filterForm.enabled = false;
+        filterForm.progressVisible = true;
+        filterForm.outputMessage = 'TODO Checking filter...';
+        this.onchange();
+        try {
+            await sleep(3000);
+            filterForm.outputMessage = `TODO apply filter`;
+        } catch (e) {
+            filterForm.outputMessage = `Error: ${e.message}`;
+        } finally {
+            filterForm.progressVisible = false;
+            filterForm.enabled = true;
             this.onchange();
         }
     }
@@ -354,9 +399,21 @@ export class ProfileFormVM {
     }
 }
 
-export interface SidebarItem {
+export class FilterFormVM {
+    showing = false;
+    enabled = false;
+    progressVisible = false;
+    fieldName = '';
+    fieldValueChoices: TextItem[] = [];
+    fieldValueSelectedChoiceId?: string;
+    helpText = '';
+    outputMessage = '';
+}
+
+export interface TextItem {
     readonly id: string;
     readonly text: string;
+    readonly helpText?: string;
 }
 
 export interface FilterState {
@@ -428,10 +485,14 @@ async function computeCanListTails(accountId: string, apiToken: string): Promise
     }
 }
 
-function computeInitiallySelectedProfileId(state: State, profiles: SidebarItem[]) {
+function computeInitiallySelectedProfileId(state: State, profiles: TextItem[]) {
     if (state.selectedProfileId && state.profiles[state.selectedProfileId]) return state.selectedProfileId;
     if (profiles.length > 0) return profiles[0].id;
     return undefined;
+}
+
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 //

@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 
-import { css, html, LitElement, TemplateResult } from '../deps_app.ts';
+import { css, html, LitElement } from '../deps_app.ts';
 import { FilterState, TailwebAppVM } from '../tailweb_app_vm.ts';
 
 export const CONSOLE_HTML = html`
