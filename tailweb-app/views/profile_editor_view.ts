@@ -19,8 +19,12 @@ export const PROFILE_EDITOR_HTML = html`
   <input id="profile-api-token" type="text">
 
   <details id="profile-form-help-row" class="form-row">
-    <summary>Use a <a href="https://en.wikipedia.org/wiki/Principle_of_least_privilege" target="_blank">least privilege</a> token with <code>Account &gt; Workers Tail &gt; Read</code></summary>
-    <div>Manage tokens on the Cloudflare dashboard <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank">API Tokens</a> page.</div>
+    <summary>Use a <a href="https://en.wikipedia.org/wiki/Principle_of_least_privilege" target="_blank">least privilege</a> token with permission: <code>Account &gt; Workers Tail &gt; Read</code></summary>
+    <ol>
+        <li>Select <span class="cf-button">Create Token</span> on your Cloudflare <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank">API Tokens</a> page.</li>
+        <li>Scroll down to <span class="cf-section">Create Custom Token</span>, then <span class="cf-button">Get started</span></li>
+        <li>Under <span class="cf-section">Permissions</span>, grant your token <span class="cf-section">Account</span> <span class="cf-section">Workers Tail</span> <span class="cf-section">Read</span></li>
+    </ol>
   </details>  
 
   <div id="profile-form-output-row" class="form-row">
@@ -55,9 +59,28 @@ export const PROFILE_EDITOR_CSS = css`
         user-select: none;
     }
 
-    #profile-form-help-row div {
-        margin: 1rem;
-        cursor: default
+    #profile-form-help-row ol {
+        cursor: default;
+    }
+
+    #profile-form-help-row li {
+        padding: 0.5rem 0;
+    }
+
+    .cf-button {
+        display: inline-block;
+        background-color: blue;
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+
+    .cf-section {
+        display: inline-block;
+        background-color: white;
+        color: black;
+        padding: 0.25rem 0.5rem;
+        outline: solid 1px gray;
     }
 
     #profile-form-output-row {
