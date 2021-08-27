@@ -1,6 +1,6 @@
 import { createTail, Tail } from '../common/cloudflare_api.ts';
 import { setSubtract } from '../common/sets.ts';
-import { TailMessage } from '../common/tail.ts';
+import { TailMessage, TailOptions } from '../common/tail.ts';
 import { ErrorInfo, TailConnection, TailConnectionCallbacks, UnparsedMessage } from '../common/tail_connection.ts';
 
 export type TailKey = string; // accountId-scriptId
@@ -21,9 +21,19 @@ const INACTIVE_TAIL_MILLIS = 5000; // reclaim inactive tails older than this
 export class TailController {
     private readonly callbacks: TailControllerCallbacks;
     private readonly records = new Map<TailKey, Record>();
+    private tailOptions: TailOptions = { filters: [] };
 
     constructor(callbacks: TailControllerCallbacks) {
         this.callbacks = callbacks;
+    }
+
+    setTailOptions(tailOptions: TailOptions) {
+        this.tailOptions = tailOptions;
+        for (const record of this.records.values()) {
+            if (record.connection) {
+                record.connection.setOptions(tailOptions);
+            }
+        }
     }
 
     async setTails(accountId: string, apiToken: string, scriptIds: ReadonlySet<string>) {
@@ -85,7 +95,7 @@ export class TailController {
                         callbacks.onTailConnectionUnparsedMessage(accountId, scriptId, timeStamp, message, parseError);
                     },
                 };
-                record.connection = new TailConnection(tail.url, tailConnectionCallbacks);
+                record.connection = new TailConnection(tail.url, tailConnectionCallbacks).setOptions(this.tailOptions);
                 record.state = 'started';
             }
             this.dispatchTailsChanged();

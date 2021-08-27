@@ -43,7 +43,7 @@ export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void 
 
     const closeModal = () => {
         if (!vm.profileForm.showing && !vm.filterForm.showing) return;
-        if (vm.profileForm.progressVisible || vm.filterForm.progressVisible) return; // don't allow close if busy
+        if (vm.profileForm.progressVisible) return; // don't allow close if busy
         vm.profileForm.showing = false;
         vm.filterForm.showing = false;
         vm.onchange();

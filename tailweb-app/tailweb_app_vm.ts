@@ -1,6 +1,6 @@
 import { CloudflareApiError, listScripts, listTails, Tail } from '../common/cloudflare_api.ts';
 import { setEqual, setIntersect, setSubtract } from '../common/sets.ts';
-import { TailMessage } from '../common/tail.ts';
+import { isTailMessageCronEvent, TailFilter, TailMessage, TailOptions } from '../common/tail.ts';
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
 import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
@@ -82,7 +82,9 @@ export class TailwebAppVM {
                 logWithPrefix(`Error in tail for ${scriptId}`, { errorInfo });
             },
             onTailConnectionMessage(_accountId: string, _scriptId: string, _timeStamp: number, message: TailMessage) {
-                dumpMessagePretty(message, dis.logger);
+                if (computeMessagePassesFilter(message, dis.filter)) {
+                    dumpMessagePretty(message, dis.logger);
+                }
             },
             onTailConnectionUnparsedMessage(_accountId: string, scriptId: string, _timeStamp: number, message: UnparsedMessage, parseError: Error) {
                 console.log(message);
@@ -100,6 +102,9 @@ export class TailwebAppVM {
             }
         };
         this.tailController = new TailController(callbacks);
+
+        this.filter = this.state.filter || {};
+        this.applyFilter(false);
     }
 
     start() {
@@ -185,16 +190,24 @@ export class TailwebAppVM {
     }
 
     editEventFilter() {
-        this.filterForm.showing = true;
-        this.filterForm.enabled = true;
-        this.filterForm.fieldName = 'Event type:';
-        this.filterForm.fieldValueChoices = [
-            { id: 'all', text: 'All', helpText: 'Show all event types' }, 
-            { id: 'cron', text: 'CRON trigger', helpText: 'Show only CRON trigger events' }, 
-            { id: 'http', text: 'HTTP request', helpText: 'Show only HTTP requests' },
+        const { filter, filterForm } = this;
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'Event type:';
+        filterForm.fieldValueChoices = [
+            { id: 'all', text: 'All' }, 
+            { id: 'cron', text: 'CRON trigger' }, 
+            { id: 'http', text: 'HTTP request' },
         ];
-        this.filterForm.fieldValueSelectedChoiceId = 'all';
-        this.filterForm.helpText = this.filterForm.fieldValueChoices.find(v => v.id === 'all')!.helpText!;
+        filterForm.fieldValue = filter.event1 === 'http' ? 'http' : filter.event1 === 'cron' ? 'cron' : 'all';
+        this.filterForm.helpText = 'Choose which types of events to show';
+        this.filterForm.applyValue = () => {
+            if (this.filter.event1 === this.filterForm.fieldValue) return;
+            this.filter.event1 = this.filterForm.fieldValue;
+            this.applyFilter(true /*save*/);
+            const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === this.filterForm.fieldValue)!.text;
+            this.logWithPrefix(`Event type filter changed to: ${selectedChoiceText}`)
+        };
         this.onchange();
     }
 
@@ -228,17 +241,36 @@ export class TailwebAppVM {
     }
 
     saveFilter() {
-        this.trySaveFilter();
+        const { filterForm } = this;
+        filterForm.enabled = false;
+        filterForm.outputMessage = 'Checking filter...';
+        this.onchange();
+        try {
+            filterForm.applyValue();
+            filterForm.outputMessage = ``;
+            filterForm.showing = false;
+        } catch (e) {
+            filterForm.outputMessage = `Error: ${e.message}`;
+        } finally {
+            filterForm.enabled = true;
+            this.onchange();
+        }
     }
 
     selectFilterChoice(id: string) {
-        if (this.filterForm.fieldValueSelectedChoiceId === id) return;
-        this.filterForm.fieldValueSelectedChoiceId = id;
-        this.filterForm.helpText = this.filterForm.fieldValueChoices.find(v => v.id === id)!.helpText || '';
+        if (this.filterForm.fieldValue === id) return;
+        this.filterForm.fieldValue = id;
         this.onchange();
     }
         
     //
+
+    private applyFilter(save: boolean) {
+        this.state.filter = this.filter;
+        if (save) saveState(this.state);
+        const tailOptions = computeTailOptionsForFilter(this.filter);
+        this.tailController.setTailOptions(tailOptions);
+    }
 
     // deno-lint-ignore no-explicit-any
     private logWithPrefix(...data: any) {
@@ -287,24 +319,6 @@ export class TailwebAppVM {
         } finally {
             profileForm.progressVisible = false;
             profileForm.enabled = true;
-            this.onchange();
-        }
-    }
-
-    private async trySaveFilter() {
-        const { filterForm } = this;
-        filterForm.enabled = false;
-        filterForm.progressVisible = true;
-        filterForm.outputMessage = 'TODO Checking filter...';
-        this.onchange();
-        try {
-            await sleep(3000);
-            filterForm.outputMessage = `TODO apply filter`;
-        } catch (e) {
-            filterForm.outputMessage = `Error: ${e.message}`;
-        } finally {
-            filterForm.progressVisible = false;
-            filterForm.enabled = true;
             this.onchange();
         }
     }
@@ -402,18 +416,17 @@ export class ProfileFormVM {
 export class FilterFormVM {
     showing = false;
     enabled = false;
-    progressVisible = false;
     fieldName = '';
     fieldValueChoices: TextItem[] = [];
-    fieldValueSelectedChoiceId?: string;
+    fieldValue?: string; // selected item id or free form text from input
     helpText = '';
     outputMessage = '';
+    applyValue: () => void = () => {};
 }
 
 export interface TextItem {
     readonly id: string;
     readonly text: string;
-    readonly helpText?: string;
 }
 
 export interface FilterState {
@@ -491,8 +504,18 @@ function computeInitiallySelectedProfileId(state: State, profiles: TextItem[]) {
     return undefined;
 }
 
-function sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+function computeTailOptionsForFilter(_filter: FilterState): TailOptions {
+    const filters: TailFilter[] = [];
+    // TODO
+    return { filters };
+}
+
+function computeMessagePassesFilter(message: TailMessage, filter: FilterState): boolean {
+    if (filter.event1 === 'cron' || filter.event1 === 'http') {
+        const isCron = isTailMessageCronEvent(message);
+        return isCron && filter.event1 === 'cron' || !isCron && filter.event1 === 'http';
+    }
+    return true;
 }
 
 //
