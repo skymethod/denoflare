@@ -64,9 +64,23 @@ export class Bytes {
         return new Bytes(base64Decode(base64));
     }
 
+    public static formatSize(sizeInBytes: number): string {
+        const sign = sizeInBytes < 0 ? '-' : '';
+        let size = Math.abs(sizeInBytes);
+        if (size < 1024) return `${sign}${size}bytes`;
+        size = size / 1024;
+        if (size < 1024) return `${sign}${roundToOneDecimal(size)}kb`;
+        size = size / 1024;
+        return `${sign}${roundToOneDecimal(size)}mb`;
+    }
+
 }
 
 //
+
+function roundToOneDecimal(value: number): number {
+    return Math.round(value * 10) / 10;
+}
 
 function base64Encode(buf: Uint8Array): string {
     let string = '';

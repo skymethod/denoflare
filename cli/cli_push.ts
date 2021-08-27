@@ -1,8 +1,9 @@
 import { loadConfig, resolveCredential } from './config_loader.ts';
-import { basename, extname } from './deps_cli.ts';
+import { basename, extname, gzip } from './deps_cli.ts';
 import { putScript } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Config } from '../common/config.ts';
+import { Bytes } from '../common/bytes.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
     const scriptReference = args[0];
@@ -29,8 +30,9 @@ export async function push(args: (string | number)[], options: Record<string, un
     const scriptContentsStr = result.files['deno:///bundle.js'];
     if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
     const scriptContents = new TextEncoder().encode(scriptContentsStr);
+    const compressedScriptContents = gzip(scriptContents);
 
-    console.log(`putting script ${scriptName}...`);
+    console.log(`putting script ${scriptName}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
     start = Date.now();
     await putScript(accountId, scriptName, scriptContents, [], apiToken);
     console.log(`put script ${scriptName} in ${Date.now() - start}ms`);
