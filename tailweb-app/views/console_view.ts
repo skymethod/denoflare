@@ -161,8 +161,8 @@ function computeSamplingRateFilterText(filter: FilterState): string {
 }
 
 function computeSearchFilterText(filter: FilterState): string {
-    const search1 = { filter };
-    return typeof search1 === 'string' ? `console logs containing "${search1}"`
+    const { search1 } = filter;
+    return typeof search1 === 'string' && search1.length > 0 ? `console logs containing "${search1}"`
         : 'no search filter';
 }
 

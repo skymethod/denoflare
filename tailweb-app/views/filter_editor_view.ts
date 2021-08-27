@@ -80,6 +80,10 @@ export function initFilterEditor(document: HTMLDocument, vm: TailwebAppVM): () =
 
     filterApplyButton.onclick = e => {
         e.preventDefault();
+        const isChoice = vm.filterForm.fieldValueChoices.length > 0;
+        if (!isChoice) {
+            vm.filterForm.fieldValue = filterFieldTextInput.value;
+        }
         vm.saveFilter();
     }
 
@@ -99,6 +103,8 @@ export function initFilterEditor(document: HTMLDocument, vm: TailwebAppVM): () =
         filterFormOutput.textContent = vm.filterForm.outputMessage;
         if (wasHidden && vm.filterForm.showing) {
             console.log('filter form open');
+            if (!isChoice && vm.filterForm.fieldValue) filterFieldTextInput.value = vm.filterForm.fieldValue;
+
             setTimeout(() => { 
                 filterFieldTextInput.focus();
                 filterFieldTextInput.select(); 

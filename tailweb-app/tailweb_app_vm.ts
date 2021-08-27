@@ -200,19 +200,37 @@ export class TailwebAppVM {
             { id: 'http', text: 'HTTP request' },
         ];
         filterForm.fieldValue = filter.event1 === 'http' ? 'http' : filter.event1 === 'cron' ? 'cron' : 'all';
-        this.filterForm.helpText = 'Choose which types of events to show';
-        this.filterForm.applyValue = () => {
-            if (this.filter.event1 === this.filterForm.fieldValue) return;
-            this.filter.event1 = this.filterForm.fieldValue;
+        filterForm.helpText = 'Choose which types of events to show';
+        filterForm.applyValue = () => {
+            if (filter.event1 === filterForm.fieldValue) return;
+            filter.event1 = filterForm.fieldValue;
             this.applyFilter(true /*save*/);
-            const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === this.filterForm.fieldValue)!.text;
+            const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === filterForm.fieldValue)!.text;
             this.logWithPrefix(`Event type filter changed to: ${selectedChoiceText}`)
         };
         this.onchange();
     }
 
     editStatusFilter() {
-        console.log('TODO editStatusFilter!');
+        const { filter, filterForm } = this;
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'Status:';
+        filterForm.fieldValueChoices = [
+            { id: 'all', text: 'All' }, 
+            { id: 'success', text: 'Success' }, 
+            { id: 'error', text: 'Error' },
+        ];
+        filterForm.fieldValue = filter.status1 === 'success' ? 'success' : filter.status1 === 'error' ? 'error' : 'all';
+        filterForm.helpText = 'Show events this this status';
+        filterForm.applyValue = () => {
+            if (filter.status1 === filterForm.fieldValue) return;
+            filter.status1 = filterForm.fieldValue;
+            this.applyFilter(true /*save*/);
+            const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === filterForm.fieldValue)!.text;
+            this.logWithPrefix(`Status filter changed to: ${selectedChoiceText}`)
+        };
+        this.onchange();
     }
 
     editIpAddressFilter() {
@@ -224,11 +242,48 @@ export class TailwebAppVM {
     }
 
     editSamplingRateFilter() {
-        console.log('TODO editSamplingRateFilter!');
+        const parseSampleRateFromFieldValue = () => {
+            const { fieldValue } = filterForm;
+            const v = (fieldValue || '').trim();
+            if (v === '') return 1;
+            const num = parseFloat(v);
+            if (!isValidSamplingRate(num)) throw new Error(`Invalid rate: ${v}`);
+            return num;
+        };
+        const { filter, filterForm } = this;
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'Sampling rate:';
+        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValue = (typeof filter.samplingRate1 === 'number' && isValidSamplingRate(filter.samplingRate1) ? filter.samplingRate1 : 1).toFixed(2);
+        filterForm.helpText = 'Can range from 0 (0%) to 1 (100%)';
+        filterForm.applyValue = () => {
+            const newValue = parseSampleRateFromFieldValue();
+            if (filter.samplingRate1 === newValue) return;
+            filter.samplingRate1 = newValue;
+            this.applyFilter(true /*save*/);
+            const text = newValue === 1 ? 'no sampling' : `${newValue} (${(newValue * 100).toFixed(2)}%)`;
+            this.logWithPrefix(`Sample rate filter changed to: ${text}`);
+        };
+        this.onchange();
     }
 
     editSearchFilter() {
-        console.log('TODO editSearchFilter!');
+        const { filter, filterForm } = this;
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'Search text:';
+        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValue = filter.search1 || '';
+        filterForm.helpText = 'Filter by a text match in console.log messages';
+        filterForm.applyValue = () => {
+            if (filter.search1 === filterForm.fieldValue) return;
+            filter.search1 = filterForm.fieldValue;
+            this.applyFilter(true /*save*/);
+            const text = (filter.search1 || '').length === 0 ? 'no search filter' : `'${filter.search1}'`;
+            this.logWithPrefix(`Search filter changed to: ${text}`);
+        };
+        this.onchange();
     }
 
     editHeaderFilter() {
@@ -498,15 +553,29 @@ async function computeCanListTails(accountId: string, apiToken: string): Promise
     }
 }
 
+function isValidSamplingRate(samplingRate: number): boolean {
+    return !isNaN(samplingRate) && samplingRate >= 0 && samplingRate <= 1;
+}
+
 function computeInitiallySelectedProfileId(state: State, profiles: TextItem[]) {
     if (state.selectedProfileId && state.profiles[state.selectedProfileId]) return state.selectedProfileId;
     if (profiles.length > 0) return profiles[0].id;
     return undefined;
 }
 
-function computeTailOptionsForFilter(_filter: FilterState): TailOptions {
+function computeTailOptionsForFilter(filter: FilterState): TailOptions {
     const filters: TailFilter[] = [];
-    // TODO
+    if (filter.status1 === 'error') {
+        filters.push({ outcome: [ 'exception', 'exceededCpu', 'canceled', 'unknown' ]});
+    } else if (filter.status1 === 'success') {
+        filters.push({ outcome: [ 'ok' ]});
+    }
+    if (filter.samplingRate1 !== undefined && isValidSamplingRate(filter.samplingRate1) && filter.samplingRate1 < 1) {
+        filters.push({ sampling_rate: filter.samplingRate1 });
+    }
+    if (filter.search1 !== undefined && filter.search1.length > 0) {
+        filters.push({ query: filter.search1 });
+    }
     return { filters };
 }
 
