@@ -5,12 +5,13 @@ import { Material } from './material.ts';
 
 export default {
 
-    async fetch(request: IncomingRequestCf, _env: WorkerEnv, _ctx: ModuleWorkerContext): Promise<Response> {
+    async fetch(request: IncomingRequestCf, env: WorkerEnv, _ctx: ModuleWorkerContext): Promise<Response> {
         const cfConnectingIp = request.headers.get('cf-connecting-ip');
         const url = new URL(request.url);
 
         if (url.pathname === '/') {
-            return new Response(computeHtml(url), { headers: { 'Content-Type': 'text/html; charset=utf-8' }});
+            const { version } = env;
+            return new Response(computeHtml(url, { version }), { headers: { 'Content-Type': 'text/html; charset=utf-8' }});
         } else if (url.pathname === computeAppJsPath()) {
             return computeAppResponse();
         } else if (url.pathname.startsWith('/fetch/')) {
@@ -32,7 +33,7 @@ export default {
 
 // deno-lint-ignore no-empty-interface
 export interface WorkerEnv {
-    
+    readonly version?: string;
 }
 
 //
@@ -53,7 +54,7 @@ function computeAppResponse(): Response {
     return new Response(array, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=604800, immutable' }});
 }
 
-function computeHtml(url: URL) {
+function computeHtml(url: URL, staticData: Record<string, unknown>) {
     const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>
 <html lang="en" class="no-js">
@@ -63,6 +64,7 @@ function computeHtml(url: URL) {
 
 <title>Denoflare Tail</title>
 
+<script id="static-data-script" type="application/json">${JSON.stringify(staticData)}</script>
 <script type="module">
     document.documentElement.classList.remove('no-js');
     document.documentElement.classList.add('js');
