@@ -9,7 +9,7 @@ export const CONSOLE_HTML = html`
         <div id="console-header-filters" class="body2"></div>
         <div id="console-header-tails" class="overline medium-emphasis-text"></div>
     </div>
-    <div id="console-last-line" class="line">spacer</div>
+    <code id="console-last-line" class="line">spacer</code>
 </div>
 
 `;
@@ -17,7 +17,6 @@ export const CONSOLE_HTML = html`
 export const CONSOLE_CSS = css`
 
 #console {
-    font-family: monospace;
     color: var(--high-emphasis-text-color);
     height: 100vh;
     width: 100%;
@@ -40,7 +39,7 @@ export const CONSOLE_CSS = css`
 #console-header {
     position: sticky;
     top: 0;
-    height: 5rem;
+    height: 3.5rem;
     background-color: var(--background-color);
     display: flex;
     gap: 1rem;
@@ -59,8 +58,11 @@ export const CONSOLE_CSS = css`
 }
 
 #console .line {
-    padding: 0.1rem 0;
-    white-space: pre;
+    display: block;
+    font-size: 0.75rem; /* 12px */
+    line-height: 1.1rem;
+    font-family: var(--monospace-font-family);
+    white-space: pre-wrap;
 }
 
 #console-last-line {
@@ -73,14 +75,14 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     const consoleDiv = document.getElementById('console') as HTMLDivElement;
     const consoleHeaderFiltersDiv = document.getElementById('console-header-filters') as HTMLDivElement;
     const consoleHeaderTailsDiv = document.getElementById('console-header-tails') as HTMLDivElement;
-    const consoleLastLineDiv = document.getElementById('console-last-line') as HTMLDivElement;
+    const consoleLastLineElement = document.getElementById('console-last-line') as HTMLElement;
     vm.logger = (...data) => {
-        const lineDiv = document.createElement('div');
-        lineDiv.className = 'line';
+        const lineElement = document.createElement('code');
+        lineElement.className = 'line';
         let pos = 0;
         while (pos < data.length) {
             if (pos > 0) {
-                lineDiv.appendChild(document.createTextNode(', '));
+                lineElement.appendChild(document.createTextNode(', '));
             }
             const msg = data[pos];
             if (typeof msg === 'string') {
@@ -92,22 +94,22 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
                         span.setAttribute('style', style);
                     }
                     renderTextIntoSpan(tokens[i], span);
-                    lineDiv.appendChild(span);
+                    lineElement.appendChild(span);
                 }
                 pos += 1 + tokens.length - 1;
             } else {
-                lineDiv.appendChild(document.createTextNode(JSON.stringify(msg)));
+                lineElement.appendChild(document.createTextNode(JSON.stringify(msg)));
                 pos++;
             }
         }
 
-        consoleDiv.insertBefore(lineDiv, consoleLastLineDiv);
+        consoleDiv.insertBefore(lineElement, consoleLastLineElement);
         const { scrollHeight, scrollTop, clientHeight } = consoleDiv;
         const diff = scrollHeight - scrollTop;
         const autoscroll = diff - 16 * 4 <= clientHeight;
         // console.log({scrollHeight, scrollTop, clientHeight, diff, autoscroll });
         if (autoscroll) {
-            consoleLastLineDiv.scrollIntoView(false /* alignToTop */);
+            consoleLastLineElement.scrollIntoView(false /* alignToTop */);
         }
     };
 
