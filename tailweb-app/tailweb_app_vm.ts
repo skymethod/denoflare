@@ -40,6 +40,7 @@ export class TailwebAppVM {
     filterForm = new FilterFormVM();
     filter: FilterState = {};
     tails: ReadonlySet<TailKey> = new Set();
+    extraFields: string[] = [];
 
     //
 
@@ -103,6 +104,7 @@ export class TailwebAppVM {
         };
         this.tailController = new TailController(callbacks);
 
+        this.extraFields = [...(this.state.extraFields || [])];
         this.filter = this.state.filter || {};
         this.applyFilter({ save: false });
     }
@@ -199,6 +201,7 @@ export class TailwebAppVM {
             { id: 'cron', text: 'CRON trigger' }, 
             { id: 'http', text: 'HTTP request' },
         ];
+        filterForm.fieldValueOptions = [];
         filterForm.fieldValue = filter.event1 === 'http' ? 'http' : filter.event1 === 'cron' ? 'cron' : 'all';
         filterForm.helpText = 'Choose which types of events to show';
         filterForm.applyValue = () => {
@@ -221,6 +224,7 @@ export class TailwebAppVM {
             { id: 'success', text: 'Success' }, 
             { id: 'error', text: 'Error' },
         ];
+        filterForm.fieldValueOptions = [];
         filterForm.fieldValue = filter.status1 === 'success' ? 'success' : filter.status1 === 'error' ? 'error' : 'all';
         filterForm.helpText = 'Show events this this status';
         filterForm.applyValue = () => {
@@ -254,7 +258,8 @@ export class TailwebAppVM {
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'IP address(s):';
-        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValueChoices = [];
+        filterForm.fieldValueOptions = [];
         filterForm.fieldValue = computeFieldValueFromFilterIpAddresses();
         filterForm.helpText = `'self' to filter your own address, comma-separated if multiple, e.g. self, 1.1.1.1`;
         filterForm.applyValue = () => {
@@ -282,7 +287,8 @@ export class TailwebAppVM {
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'HTTP Method(s):';
-        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValueChoices = [];
+        filterForm.fieldValueOptions = [];
         filterForm.fieldValue = computeFieldValueFromFilterMethods();
         filterForm.helpText = 'comma-separated if multiple, e.g. GET, POST';
         filterForm.applyValue = () => {
@@ -309,7 +315,8 @@ export class TailwebAppVM {
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Sampling rate:';
-        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValueChoices = [];
+        filterForm.fieldValueOptions = [];
         filterForm.fieldValue = (typeof filter.samplingRate1 === 'number' && isValidSamplingRate(filter.samplingRate1) ? filter.samplingRate1 : 1).toFixed(2);
         filterForm.helpText = 'Can range from 0 (0%) to 1 (100%)';
         filterForm.applyValue = () => {
@@ -328,7 +335,8 @@ export class TailwebAppVM {
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Search text:';
-        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValueChoices = [];
+        filterForm.fieldValueOptions = [];
         filterForm.fieldValue = filter.search1 || '';
         filterForm.helpText = 'Filter by a text match in console.log messages';
         filterForm.applyValue = () => {
@@ -355,7 +363,8 @@ export class TailwebAppVM {
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Header(s):';
-        filterForm.fieldValueChoices = [ ];
+        filterForm.fieldValueChoices = [];
+        filterForm.fieldValueOptions = [];
         filterForm.fieldValue = computeFieldValueFromFilterHeaders();
         filterForm.helpText = `'key', or 'key:query', comma-separated if multiple`;
         filterForm.applyValue = () => {
@@ -413,7 +422,42 @@ export class TailwebAppVM {
     }
 
     editSelectionFields() {
-        console.log('TODO editSelectionFields');
+        const { filterForm } = this;
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'Additional fields:';
+        filterForm.fieldValueChoices = [];
+        filterForm.fieldValueOptions = EXTRA_FIELDS_OPTIONS;
+        filterForm.fieldValue = (this.extraFields || []).join(',');
+        filterForm.helpText = 'Select additional fields to show in the output';
+        filterForm.applyValue = () => {
+            const newValues = distinct((filterForm.fieldValue || '').split(',').map(v => v.trim()).filter(v => v !== ''));
+            if (setEqual(new Set(this.extraFields || []), new Set(newValues))) return;
+            this.extraFields = newValues;
+            this.applyFilter({ save: true});
+            const extraFieldsText = this.computeSelectionFieldsText();
+            this.logWithPrefix(`Output fields changed to: ${extraFieldsText}`)
+        };
+        this.onchange();
+    }
+
+    computeSelectionFieldsText(): string {
+        return ['standard fields', ...this.extraFields.map(id => EXTRA_FIELDS_OPTIONS.find(v => v.id === id)?.text || id)].join(', ');
+    }
+
+    toggleFilterOption(id: string) {
+        const extraFields = distinct((this.filterForm.fieldValue || '').split(',').map(v => v.trim()).filter(v => v !== ''));
+        const i = extraFields.indexOf(id);
+        if (i >= 0) {
+            extraFields.splice(i, 1);
+        } else {
+            extraFields.push(id);
+        }
+        const fieldValue = extraFields.join(',');
+        if (this.filterForm.fieldValue === fieldValue) return;
+
+        this.filterForm.fieldValue = fieldValue;
+        this.onchange();
     }
     
     //
@@ -421,6 +465,7 @@ export class TailwebAppVM {
     private applyFilter(opts: { save: boolean }) {
         const { save } = opts;
         this.state.filter = this.filter;
+        this.state.extraFields = this.extraFields;
         if (save) saveState(this.state);
         const tailOptions = computeTailOptionsForFilter(this.filter);
         this.tailController.setTailOptions(tailOptions);
@@ -572,7 +617,8 @@ export class FilterFormVM {
     enabled = false;
     fieldName = '';
     fieldValueChoices: TextItem[] = [];
-    fieldValue?: string; // selected item id or free form text from input
+    fieldValueOptions: TextItem[] = [];
+    fieldValue?: string; // (fieldValueChoices: selected item id) (fieldValueOptions: comma-sep item ids) (text: free form text from input)
     helpText = '';
     outputMessage = '';
     applyValue: () => void = () => {};
@@ -595,14 +641,21 @@ export interface FilterState {
 
 //
 
+const EXTRA_FIELDS_OPTIONS: TextItem[] = [
+    { id: 'ip-address', text: 'IP address' }, 
+    { id: 'user-agent', text: 'User agent' }, 
+];
+
 const STATE_KEY = 'state1';
 
 function loadState(): State {
     try {
         const json = localStorage.getItem(STATE_KEY) || undefined;
         if (json) {
-            const rt = JSON.parse(json);
-            return parseState(rt);
+            const obj = JSON.parse(json);
+            const rt = parseState(obj);
+            // console.log('loadState: returning state', JSON.stringify(rt));
+            return rt;
         }
     } catch (e) {
         console.warn('loadState: Error loading state', e);

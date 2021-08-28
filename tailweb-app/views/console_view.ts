@@ -138,7 +138,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
 //
 
 const FILTERS_HTML = (vm: TailwebAppVM) => {
-    return html`Showing <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSelectionFields(); }}>${computeSelectionFieldsText(vm)}</a>
+    return html`Showing <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSelectionFields(); }}>${vm.computeSelectionFieldsText()}</a>
      for <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editEventFilter(); }}>${computeEventFilterText(vm.filter)}</a>
      with <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editStatusFilter(); }}>${computeStatusFilterText(vm.filter)}</a>,
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editIpAddressFilter(); }}>${computeIpAddressFilterText(vm.filter)}</a>,
@@ -148,10 +148,6 @@ const FILTERS_HTML = (vm: TailwebAppVM) => {
      and <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editHeaderFilter(); }}>${computeHeaderFilterText(vm.filter)}</a>.
      ${vm.hasAnyFilters() ? html`(<a href="#" @click=${(e: Event) => { e.preventDefault(); vm.resetFilters(); }}>reset</a>)` : ''}`;
 };
-
-function computeSelectionFieldsText(_vm: TailwebAppVM): string {
-    return 'standard fields';
-}
 
 function computeEventFilterText(filter: FilterState): string {
     const { event1 } = filter;
