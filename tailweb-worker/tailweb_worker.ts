@@ -31,7 +31,6 @@ export default {
 
 };
 
-// deno-lint-ignore no-empty-interface
 export interface WorkerEnv {
     readonly version?: string;
 }

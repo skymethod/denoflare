@@ -7,7 +7,9 @@ export const CONSOLE_HTML = html`
 <div id="console">
     <div id="console-header">
         <div id="console-header-filters" class="body2"></div>
-        <div id="console-header-tails" class="overline medium-emphasis-text"></div>
+        <div id="console-header-status">
+            <div id="console-header-tails" class="overline medium-emphasis-text"></div>
+        </div>
     </div>
     <code id="console-last-line" class="line">spacer</code>
 </div>
@@ -42,7 +44,6 @@ export const CONSOLE_CSS = css`
     height: 3.5rem;
     background-color: var(--background-color);
     display: flex;
-    gap: 1rem;
     padding: 1rem 1rem 1rem 0;
 }
 
@@ -50,11 +51,23 @@ export const CONSOLE_CSS = css`
     flex-grow: 1;
     color: var(--medium-emphasis-text-color);
     font-family: var(--sans-serif-font-family);
+
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;  
+    overflow: hidden;
+}
+
+#console-header-status {
+    height: 1rem;
+    display: flex;
+    flex-direction: column-reverse;
 }
 
 #console-header-tails {
     white-space: nowrap;
     min-width: 4rem;
+    text-align: right;
 }
 
 #console .line {
@@ -74,7 +87,7 @@ export const CONSOLE_CSS = css`
 export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => void {
     const consoleDiv = document.getElementById('console') as HTMLDivElement;
     const consoleHeaderFiltersDiv = document.getElementById('console-header-filters') as HTMLDivElement;
-    const consoleHeaderTailsDiv = document.getElementById('console-header-tails') as HTMLDivElement;
+    const consoleHeaderTailsElement = document.getElementById('console-header-tails') as HTMLElement;
     const consoleLastLineElement = document.getElementById('console-last-line') as HTMLElement;
     vm.logger = (...data) => {
         const lineElement = document.createElement('code');
@@ -117,7 +130,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll
 
     return () => {
-        consoleHeaderTailsDiv.textContent = computeTailsText(vm.tails.size);
+        consoleHeaderTailsElement.textContent = computeTailsText(vm.tails.size);
         LitElement.render(FILTERS_HTML(vm), consoleHeaderFiltersDiv);
     };
 }
@@ -125,7 +138,8 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
 //
 
 const FILTERS_HTML = (vm: TailwebAppVM) => {
-    return html`Showing <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editEventFilter(); }}>${computeEventFilterText(vm.filter)}</a>
+    return html`Showing <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSelectionFields(); }}>${computeSelectionFieldsText(vm)}</a>
+     for <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editEventFilter(); }}>${computeEventFilterText(vm.filter)}</a>
      with <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editStatusFilter(); }}>${computeStatusFilterText(vm.filter)}</a>,
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editIpAddressFilter(); }}>${computeIpAddressFilterText(vm.filter)}</a>,
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editMethodFilter(); }}>${computeMethodFilterText(vm.filter)}</a>,
@@ -134,6 +148,10 @@ const FILTERS_HTML = (vm: TailwebAppVM) => {
      and <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editHeaderFilter(); }}>${computeHeaderFilterText(vm.filter)}</a>.
      ${vm.hasAnyFilters() ? html`(<a href="#" @click=${(e: Event) => { e.preventDefault(); vm.resetFilters(); }}>reset</a>)` : ''}`;
 };
+
+function computeSelectionFieldsText(_vm: TailwebAppVM): string {
+    return 'standard fields';
+}
 
 function computeEventFilterText(filter: FilterState): string {
     const { event1 } = filter;

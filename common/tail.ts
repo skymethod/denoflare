@@ -87,9 +87,17 @@ function parseExceptions(obj: unknown): readonly TailMessageException[] {
 //
 
 export interface TailMessageLog {
-    readonly message: readonly string[];
+    readonly message: readonly LogMessagePart[];
     readonly level: string; // e.g. log
     readonly timestamp: number; // epoch millis
+}
+
+// deno-lint-ignore ban-types
+export type LogMessagePart = string | number | boolean | undefined | object;
+
+function isLogMessagePart(value: unknown): value is LogMessagePart {
+    const t = typeof value;
+    return t === 'string' || t === 'number' || t === 'boolean' || t === 'undefined' || t === 'object';
 }
 
 const REQUIRED_TAIL_MESSAGE_LOG_KEYS = new Set(['message', 'level', 'timestamp']);
@@ -99,7 +107,7 @@ function parseTailMessageLog(obj: unknown): TailMessageLog {
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_LOG_KEYS);
     // deno-lint-ignore no-explicit-any
     const objAsAny = obj as any;
-    const message = parseStringArray(objAsAny.message, 'message');
+    const message = parseLogMessagePartArray(objAsAny.message, 'message');
     const { level, timestamp } = objAsAny;
     if (!(typeof level === 'string')) throw new Error(`Bad level: expected string, found ${JSON.stringify(level)}`);
     if (!(typeof timestamp === 'number' && timestamp > 0)) throw new Error(`Bad timestamp: expected positive number, found ${JSON.stringify(timestamp)}`);
@@ -218,12 +226,12 @@ function parseStringRecord(obj: unknown, name: string): Record<string, string> {
     return obj as Record<string, string>;
 }
 
-function parseStringArray(obj: unknown, name: string): readonly string[] {
-    if (typeof obj !== 'object' || !Array.isArray(obj)) throw new Error(`Bad ${name}: Expected string array, found ${JSON.stringify(obj)}`);
+function parseLogMessagePartArray(obj: unknown, name: string): readonly LogMessagePart[]  {
+    if (typeof obj !== 'object' || !Array.isArray(obj)) throw new Error(`Bad ${name}: Expected log message part array, found ${JSON.stringify(obj)}`);
     for (const value of obj) {
-        if (typeof value !== 'string') throw new Error(`Bad ${name}: Expected string array, found ${JSON.stringify(obj)}`);
+        if (!isLogMessagePart(value)) throw new Error(`Bad ${name}: Expected log message part array, found ${JSON.stringify(obj)}`);
     }
-    return obj as readonly string[];
+    return obj as readonly LogMessagePart[];
 }
 
 function parseIncomingRequestCfProperties(obj: unknown): IncomingRequestCfProperties {

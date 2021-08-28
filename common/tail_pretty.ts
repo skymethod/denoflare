@@ -1,20 +1,31 @@
-import { isTailMessageCronEvent, Outcome, TailMessage } from './tail.ts';
+import { isTailMessageCronEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
 
 // deno-lint-ignore no-explicit-any
 export function dumpMessagePretty(message: TailMessage, logger: (...data: any[]) => void) {
     const time = formatLocalYyyyMmDdHhMmSs(new Date(message.eventTimestamp));
     const outcome = PRETTY_OUTCOMES.get(message.outcome) || message.outcome;
     const outcomeColor = message.outcome === 'ok' ? 'green' : 'red';
+    const { props, remainingLogs } = parseLogProps(message.logs);
     if (isTailMessageCronEvent(message.event)) {
-        logger(`[%c${time}%c] [%c???%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+        const colo = props.colo || '???';
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
         const { method, url, cf } = message.event.request;
-        const colo = cf?.colo || '???';
-        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] ${method} %c${url}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+        const colo = cf?.colo || props.colo || '???';
+        if (cf === undefined) {
+            // durable object request
+            const durableObjectInfo = computeDurableObjectInfo(props);
+            logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] [%c${durableObjectInfo}%c] ${method} %c${url}`, 
+                'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: gray', '', 'color: red; font-style: bold;');
+        } else {
+            logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] ${method} %c${url}`, 
+                'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+        }
     }
-    for (const { level, message: logMessage } of message.logs) {
+    for (const { level, message: logMessage } of remainingLogs) {
         const levelColor = LOG_LEVEL_COLORS.get(level) || 'gray';
-        logger(` %c|%c [%c${level}%c] ${logMessage}`, 'color: gray', '', `color: ${levelColor}`, '');
+        const logMessages = logMessage.map(formatLogMessagePart).join(', ');
+        logger(` %c|%c [%c${level}%c] ${logMessages}`, 'color: gray', '', `color: ${levelColor}`, '');
     }
     for (const { name, message: exceptionMessage } of message.exceptions) {
         logger(` %c|%c [%c${name}%c] %c${exceptionMessage}`, 'color: gray', '', `color: red; font-style: bold`, '', 'color: red');
@@ -26,6 +37,80 @@ export function formatLocalYyyyMmDdHhMmSs(date: Date): string {
 }
 
 //
+
+function computeDurableObjectInfo(props: Record<string, unknown>): string {
+    const durableObjectClass = (typeof props.durableObjectClass === 'string' ? props.durableObjectClass : '').trim();
+    const durableObjectId = (typeof props.durableObjectId === 'string' ? props.durableObjectId : '').trim();
+    const durableObjectName = (typeof props.durableObjectName === 'string' ? props.durableObjectName : '').trim();
+    const rt: string[] = [];
+    if (durableObjectClass.length > 0) rt.push(durableObjectClass);
+    if (durableObjectName.length > 0) rt.push(durableObjectName);
+    if (durableObjectId.length > 0) rt.push(computeShortDurableObjectId(durableObjectId));
+    return rt.length > 0 ? rt.join(' ') : 'DO';
+}
+
+function computeShortDurableObjectId(id: string): string {
+    return /^[0-9a-fA-F]{5,}$/.test(id) ? `${id.substring(0, 4)}…` : id;
+}
+
+function parseLogProps(logs: readonly TailMessageLog[]): { props: Record<string, unknown>, remainingLogs: readonly TailMessageLog[] } {
+    const remainingLogs: TailMessageLog[] = [];
+    const props: Record<string, unknown> = {};
+    for (const log of logs) {
+        if (log.message.length > 0) {
+            const msg = log.message[0];
+            if (typeof msg === 'string' && msg.startsWith('logprops:')) {
+                const trailer = msg.substring(msg.indexOf(':') + 1);
+                const trailerProps = tryParsePropsFromJson(trailer);
+                appendProps(trailerProps, props);
+                for (const part of log.message.slice(1)) {
+                    const partProps = tryParsePropsFromPart(part);
+                    appendProps(partProps, props);
+                }
+                continue;
+            }
+        }
+        remainingLogs.push(log);
+    }
+    return { props, remainingLogs };
+}
+
+function appendProps(src: Record<string, unknown> | undefined, dst: Record<string, unknown>) {
+    if (src) {
+        for (const [ key, value] of Object.entries(src)) {
+            dst[key] = value;
+        }
+    }
+}
+
+function tryParsePropsFromJson(value: string): Record<string, unknown> | undefined {
+    try {
+        const props = JSON.parse(value.trim());
+        if (typeof props === 'object' && props !== null && !Array.isArray(props)) {
+            return props as Record<string, unknown>;
+        }
+    } catch { 
+        // noop
+    }
+    return undefined;
+}
+
+
+function tryParsePropsFromPart(part: LogMessagePart): Record<string, unknown> | undefined {
+    try {
+        if (typeof part === 'object' && part !== null && !Array.isArray(part)) {
+            return part as Record<string, unknown>;
+        }
+    } catch { 
+        // noop
+    }
+    return undefined;
+}
+
+function formatLogMessagePart(part: LogMessagePart): string {
+    if (typeof part === 'object') return JSON.stringify(part);
+    return `${part}`;
+}
 
 function pad2(num: number): string {
     return num.toString().padStart(2, '0');

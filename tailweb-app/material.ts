@@ -137,7 +137,7 @@ button:disabled:hover {
 
 a {
     color: var(--primary-color);
-    text-underline-offset: 0.25rem;
+    text-underline-offset: 0.2rem;
     text-decoration: none;
 }
 

@@ -411,7 +411,11 @@ export class TailwebAppVM {
         this.filterForm.fieldValue = id;
         this.onchange();
     }
-        
+
+    editSelectionFields() {
+        console.log('TODO editSelectionFields');
+    }
+    
     //
 
     private applyFilter(opts: { save: boolean }) {
@@ -709,6 +713,7 @@ interface State {
     readonly profiles: Record<string, ProfileState>; // profileId -> state
     selectedProfileId?: string;
     filter?: FilterState;
+    extraFields?: string[]; // ip-address, user-agent
 }
 
 interface ProfileState {
