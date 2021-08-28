@@ -46,7 +46,7 @@ export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void 
         if (vm.profileForm.progressVisible) return; // don't allow close if busy
         vm.profileForm.showing = false;
         vm.filterForm.showing = false;
-        vm.onchange();
+        vm.onChange();
     };
 
     // Click outside modal content -> close modal

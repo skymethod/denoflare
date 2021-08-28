@@ -4,6 +4,7 @@ import { isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, Tai
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
 import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
+import { QpsController } from './qps_controller.ts';
 import { TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
 
 // deno-lint-ignore no-explicit-any
@@ -17,7 +18,7 @@ export class TailwebAppVM {
     set selectedProfileId(value: string | undefined) {
         if (this._selectedProfileId === value) return;
         this._selectedProfileId = value; 
-        this.onchange();
+        this.onChange();
         this.state.selectedProfileId = value;
         saveState(this.state);
         this.findScripts();
@@ -28,7 +29,7 @@ export class TailwebAppVM {
     set selectedScriptIds(scriptIds: ReadonlySet<string>) {
         if (setEqual(this._selectedScriptIds, scriptIds)) return;
         this._selectedScriptIds = new Set(scriptIds);
-        this.onchange();
+        this.onChange();
         const profile = this.selectedProfileId && this.state.profiles[this.selectedProfileId];
         if (profile) {
             profile.selectedScriptIds = [...scriptIds];
@@ -46,16 +47,24 @@ export class TailwebAppVM {
 
     private readonly state = loadState();
     private readonly tailController: TailController;
+    private readonly qpsController: QpsController;
 
     private _selectedProfileId: string | undefined;
     private _selectedScriptIds: ReadonlySet<string> = new Set<string>();
 
-    onchange: () => void = () => {};
+    onChange: () => void = () => {};
     logger: ConsoleLogger = () => {};
+    onQpsChange: (qps: number) => void = () => {};
 
     constructor() {
         // deno-lint-ignore no-this-alias
         const dis = this;
+
+        this.qpsController = new QpsController(20, {
+            onQpsChanged(qps: number) {
+                dis.onQpsChange(qps);
+            }
+        });
 
         const logTailsChange = (action: string, tailKeys: ReadonlySet<TailKey>) => {
             if (tailKeys.size > 0) this.logWithPrefix(`${action} ${[...tailKeys].map(v => unpackTailKey(v).scriptId).sort().join(', ')}`);
@@ -86,6 +95,7 @@ export class TailwebAppVM {
                 if (computeMessagePassesFilter(message, dis.filter)) {
                     dumpMessagePretty(message, dis.logger, dis.computeAdditionalLogs(message));
                 }
+                dis.qpsController.addEvent(message.eventTimestamp);
             },
             onTailConnectionUnparsedMessage(_accountId: string, scriptId: string, _timeStamp: number, message: UnparsedMessage, parseError: Error) {
                 console.log(message);
@@ -99,7 +109,7 @@ export class TailwebAppVM {
                 const added = setSubtract(tails, dis.tails);
                 logTailsChange('Tailing', added);
                 dis.tails = tails;
-                dis.onchange();
+                dis.onChange();
             }
         };
         this.tailController = new TailController(callbacks);
@@ -125,7 +135,7 @@ export class TailwebAppVM {
         this.profileForm.enabled = true;
         this.profileForm.outputMessage = '';
         this.profileForm.computeSaveEnabled();
-        this.onchange();
+        this.onChange();
     }
 
     editProfile(profileId: string) {
@@ -143,7 +153,7 @@ export class TailwebAppVM {
         this.profileForm.enabled = true;
         this.profileForm.outputMessage = '';
         this.profileForm.computeSaveEnabled();
-        this.onchange();
+        this.onChange();
     }
 
     deleteProfile(profileId: string) {
@@ -159,25 +169,25 @@ export class TailwebAppVM {
 
     cancelProfile() {
         this.profileForm.showing = false;
-        this.onchange();
+        this.onChange();
     }
 
     setProfileName(name: string) {
         this.profileForm.name = name;
         this.profileForm.computeSaveEnabled();
-        this.onchange();
+        this.onChange();
     }
 
     setProfileAccountId(accountId: string) {
         this.profileForm.accountId = accountId;
         this.profileForm.computeSaveEnabled();
-        this.onchange();
+        this.onChange();
     }
 
     setProfileApiToken(apiToken: string) {
         this.profileForm.apiToken = apiToken;
         this.profileForm.computeSaveEnabled();
-        this.onchange();
+        this.onChange();
     }
 
     saveProfile() {
@@ -211,7 +221,7 @@ export class TailwebAppVM {
             const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === filterForm.fieldValue)!.text;
             this.logWithPrefix(`Event type filter changed to: ${selectedChoiceText}`)
         };
-        this.onchange();
+        this.onChange();
     }
 
     editStatusFilter() {
@@ -234,7 +244,7 @@ export class TailwebAppVM {
             const selectedChoiceText = filterForm.fieldValueChoices.find(v => v.id === filterForm.fieldValue)!.text;
             this.logWithPrefix(`Status filter changed to: ${selectedChoiceText}`)
         };
-        this.onchange();
+        this.onChange();
     }
 
     editIpAddressFilter() {
@@ -270,7 +280,7 @@ export class TailwebAppVM {
             const text = newValue.length === 0 ? 'any IP address' : newValue.join(', ');
             this.logWithPrefix(`IP address filter changed to: ${text}`);
         };
-        this.onchange();
+        this.onChange();
     }
 
     editMethodFilter() {
@@ -299,7 +309,7 @@ export class TailwebAppVM {
             const text = newValue.length === 0 ? 'any method' : newValue.join(', ');
             this.logWithPrefix(`Method filter changed to: ${text}`);
         };
-        this.onchange();
+        this.onChange();
     }
 
     editSamplingRateFilter() {
@@ -327,7 +337,7 @@ export class TailwebAppVM {
             const text = newValue === 1 ? 'no sampling' : `${newValue} (${(newValue * 100).toFixed(2)}%)`;
             this.logWithPrefix(`Sample rate filter changed to: ${text}`);
         };
-        this.onchange();
+        this.onChange();
     }
 
     editSearchFilter() {
@@ -346,7 +356,7 @@ export class TailwebAppVM {
             const text = (filter.search1 || '').length === 0 ? 'no search filter' : `'${filter.search1}'`;
             this.logWithPrefix(`Search filter changed to: ${text}`);
         };
-        this.onchange();
+        this.onChange();
     }
 
     editHeaderFilter() {
@@ -375,7 +385,7 @@ export class TailwebAppVM {
             const text = newValue.length === 0 ? 'no header filter' : newValue.join(', ');
             this.logWithPrefix(`Header filter changed to: ${text}`);
         };
-        this.onchange();
+        this.onChange();
     }
 
     hasAnyFilters(): boolean {
@@ -388,13 +398,13 @@ export class TailwebAppVM {
         this.filter = {};
         this.applyFilter({ save: true });
         this.logWithPrefix(`Filters reset`);
-        this.onchange();
+        this.onChange();
     }
 
     cancelFilter() {
         console.log('cancelFilter');
         this.filterForm.showing = false;
-        this.onchange();
+        this.onChange();
     }
 
     saveFilter() {
@@ -402,7 +412,7 @@ export class TailwebAppVM {
         const { filterForm } = this;
         filterForm.enabled = false;
         filterForm.outputMessage = 'Checking filter...';
-        this.onchange();
+        this.onChange();
         try {
             filterForm.applyValue();
             filterForm.outputMessage = ``;
@@ -411,14 +421,14 @@ export class TailwebAppVM {
             filterForm.outputMessage = `Error: ${e.message}`;
         } finally {
             filterForm.enabled = true;
-            this.onchange();
+            this.onChange();
         }
     }
 
     selectFilterChoice(id: string) {
         if (this.filterForm.fieldValue === id) return;
         this.filterForm.fieldValue = id;
-        this.onchange();
+        this.onChange();
     }
 
     editSelectionFields() {
@@ -438,7 +448,7 @@ export class TailwebAppVM {
             const extraFieldsText = this.computeSelectionFieldsText();
             this.logWithPrefix(`Output fields changed to: ${extraFieldsText}`)
         };
-        this.onchange();
+        this.onChange();
     }
 
     computeSelectionFieldsText(): string {
@@ -457,7 +467,7 @@ export class TailwebAppVM {
         if (this.filterForm.fieldValue === fieldValue) return;
 
         this.filterForm.fieldValue = fieldValue;
-        this.onchange();
+        this.onChange();
     }
     
     //
@@ -491,7 +501,7 @@ export class TailwebAppVM {
             console.log(`Initially selecting profile: ${this.state.profiles[initiallySelectedProfileId].name}`);
             this.selectedProfileId = initiallySelectedProfileId;
         } else {
-            this.onchange();
+            this.onChange();
         }
     }
 
@@ -500,7 +510,7 @@ export class TailwebAppVM {
         profileForm.enabled = false;
         profileForm.progressVisible = true;
         profileForm.outputMessage = 'Checking profile...';
-        this.onchange();
+        this.onChange();
         try {
             const canListTails = await computeCanListTails(profile.accountId, profile.apiToken);
             if (canListTails) {
@@ -518,7 +528,7 @@ export class TailwebAppVM {
         } finally {
             profileForm.progressVisible = false;
             profileForm.enabled = true;
-            this.onchange();
+            this.onChange();
         }
     }
 
@@ -553,7 +563,7 @@ export class TailwebAppVM {
             if (selectedScriptIds.size > 0) {
                 this.selectedScriptIds = selectedScriptIds;
             }
-            this.onchange();
+            this.onChange();
         } catch (e) {
             this.logger(`Error in findScripts: ${e.stack}`);
         }

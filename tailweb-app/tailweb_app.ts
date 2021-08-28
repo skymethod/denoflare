@@ -58,7 +58,7 @@ const updateSidebar = initSidebar(document, vm);
 const updateConsole = initConsole(document, vm);
 const updateModal = initModal(document, vm);
 
-vm.onchange = () => {
+vm.onChange = () => {
     updateSidebar();
     updateConsole();
     updateModal();

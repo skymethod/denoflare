@@ -9,6 +9,7 @@ export const CONSOLE_HTML = html`
         <div id="console-header-filters" class="body2"></div>
         <div id="console-header-status">
             <div id="console-header-tails" class="overline medium-emphasis-text"></div>
+            <div id="console-header-qps" class="overline medium-emphasis-text"></div>
         </div>
     </div>
     <code id="console-last-line" class="line">spacer</code>
@@ -61,13 +62,14 @@ export const CONSOLE_CSS = css`
 #console-header-status {
     height: 1rem;
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: column;
+    min-width: 4rem;
+    text-align: right;
 }
 
 #console-header-tails {
     white-space: nowrap;
-    min-width: 4rem;
-    text-align: right;
+
 }
 
 #console .line {
@@ -88,6 +90,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     const consoleDiv = document.getElementById('console') as HTMLDivElement;
     const consoleHeaderFiltersDiv = document.getElementById('console-header-filters') as HTMLDivElement;
     const consoleHeaderTailsElement = document.getElementById('console-header-tails') as HTMLElement;
+    const consoleHeaderQpsElement = document.getElementById('console-header-qps') as HTMLElement;
     const consoleLastLineElement = document.getElementById('console-last-line') as HTMLElement;
     vm.logger = (...data) => {
         const lineElement = document.createElement('code');
@@ -124,6 +127,10 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
         if (autoscroll) {
             consoleLastLineElement.scrollIntoView(false /* alignToTop */);
         }
+    };
+    consoleHeaderQpsElement.textContent = computeQpsText(0);
+    vm.onQpsChange = qps => {
+        consoleHeaderQpsElement.textContent = computeQpsText(qps);
     };
 
     // for (let i = 0; i < 100; i++) vm.logger(`line ${i}`); // generate a bunch of lines to test scrolling
@@ -202,21 +209,25 @@ function computeTailsText(tailCount: number): string {
         : `${tailCount} tails`;
 }
 
+function computeQpsText(qps: number): string {
+    return `${qps.toFixed(2)} qps`;
+}
+
 function renderTextIntoSpan(text: string, span: HTMLSpanElement) {
-    const pattern = /https:\/\/[^\s]+/g;
+    const pattern = /(https:\/\/[^\s]+|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g;
     let m: RegExpExecArray | null;
     let i = 0;
     while(null !== (m = pattern.exec(text))) {
         if (m.index > i) {
             span.appendChild(document.createTextNode(text.substring(i, m.index)));
         }
-        const url = m[0];
+        const urlOrIp = m[0];
         const a = document.createElement('a');
-        a.href = url;
+        a.href = urlOrIp.startsWith('https://') ? urlOrIp : `https://ipinfo.io/${urlOrIp}`;
         a.target = '_blank';
-        a.appendChild(document.createTextNode(url));
+        a.appendChild(document.createTextNode(urlOrIp));
         span.appendChild(a);
-        i = m.index + url.length;
+        i = m.index + urlOrIp.length;
     }
     if (i < text.length) {
         span.appendChild(document.createTextNode(text.substring(i)));
