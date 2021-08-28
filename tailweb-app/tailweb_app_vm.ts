@@ -2,7 +2,7 @@ import { CloudflareApiError, listScripts, listTails, Tail } from '../common/clou
 import { setEqual, setIntersect, setSubtract } from '../common/sets.ts';
 import { isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions } from '../common/tail.ts';
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
-import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty } from '../common/tail_pretty.ts';
+import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
 import { TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
 
@@ -84,7 +84,7 @@ export class TailwebAppVM {
             },
             onTailConnectionMessage(_accountId: string, _scriptId: string, _timeStamp: number, message: TailMessage) {
                 if (computeMessagePassesFilter(message, dis.filter)) {
-                    dumpMessagePretty(message, dis.logger);
+                    dumpMessagePretty(message, dis.logger, dis.computeAdditionalLogs(message));
                 }
             },
             onTailConnectionUnparsedMessage(_accountId: string, scriptId: string, _timeStamp: number, message: UnparsedMessage, parseError: Error) {
@@ -592,6 +592,29 @@ export class TailwebAppVM {
         }
     }
 
+    private computeAdditionalLogs(message: TailMessage): readonly AdditionalLog[] {
+        const rt: AdditionalLog[] = [];
+        const includeIpAddress = this.extraFields.includes('ip-address');
+        const includeUserAgent = this.extraFields.includes('user-agent');
+        if (includeIpAddress || includeUserAgent) {
+            if (!isTailMessageCronEvent(message.event)) {
+                if (includeIpAddress) {
+                    const ipAddress = message.event.request.headers['cf-connecting-ip'] || undefined;
+                    if (ipAddress) rt.push(computeAdditionalLogForExtraField('IP address', ipAddress));
+                }
+                if (includeUserAgent) {
+                    const userAgent = message.event.request.headers['user-agent'] || undefined;
+                    if (userAgent) rt.push(computeAdditionalLogForExtraField('User agent', userAgent));
+                }
+            }
+        }
+        return rt;
+    }
+
+}
+
+function computeAdditionalLogForExtraField(name: string, value: string): AdditionalLog {
+    return { data: [` %c|%c [%c${name}%c] ${value}`, 'color:gray', '', 'color:gray' ] };
 }
 
 export class ProfileFormVM {

@@ -1,7 +1,12 @@
 import { isTailMessageCronEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
 
+export interface AdditionalLog {
+    // deno-lint-ignore no-explicit-any
+    readonly data: any[];
+}
+
 // deno-lint-ignore no-explicit-any
-export function dumpMessagePretty(message: TailMessage, logger: (...data: any[]) => void) {
+export function dumpMessagePretty(message: TailMessage, logger: (...data: any[]) => void, additionalLogs: readonly AdditionalLog[] = []) {
     const time = formatLocalYyyyMmDdHhMmSs(new Date(message.eventTimestamp));
     const outcome = PRETTY_OUTCOMES.get(message.outcome) || message.outcome;
     const outcomeColor = message.outcome === 'ok' ? 'green' : 'red';
@@ -21,6 +26,9 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
             logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] ${method} %c${url}`, 
                 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
         }
+    }
+    for (const { data } of additionalLogs) {
+        logger(...data);
     }
     for (const { level, message: logMessage } of remainingLogs) {
         const levelColor = LOG_LEVEL_COLORS.get(level) || 'gray';
