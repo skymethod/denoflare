@@ -7,7 +7,8 @@ export class QpsController {
     private readonly callbacks: QpsControllerCallbacks;
     private readonly n: number;
 
-    private qps = 0;
+    private _qps = 0;
+    get qps(): number { return this._qps; }
 
     constructor(n: number, callbacks: QpsControllerCallbacks) {
         this.callbacks = callbacks;
@@ -16,8 +17,8 @@ export class QpsController {
 
     addEvent(eventTime: number) {
         const qps = computeQps(this.n, this.sortedEventTimes, eventTime);
-        if (qps === this.qps) return;
-        this.qps = qps;
+        if (qps === this._qps) return;
+        this._qps = qps;
         this.callbacks.onQpsChanged(qps);
     }
 

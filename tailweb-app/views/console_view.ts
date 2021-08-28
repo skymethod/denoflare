@@ -42,10 +42,10 @@ export const CONSOLE_CSS = css`
 #console-header {
     position: sticky;
     top: 0;
-    height: 3.5rem;
+    height: 3.75rem;
     background-color: var(--background-color);
     display: flex;
-    padding: 1rem 1rem 1rem 0;
+    padding: 1.25rem 1rem 1rem 0;
 }
 
 #console-header-filters {
@@ -63,13 +63,14 @@ export const CONSOLE_CSS = css`
     height: 1rem;
     display: flex;
     flex-direction: column;
-    min-width: 4rem;
+    min-width: 5rem;
     text-align: right;
+    padding-top: 0.25rem;
+    user-select: none;
 }
 
 #console-header-tails {
     white-space: nowrap;
-
 }
 
 #console .line {
@@ -127,6 +128,12 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
         if (autoscroll) {
             consoleLastLineElement.scrollIntoView(false /* alignToTop */);
         }
+    };
+    vm.onResetOutput = () => {
+        const lines = consoleDiv.querySelectorAll('.line');
+        lines.forEach(line => {
+            if (line.id !== 'console-last-line') consoleDiv.removeChild(line);
+        });
     };
     consoleHeaderQpsElement.textContent = computeQpsText(0);
     vm.onQpsChange = qps => {

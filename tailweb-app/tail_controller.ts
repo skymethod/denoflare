@@ -38,7 +38,7 @@ export class TailController {
     }
 
     async setTails(accountId: string, apiToken: string, scriptIds: ReadonlySet<string>) {
-        const stopKeys = setSubtract(this.computeStartingOrStartedTailKeys(), new Set([...scriptIds].map(v => computeTailKey(accountId, v))));
+        const stopKeys = setSubtract(this.computeStartingOrStartedTailKeys(), new Set([...scriptIds].map(v => packTailKey(accountId, v))));
         for (const stopKey of stopKeys) {
             const record = this.records.get(stopKey)!;
             record.state = 'inactive';
@@ -56,7 +56,7 @@ export class TailController {
             this.dispatchTailsChanged();
         }
         for (const scriptId of scriptIds) {
-            const tailKey = computeTailKey(accountId, scriptId);
+            const tailKey = packTailKey(accountId, scriptId);
             const existingRecord = this.records.get(tailKey);
             if (existingRecord) {
                 if (existingRecord.state === 'inactive') {
@@ -122,9 +122,7 @@ export function unpackTailKey(tailKey: TailKey): { accountId: string, scriptId: 
     return { accountId: m[1], scriptId: m[2] };
 }
 
-//
-
-function computeTailKey(accountId: string, scriptId: string) {
+export function packTailKey(accountId: string, scriptId: string) {
     return `${accountId}-${scriptId}`;
 }
 
@@ -135,4 +133,57 @@ interface Record {
     state: 'starting' | 'started' | 'inactive' | 'closing';
     connection?: TailConnection;
     stopRequestedTime?: number;
+}
+
+//
+
+export class SwitchableTailControllerCallbacks implements TailControllerCallbacks {
+    private readonly callbacks: TailControllerCallbacks;
+    private readonly enabledFn: () => boolean;
+
+    constructor(callbacks: TailControllerCallbacks, enabledFn: () => boolean) {
+        this.callbacks = callbacks;
+        this.enabledFn = enabledFn;
+    }
+
+    onTailCreating(accountId: string, scriptId: string) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailCreating(accountId, scriptId);
+    }
+
+    onTailCreated(accountId: string, scriptId: string, tookMillis: number, tail: Tail) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailCreated(accountId, scriptId, tookMillis, tail);
+    }
+
+    onTailConnectionOpen(accountId: string, scriptId: string, timeStamp: number, tookMillis: number) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailConnectionOpen(accountId, scriptId, timeStamp, tookMillis);
+    }
+
+    onTailConnectionClose(accountId: string, scriptId: string, timeStamp: number, code: number, reason: string, wasClean: boolean) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailConnectionClose(accountId, scriptId, timeStamp, code, reason, wasClean);
+    }
+
+    onTailConnectionError(accountId: string, scriptId: string, timeStamp: number, errorInfo?: ErrorInfo) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailConnectionError(accountId, scriptId, timeStamp, errorInfo);
+    }
+
+    onTailConnectionMessage(accountId: string, scriptId: string, timeStamp: number, message: TailMessage) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailConnectionMessage(accountId, scriptId, timeStamp, message);
+    }
+
+    onTailConnectionUnparsedMessage(accountId: string, scriptId: string, timeStamp: number, message: UnparsedMessage, parseError: Error) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailConnectionUnparsedMessage(accountId, scriptId, timeStamp, message, parseError);
+    }
+
+    onTailsChanged(tails: ReadonlySet<TailKey>) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailsChanged(tails);
+    }
+
 }

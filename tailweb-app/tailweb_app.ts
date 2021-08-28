@@ -12,6 +12,7 @@ import { PROFILE_EDITOR_CSS } from './views/profile_editor_view.ts';
 import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 import { CONSOLE_CSS, CONSOLE_HTML, initConsole } from './views/console_view.ts';
 import { FILTER_EDITOR_CSS } from './views/filter_editor_view.ts';
+import { StaticData } from './static_data.ts';
 
 const appCss = css`
 
@@ -53,8 +54,18 @@ appendStylesheets([
 
 LitElement.render(appHtml, document.body);
 
+function parseStaticData(): StaticData {
+    const script = document.getElementById('static-data-script') as HTMLScriptElement;
+    const data = JSON.parse(script.text);
+    const version = typeof data.version === 'string' ? data.version : undefined;
+    const flags = typeof data.flags === 'string' ? data.flags : undefined;
+    return { version, flags };
+}
+
+const data = parseStaticData();
+
 const vm = new TailwebAppVM();
-const updateSidebar = initSidebar(document, vm);
+const updateSidebar = initSidebar(document, vm, data);
 const updateConsole = initConsole(document, vm);
 const updateModal = initModal(document, vm);
 

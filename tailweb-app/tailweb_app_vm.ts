@@ -4,18 +4,25 @@ import { isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, Tai
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
 import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
+import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
-import { TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
+import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
 
 export class TailwebAppVM {
 
-    profiles: TextItem[] = [];
+    private _profiles: TextItem[] = [];
+    get profiles(): TextItem[] { return this.demoMode ? DemoMode.profiles : this._profiles; }
 
-    get selectedProfileId(): string | undefined { return this._selectedProfileId; }
+    private _selectedProfileId: string | undefined;
+    get selectedProfileId(): string | undefined { return this.demoMode ? DemoMode.selectedProfileId : this._selectedProfileId; }
     set selectedProfileId(value: string | undefined) {
+        if (this.demoMode) {
+            DemoMode.setSelectedProfileId(value);
+            return;
+        }
         if (this._selectedProfileId === value) return;
         this._selectedProfileId = value; 
         this.onChange();
@@ -24,9 +31,16 @@ export class TailwebAppVM {
         this.findScripts();
     }
 
-    scripts: TextItem[] = [];
-    get selectedScriptIds(): ReadonlySet<string> { return this._selectedScriptIds; }
+    private _scripts: TextItem[] = [];
+    get scripts(): TextItem[] { return this.demoMode ? DemoMode.scripts : this._scripts; }
+
+    private _selectedScriptIds: ReadonlySet<string> = new Set<string>();
+    get selectedScriptIds(): ReadonlySet<string> { return this.demoMode ? DemoMode.selectedScriptIds : this._selectedScriptIds; }
     set selectedScriptIds(scriptIds: ReadonlySet<string>) {
+        if (this.demoMode) {
+            DemoMode.setSelectedScriptIds(scriptIds);
+            return;
+        }
         if (setEqual(this._selectedScriptIds, scriptIds)) return;
         this._selectedScriptIds = new Set(scriptIds);
         this.onChange();
@@ -40,20 +54,27 @@ export class TailwebAppVM {
     profileForm = new ProfileFormVM();
     filterForm = new FilterFormVM();
     filter: FilterState = {};
-    tails: ReadonlySet<TailKey> = new Set();
     extraFields: string[] = [];
+
+    private _tails: ReadonlySet<TailKey> = new Set();
+    get tails(): ReadonlySet<TailKey> { return this.demoMode ? DemoMode.tails : this._tails; }
+    set tails(tails: ReadonlySet<TailKey>) {
+        if (this.demoMode) DemoMode.tails = tails;
+        this._tails = tails;
+    }
 
     //
 
     private readonly state = loadState();
     private readonly tailController: TailController;
+    private readonly tailControllerCallbacks: TailControllerCallbacks;
     private readonly qpsController: QpsController;
 
-    private _selectedProfileId: string | undefined;
-    private _selectedScriptIds: ReadonlySet<string> = new Set<string>();
+    private demoMode = false;
 
     onChange: () => void = () => {};
     logger: ConsoleLogger = () => {};
+    onResetOutput: () => void = () => {};
     onQpsChange: (qps: number) => void = () => {};
 
     constructor() {
@@ -62,6 +83,7 @@ export class TailwebAppVM {
 
         this.qpsController = new QpsController(20, {
             onQpsChanged(qps: number) {
+                if (dis.demoMode) return;
                 dis.onQpsChange(qps);
             }
         });
@@ -95,6 +117,7 @@ export class TailwebAppVM {
                 if (computeMessagePassesFilter(message, dis.filter)) {
                     dumpMessagePretty(message, dis.logger, dis.computeAdditionalLogs(message));
                 }
+                if (dis.demoMode) return;
                 dis.qpsController.addEvent(message.eventTimestamp);
             },
             onTailConnectionUnparsedMessage(_accountId: string, scriptId: string, _timeStamp: number, message: UnparsedMessage, parseError: Error) {
@@ -112,7 +135,8 @@ export class TailwebAppVM {
                 dis.onChange();
             }
         };
-        this.tailController = new TailController(callbacks);
+        this.tailController = new TailController(new SwitchableTailControllerCallbacks(callbacks, () => !this.demoMode));
+        this.tailControllerCallbacks = callbacks;
 
         this.extraFields = [...(this.state.extraFields || [])];
         this.filter = this.state.filter || {};
@@ -125,10 +149,11 @@ export class TailwebAppVM {
     }
 
     newProfile() {
+        if (this.demoMode) return;
         this.profileForm.profileId = generateUuid();
         this.profileForm.showing = true;
         this.profileForm.title = 'New Profile';
-        this.profileForm.name = this.profiles.length === 0 ? 'default' : `profile${this.profiles.length + 1}`;
+        this.profileForm.name = this._profiles.length === 0 ? 'default' : `profile${this._profiles.length + 1}`;
         this.profileForm.accountId = '';
         this.profileForm.apiToken = '';
         this.profileForm.deleteVisible = false;
@@ -139,6 +164,7 @@ export class TailwebAppVM {
     }
 
     editProfile(profileId: string) {
+        if (this.demoMode) return;
         const profile = this.state.profiles[profileId];
         if (!profile) throw new Error(`Profile ${profileId} not found`);
         this._selectedProfileId = profileId;
@@ -202,6 +228,7 @@ export class TailwebAppVM {
     }
 
     editEventFilter() {
+        if (this.demoMode) return;
         const { filter, filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
@@ -225,6 +252,7 @@ export class TailwebAppVM {
     }
 
     editStatusFilter() {
+        if (this.demoMode) return;
         const { filter, filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
@@ -248,6 +276,7 @@ export class TailwebAppVM {
     }
 
     editIpAddressFilter() {
+        if (this.demoMode) return;
         const { filter, filterForm } = this;
         const isValidIpAddress = (ipAddress: string) => {
             return /^(self|[\d\.:a-f]{3,})$/.test(ipAddress); // 2001:db8:3:4::192.0.2.33, doesn't need to be comprehensive
@@ -284,6 +313,7 @@ export class TailwebAppVM {
     }
 
     editMethodFilter() {
+        if (this.demoMode) return;
         const { filter, filterForm } = this;
         const parseFilterMethodsFromFieldValue = () => {
             const { fieldValue } = filterForm;
@@ -313,6 +343,7 @@ export class TailwebAppVM {
     }
 
     editSamplingRateFilter() {
+        if (this.demoMode) return;
         const parseSampleRateFromFieldValue = () => {
             const { fieldValue } = filterForm;
             const v = (fieldValue || '').trim();
@@ -341,6 +372,7 @@ export class TailwebAppVM {
     }
 
     editSearchFilter() {
+        if (this.demoMode) return;
         const { filter, filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
@@ -360,6 +392,7 @@ export class TailwebAppVM {
     }
 
     editHeaderFilter() {
+        if (this.demoMode) return;
         const { filter, filterForm } = this;
         const parseFilterHeadersFromFieldValue = () => {
             const { fieldValue } = filterForm;
@@ -395,6 +428,7 @@ export class TailwebAppVM {
     }
 
     resetFilters() {
+        if (this.demoMode) return;
         this.filter = {};
         this.applyFilter({ save: true });
         this.logWithPrefix(`Filters reset`);
@@ -432,6 +466,7 @@ export class TailwebAppVM {
     }
 
     editSelectionFields() {
+        if (this.demoMode) return;
         const { filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
@@ -469,6 +504,22 @@ export class TailwebAppVM {
         this.filterForm.fieldValue = fieldValue;
         this.onChange();
     }
+
+    toggleDemoMode() {
+        if (this.demoMode) {
+            console.log('Disable demo mode');
+            this.demoMode = false;
+            this.onQpsChange(this.qpsController.qps);
+            this.onResetOutput();
+        } else {
+            console.log('Enable demo mode');
+            this.demoMode = true;
+            this.onQpsChange(12.34);
+            this.onResetOutput();
+            DemoMode.logFakeOutput(this.tailControllerCallbacks);
+        }
+        this.onChange();
+    }
     
     //
 
@@ -496,7 +547,7 @@ export class TailwebAppVM {
     }
 
     private performInitialSelection() {
-        const initiallySelectedProfileId = computeInitiallySelectedProfileId(this.state, this.profiles);
+        const initiallySelectedProfileId = computeInitiallySelectedProfileId(this.state, this._profiles);
         if (initiallySelectedProfileId) {
             console.log(`Initially selecting profile: ${this.state.profiles[initiallySelectedProfileId].name}`);
             this.selectedProfileId = initiallySelectedProfileId;
@@ -535,11 +586,11 @@ export class TailwebAppVM {
     private reloadProfiles() {
         const { state } = this;
 
-        this.profiles.splice(0);
+        this._profiles.splice(0);
 
         for (const [profileId, profile] of Object.entries(state.profiles)) {
             const name = profile.name || '(unnamed)';
-            this.profiles.push({ id: profileId, text: name });
+            this._profiles.push({ id: profileId, text: name });
         }
     }
 
@@ -552,32 +603,32 @@ export class TailwebAppVM {
             this.verboseWithPrefix(`Finding scripts for ${profile.name.toUpperCase()}...`);
             const start = Date.now();
             const scripts = await listScripts(accountId, apiToken);
-            this.verboseWithPrefix(`Found ${scripts.length} scripts in ${Date.now() - start}ms`);
-            this.scripts.splice(0);
+            if (!this.demoMode) this.verboseWithPrefix(`Found ${scripts.length} scripts in ${Date.now() - start}ms`);
+            this._scripts.splice(0);
             for (const script of scripts) {
                 // this.logger(`Found script ${script.id}`);
-                this.scripts.push({ id: script.id, text: script.id });
+                this._scripts.push({ id: script.id, text: script.id });
             }
-            this.scripts.sort((lhs, rhs) => lhs.text.localeCompare(rhs.text));
+            this._scripts.sort((lhs, rhs) => lhs.text.localeCompare(rhs.text));
             const selectedScriptIds = this.computeSelectedScriptIdsAfterFindScripts();
             if (selectedScriptIds.size > 0) {
                 this.selectedScriptIds = selectedScriptIds;
             }
-            this.onChange();
+            if (!this.demoMode) this.onChange();
         } catch (e) {
-            this.logger(`Error in findScripts: ${e.stack}`);
+            if (!this.demoMode) this.logger(`Error in findScripts: ${e.stack}`);
         }
     }
 
     private computeSelectedScriptIdsAfterFindScripts(): Set<string> {
-        if (this.scripts.length === 0) {
+        if (this._scripts.length === 0) {
             console.log('Initially selecting no scripts, no scripts to select');
             return new Set();
         }
         if (this.selectedProfileId && this.selectedProfileId && this.selectedProfileId === this.state.selectedProfileId) {
             const initialProfile = this.state.profiles[this.selectedProfileId];
             if (initialProfile && initialProfile.selectedScriptIds && initialProfile.selectedScriptIds.length > 0) {
-                const currentScriptIds = new Set(this.scripts.map(v => v.id));
+                const currentScriptIds = new Set(this._scripts.map(v => v.id));
                 const candidates = setIntersect(currentScriptIds, new Set(initialProfile.selectedScriptIds));
                 if (candidates.size > 0) {
                     console.log(`Initially selecting script${candidates.size === 1 ? '' : 's'} ${[...candidates].sort().join(', ')}: remembered from last time`);
@@ -585,9 +636,9 @@ export class TailwebAppVM {
                 }
             }
         }
-        const firstScriptId = this.scripts[0].id
+        const firstScriptId = this._scripts[0].id
         console.log(`Initially selecting script ${firstScriptId}: first one in the list`);
-        return new Set([this.scripts[0].id]); // first one in the list
+        return new Set([this._scripts[0].id]); // first one in the list
     }
 
     private async setTails() {

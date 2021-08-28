@@ -2,6 +2,7 @@
 
 import { css, html } from '../deps_app.ts';
 import { Material } from '../material.ts';
+import { StaticData } from '../static_data.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
 
 export const HEADER_HTML = html`
@@ -18,6 +19,7 @@ export const HEADER_CSS = css`
 header {
     display: flex;
     padding: 1rem 0;
+    user-select: none;
 }
 
 #header-content {
@@ -44,14 +46,21 @@ header {
 #github-logo {
     width: 1rem;
     margin-bottom: -0.1rem;
-
 }
 
 `;
 
-export function initHeader(document: HTMLDocument, _vm: TailwebAppVM): () => void {
+export function initHeader(document: HTMLDocument, vm: TailwebAppVM, data: StaticData): () => void {
+    const headerContentElement = document.getElementById('header-content') as HTMLElement;
+    if ((data.flags || '').includes('demo-toggle')) {
+        headerContentElement.addEventListener('dblclick', e => {
+            e.preventDefault();
+            vm.toggleDemoMode();
+        });
+    }
+    
     const headerVersionSpan = document.getElementById('header-version') as HTMLSpanElement;
-    const version = computeVersion();
+    const { version } = data;
     headerVersionSpan.textContent = version ? `v${version}` : '';
 
     const githubLogoImg = document.getElementById('github-logo') as HTMLImageElement;
@@ -66,12 +75,6 @@ export function initHeader(document: HTMLDocument, _vm: TailwebAppVM): () => voi
 function computeGithubLogoDataUrl() {
     const svg = GITHUB_LOGO.replace('fill:white;', `fill:${Material.highEmphasisTextColor};`);
     return 'data:image/svg+xml;utf8,' + svg;
-}
-
-function computeVersion(): string | undefined {
-    const script = document.getElementById('static-data-script') as HTMLScriptElement;
-    const data = JSON.parse(script.text);
-    return typeof data.version === 'string' ? data.version : undefined;
 }
 
 //

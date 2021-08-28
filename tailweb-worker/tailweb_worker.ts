@@ -10,8 +10,8 @@ export default {
         const url = new URL(request.url);
 
         if (url.pathname === '/') {
-            const { version } = env;
-            return new Response(computeHtml(url, { version }), { headers: { 'Content-Type': 'text/html; charset=utf-8' }});
+            const { version, flags } = env;
+            return new Response(computeHtml(url, { version, flags }), { headers: { 'Content-Type': 'text/html; charset=utf-8' }});
         } else if (url.pathname === computeAppJsPath()) {
             return computeAppResponse();
         } else if (url.pathname.startsWith('/fetch/')) {
@@ -33,6 +33,7 @@ export default {
 
 export interface WorkerEnv {
     readonly version?: string;
+    readonly flags?: string;
 }
 
 //

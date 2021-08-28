@@ -3,6 +3,7 @@
 import { setSubtract, setUnion } from '../../common/sets.ts';
 import { svg, html, LitElement, SVGTemplateResult, css } from '../deps_app.ts';
 import { Material } from '../material.ts';
+import { StaticData } from '../static_data.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
 import { HEADER_HTML, initHeader } from './header_view.ts';
 
@@ -48,8 +49,8 @@ export const SIDEBAR_CSS = css`
 
 `;
 
-export function initSidebar(document: HTMLDocument, vm: TailwebAppVM): () => void {
-    const updateHeader = initHeader(document, vm);
+export function initSidebar(document: HTMLDocument, vm: TailwebAppVM, data: StaticData): () => void {
+    const updateHeader = initHeader(document, vm, data);
     const profilesDiv = document.getElementById('profiles') as HTMLDivElement;
     const scriptsDiv = document.getElementById('scripts') as HTMLDivElement;
     return () => {
@@ -64,7 +65,7 @@ export function initSidebar(document: HTMLDocument, vm: TailwebAppVM): () => voi
 const PROFILES_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Profiles</div>
     <div class="button-grid">
-        ${vm.profiles.map(profile => html`<button class="${profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }} ?disabled="${vm.profileForm.showing}">${profile.text}</button>
+        ${vm.profiles.map(profile => html`<button class="${ profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }} ?disabled="${vm.profileForm.showing}">${profile.text}</button>
         ${profile.id === vm.selectedProfileId ? html`${actionIcon(editIcon, { onclick: () => vm.editProfile(profile.id) })}` : ''}`)}
         <div class="button-grid-new">${actionIcon(addIcon, { text: 'New', onclick: () => vm.newProfile() })}</div>
     </div>
