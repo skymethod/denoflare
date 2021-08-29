@@ -45,10 +45,11 @@ export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void 
     const updateWelcomePanel = initWelcomePanel(document, vm);
 
     const closeModal = () => {
-        if (!vm.profileForm.showing && !vm.filterForm.showing && !vm.welcomeShowing) return;
+        if (!vm.profileForm.showing && !vm.filterForm.showing && !vm.welcomeShowing && !vm.aboutShowing) return;
         if (vm.profileForm.progressVisible) return; // don't allow close if busy
         vm.profileForm.showing = false;
         vm.filterForm.showing = false;
+        vm.aboutShowing = false;
         vm.onChange();
     };
 
@@ -71,6 +72,6 @@ export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void 
         updateProfileEditor();
         updateFilterEditor();
         updateWelcomePanel();
-        modal.style.display = (vm.profileForm.showing || vm.filterForm.showing || vm.welcomeShowing) ? 'block' : 'none';
+        modal.style.display = (vm.profileForm.showing || vm.filterForm.showing || vm.welcomeShowing || vm.aboutShowing) ? 'block' : 'none';
     };
 }

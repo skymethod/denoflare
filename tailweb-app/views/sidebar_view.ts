@@ -10,6 +10,7 @@ import { actionIcon, ADD_ICON, EDIT_ICON } from './icons.ts';
 export const SIDEBAR_HTML = html`
 <div id="sidebar">
     ${HEADER_HTML}
+    <a id="sidebar-about" class="overline medium-emphasis-text" href="#">About</a>
     <div id="profiles"></div>
     <div id="scripts"></div>
 </div>
@@ -22,6 +23,11 @@ export const SIDEBAR_CSS = css`
     height: 100vh;
     overflow-y: hidden;
     min-width: 15rem;
+}
+
+#sidebar-about {
+    display: block;
+    margin-bottom: 1rem;
 }
 
 #sidebar .button-grid {
@@ -51,8 +57,15 @@ export const SIDEBAR_CSS = css`
 
 export function initSidebar(document: HTMLDocument, vm: TailwebAppVM, data: StaticData): () => void {
     const updateHeader = initHeader(document, vm, data);
+    const aboutAnchor = document.getElementById('sidebar-about') as HTMLAnchorElement;
     const profilesDiv = document.getElementById('profiles') as HTMLDivElement;
     const scriptsDiv = document.getElementById('scripts') as HTMLDivElement;
+
+    aboutAnchor.onclick = e => {
+        e.preventDefault();
+        vm.showAbout();
+    };
+    
     return () => {
         updateHeader();
         LitElement.render(PROFILES_HTML(vm), profilesDiv);

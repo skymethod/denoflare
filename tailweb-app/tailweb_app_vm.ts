@@ -65,6 +65,7 @@ export class TailwebAppVM {
     }
 
     welcomeShowing = false;
+    aboutShowing = false;
 
     //
 
@@ -526,6 +527,17 @@ export class TailwebAppVM {
         this.onResetOutput();
     }
     
+    showAbout() {
+        if (this.demoMode) return;
+        this.aboutShowing = true;
+        this.onChange();
+    }
+
+    closeAbout() {
+        this.aboutShowing = false;
+        this.onChange();
+    }
+        
     //
 
     private setDemoMode(demoMode: boolean) {

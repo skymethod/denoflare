@@ -7,7 +7,7 @@ import { TailwebAppVM } from '../tailweb_app_vm.ts';
 export const WELCOME_PANEL_HTML = html`
 <form id="welcome-panel" autocomplete="off">
 <fieldset id="welcome-panel-fieldset">
-  <div id="welcome-panel-form-title" class="h6 high-emphasis-text form-row">Hello 👋</div>
+  <div id="welcome-panel-form-title" class="h6 high-emphasis-text form-row">title</div>
 
   <div class="form-row body2 medium-emphasis-text">
     Welcome to <span class="high-emphasis-text">Denoflare Tail</span>!
@@ -22,11 +22,13 @@ export const WELCOME_PANEL_HTML = html`
         <li>Implemented as a standard open source Cloudflare Worker, <a href="TODO" target="_blank">deploy it to your own account</a>, 
             or <a href="TODO" target="_blank">host it locally</a> with <a href="https://github.com/skymethod/denoflare" target="_blank"><code>denoflare</code></a></li>
     </ul>
-    <p>Create a new profile to get started!</p>
+    <p id="welcome-panel-trailer">Create a new profile to get started!</p>
+    <p id="about-panel-trailer">Learn more at the <a href="https://github.com/skymethod/denoflare" target="_blank">Denoflare GitHub repo</a>!</p>
   </div>
 
   <div class="form-rhs">
     <button id="welcome-panel-new-profile" type="submit">New profile</button>
+    <button id="welcome-panel-close" type="submit">Close</button>
   </div>
 </fieldset>
 </form>
@@ -42,23 +44,38 @@ export const WELCOME_PANEL_CSS = css`
 
 export function initWelcomePanel(document: HTMLDocument, vm: TailwebAppVM): () => void {
     const welcomePanelElement = document.getElementById('welcome-panel') as HTMLElement;
+    const titleElement = document.getElementById('welcome-panel-form-title') as HTMLElement;
+    const welcomeTrailerElement = document.getElementById('welcome-panel-trailer') as HTMLElement;
+    const aboutTrailerElement = document.getElementById('about-panel-trailer') as HTMLElement;
     const newProfileButton = document.getElementById('welcome-panel-new-profile') as HTMLButtonElement;
+    const closeButton = document.getElementById('welcome-panel-close') as HTMLButtonElement;
 
     newProfileButton.onclick = e => {
         e.preventDefault();
         vm.newProfile();
-    }
+    };
+
+    closeButton.onclick = e => {
+        e.preventDefault();
+        vm.closeAbout();
+    };
 
     return () => {
         const wasHidden = welcomePanelElement.style.display === 'none';
-        const show = vm.welcomeShowing && !vm.profileForm.showing;
+        const show = vm.welcomeShowing && !vm.profileForm.showing || vm.aboutShowing;
         welcomePanelElement.style.display = show ? 'block' : 'none';
+        const welcome = vm.welcomeShowing;
+        titleElement.textContent = welcome ? 'Hello 👋' : 'About';
+        welcomeTrailerElement.style.display = welcome ? 'block' : 'none';
+        aboutTrailerElement.style.display = welcome ? 'none' : 'block';
+        newProfileButton.style.display = welcome ? 'block' : 'none';
+        closeButton.style.display = welcome ? 'none' : 'block';
 
         if (wasHidden && show) {
-            console.log('welcome panel open');
+            console.log(`${welcome ? 'welcome' : 'about'} panel open`);
 
-            setTimeout(() => { 
-                newProfileButton.focus();
+            setTimeout(() => {
+                (welcome ? newProfileButton : closeButton).focus();
             }, 0); 
         }
     };    
