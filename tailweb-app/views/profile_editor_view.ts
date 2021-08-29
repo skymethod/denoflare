@@ -150,7 +150,7 @@ export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () 
         profileFormOutput.textContent = vm.profileForm.outputMessage;
         if (wasHidden && vm.profileForm.showing) {
             // console.log('profile form open');
-            const initialDetailsOpen = vm.profiles.length === 0;
+            const initialDetailsOpen = vm.realProfiles.length === 0;
             profileFormHelpDetails.open = initialDetailsOpen;
             setTimeout(() => { 
                 profileNameInput.focus();

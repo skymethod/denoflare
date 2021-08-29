@@ -4,10 +4,12 @@ import { css, html } from '../deps_app.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
 import { FILTER_EDITOR_HTML, initFilterEditor } from './filter_editor_view.ts';
 import { initProfileEditor, PROFILE_EDITOR_HTML } from './profile_editor_view.ts';
+import { initWelcomePanel, WELCOME_PANEL_HTML } from './welcome_panel.ts';
 
 export const MODAL_HTML = html`
 <div id="modal" class="modal">
     <div class="modal-content">
+    ${WELCOME_PANEL_HTML}
     ${PROFILE_EDITOR_HTML}
     ${FILTER_EDITOR_HTML}
     </div>
@@ -40,9 +42,10 @@ export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void 
     const modal = document.getElementById('modal') as HTMLDivElement;
     const updateProfileEditor = initProfileEditor(document, vm);
     const updateFilterEditor = initFilterEditor(document, vm);
+    const updateWelcomePanel = initWelcomePanel(document, vm);
 
     const closeModal = () => {
-        if (!vm.profileForm.showing && !vm.filterForm.showing) return;
+        if (!vm.profileForm.showing && !vm.filterForm.showing && !vm.welcomeShowing) return;
         if (vm.profileForm.progressVisible) return; // don't allow close if busy
         vm.profileForm.showing = false;
         vm.filterForm.showing = false;
@@ -67,6 +70,7 @@ export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void 
     return () => {
         updateProfileEditor();
         updateFilterEditor();
-        modal.style.display = (vm.profileForm.showing || vm.filterForm.showing) ? 'block' : 'none';
+        updateWelcomePanel();
+        modal.style.display = (vm.profileForm.showing || vm.filterForm.showing || vm.welcomeShowing) ? 'block' : 'none';
     };
 }

@@ -8,7 +8,7 @@ import { CHECK_BOX_CHECKED_ICON, CHECK_BOX_UNCHECKED_ICON } from './icons.ts';
 export const FILTER_EDITOR_HTML = html`
 <form id="filter-form" autocomplete="off">
 <fieldset id="filter-fieldset">
-  <div id="filter-form-title" class="h6 high-emphasis-text">Edit filter</div>
+  <div id="filter-form-title" class="h6 high-emphasis-text form-row">Edit filter</div>
 
   <label id="filter-field-label">Filter field:</label>
   <input id="filter-field-text" type="text">
@@ -31,10 +31,6 @@ export const FILTER_EDITOR_HTML = html`
 `;
 
 export const FILTER_EDITOR_CSS = css`
-
-    #filter-form-title {
-        grid-column: 1 / span 2;
-    }
 
     #filter-form-buttons {
         justify-self: end;

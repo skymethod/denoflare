@@ -256,6 +256,7 @@ function renderTextIntoSpan(text: string, span: HTMLSpanElement) {
         const a = document.createElement('a');
         a.href = urlOrIp.startsWith('https://') ? urlOrIp : `https://ipinfo.io/${urlOrIp}`;
         a.target = '_blank';
+        a.rel = 'noreferrer noopener nofollow';
         a.appendChild(document.createTextNode(urlOrIp));
         span.appendChild(a);
         i = m.index + urlOrIp.length;

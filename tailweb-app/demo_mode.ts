@@ -46,10 +46,12 @@ export class DemoMode {
         callbacks.onTailCreated(accountId, scriptId, 155, tail);
         callbacks.onTailsChanged(new Set([ packTailKey(accountId, scriptId) ]));
         callbacks.onTailConnectionOpen(accountId, scriptId, Date.now(), 42);
-        callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeRequest());
-        callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeDoRequest());
-        callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeRequestWithLogs());
-        callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeRequestExceedingTimeLimit());
+        for (let i = 0; i < 2; i++) {
+            callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeRequest());
+            callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeDoRequest());
+            callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeRequestWithLogs());
+            callbacks.onTailConnectionMessage(accountId, scriptId, Date.now(), computeFakeRequestExceedingTimeLimit());
+        }
     }
 
 }

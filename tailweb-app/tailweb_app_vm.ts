@@ -15,6 +15,7 @@ export class TailwebAppVM {
 
     private _profiles: TextItem[] = [];
     get profiles(): TextItem[] { return this.demoMode ? DemoMode.profiles : this._profiles; }
+    get realProfiles(): TextItem[] { return this._profiles; }
 
     private _selectedProfileId: string | undefined;
     get selectedProfileId(): string | undefined { return this.demoMode ? DemoMode.selectedProfileId : this._selectedProfileId; }
@@ -62,6 +63,8 @@ export class TailwebAppVM {
         if (this.demoMode) DemoMode.tails = tails;
         this._tails = tails;
     }
+
+    welcomeShowing = false;
 
     //
 
@@ -145,11 +148,18 @@ export class TailwebAppVM {
 
     start() {
         this.reloadProfiles();
+        this.recomputeWelcomeShowing();
         this.performInitialSelection();
     }
 
     newProfile() {
-        if (this.demoMode) return;
+        if (this.demoMode) {
+            if (this.welcomeShowing) {
+                // keep going
+            } else {
+                return;
+            }
+        }
         this.profileForm.profileId = generateUuid();
         this.profileForm.showing = true;
         this.profileForm.title = 'New Profile';
@@ -190,6 +200,7 @@ export class TailwebAppVM {
         saveState(this.state);
         this.profileForm.showing = false;
         this.reloadProfiles();
+        this.recomputeWelcomeShowing();
         this.performInitialSelection();
     }
 
@@ -506,18 +517,7 @@ export class TailwebAppVM {
     }
 
     toggleDemoMode() {
-        if (this.demoMode) {
-            console.log('Disable demo mode');
-            this.demoMode = false;
-            this.onQpsChange(this.qpsController.qps);
-            this.onResetOutput();
-        } else {
-            console.log('Enable demo mode');
-            this.demoMode = true;
-            this.onQpsChange(12.34);
-            this.onResetOutput();
-            DemoMode.logFakeOutput(this.tailControllerCallbacks);
-        }
+        this.setDemoMode(!this.demoMode);
         this.onChange();
     }
 
@@ -527,6 +527,21 @@ export class TailwebAppVM {
     }
     
     //
+
+    private setDemoMode(demoMode: boolean) {
+        if (this.demoMode === demoMode) return;
+        this.demoMode = demoMode;
+        if (demoMode) {
+            console.log('Enable demo mode');
+            this.onQpsChange(12.34);
+            this.onResetOutput();
+            DemoMode.logFakeOutput(this.tailControllerCallbacks);
+        } else {
+            console.log('Disable demo mode');
+            this.onQpsChange(this.qpsController.qps);
+            this.onResetOutput();
+        }
+    }
 
     private applyFilter(opts: { save: boolean }) {
         const { save } = opts;
@@ -574,6 +589,7 @@ export class TailwebAppVM {
                 saveState(this.state);
                 profileForm.outputMessage = '';
                 this.reloadProfiles();
+                this.recomputeWelcomeShowing();
                 profileForm.showing = false;
                 this.selectedProfileId = profileId;
             } else {
@@ -675,6 +691,13 @@ export class TailwebAppVM {
             }
         }
         return rt;
+    }
+
+    private recomputeWelcomeShowing() {
+        const shouldShow = this.profiles.length === 0;
+        if (shouldShow === this.welcomeShowing) return;
+        this.setDemoMode(shouldShow);
+        this.welcomeShowing = shouldShow;
     }
 
 }

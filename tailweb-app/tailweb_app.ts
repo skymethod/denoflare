@@ -13,6 +13,7 @@ import { CIRCULAR_PROGRESS_CSS } from './views/circular_progress_view.ts';
 import { CONSOLE_CSS, CONSOLE_HTML, initConsole } from './views/console_view.ts';
 import { FILTER_EDITOR_CSS } from './views/filter_editor_view.ts';
 import { StaticData } from './static_data.ts';
+import { WELCOME_PANEL_CSS } from './views/welcome_panel.ts';
 
 const appCss = css`
 
@@ -47,6 +48,7 @@ appendStylesheets([
     SIDEBAR_CSS.cssText,
     CONSOLE_CSS.cssText,
     MODAL_CSS.cssText,
+    WELCOME_PANEL_CSS.cssText,
     PROFILE_EDITOR_CSS.cssText,
     FILTER_EDITOR_CSS.cssText,
     CIRCULAR_PROGRESS_CSS.cssText,
