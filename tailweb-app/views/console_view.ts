@@ -77,6 +77,7 @@ export const CONSOLE_CSS = css`
 #console-header-clear {
     margin-right: -0.5rem;
     margin-left: 1rem;
+    visibility: hidden;
 }
 
 #console-header-clear .action-icon {
@@ -105,6 +106,9 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     const consoleHeaderQpsElement = document.getElementById('console-header-qps') as HTMLElement;
     const consoleHeaderClearElement = document.getElementById('console-header-clear') as HTMLElement;
     const consoleLastLineElement = document.getElementById('console-last-line') as HTMLElement;
+
+    let showingClearButton = false;
+
     vm.logger = (...data) => {
         const lineElement = document.createElement('code');
         lineElement.className = 'line';
@@ -140,12 +144,18 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
         if (autoscroll) {
             consoleLastLineElement.scrollIntoView(false /* alignToTop */);
         }
+        if (!showingClearButton) {
+            consoleHeaderClearElement.style.visibility = 'visible';
+            showingClearButton = true;
+        }
     };
     vm.onResetOutput = () => {
         const lines = consoleDiv.querySelectorAll('.line');
         lines.forEach(line => {
             if (line.id !== 'console-last-line') consoleDiv.removeChild(line);
         });
+        consoleHeaderClearElement.style.visibility = 'hidden';
+        showingClearButton = false;
     };
     consoleHeaderQpsElement.textContent = computeQpsText(0);
     vm.onQpsChange = qps => {
@@ -157,6 +167,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll
 
     return () => {
+        consoleHeaderFiltersDiv.style.visibility = vm.profiles.length > 0 ? 'visible' : 'hidden';
         consoleHeaderTailsElement.textContent = computeTailsText(vm.tails.size);
         LitElement.render(FILTERS_HTML(vm), consoleHeaderFiltersDiv);
     };
