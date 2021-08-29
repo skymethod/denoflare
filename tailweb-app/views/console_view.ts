@@ -245,7 +245,7 @@ function computeQpsText(qps: number): string {
 }
 
 function renderTextIntoSpan(text: string, span: HTMLSpanElement) {
-    const pattern = /(https:\/\/[^\s]+|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g;
+    const pattern = /(https:\/\/[^\s)]+|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g;
     let m: RegExpExecArray | null;
     let i = 0;
     while(null !== (m = pattern.exec(text))) {
