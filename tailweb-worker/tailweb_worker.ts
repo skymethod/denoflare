@@ -12,9 +12,9 @@ export default {
         const url = new URL(request.url);
 
         if (url.pathname === '/') {
-            const { version, flags } = env;
+            const { version, flags, twitter } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
-            return new Response(computeHtml(url, { version, flags }), { headers });
+            return new Response(computeHtml(url, { version, flags, twitter }), { headers });
         } else if (url.pathname === computeAppJsPath()) {
             return computeAppResponse();
         } else if (url.pathname.startsWith('/fetch/')) {
@@ -49,6 +49,7 @@ export default {
 export interface WorkerEnv {
     readonly version?: string;
     readonly flags?: string;
+    readonly twitter?: string;
 }
 
 //
@@ -115,7 +116,7 @@ function encodeHtml(value: string): string {
 
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
     const { short_name: name, description } = computeManifest(url);
-
+    const { twitter } = staticData;
     const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>
 <html lang="en" class="no-js">
@@ -142,6 +143,7 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <meta property="og:locale" content="en_US">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
+${twitter ? `<meta name="twitter:site" content="${twitter}">` : ''}
 <meta property="og:url" content="${url.origin}">
 <link rel="canonical" href="${url.origin}">
 
