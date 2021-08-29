@@ -1,4 +1,4 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage, DurableObjectStorageValue, DurableObjectStorageReadOptions, DurableObjectStorageWriteOptions, DurableObjectStorageTransaction, DurableObjectStorageListOptions } from './deps_cf.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage, DurableObjectStorageValue, DurableObjectStorageReadOptions, DurableObjectStorageWriteOptions, DurableObjectStorageTransaction, DurableObjectStorageListOptions } from './cloudflare_workers_types.d.ts';
 import { Bytes } from './bytes.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 import { consoleWarn } from './console.ts';

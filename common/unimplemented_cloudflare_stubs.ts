@@ -1,4 +1,4 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from './deps_cf.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from './cloudflare_workers_types.d.ts';
 
 export class UnimplementedDurableObjectNamespace implements DurableObjectNamespace {
     readonly doNamespace: string;

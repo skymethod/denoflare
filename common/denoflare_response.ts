@@ -1,5 +1,5 @@
 import { DenoflareServerWebSocket, DenoflareServerWebSocketLocator, isDenoflareServerWebSocketLocator } from './denoflare_server_web_socket.ts';
-import { CloudflareResponseInitExtensions } from './deps_cf.ts';
+import { CloudflareResponseInitExtensions } from './cloudflare_workers_types.d.ts';
 
 export class DenoflareResponse implements DenoflareServerWebSocketLocator {
     readonly _kind = 'DenoflareResponse';

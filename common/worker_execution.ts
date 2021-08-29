@@ -1,4 +1,4 @@
-import { IncomingRequestCf, IncomingRequestCfProperties } from './deps_cf.ts';
+import { IncomingRequestCf, IncomingRequestCfProperties } from './cloudflare_workers_types.d.ts';
 import { DONamespaceProvider, GlobalCachesProvider, KVNamespaceProvider } from './cloudflare_workers_runtime.ts';
 import { Binding } from './config.ts';
 import { consoleLog } from './console.ts';

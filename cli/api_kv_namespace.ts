@@ -1,4 +1,4 @@
-import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVPutOptions, KVValueAndMetadata } from '../common/deps_cf.ts';
+import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVPutOptions, KVValueAndMetadata } from '../common/cloudflare_workers_types.d.ts';
 import { getKeyMetadata, getKeyValue } from '../common/cloudflare_api.ts';
 
 export class ApiKVNamespace implements KVNamespace {

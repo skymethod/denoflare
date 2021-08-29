@@ -1,7 +1,7 @@
 import { defineScriptGlobals } from './cloudflare_workers_runtime.ts';
 import { Binding } from './config.ts';
 import { consoleLog, consoleWarn } from './console.ts';
-import { IncomingRequestCf } from './deps_cf.ts';
+import { IncomingRequestCf } from './cloudflare_workers_types.d.ts';
 import { WorkerExecutionCallbacks } from './worker_execution.ts';
 
 export class ScriptWorkerExecution {

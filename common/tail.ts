@@ -1,4 +1,4 @@
-import { IncomingRequestCfProperties } from './deps_cf.ts';
+import { IncomingRequestCfProperties } from './cloudflare_workers_types.d.ts';
 import { setEqual, setSubtract, setUnion } from './sets.ts';
 
 // Types For Found Tail Websocket Message Payloads

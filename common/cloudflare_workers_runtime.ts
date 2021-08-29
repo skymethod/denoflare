@@ -1,5 +1,5 @@
 import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isSecretBinding, isTextBinding } from './config.ts';
-import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair } from './deps_cf.ts';
+import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair } from './cloudflare_workers_types.d.ts';
 import { DenoflareServerWebSocket, DenoflareServerWebSocketLocator } from './denoflare_server_web_socket.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 

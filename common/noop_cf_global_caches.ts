@@ -1,4 +1,4 @@
-import { CfCache, CfCacheOptions, CfGlobalCaches } from './deps_cf.ts';
+import { CfCache, CfCacheOptions, CfGlobalCaches } from './cloudflare_workers_types.d.ts';
 
 export class NoopCfGlobalCaches implements CfGlobalCaches {
     readonly default = new NoopCfCache();

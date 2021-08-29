@@ -1,5 +1,5 @@
 import { Bytes } from '../common/bytes.ts';
-import { IncomingRequestCf, ModuleWorkerContext } from '../common/deps_cf.ts';
+import { IncomingRequestCf, ModuleWorkerContext } from '../common/cloudflare_workers_types.d.ts';
 import { TAILWEB_APP_B64, TAILWEB_APP_HASH } from './tailweb_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_JPG_B64 } from './twitter.ts';

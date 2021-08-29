@@ -1,4 +1,4 @@
-import { CloudflareWebSocketExtensions } from './deps_cf.ts';
+import { CloudflareWebSocketExtensions } from './cloudflare_workers_types.d.ts';
 import { consoleLog, consoleWarn } from './console.ts';
 
 export class DenoflareServerWebSocket implements CloudflareWebSocketExtensions {
