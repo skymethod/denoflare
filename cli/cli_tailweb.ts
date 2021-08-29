@@ -4,11 +4,25 @@ import { ModuleWatcher } from './module_watcher.ts';
 
 export async function tailweb(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
-    if (options.help || typeof command !== 'string' || command !== 'build') {
+    const fn = { build, b64 }[command];
+    if (options.help || !fn) {
         console.log('tailweb help!');
         return;
     }
+    await fn(args.slice(1));
+}
 
+//
+
+async function b64(args: (string | number)[]) {
+    const path = args[0];
+    if (typeof path !== 'string') throw new Error('Must provide path to file');
+    const contents = await Deno.readFile(path);
+    const b64 = new Bytes(contents).base64();
+    console.log(b64);
+}
+
+async function build(_args: (string | number)[]) {
     const thisPath = fromFileUrl(import.meta.url);
     const denoflareCliPath = dirname(thisPath);
     const denoflarePath = resolve(denoflareCliPath, '..');

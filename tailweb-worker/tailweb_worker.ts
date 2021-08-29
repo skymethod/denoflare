@@ -1,6 +1,7 @@
 import { Bytes } from '../common/bytes.ts';
 import { IncomingRequestCf, ModuleWorkerContext } from '../common/deps_cf.ts';
 import { TAILWEB_APP_B64, TAILWEB_APP_HASH } from './tailweb_data.ts';
+import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_HASH } from './favicons.ts';
 import { Material } from './material.ts';
 
 export default {
@@ -11,7 +12,8 @@ export default {
 
         if (url.pathname === '/') {
             const { version, flags } = env;
-            return new Response(computeHtml(url, { version, flags }), { headers: { 'Content-Type': 'text/html; charset=utf-8' }});
+            const headers = computeHeaders('text/html; charset=utf-8');
+            return new Response(computeHtml(url, { version, flags }), { headers });
         } else if (url.pathname === computeAppJsPath()) {
             return computeAppResponse();
         } else if (url.pathname.startsWith('/fetch/')) {
@@ -24,6 +26,12 @@ export default {
                 return await fetch(fetchUrlStr, { method, headers, body });
             }
             throw new Response(`Unable to fetch ${fetchUrl}`, { status: 400 });
+        } else if (url.pathname === '/favicon.svg' || url.pathname === `/favicon.${FAVICON_HASH}.svg`) {
+            const headers = computeHeaders('image/svg+xml', { immutable: url.pathname.includes(FAVICON_HASH) });
+            return new Response(FAVICON_SVG, { headers });
+        } else if (url.pathname === '/favicon.ico' || url.pathname === `/favicon.${FAVICON_HASH}.ico`) {
+            const headers = computeHeaders('image/x-icon', { immutable: url.pathname.includes(FAVICON_HASH) });
+            return new Response(Bytes.ofBase64(FAVICON_ICO_B64).array(), { headers });
         }
 
         return new Response(`hello ${cfConnectingIp}`);
@@ -38,6 +46,14 @@ export interface WorkerEnv {
 
 //
 
+function computeHeaders(contentType: string, opts: { immutable?: boolean } = {}) {
+    const { immutable } = opts;
+    const headers = new Headers();
+    headers.set('Content-Type', contentType);
+    if (immutable) headers.set('Cache-Control', 'public, max-age=604800, immutable');
+    return headers;
+}
+
 function isFetchAllowed(method: string, url: URL): boolean {
     return /^(GET|POST)$/.test(method) 
         && url.origin === 'https://api.cloudflare.com'
@@ -51,7 +67,7 @@ function computeAppJsPath(): string {
 
 function computeAppResponse(): Response {
     const array = Bytes.ofBase64(TAILWEB_APP_B64).array();
-    return new Response(array, { headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=604800, immutable' }});
+    return new Response(array, { headers: computeHeaders('text/javascript; charset=utf-8', { immutable: true }) });
 }
 
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
@@ -84,11 +100,12 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <meta property="og:url" content="${url.origin}/page">
 <link rel="canonical" href="${url.origin}/page">
 
-<link rel="icon" href="/favicon.ico">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" href="/favicon.${FAVICON_HASH}.ico">
+<link rel="icon" href="/favicon.${FAVICON_HASH}.svg" type="image/svg+xml">
+<link rel="mask-icon" href="/favicon.${FAVICON_HASH}.svg" color="${Material.primaryColor200Hex}">
 <link rel="manifest" href="/my.webmanifest">
-<meta name="theme-color" content="${Material.primaryColorHex}">
+<meta name="theme-color" content="${Material.primaryColor900Hex}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="${Material.primaryColor900Hex}">
 
 <style>
 body {
