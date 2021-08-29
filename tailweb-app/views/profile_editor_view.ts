@@ -56,7 +56,7 @@ export const PROFILE_EDITOR_CSS = css`
     }
 
     #profile-form-help-row summary {
-        user-select: none;
+        user-select: none; -webkit-user-select: none;
     }
 
     #profile-form-help-row ol {

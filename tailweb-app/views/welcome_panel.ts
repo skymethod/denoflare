@@ -35,7 +35,7 @@ export const WELCOME_PANEL_HTML = html`
 export const WELCOME_PANEL_CSS = css`
 
     #welcome-panel-form-title {
-        user-select: none;
+        user-select: none; -webkit-user-select: none;
     }
 
 `;

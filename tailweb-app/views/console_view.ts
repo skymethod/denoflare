@@ -67,7 +67,7 @@ export const CONSOLE_CSS = css`
     min-width: 6rem;
     text-align: right;
     padding-top: 0.25rem;
-    user-select: none;
+    user-select: none; -webkit-user-select: none;
 }
 
 #console-header-tails {

@@ -91,7 +91,7 @@ export const MATERIAL_CSS = css`
     border-radius: var(--button-border-radius);
     color: var(--high-emphasis-text-color);
     opacity: 0.69;  /** medium-emphasis / high-emphasis */
-    user-select: none;
+    user-select: none; -webkit-user-select: none;
 }
 
 .action-icon:hover {
@@ -109,7 +109,7 @@ button {
     text-align: center;
     text-decoration: none;
     cursor: pointer;
-    user-select: none;
+    user-select: none; -webkit-user-select: none;
     min-width: 8rem;
     border-radius: var(--button-border-radius);
 }

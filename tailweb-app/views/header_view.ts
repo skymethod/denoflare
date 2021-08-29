@@ -19,7 +19,7 @@ export const HEADER_CSS = css`
 header {
     display: flex;
     padding: 1rem 0;
-    user-select: none;
+    user-select: none; -webkit-user-select: none;
 }
 
 #header-content {
