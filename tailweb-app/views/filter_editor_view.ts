@@ -1,9 +1,9 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { css, html, LitElement, svg } from '../deps_app.ts';
-import { Material } from '../material.ts';
+import { css, html, LitElement } from '../deps_app.ts';
 import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { CHECK_BOX_CHECKED_ICON, CHECK_BOX_UNCHECKED_ICON } from './icons.ts';
 
 export const FILTER_EDITOR_HTML = html`
 <form id="filter-form" autocomplete="off">
@@ -153,6 +153,3 @@ const OPTIONS_HTML = (vm: TailwebAppVM) => {
 function fieldValueSet(vm: TailwebAppVM): Set<string> {
     return new Set((vm.filterForm.fieldValue || '').split(',').map(v => v.trim()).filter(v => v.length > 0));
 }
-
-const CHECK_BOX_UNCHECKED_ICON = svg`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="${Material.highEmphasisTextColor}"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>`;
-const CHECK_BOX_CHECKED_ICON = svg`<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24" fill="${Material.highEmphasisTextColor}"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM17.99 9l-1.41-1.42-6.59 6.59-2.58-2.57-1.42 1.41 4 3.99z"/></svg>`;

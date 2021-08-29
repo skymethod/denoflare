@@ -2,6 +2,7 @@
 
 import { css, html, LitElement } from '../deps_app.ts';
 import { FilterState, TailwebAppVM } from '../tailweb_app_vm.ts';
+import { actionIcon, CLEAR_ICON } from './icons.ts';
 
 export const CONSOLE_HTML = html`
 <div id="console">
@@ -10,11 +11,11 @@ export const CONSOLE_HTML = html`
         <div id="console-header-status">
             <div id="console-header-tails" class="overline medium-emphasis-text"></div>
             <div id="console-header-qps" class="overline medium-emphasis-text"></div>
+            <div id="console-header-clear"></div>
         </div>
     </div>
     <code id="console-last-line" class="line">spacer</code>
 </div>
-
 `;
 
 export const CONSOLE_CSS = css`
@@ -63,7 +64,7 @@ export const CONSOLE_CSS = css`
     height: 1rem;
     display: flex;
     flex-direction: column;
-    min-width: 5rem;
+    min-width: 6rem;
     text-align: right;
     padding-top: 0.25rem;
     user-select: none;
@@ -71,6 +72,16 @@ export const CONSOLE_CSS = css`
 
 #console-header-tails {
     white-space: nowrap;
+}
+
+#console-header-clear {
+    margin-right: -0.5rem;
+    margin-left: 1rem;
+}
+
+#console-header-clear .action-icon {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
 }
 
 #console .line {
@@ -92,6 +103,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     const consoleHeaderFiltersDiv = document.getElementById('console-header-filters') as HTMLDivElement;
     const consoleHeaderTailsElement = document.getElementById('console-header-tails') as HTMLElement;
     const consoleHeaderQpsElement = document.getElementById('console-header-qps') as HTMLElement;
+    const consoleHeaderClearElement = document.getElementById('console-header-clear') as HTMLElement;
     const consoleLastLineElement = document.getElementById('console-last-line') as HTMLElement;
     vm.logger = (...data) => {
         const lineElement = document.createElement('code');
@@ -139,6 +151,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
     vm.onQpsChange = qps => {
         consoleHeaderQpsElement.textContent = computeQpsText(qps);
     };
+    LitElement.render(actionIcon(CLEAR_ICON, { text: 'Clear', onclick: () => vm.resetOutput() }), consoleHeaderClearElement);
 
     // for (let i = 0; i < 100; i++) vm.logger(`line ${i}`); // generate a bunch of lines to test scrolling
     // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll

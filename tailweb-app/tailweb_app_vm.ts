@@ -520,6 +520,11 @@ export class TailwebAppVM {
         }
         this.onChange();
     }
+
+    resetOutput() {
+        if (this.demoMode) return;
+        this.onResetOutput();
+    }
     
     //
 
