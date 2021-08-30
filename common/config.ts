@@ -40,19 +40,19 @@ export interface Script {
 export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding;
 
 export interface TextBinding {
-    value: string;
+    readonly value: string;
 }
 
 export interface SecretBinding {
-    secret: string;
+    readonly secret: string;
 }
 
 export interface KVNamespaceBinding {
-    kvNamespace: string;
+    readonly kvNamespace: string;
 }
 
 export interface DONamespaceBinding {
-    doNamespace: string;
+    readonly doNamespace: string;
 }
 
 export interface Profile {

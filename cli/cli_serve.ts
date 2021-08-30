@@ -29,7 +29,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     const scriptName = scriptUrl ? undefined : scriptReference;
     
     // read the script-based cloudflare worker contents
-    const config = await loadConfig();
+    const config = await loadConfig(verbose);
     let port = 8080;
     let bindings: Record<string, Binding> = {};
     let isolation: Isolation = 'isolate';

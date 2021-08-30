@@ -13,7 +13,8 @@ export async function push(args: (string | number)[], options: Record<string, un
     }
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
 
-    const config = await loadConfig();
+    const verbose = !!options.verbose;
+    const config = await loadConfig(verbose);
     const { scriptName, rootSpecifier } = computeContentsForScriptReference(scriptReference, config, nameFromOptions);
     const { accountId, apiToken } = await resolveProfile(config, options);
     

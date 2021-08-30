@@ -1,21 +1,28 @@
 import { Binding, Config, isSecretBinding, isTextBinding, Profile } from '../common/config.ts';
 import { checkConfig, isValidProfileName } from '../common/config_validation.ts';
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
+import { join, resolve } from './deps_cli.ts';
 
-export async function loadConfig(): Promise<Config> {
-    const path = `${Deno.env.get('HOME')}/.denoflare`;
-    const errors: ParseError[] = [];
-    const options: ParseOptions = { allowTrailingComma: true, disallowComments: false };
-    try {
-        const jsonc = await Deno.readTextFile(path);
-        const config = parseJsonc(jsonc, errors, options);
-        if (errors.length > 0) {
-            throw new Error(`Invalid json, error${errors.length > 1 ? 's' : ''}=${errors.map(v => `(${formatParseError(v, jsonc)})`).join(' ')}`);
+export async function loadConfig(verbose: boolean): Promise<Config> {
+    const configFilePath = await findConfigFilePath();
+    if (verbose) console.log(`loadConfig: configFilePath=${configFilePath}`);
+    let config = configFilePath ? await loadConfigFromFile(configFilePath) : {};
+
+    // enhance with env vars if we have no config profiles
+    if (Object.keys(config.profiles || {}).length === 0) {
+        const cfAccountId = (Deno.env.get('CF_ACCOUNT_ID') || '').trim();
+        const cfApiToken = (Deno.env.get('CF_API_TOKEN') || '').trim();
+        if (verbose) console.log(`loadConfig: Trying to enhance with CF_ACCOUNT_ID=${cfAccountId}, CF_API_TOKEN=<redacted string length=${cfApiToken.length}>`);
+        if (cfAccountId.length > 0 && cfApiToken.length > 0) {
+            const envProfile: Profile = {
+                accountId: cfAccountId,
+                apiToken: cfApiToken,
+            };
+            config = { ...config, profiles: { 'env': envProfile } };
         }
-        return checkConfig(config);
-    } catch (e) {
-        throw new Error(`Error loading config (path=${path}): ${e.message || e}`);
     }
+
+    return config;
 }
 
 export async function resolveBindings(bindings: Record<string, Binding>, localPort: number): Promise<Record<string, Binding>> {
@@ -48,6 +55,45 @@ export async function resolveProfile(config: Config, options: Record<string, unk
 }
 
 //
+
+const CONFIG_FILE_NAME = '.denoflare';
+
+async function loadConfigFromFile(path: string): Promise<Config> {
+    const errors: ParseError[] = [];
+    const options: ParseOptions = { allowTrailingComma: true, disallowComments: false };
+    try {
+        const jsonc = await Deno.readTextFile(path);
+        const config = parseJsonc(jsonc, errors, options);
+        if (errors.length > 0) {
+            throw new Error(`Invalid json, error${errors.length > 1 ? 's' : ''}=${errors.map(v => `(${formatParseError(v, jsonc)})`).join(' ')}`);
+        }
+        return checkConfig(config);
+    } catch (e) {
+        throw new Error(`Error loading config (path=${path}): ${e.message || e}`);
+    }
+}
+
+async function findConfigFilePath(): Promise<string | undefined> {
+    let dir = Deno.cwd();
+    while (true) {
+        const filePath = join(dir, CONFIG_FILE_NAME);
+        try {
+            const info = await Deno.stat(filePath);
+            if (info.isFile) return filePath;
+        } catch (e) {
+            if (e instanceof Deno.errors.NotFound) {
+                // continue;
+            } else {
+                throw e;
+            }
+        }
+        const parentDir = resolve(dir, '..');
+        if (parentDir === dir) {
+            return undefined; // as far as we can go
+        }
+        dir = parentDir;
+    }
+}
 
 function findProfile(config: Config, options: Record<string, unknown>): Profile {
     const profiles = config.profiles || {};

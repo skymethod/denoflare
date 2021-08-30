@@ -16,7 +16,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
     if (verbose && format !== 'json') TailConnection.VERBOSE = true;
     const filters = computeFiltersFromOptions(options);
     const once = !!options.once;
-    const config = await loadConfig();
+    const config = await loadConfig(verbose);
     const { accountId, apiToken } = await resolveProfile(config, options);
     
     if (format !== 'json') console.log('creating tail...');
