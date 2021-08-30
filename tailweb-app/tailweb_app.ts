@@ -15,6 +15,13 @@ import { FILTER_EDITOR_CSS } from './views/filter_editor_view.ts';
 import { StaticData } from './static_data.ts';
 import { WELCOME_PANEL_CSS } from './views/welcome_panel.ts';
 
+const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
+
+function setAppState(appState: string) {
+    appModuleScript.dataset.state = appState;
+}
+setAppState('starting');
+
 const appCss = css`
 
 main {
@@ -80,3 +87,5 @@ vm.onChange = () => {
 CloudflareApi.URL_TRANSFORMER = v => `/fetch/${v.substring('https://'.length)}`;
 
 vm.start();
+
+setAppState('started');

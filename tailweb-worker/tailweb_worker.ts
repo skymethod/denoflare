@@ -133,7 +133,7 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 </script>
 
 <link rel="modulepreload" href="${appJsPath}" as="script" />
-<script type="module" src="${appJsPath}"></script>
+<script id="app-module-script" type="module" src="${appJsPath}" onload="if (!this.dataset.state) { document.documentElement.classList.remove('js'); }"></script>
 
 <meta name="description" content="${encodeHtml(description)}">
 <meta property="og:title" content="${encodeHtml(name)}">
@@ -166,8 +166,50 @@ body {
     box-sizing: border-box;
 }
 
+#old-browser {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+
+    /* body2 */
+    font-size: 0.875rem;
+    letter-spacing: 0.01786rem;
+    font-weight: normal;
+    line-height: 1.25rem;
+
+    /* medium-emphasis text */
+    color: rgba(255, 255, 255, 0.60);
+}
+
+#old-browser a {
+    color: ${Material.primaryColor300Hex};
+    text-underline-offset: 0.2rem;
+    text-decoration: none;
+}
+
+#old-browser a:hover {
+    text-decoration: underline;
+}
+
+.js #old-browser {
+    display: none;
+}
+
 </style>
 </head>
-<body></body>
+<body>
+  <div id="old-browser">
+    <div>${encodeHtml(name)} requires a current version of:
+      <ul>
+        <li><a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a></li>
+        <li><a href="http://www.google.com/chrome" target="_blank">Google Chrome</a></li>
+        <li><a href="https://www.apple.com/safari/" target="_blank">Apple Safari</a></li>
+        <li>or <a href="http://www.mozilla.com/en-US/firefox/new/" target="_blank">Mozilla Firefox</a></li>
+        <li>... and <a href="https://www.enable-javascript.com/" target="_blank">JavaScript enabled</a> : )</li>
+      </ul>
+    </div>
+  </div>
+</body>
 </html>`;
 }
