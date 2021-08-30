@@ -2,7 +2,7 @@ import { IncomingRequestCf, IncomingRequestCfProperties } from './cloudflare_wor
 import { DONamespaceProvider, GlobalCachesProvider, KVNamespaceProvider } from './cloudflare_workers_runtime.ts';
 import { Binding } from './config.ts';
 import { consoleLog } from './console.ts';
-import { DurableObjectConstructor } from './in_process_durable_objects.ts';
+import { DurableObjectConstructor } from './local_durable_objects.ts';
 import { cloneRequestWithHostname } from './fetch_util.ts';
 import { ModuleWorkerExecution } from './module_worker_execution.ts';
 import { ScriptWorkerExecution } from './script_worker_execution.ts';

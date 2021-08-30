@@ -1,7 +1,7 @@
 import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
-import { InProcessDurableObjects } from '../common/in_process_durable_objects.ts';
+import { LocalDurableObjects } from '../common/local_durable_objects.ts';
 import { NoopCfGlobalCaches } from '../common/noop_cf_global_caches.ts';
 import { WorkerManager } from './worker_manager.ts';
 import { ApiKVNamespace } from './api_kv_namespace.ts';
@@ -73,11 +73,11 @@ export async function serve(args: (string | number)[], options: Record<string, u
         const scriptType = scriptPathOrUrl.endsWith('.ts') ? 'module' : 'script';
         if (isolation === 'none') {
             const { accountId, apiToken } = profile;
-            let objects: InProcessDurableObjects | undefined; 
+            let objects: LocalDurableObjects | undefined; 
             const callbacks: WorkerExecutionCallbacks = {
                 onModuleWorkerInfo: moduleWorkerInfo => { 
                     const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
-                    objects = new InProcessDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
+                    objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
                 },
                 globalCachesProvider: () => new NoopCfGlobalCaches(),
                 kvNamespaceProvider: kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace),

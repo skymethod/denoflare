@@ -3,7 +3,7 @@ import { Bytes } from './bytes.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 import { consoleWarn } from './console.ts';
 
-export class InProcessDurableObjects {
+export class LocalDurableObjects {
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
     private readonly moduleWorkerEnv: Record<string, unknown>;
     private readonly durableObjects = new Map<string, Map<string, DurableObject>>(); // className -> hex id -> do

@@ -1,7 +1,7 @@
 import { applyWorkerEnv, defineModuleGlobals } from './cloudflare_workers_runtime.ts';
 import { Binding } from './config.ts';
 import { consoleLog, consoleWarn } from './console.ts';
-import { DurableObjectConstructor } from './in_process_durable_objects.ts';
+import { DurableObjectConstructor } from './local_durable_objects.ts';
 import { IncomingRequestCf, ModuleWorkerContext } from './cloudflare_workers_types.d.ts';
 import { WorkerExecutionCallbacks } from './worker_execution.ts';
 

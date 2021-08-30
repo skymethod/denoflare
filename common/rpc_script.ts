@@ -12,7 +12,7 @@ import { PackedRequest } from './rpc_fetch.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 import { packResponse } from './rpc_fetch.ts';
 import { makeIncomingRequestCfProperties } from './incoming_request_cf_properties.ts';
-import { InProcessDurableObjects } from './in_process_durable_objects.ts';
+import { LocalDurableObjects } from './local_durable_objects.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
@@ -21,11 +21,11 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
         const b = new Blob([ scriptDef.scriptContents ]);
         const u = URL.createObjectURL(b);
 
-        let objects: InProcessDurableObjects | undefined; 
+        let objects: LocalDurableObjects | undefined; 
         const exec = await WorkerExecution.start(u, scriptDef.scriptType, scriptDef.bindings, {
             onModuleWorkerInfo: moduleWorkerInfo => { 
                 const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
-                objects = new InProcessDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
+                objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
             },
             globalCachesProvider: () => new NoopCfGlobalCaches(),
             kvNamespaceProvider: kvNamespace => new RpcKVNamespace(kvNamespace, channel),
