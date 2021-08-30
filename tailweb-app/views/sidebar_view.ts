@@ -51,13 +51,13 @@ export const SIDEBAR_CSS = css`
     text-align: center;
 }
 
-#scripts-grid {
+#scripts-scroller {
     scrollbar-width: none; -ms-overflow-style: none;
     overflow-y: scroll;
     height: calc(100vh - 18rem);
 }
 
-#scripts-grid::-webkit-scrollbar {
+#scripts-scroller::-webkit-scrollbar {
     display: none; /* for Chrome, Safari, and Opera */
 }
 
@@ -94,9 +94,11 @@ const PROFILES_HTML = (vm: TailwebAppVM) => html`
 
 const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Scripts</div>
-    <div class="button-grid" id="scripts-grid">
-        ${vm.scripts.map(script => html`<button class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" @click=${(e: MouseEvent) => handleScriptClick(e, script.id, vm)} ?disabled="${vm.profileForm.showing}">${script.text}</button>
-        `)}
+    <div id="scripts-scroller">
+        <div class="button-grid">
+            ${vm.scripts.map(script => html`<button class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" @click=${(e: MouseEvent) => handleScriptClick(e, script.id, vm)} ?disabled="${vm.profileForm.showing}">${script.text}</button>
+            `)}
+        </div>
     </div>
     <div class="button-grid">
         <div class="caption medium-emphasis-text hint">${computeMultiselectKeyChar()}-click to multiselect</div>
