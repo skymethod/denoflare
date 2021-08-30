@@ -29,9 +29,9 @@ export class WorkerExecution {
         this.worker = worker;
     }
 
-    static async start(scriptPath: string, scriptType: 'module' | 'script', bindings: Record<string, Binding>, callbacks: WorkerExecutionCallbacks): Promise<WorkerExecution> {
-        const worker = scriptType === 'module' ? await ModuleWorkerExecution.create(scriptPath, bindings, callbacks) 
-            : await ScriptWorkerExecution.create(scriptPath, bindings, callbacks);
+    static async start(scriptPathOrUrl: string, scriptType: 'module' | 'script', bindings: Record<string, Binding>, callbacks: WorkerExecutionCallbacks): Promise<WorkerExecution> {
+        const worker = scriptType === 'module' ? await ModuleWorkerExecution.create(scriptPathOrUrl, bindings, callbacks) 
+            : await ScriptWorkerExecution.create(scriptPathOrUrl, bindings, callbacks);
         return new WorkerExecution(callbacks, worker);
         
     }

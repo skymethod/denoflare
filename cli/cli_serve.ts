@@ -9,11 +9,13 @@ import { WorkerExecution, WorkerExecutionCallbacks } from '../common/worker_exec
 import { makeIncomingRequestCfProperties } from '../common/incoming_request_cf_properties.ts';
 import { UnimplementedDurableObjectNamespace } from '../common/unimplemented_cloudflare_stubs.ts';
 import { ModuleWatcher } from './module_watcher.ts';
+import { CLI_VERSION } from './cli_version.ts';
+import { Binding, Script } from '../common/config.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
-    const scriptName = args[0];
-    if (options.help || typeof scriptName !== 'string') {
-        console.log('serve help!');
+    const scriptReference = args[0];
+    if (options.help || typeof scriptReference !== 'string') {
+        dumpHelp();
         return;
     }
 
@@ -21,33 +23,54 @@ export async function serve(args: (string | number)[], options: Record<string, u
     if (verbose) {
         ModuleWatcher.VERBOSE = verbose;
     }
+
+    const scriptUrl = scriptReference.startsWith('https://') ? new URL(scriptReference) : undefined;
+    if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
+    const scriptName = scriptUrl ? undefined : scriptReference;
     
     // read the script-based cloudflare worker contents
     const config = await loadConfig();
-    const script = config.scripts[scriptName];
-    if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
-    const port = script.localPort || 8080;
-    const bindings = await resolveBindings(script.bindings, port);
+    let port = 8080;
+    let bindings: Record<string, Binding> = {};
+    let runInProcess = false;
+    let script: Script | undefined;
+    let localHostname: string | undefined;
+    if (scriptName) {
+        script = config.scripts[scriptName];
+        if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
+        if (script.localPort) port = script.localPort;
+        bindings = await resolveBindings(script.bindings, port);
+        runInProcess = !!script.localInProcess;
+        localHostname = script.localHostname;
+    } else {
+        if (typeof options.port === 'number') {
+            port = options.port;
+        }
+    }
     const credential = await resolveCredential(config);
 
-    const runInProcess = !!script.localInProcess;
     consoleLog(`runInProcess=${runInProcess}`);
 
-    const computeScriptContents = async (scriptPath: string, scriptType: 'module' | 'script'): Promise<Uint8Array> => {
-        if (scriptType === 'script') return await Deno.readFile(scriptPath);
+    const computeScriptContents = async (scriptPathOrModuleWorkerUrl: string, scriptType: 'module' | 'script'): Promise<Uint8Array> => {
+        if (scriptType === 'script') {
+            if (scriptPathOrModuleWorkerUrl.startsWith('https://')) throw new Error('Url-based script workers not supported yet');
+            return await Deno.readFile(scriptPathOrModuleWorkerUrl);
+        }
         const start = Date.now();
-        const result = await Deno.emit(scriptPath, {
+        const result = await Deno.emit(scriptPathOrModuleWorkerUrl, {
             bundle: 'module',
         });
         consoleLog(result);
         const workerJs = result.files['deno:///bundle.js'];
         const rt = new TextEncoder().encode(workerJs);
-        console.log(`Compiled ${scriptPath} into module contents in ${Date.now() - start}ms`);
+        console.log(`Compiled ${scriptPathOrModuleWorkerUrl} into module contents in ${Date.now() - start}ms`);
         return rt;
     }
 
+    const scriptPathOrUrl = scriptUrl ? scriptUrl.toString() : script!.path;
+
     const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
-        const scriptType = script.path.endsWith('.ts') ? 'module' : 'script';
+        const scriptType = scriptPathOrUrl.endsWith('.ts') ? 'module' : 'script';
         if (runInProcess) {
             const { accountId, apiToken } = credential;
             let objects: InProcessDurableObjects | undefined; 
@@ -65,16 +88,16 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 },
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
-            return await WorkerExecution.start(script.path, scriptType, bindings, callbacks);
+            return await WorkerExecution.start(scriptPathOrUrl, scriptType, bindings, callbacks);
         } else {
             // start the host for the permissionless deno workers
             const workerManager = await WorkerManager.start();
         
             // run the cloudflare worker script inside deno worker
             const runScript = async () => {
-                consoleLog(`runScript: ${script.path}`);
+                consoleLog(`runScript: ${scriptPathOrUrl}`);
 
-                const scriptContents = await computeScriptContents(script.path, scriptType);
+                const scriptContents = await computeScriptContents(scriptPathOrUrl, scriptType);
                 try {
                     await workerManager.run(scriptContents, scriptType, { bindings, credential });
                 } catch (e) {
@@ -84,8 +107,10 @@ export async function serve(args: (string | number)[], options: Record<string, u
             };
             await runScript();
         
-            // when the script changes, recreate the deno worker
-            const _moduleWatcher = new ModuleWatcher(script.path, runScript);
+            // when a file-based script changes, recreate the deno worker
+            if (script) {
+                const _moduleWatcher = new ModuleWatcher(scriptPathOrUrl, runScript);
+            }
             return workerManager;
         }
     }
@@ -121,7 +146,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         for await (const { request, respondWith } of httpConn) {
             try {
                 const cfConnectingIp = await computeExternalIp();
-                const hostname = script.localHostname;
+                const hostname = localHostname;
                 const upgrade = request.headers.get('upgrade') || undefined;
                 if (upgrade !== undefined) {
                     // websocket upgrade request
@@ -168,4 +193,29 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
 interface LocalRequestServer {
     fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response>;
+}
+
+//
+
+function dumpHelp() {
+    const lines = [
+        `denoflare-serve ${CLI_VERSION}`,
+        'Run a worker script on a local web server',
+        '',
+        'USAGE:',
+        '    denoflare serve [FLAGS] [OPTIONS] [--] [script-reference]',
+        '',
+        'FLAGS:',
+        '    -h, --help        Prints help information',
+        '        --verbose     Toggle verbose output (when applicable)',
+        '',
+        'OPTIONS:',
+        '        --port <number>     Local port to use for the http server (default: 8080)',
+        '',
+        'ARGS:',
+        '    <script-reference>    Name of script defined in .denoflare config, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
+    ];
+    for (const line of lines) {
+        console.log(line);
+    }
 }
