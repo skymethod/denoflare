@@ -2,10 +2,9 @@ import { serve } from './cli_serve.ts';
 import { tail } from './cli_tail.ts';
 import { push } from './cli_push.ts';
 import { tailweb } from './cli_tailweb.ts';
+import { parseFlags } from './deps_cli.ts';
 
-import { parse } from './deps_cli.ts';
-
-const args = parse(Deno.args);
+const args = parseFlags(Deno.args);
 // console.log(args);
 
 if (args._.length > 0) {

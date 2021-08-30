@@ -1,7 +1,15 @@
 import { Binding, Config, Credential, isSecretBinding, isTextBinding } from '../common/config.ts';
+import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 
 export async function loadConfig(): Promise<Config> {
-    const config = JSON.parse(await Deno.readTextFile(`${Deno.env.get('HOME')}/.denoflare`));
+    const path = `${Deno.env.get('HOME')}/.denoflare`;
+    const errors: ParseError[] = [];
+    const options: ParseOptions = { allowTrailingComma: true, disallowComments: false };
+    const jsonc = await Deno.readTextFile(path);
+    const config = parseJsonc(jsonc, errors, options);
+    if (errors.length > 0) {
+        throw new Error(`Error${errors.length > 1 ? 's' : ''} parsing config: ${path} ${errors.map(v => `(${formatParseError(v, jsonc)})`).join(' ')}`);
+    }
     return config as Config;
 }
 
