@@ -22,16 +22,18 @@ export function isDONamespaceBinding(binding: Binding): binding is DONamespaceBi
 //
 
 export interface Config {
-    readonly scripts: Record<string, Script>;
-    readonly credentials: Record<string, Credential>;
+    readonly scripts?: Record<string, Script>;
+    readonly profiles?: Record<string, Profile>;
 }
+
+export type Isolation = 'none' | 'isolate';
 
 export interface Script {
     readonly path: string;
     readonly bindings: Record<string, Binding>;
     readonly localPort?: number;
     readonly localHostname?: string;
-    readonly localInProcess?: boolean;
+    readonly localIsolation?: Isolation;
 }
 
 export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding;
@@ -52,7 +54,7 @@ export interface DONamespaceBinding {
     doNamespace: string;
 }
 
-export interface Credential {
+export interface Profile {
     readonly accountId: string;
     readonly apiToken: string;
 }

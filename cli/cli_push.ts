@@ -1,4 +1,4 @@
-import { loadConfig, resolveCredential } from './config_loader.ts';
+import { loadConfig, resolveProfile } from './config_loader.ts';
 import { basename, extname, gzip } from './deps_cli.ts';
 import { putScript } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
@@ -15,7 +15,7 @@ export async function push(args: (string | number)[], options: Record<string, un
 
     const config = await loadConfig();
     const { scriptName, rootSpecifier } = computeContentsForScriptReference(scriptReference, config, nameFromOptions);
-    const { accountId, apiToken } = await resolveCredential(config);
+    const { accountId, apiToken } = await resolveProfile(config);
     
     console.log(`bundling ${scriptName} into bundle.js...`);
     let start = Date.now();
@@ -48,7 +48,7 @@ function computeContentsForScriptReference(scriptReference: string, config: Conf
         const rootSpecifier = scriptReference;
         return { scriptName, rootSpecifier };
     } else {
-        const script = config.scripts[scriptReference];
+        const script = config.scripts && config.scripts[scriptReference];
         if (script === undefined) throw new Error(`Script '${scriptReference}' not found in config`);
         const scriptName = nameFromOptions || scriptReference;
         const rootSpecifier = script.path;

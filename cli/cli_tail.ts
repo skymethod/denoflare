@@ -1,5 +1,5 @@
 import { createTail, sendTailHeartbeat } from '../common/cloudflare_api.ts';
-import { loadConfig, resolveCredential } from './config_loader.ts';
+import { loadConfig, resolveProfile } from './config_loader.ts';
 import { isTailMessageCronEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage } from '../common/tail.ts';
 import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
@@ -17,7 +17,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
     const filters = computeFiltersFromOptions(options);
     const once = !!options.once;
     const config = await loadConfig();
-    const { accountId, apiToken } = await resolveCredential(config);
+    const { accountId, apiToken } = await resolveProfile(config);
     
     if (format !== 'json') console.log('creating tail...');
     const tail = await createTail(accountId, scriptName, apiToken);

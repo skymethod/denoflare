@@ -1,16 +1,21 @@
-import { Binding, Config, Credential, isSecretBinding, isTextBinding } from '../common/config.ts';
+import { Binding, Config, isSecretBinding, isTextBinding, Profile } from '../common/config.ts';
+import { checkConfig } from '../common/config_validation.ts';
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 
 export async function loadConfig(): Promise<Config> {
     const path = `${Deno.env.get('HOME')}/.denoflare`;
     const errors: ParseError[] = [];
     const options: ParseOptions = { allowTrailingComma: true, disallowComments: false };
-    const jsonc = await Deno.readTextFile(path);
-    const config = parseJsonc(jsonc, errors, options);
-    if (errors.length > 0) {
-        throw new Error(`Error${errors.length > 1 ? 's' : ''} parsing config: ${path} ${errors.map(v => `(${formatParseError(v, jsonc)})`).join(' ')}`);
+    try {
+        const jsonc = await Deno.readTextFile(path);
+        const config = parseJsonc(jsonc, errors, options);
+        if (errors.length > 0) {
+            throw new Error(`Invalid json, error${errors.length > 1 ? 's' : ''}=${errors.map(v => `(${formatParseError(v, jsonc)})`).join(' ')}`);
+        }
+        return checkConfig(config);
+    } catch (e) {
+        throw new Error(`Error loading config (path=${path}): ${e.message || e}`);
     }
-    return config as Config;
 }
 
 export async function resolveBindings(bindings: Record<string, Binding>, localPort: number): Promise<Record<string, Binding>> {
@@ -35,12 +40,12 @@ export async function resolveBinding(binding: Binding, localPort: number): Promi
     return binding;
 }
 
-export async function resolveCredential(config: Config): Promise<Credential> {
-    const entries = [...Object.entries(config.credentials)];
-    if (entries.length !== 1) throw new Error(`Unable to resolve credential, found ${entries.length} credentials`);
-    const credential = entries[0][1];
-    const accountId = await resolveString(credential.accountId);
-    const apiToken = await resolveString(credential.apiToken);
+export async function resolveProfile(config: Config): Promise<Profile> {
+    const profiles = config.profiles !== undefined ? [...Object.entries(config.profiles)] : [];
+    if (profiles.length !== 1) throw new Error(`Unable to resolve profile, found ${profiles.length} profiles`);
+    const profile = profiles[0][1];
+    const accountId = await resolveString(profile.accountId);
+    const apiToken = await resolveString(profile.apiToken);
     return { accountId, apiToken };
 }
 

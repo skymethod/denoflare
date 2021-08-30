@@ -1,5 +1,5 @@
 import { ApiKVNamespace } from './api_kv_namespace.ts';
-import { Credential, Binding } from '../common/config.ts';
+import { Profile, Binding } from '../common/config.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from '../common/rpc_fetch.ts';
@@ -33,8 +33,8 @@ export class WorkerManager {
         return new WorkerManager(workerUrl);
     }
 
-    async run(scriptContents: Uint8Array, scriptType: 'module' | 'script', opts: { bindings: Record<string, Binding>, credential: Credential }): Promise<void> {
-        const { bindings, credential } = opts;
+    async run(scriptContents: Uint8Array, scriptType: 'module' | 'script', opts: { bindings: Record<string, Binding>, profile: Profile }): Promise<void> {
+        const { bindings, profile } = opts;
 
         if (this.currentWorker) {
             this.currentWorker.worker.terminate();
@@ -62,7 +62,7 @@ export class WorkerManager {
         addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
 
         // handle rpc kv requests, forward to cloudflare api
-        const { accountId, apiToken } = credential;
+        const { accountId, apiToken } = profile;
         addRequestHandlerForRpcKvNamespace(rpcChannel, kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace));
 
         // run the script in the deno worker

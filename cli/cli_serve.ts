@@ -1,4 +1,4 @@
-import { loadConfig, resolveBindings, resolveCredential } from './config_loader.ts';
+import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
 import { InProcessDurableObjects } from '../common/in_process_durable_objects.ts';
@@ -10,7 +10,7 @@ import { makeIncomingRequestCfProperties } from '../common/incoming_request_cf_p
 import { UnimplementedDurableObjectNamespace } from '../common/unimplemented_cloudflare_stubs.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { Binding, Script } from '../common/config.ts';
+import { Binding, Isolation, Script } from '../common/config.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
     const scriptReference = args[0];
@@ -32,24 +32,24 @@ export async function serve(args: (string | number)[], options: Record<string, u
     const config = await loadConfig();
     let port = 8080;
     let bindings: Record<string, Binding> = {};
-    let runInProcess = false;
+    let isolation: Isolation = 'isolate';
     let script: Script | undefined;
     let localHostname: string | undefined;
     if (scriptName) {
-        script = config.scripts[scriptName];
+        script = config.scripts && config.scripts[scriptName];
         if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
         if (script.localPort) port = script.localPort;
         bindings = await resolveBindings(script.bindings, port);
-        runInProcess = !!script.localInProcess;
+        isolation = script.localIsolation || isolation;
         localHostname = script.localHostname;
     } else {
         if (typeof options.port === 'number') {
             port = options.port;
         }
     }
-    const credential = await resolveCredential(config);
+    const profile = await resolveProfile(config);
 
-    consoleLog(`runInProcess=${runInProcess}`);
+    consoleLog(`isolation=${isolation}`);
 
     const computeScriptContents = async (scriptPathOrModuleWorkerUrl: string, scriptType: 'module' | 'script'): Promise<Uint8Array> => {
         if (scriptType === 'script') {
@@ -71,8 +71,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
     const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
         const scriptType = scriptPathOrUrl.endsWith('.ts') ? 'module' : 'script';
-        if (runInProcess) {
-            const { accountId, apiToken } = credential;
+        if (isolation === 'none') {
+            const { accountId, apiToken } = profile;
             let objects: InProcessDurableObjects | undefined; 
             const callbacks: WorkerExecutionCallbacks = {
                 onModuleWorkerInfo: moduleWorkerInfo => { 
@@ -99,7 +99,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
                 const scriptContents = await computeScriptContents(scriptPathOrUrl, scriptType);
                 try {
-                    await workerManager.run(scriptContents, scriptType, { bindings, credential });
+                    await workerManager.run(scriptContents, scriptType, { bindings, profile });
                 } catch (e) {
                     consoleError('Error running script', e);
                     Deno.exit(1);
