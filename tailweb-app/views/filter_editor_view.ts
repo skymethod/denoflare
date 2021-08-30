@@ -100,7 +100,7 @@ export function initFilterEditor(document: HTMLDocument, vm: TailwebAppVM): () =
 
     return () => {
         const wasHidden = filterForm.style.display === 'none';
-        filterForm.style.display = vm.filterForm.showing ? 'grid' : 'none';
+        filterForm.style.display = vm.filterForm.showing ? 'block' : 'none';
         filterFieldset.disabled = !vm.filterForm.enabled;
 
         const type = computeType(vm);

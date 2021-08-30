@@ -7,7 +7,7 @@ import { TailwebAppVM } from '../tailweb_app_vm.ts';
 export const PROFILE_EDITOR_HTML = html`
 <form id="profile-form" autocomplete="off">
 <fieldset id="profile-fieldset">
-  <div id="profile-form-title" class="h6 high-emphasis-text">Profile</div>
+  <div id="profile-form-title" class="h6 high-emphasis-text form-row">Profile</div>
 
   <label for="profile-name">Profile name:</label>
   <input id="profile-name" type="text">
@@ -138,7 +138,7 @@ export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () 
 
     return () => {
         const wasHidden = profileForm.style.display === 'none';
-        profileForm.style.display = vm.profileForm.showing ? 'grid' : 'none';
+        profileForm.style.display = vm.profileForm.showing ? 'block' : 'none';
         profileFieldset.disabled = !vm.profileForm.enabled;
         profileFormTitleDiv.textContent = vm.profileForm.title;
         profileNameInput.value = vm.profileForm.name;

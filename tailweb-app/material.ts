@@ -158,7 +158,6 @@ fieldset {
 
 label {
     grid-column: 1;
-    /* background-color: red; */
     padding: 0.5rem 0;
 }
 
@@ -168,6 +167,7 @@ label {
 
 input, .form-rhs {
     grid-column: 2;
+    min-width: 0;
 }
 
 .form-row {

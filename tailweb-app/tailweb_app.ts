@@ -32,6 +32,16 @@ main {
 :root {
     --pure-material-primary-rgb: rgb(187, 134, 252);
 }
+
+.hidden-vertical-scroll {
+    scrollbar-width: none; -ms-overflow-style: none;
+    overflow-y: scroll;
+}
+
+.hidden-vertical-scroll::-webkit-scrollbar {
+    display: none; /* for Chrome, Safari, and Opera */
+}
+
 `;
 
 const appHtml = html`

@@ -52,13 +52,7 @@ export const SIDEBAR_CSS = css`
 }
 
 #scripts-scroller {
-    scrollbar-width: none; -ms-overflow-style: none;
-    overflow-y: scroll;
     height: calc(100vh - 18rem);
-}
-
-#scripts-scroller::-webkit-scrollbar {
-    display: none; /* for Chrome, Safari, and Opera */
 }
 
 `;
@@ -94,7 +88,7 @@ const PROFILES_HTML = (vm: TailwebAppVM) => html`
 
 const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Scripts</div>
-    <div id="scripts-scroller">
+    <div id="scripts-scroller" class="hidden-vertical-scroll">
         <div class="button-grid">
             ${vm.scripts.map(script => html`<button class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" @click=${(e: MouseEvent) => handleScriptClick(e, script.id, vm)} ?disabled="${vm.profileForm.showing}">${script.text}</button>
             `)}

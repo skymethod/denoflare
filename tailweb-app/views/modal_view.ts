@@ -7,7 +7,7 @@ import { initProfileEditor, PROFILE_EDITOR_HTML } from './profile_editor_view.ts
 import { initWelcomePanel, WELCOME_PANEL_HTML } from './welcome_panel.ts';
 
 export const MODAL_HTML = html`
-<div id="modal" class="modal">
+<div id="modal" class="modal hidden-vertical-scroll">
     <div class="modal-content">
     ${WELCOME_PANEL_HTML}
     ${PROFILE_EDITOR_HTML}
@@ -25,7 +25,6 @@ export const MODAL_CSS = css`
     top: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden;
     background-color: rgba(0, 0, 0, 0.4);
 }
 
@@ -35,6 +34,14 @@ export const MODAL_CSS = css`
     max-width: 40rem;
     background-color: var(--background-color);
 }
+
+@media screen and (max-width: 600px) {
+    .modal-content {
+        margin: 10% 0;
+        width: 100%;
+    }
+}
+
 `;
 
 export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void {
