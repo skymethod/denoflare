@@ -30,7 +30,7 @@ export const MODAL_CSS = css`
 }
 
 .modal-content {
-    margin: 15% auto;
+    margin: 10% auto;
     width: 80%;
     max-width: 40rem;
     background-color: var(--background-color);
