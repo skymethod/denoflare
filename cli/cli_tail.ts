@@ -17,7 +17,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
     const filters = computeFiltersFromOptions(options);
     const once = !!options.once;
     const config = await loadConfig();
-    const { accountId, apiToken } = await resolveProfile(config);
+    const { accountId, apiToken } = await resolveProfile(config, options);
     
     if (format !== 'json') console.log('creating tail...');
     const tail = await createTail(accountId, scriptName, apiToken);
@@ -205,6 +205,7 @@ function dumpHelp() {
         '        --sampling-rate <sampling-rate>     Adds a sampling rate (0.01 for 1%) [default: 1]',
         '        --search <search>                   Filter by a text match in console.log messages',
         '        --status <status>...                Filter by invocation status [possible values: ok, error, canceled]',
+        '        --profile <name>                    Explicit name of profile to load from config',
         '',
         'ARGS:',
         '    <name>    Name of the worker to tail',

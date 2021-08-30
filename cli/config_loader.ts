@@ -1,5 +1,5 @@
 import { Binding, Config, isSecretBinding, isTextBinding, Profile } from '../common/config.ts';
-import { checkConfig } from '../common/config_validation.ts';
+import { checkConfig, isValidProfileName } from '../common/config_validation.ts';
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 
 export async function loadConfig(): Promise<Config> {
@@ -40,16 +40,31 @@ export async function resolveBinding(binding: Binding, localPort: number): Promi
     return binding;
 }
 
-export async function resolveProfile(config: Config): Promise<Profile> {
-    const profiles = config.profiles !== undefined ? [...Object.entries(config.profiles)] : [];
-    if (profiles.length !== 1) throw new Error(`Unable to resolve profile, found ${profiles.length} profiles`);
-    const profile = profiles[0][1];
+export async function resolveProfile(config: Config, options: Record<string, unknown>): Promise<Profile> {
+    const profile = findProfile(config, options);
     const accountId = await resolveString(profile.accountId);
     const apiToken = await resolveString(profile.apiToken);
     return { accountId, apiToken };
 }
 
 //
+
+function findProfile(config: Config, options: Record<string, unknown>): Profile {
+    const profiles = config.profiles || {};
+    const { profile: optionProfileName } = options;
+    if (optionProfileName !== undefined) {
+        if (typeof optionProfileName !== 'string' || !isValidProfileName(optionProfileName)) throw new Error(`Bad profile name: ${optionProfileName}`);
+        const optionProfile = profiles[optionProfileName];
+        if (!optionProfile) throw new Error(`Unable to find profile ${optionProfileName} in config`);
+        return optionProfile;
+    }
+    const profilesArr = Object.values(profiles);
+    if (profilesArr.length == 0) throw new Error(`Unable to find profile, no profiles in config`);
+    const defaultProfiles = profilesArr.filter(v => v.default);
+    if (defaultProfiles.length === 1) return defaultProfiles[0];
+    if (profilesArr.length === 1) return profilesArr[0];
+    throw new Error(`Unable to find profile, ${profilesArr.length} profiles in config`);
+}
 
 async function resolveString(string: string): Promise<string> {
     if (string.startsWith('regex:')) {

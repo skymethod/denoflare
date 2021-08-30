@@ -47,7 +47,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             port = options.port;
         }
     }
-    const profile = await resolveProfile(config);
+    const profile = await resolveProfile(config, options);
 
     consoleLog(`isolation=${isolation}`);
 
@@ -211,6 +211,7 @@ function dumpHelp() {
         '',
         'OPTIONS:',
         '        --port <number>     Local port to use for the http server (default: 8080)',
+        '        --profile <name>    Explicit name of profile to load from config',
         '',
         'ARGS:',
         '    <script-reference>    Name of script defined in .denoflare config, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',

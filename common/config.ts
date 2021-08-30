@@ -34,6 +34,7 @@ export interface Script {
     readonly localPort?: number;
     readonly localHostname?: string;
     readonly localIsolation?: Isolation;
+    readonly profile?: string;
 }
 
 export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding;
@@ -57,4 +58,5 @@ export interface DONamespaceBinding {
 export interface Profile {
     readonly accountId: string;
     readonly apiToken: string;
+    readonly default?: boolean;
 }
