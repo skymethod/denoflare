@@ -99,26 +99,23 @@ const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
         `)}
     </div>
     <div class="button-grid">
-        <div class="caption medium-emphasis-text hint">${computeMetaKeyChar()}-click to multiselect</div>
+        <div class="caption medium-emphasis-text hint">${computeMultiselectKeyChar()}-click to multiselect</div>
     </div>
 `;
 
-function computeMetaKeyChar() {
-    return isMacintosh() ? '⌘' : isWindows() ? '⊞' : 'meta';
+function computeMultiselectKeyChar() {
+    return isMacintosh() ? '⌘' : 'ctrl';
 }
 
 function isMacintosh() {
     return navigator.platform.indexOf('Mac') > -1;
 }
 
-function isWindows() {
-    return navigator.platform.indexOf('Win') > -1;
-}
-
 function handleScriptClick(e: MouseEvent, scriptId: string, vm: TailwebAppVM) {
     e.preventDefault();
     const newScriptIds = new Set([scriptId]);
-    vm.selectedScriptIds = e.metaKey
+    const multi = isMacintosh() ? e.metaKey : e.ctrlKey;
+    vm.selectedScriptIds = multi
         ? (vm.selectedScriptIds.has(scriptId) ? setSubtract(vm.selectedScriptIds, newScriptIds) : setUnion(vm.selectedScriptIds, newScriptIds))
         : newScriptIds;
 }
