@@ -30,7 +30,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         throw new Error('bundle failed');
     }
 
-    const bindings = script ? computeBindings(script) : [];
+    const bindings = script ? await computeBindings(script) : [];
     const scriptContentsStr = result.files['deno:///bundle.js'];
     if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
     const scriptContents = new TextEncoder().encode(scriptContentsStr);
@@ -44,8 +44,8 @@ export async function push(args: (string | number)[], options: Record<string, un
 
 //
 
-function computeBindings(script: Script): ApiBinding[] {
-    const resolvedBindings = resolveBindings(script.bindings || {}, undefined);
+async function computeBindings(script: Script): Promise<ApiBinding[]> {
+    const resolvedBindings = await resolveBindings(script.bindings || {}, undefined);
     const rt: ApiBinding[] = [];
     for (const [name, binding] of Object.entries(resolvedBindings)) {
         rt.push(computeBinding(name, binding));
