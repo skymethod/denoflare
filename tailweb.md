@@ -2,7 +2,7 @@
 
 https://tail.denoflare.dev
 
-View real-time requests and logs from Cloudflare Workers from the comfort of your browser. 
+View live requests and logs from Cloudflare Workers from the comfort of your browser. 
 A few enhancements over what's provided by default in the Cloudflare dashboard:
 
 - Tail multiple workers at the same time
@@ -10,7 +10,7 @@ A few enhancements over what's provided by default in the Cloudflare dashboard:
 - Durable object class/name/id and colo information can be surfaced with logprops
 - Multiple profiles, switch easily between multiple accounts
 - No need to log in with your full Cloudflare credentials. Profiles are stored locally in the browser, and can be permissioned only for tailing workers
-- Implemented as a standard open source Cloudflare Worker, deploy it to your own account, or host it locally with denoflare
+- Implemented as an open-source Cloudflare Worker, deploy it to your own account, or host it locally with `denoflare`
 
 ## logprops
 Enhance the tail output by including additional information about each request!
