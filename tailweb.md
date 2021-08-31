@@ -31,3 +31,11 @@ Currently, tailweb surfaces the following properties in its tail output, if prov
  - `durableObjectClass`: name of the current Durable Object class, e.g. `MyCounterDO`
  - `durableObjectId`: hex id of the current Durable Object instance, available via `state.id` e.g. `538fc7ce55b14e53b6b8552befeb9af4`
  - `durableObjectName`: name used in the `idFromName` call, you need to pass this down yourself in each DO `fetch` call
+
+## Deploy it to your own account
+
+Since it is a standard module-based Cloudflare Worker, you can deploy it like any other worker with `denoflare`:
+
+```sh
+denoflare push --name tail https://raw.githubusercontent.com/skymethod/denoflare/0.1.0/tailweb-worker/tailweb_worker.ts
+```
