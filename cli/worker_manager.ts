@@ -7,7 +7,6 @@ import { addRequestHandlerForRpcKvNamespace } from '../common/rpc_kv_namespace.t
 import { runScript, WorkerFetch } from '../common/rpc_script.ts';
 import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
 
-
 export class WorkerManager {
     private readonly workerUrl: string;
 
@@ -19,10 +18,9 @@ export class WorkerManager {
 
     static async start(): Promise<WorkerManager> {
         // compile the permissionless deno worker (once)
-        const thisPath = import.meta.url.startsWith('https://') ? import.meta.url : fromFileUrl(import.meta.url);
-        const denoflareCliPath = dirname(thisPath);
-        const webworkerPath = resolve(denoflareCliPath, '..', 'cli-webworker', 'worker.ts');
-        const result = await Deno.emit(webworkerPath, {
+       
+        const webworkerRootSpecifier = computeWebworkerRootSpecifier();
+        const result = await Deno.emit(webworkerRootSpecifier, {
             bundle: 'module',
         });
         consoleLog(result);
@@ -86,6 +84,23 @@ export class WorkerManager {
         return res;
     }
 
+}
+
+//
+
+function computeWebworkerRootSpecifier() {
+    if (import.meta.url.startsWith('https://')) {
+        const url = new URL(import.meta.url);
+        const tokens = url.pathname.split('/');
+        tokens.splice(tokens.length - 2);
+        tokens.push('cli-webworker', 'worker.ts');
+        url.pathname = tokens.join('');
+        return url.toString();
+    } else {
+        const thisPath = fromFileUrl(import.meta.url);
+        const denoflareCliPath = dirname(thisPath);
+        return resolve(denoflareCliPath, '..', 'cli-webworker', 'worker.ts');
+    }
 }
 
 //
