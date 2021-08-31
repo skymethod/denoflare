@@ -94,7 +94,7 @@ function computeWebworkerRootSpecifier() {
         const tokens = url.pathname.split('/');
         tokens.splice(tokens.length - 2);
         tokens.push('cli-webworker', 'worker.ts');
-        url.pathname = tokens.join('');
+        url.pathname = tokens.join('/');
         return url.toString();
     } else {
         const thisPath = fromFileUrl(import.meta.url);
