@@ -19,7 +19,7 @@ export class WorkerManager {
 
     static async start(): Promise<WorkerManager> {
         // compile the permissionless deno worker (once)
-        const thisPath = fromFileUrl(import.meta.url);
+        const thisPath = import.meta.url.startsWith('https://') ? import.meta.url : fromFileUrl(import.meta.url);
         const denoflareCliPath = dirname(thisPath);
         const webworkerPath = resolve(denoflareCliPath, '..', 'cli-webworker', 'worker.ts');
         const result = await Deno.emit(webworkerPath, {
