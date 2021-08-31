@@ -1,20 +1,22 @@
 import { loadConfig, resolveProfile } from './config_loader.ts';
-import { basename, extname, gzip } from './deps_cli.ts';
+import { gzip } from './deps_cli.ts';
 import { putScript } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { Config } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
+import { isValidScriptName } from '../common/config_validation.ts';
+import { computeContentsForScriptReference } from './cli_common.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
-    const scriptReference = args[0];
-    if (options.help || typeof scriptReference !== 'string') {
+    const scriptSpec = args[0];
+    if (options.help || typeof scriptSpec !== 'string') {
         dumpHelp();
         return;
     }
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
 
     const config = await loadConfig(options);
-    const { scriptName, rootSpecifier } = computeContentsForScriptReference(scriptReference, config, nameFromOptions);
+    const { scriptName, rootSpecifier } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
+    if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
     
     console.log(`bundling ${scriptName} into bundle.js...`);
@@ -40,29 +42,13 @@ export async function push(args: (string | number)[], options: Record<string, un
 
 //
 
-function computeContentsForScriptReference(scriptReference: string, config: Config, nameFromOptions?: string): { scriptName: string, rootSpecifier: string } {
-    if (scriptReference.startsWith('https://')) {
-        const base = basename(scriptReference);
-        const ext = extname(scriptReference);
-        const scriptName = nameFromOptions || (base.endsWith(ext) ? base.substring(0, base.length - ext.length) : base);
-        const rootSpecifier = scriptReference;
-        return { scriptName, rootSpecifier };
-    } else {
-        const script = config.scripts && config.scripts[scriptReference];
-        if (script === undefined) throw new Error(`Script '${scriptReference}' not found in config`);
-        const scriptName = nameFromOptions || scriptReference;
-        const rootSpecifier = script.path;
-        return { scriptName, rootSpecifier };
-    }
-}
-
 function dumpHelp() {
     const lines = [
         `denoflare-push ${CLI_VERSION}`,
         'Upload a worker script to Cloudflare Workers',
         '',
         'USAGE:',
-        '    denoflare push [FLAGS] [OPTIONS] [--] [script-reference]',
+        '    denoflare push [FLAGS] [OPTIONS] [--] [script-spec]',
         '',
         'FLAGS:',
         '    -h, --help        Prints help information',
@@ -74,7 +60,7 @@ function dumpHelp() {
         '        --config <path>      Path to config file (default: .denoflare in cwd or parents)',
         '',
         'ARGS:',
-        '    <script-reference>    Name of script defined in .denoflare config, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
+        '    <script-spec>    Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
     ];
     for (const line of lines) {
         console.log(line);

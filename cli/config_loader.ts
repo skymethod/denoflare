@@ -2,6 +2,7 @@ import { Binding, Config, isSecretBinding, isTextBinding, Profile } from '../com
 import { checkConfig, isValidProfileName } from '../common/config_validation.ts';
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 import { join, resolve } from './deps_cli.ts';
+import { fileExists } from './fs_util.ts';
 
 export async function loadConfig(options: Record<string, unknown>): Promise<Config> {
     const verbose = !!options.verbose;
@@ -79,15 +80,8 @@ async function findConfigFilePath(): Promise<string | undefined> {
     let dir = Deno.cwd();
     while (true) {
         const filePath = join(dir, CONFIG_FILE_NAME);
-        try {
-            const info = await Deno.stat(filePath);
-            if (info.isFile) return filePath;
-        } catch (e) {
-            if (e instanceof Deno.errors.NotFound) {
-                // continue;
-            } else {
-                throw e;
-            }
+        if (await fileExists(filePath)) {
+            return filePath;
         }
         const parentDir = resolve(dir, '..');
         if (parentDir === dir) {

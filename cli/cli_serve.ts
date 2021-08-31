@@ -11,10 +11,12 @@ import { UnimplementedDurableObjectNamespace } from '../common/unimplemented_clo
 import { ModuleWatcher } from './module_watcher.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Binding, Isolation, Script } from '../common/config.ts';
+import { computeContentsForScriptReference } from './cli_common.ts';
+import { isValidScriptName } from '../common/config_validation.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
-    const scriptReference = args[0];
-    if (options.help || typeof scriptReference !== 'string') {
+    const scriptSpec = args[0];
+    if (options.help || typeof scriptSpec !== 'string') {
         dumpHelp();
         return;
     }
@@ -24,18 +26,20 @@ export async function serve(args: (string | number)[], options: Record<string, u
         ModuleWatcher.VERBOSE = verbose;
     }
 
-    const scriptUrl = scriptReference.startsWith('https://') ? new URL(scriptReference) : undefined;
+    const config = await loadConfig(options);
+    const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
+    const { scriptName, rootSpecifier } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
+ 
+    const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
     if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
-    const scriptName = scriptUrl ? undefined : scriptReference;
     
     // read the script-based cloudflare worker contents
-    const config = await loadConfig(options);
     let port = 8080;
     let bindings: Record<string, Binding> = {};
     let isolation: Isolation = 'isolate';
     let script: Script | undefined;
     let localHostname: string | undefined;
-    if (scriptName) {
+    if (isValidScriptName(scriptSpec)) {
         script = config.scripts && config.scripts[scriptName];
         if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
         if (script.localPort) port = script.localPort;
@@ -203,7 +207,7 @@ function dumpHelp() {
         'Run a worker script on a local web server',
         '',
         'USAGE:',
-        '    denoflare serve [FLAGS] [OPTIONS] [--] [script-reference]',
+        '    denoflare serve [FLAGS] [OPTIONS] [--] [script-spec]',
         '',
         'FLAGS:',
         '    -h, --help        Prints help information',
@@ -215,7 +219,7 @@ function dumpHelp() {
         '        --config <path>     Path to config file (default: .denoflare in cwd or parents)',
         '',
         'ARGS:',
-        '    <script-reference>    Name of script defined in .denoflare config, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
+        '    <script-spec>    Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
     ];
     for (const line of lines) {
         console.log(line);
