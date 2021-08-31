@@ -30,7 +30,7 @@ export type Isolation = 'none' | 'isolate';
 
 export interface Script {
     readonly path: string;
-    readonly bindings: Record<string, Binding>;
+    readonly bindings?: Record<string, Binding>;
     readonly localPort?: number;
     readonly localHostname?: string;
     readonly localIsolation?: Isolation;

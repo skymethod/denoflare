@@ -1,10 +1,11 @@
-import { loadConfig, resolveProfile } from './config_loader.ts';
+import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip } from './deps_cli.ts';
-import { putScript } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { computeContentsForScriptReference } from './cli_common.ts';
+import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding } from '../common/config.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
     const scriptSpec = args[0];
@@ -15,7 +16,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
 
     const config = await loadConfig(options);
-    const { scriptName, rootSpecifier } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
+    const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
     
@@ -29,6 +30,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         throw new Error('bundle failed');
     }
 
+    const bindings = script ? computeBindings(script) : [];
     const scriptContentsStr = result.files['deno:///bundle.js'];
     if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
     const scriptContents = new TextEncoder().encode(scriptContentsStr);
@@ -36,11 +38,34 @@ export async function push(args: (string | number)[], options: Record<string, un
 
     console.log(`putting script ${scriptName}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
     start = Date.now();
-    await putScript(accountId, scriptName, scriptContents, [], apiToken);
+    await putScript(accountId, scriptName, scriptContents, bindings, apiToken);
     console.log(`put script ${scriptName} in ${Date.now() - start}ms`);
 }
 
 //
+
+function computeBindings(script: Script): ApiBinding[] {
+    const resolvedBindings = resolveBindings(script.bindings || {}, undefined);
+    const rt: ApiBinding[] = [];
+    for (const [name, binding] of Object.entries(resolvedBindings)) {
+        rt.push(computeBinding(name, binding));
+    }
+    return rt;
+}
+
+function computeBinding(name: string, binding: Binding): ApiBinding {
+    if (isTextBinding(binding)) {
+        return { type: 'plain_text', name, text: binding.value };
+    } else if (isSecretBinding(binding)) {
+        return { type: 'secret_text', name, text: binding.secret };
+    } else if (isKVNamespaceBinding(binding)) {
+        return { type: 'kv_namespace', name, namespace_id: binding.kvNamespace };
+    } else if (isDONamespaceBinding(binding)) {
+        return { type: 'durable_object_namespace', name, namespace_id: binding.doNamespace };
+    } else {
+        throw new Error(`Unsupported binding ${name}: ${binding}`);
+    }
+}
 
 function dumpHelp() {
     const lines = [

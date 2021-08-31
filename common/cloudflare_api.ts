@@ -179,7 +179,25 @@ export class CloudflareApiError extends Error {
     }
 }
 
-export type Binding = DurableObjectNamespaceBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding;
+
+export interface PlainTextBinding {
+    readonly type: 'plain_text';
+    readonly name: string;
+    readonly text: string;
+}
+
+export interface SecretTextBinding {
+    readonly type: 'secret_text';
+    readonly name: string;
+    readonly text: string;
+}
+
+export interface KvNamespaceBinding {
+    readonly type: 'kv_namespace';
+    readonly name: string;
+    readonly 'namespace_id': string;
+}
 
 export interface DurableObjectNamespaceBinding {
     readonly type: 'durable_object_namespace';

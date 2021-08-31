@@ -43,7 +43,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         script = config.scripts && config.scripts[scriptName];
         if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
         if (script.localPort) port = script.localPort;
-        bindings = await resolveBindings(script.bindings, port);
+        bindings = await resolveBindings(script.bindings || {}, port);
         isolation = script.localIsolation || isolation;
         localHostname = script.localHostname;
     } else {

@@ -28,7 +28,7 @@ export async function loadConfig(options: Record<string, unknown>): Promise<Conf
     return config;
 }
 
-export async function resolveBindings(bindings: Record<string, Binding>, localPort: number): Promise<Record<string, Binding>> {
+export async function resolveBindings(bindings: Record<string, Binding>, localPort: number | undefined): Promise<Record<string, Binding>> {
     const rt: Record<string, Binding> = {};
     for (const [name, binding] of Object.entries(bindings || {})) {
         rt[name] = await resolveBinding(binding, localPort);
@@ -36,7 +36,7 @@ export async function resolveBindings(bindings: Record<string, Binding>, localPo
     return rt;
 }
 
-export async function resolveBinding(binding: Binding, localPort: number): Promise<Binding> {
+export async function resolveBinding(binding: Binding, localPort: number | undefined): Promise<Binding> {
     if (isSecretBinding(binding)) {
         const m = /^aws:(.*?)$/.exec(binding.secret);
         if (m) {
@@ -44,7 +44,12 @@ export async function resolveBinding(binding: Binding, localPort: number): Promi
             return { secret: `${creds.accessKeyId}:${creds.secretAccessKey}` };
         }
     } else if (isTextBinding(binding)) {
-        const value = binding.value.replaceAll('${localPort}', localPort.toString());
+        let value = binding.value;
+        if (localPort === undefined) {
+            if (binding.value.includes('${localPort}')) throw new Error(`Cannot resolve: localPort`);
+        } else {
+            value = binding.value.replaceAll('${localPort}', localPort.toString());
+        }
         return { value };
     }
     return binding;

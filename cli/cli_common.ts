@@ -1,15 +1,15 @@
-import { Config } from '../common/config.ts';
+import { Config, Script } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { basename, extname } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 
-export async function computeContentsForScriptReference(scriptSpec: string, config: Config, nameFromOptions?: string): Promise<{ scriptName: string, rootSpecifier: string }> {
+export async function computeContentsForScriptReference(scriptSpec: string, config: Config, nameFromOptions?: string): Promise<{ scriptName: string, rootSpecifier: string, script?: Script }> {
     if (isValidScriptName(scriptSpec)) {
         const script = config.scripts && config.scripts[scriptSpec];
         if (script === undefined) throw new Error(`Script '${scriptSpec}' not found in config`);
         const scriptName = nameFromOptions || scriptSpec;
         const rootSpecifier = script.path;
-        return { scriptName, rootSpecifier };
+        return { scriptName, rootSpecifier, script };
     } else if (scriptSpec.startsWith('https://') || await fileExists(scriptSpec)) {
         const scriptName = nameFromOptions || computeScriptNameFromPath(scriptSpec);
         const rootSpecifier = scriptSpec;
