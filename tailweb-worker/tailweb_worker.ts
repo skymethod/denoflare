@@ -39,6 +39,9 @@ export default {
         } else if (url.pathname === TWITTER_IMAGE_JPG_PATHNAME) {
             const headers = computeHeaders('image/jpeg', { immutable: true });
             return new Response(Bytes.ofBase64(TWITTER_IMAGE_JPG_B64).array(), { headers });
+        } else if (url.pathname === '/robots.txt') {
+            const headers = computeHeaders('text/plain; charset=utf-8', { immutable: false });
+            return new Response('User-agent: *\nDisallow:\n', { headers });
         }
         
         return new Response('not found', { status: 404 });
