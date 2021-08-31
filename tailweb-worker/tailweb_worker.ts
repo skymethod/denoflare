@@ -66,7 +66,7 @@ function computeManifest(url: URL): AppManifest {
     return {
         'short_name': name,
         name: `${name} (${url.hostname})`,
-        description: 'View real-time requests and logs from Cloudflare Workers from the comfort of your browser.',
+        description: 'View live requests and logs from Cloudflare Workers from the comfort of your browser.',
         icons: [
             { 
                 src: FAVICON_SVG_PATHNAME,

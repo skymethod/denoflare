@@ -1,12 +1,13 @@
 import { basename, dirname, join, fromFileUrl, resolve } from './deps_cli.ts';
 import { Bytes } from '../common/bytes.ts';
 import { ModuleWatcher } from './module_watcher.ts';
+import { CLI_VERSION } from './cli_version.ts';
 
 export async function tailweb(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
     const fn = { build, b64 }[command];
     if (options.help || !fn) {
-        console.log('tailweb help!');
+        dumpHelp();
         return;
     }
     await fn(args.slice(1));
@@ -71,4 +72,26 @@ async function updateData(name: string, value: string, dataPath: string) {
     if (oldText == newText) return;
     await Deno.writeTextFile(dataPath, newText);
     console.log(`Updated ${name}`);
+}
+
+function dumpHelp() {
+    const lines = [
+        `denoflare-tailweb ${CLI_VERSION}`,
+        'Tools for developing tailweb - will probably move out of cli at some point',
+        '',
+        'USAGE:',
+        '    denoflare tailweb [FLAGS] [OPTIONS] [--] build',
+        '    denoflare tailweb [FLAGS] [OPTIONS] [--] b64 <path>',
+        '',
+        'FLAGS:',
+        '    -h, --help        Prints help information',
+        '        --verbose     Toggle verbose output (when applicable)',
+        '',
+        'ARGS:',
+        '    build         Watch for changes in tailweb-app, and bundle as worker embedded resource',
+        '    b64 <path>    Dump out the b64 of a given file',
+    ];
+    for (const line of lines) {
+        console.log(line);
+    }
 }

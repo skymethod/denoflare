@@ -11,7 +11,7 @@ export const WELCOME_PANEL_HTML = html`
 
   <div class="form-row body2 medium-emphasis-text">
     Welcome to <span class="high-emphasis-text">Denoflare Tail</span>!
-    <p>View real-time requests and logs from <a href="https://workers.cloudflare.com/" target="_blank">Cloudflare Workers</a> from the comfort of your browser. 
+    <p>View live requests and logs from <a href="https://workers.cloudflare.com/" target="_blank">Cloudflare Workers</a> from the comfort of your browser. 
     A few enhancements over what's provided <a href="https://blog.cloudflare.com/introducing-workers-dashboard-logs/" target="_blank">by default</a> in the Cloudflare dashboard:</p>
     <ul>
         <li>Tail multiple workers at the same time</li>

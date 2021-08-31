@@ -3,9 +3,11 @@ import { checkConfig, isValidProfileName } from '../common/config_validation.ts'
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 import { join, resolve } from './deps_cli.ts';
 
-export async function loadConfig(verbose: boolean): Promise<Config> {
-    const configFilePath = await findConfigFilePath();
-    if (verbose) console.log(`loadConfig: configFilePath=${configFilePath}`);
+export async function loadConfig(options: Record<string, unknown>): Promise<Config> {
+    const verbose = !!options.verbose;
+    const optionConfigFilePath = typeof options.config === 'string' && options.config.trim().length > 0 ? options.config.trim() : undefined;
+    const configFilePath = optionConfigFilePath || await findConfigFilePath();
+    if (verbose) console.log(`loadConfig: path=${configFilePath}`);
     let config = configFilePath ? await loadConfigFromFile(configFilePath) : {};
 
     // enhance with env vars if we have no config profiles

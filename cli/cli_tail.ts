@@ -16,7 +16,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
     if (verbose && format !== 'json') TailConnection.VERBOSE = true;
     const filters = computeFiltersFromOptions(options);
     const once = !!options.once;
-    const config = await loadConfig(verbose);
+    const config = await loadConfig(options);
     const { accountId, apiToken } = await resolveProfile(config, options);
     
     if (format !== 'json') console.log('creating tail...');
@@ -205,7 +205,8 @@ function dumpHelp() {
         '        --sampling-rate <sampling-rate>     Adds a sampling rate (0.01 for 1%) [default: 1]',
         '        --search <search>                   Filter by a text match in console.log messages',
         '        --status <status>...                Filter by invocation status [possible values: ok, error, canceled]',
-        '        --profile <name>                    Explicit name of profile to load from config',
+        '        --profile <name>                    Name of profile to load from config (default: only profile or default profile in config)',
+        '        --config <path>                     Path to config file (default: .denoflare in cwd or parents)',
         '',
         'ARGS:',
         '    <name>    Name of the worker to tail',

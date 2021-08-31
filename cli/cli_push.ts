@@ -13,8 +13,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     }
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
 
-    const verbose = !!options.verbose;
-    const config = await loadConfig(verbose);
+    const config = await loadConfig(options);
     const { scriptName, rootSpecifier } = computeContentsForScriptReference(scriptReference, config, nameFromOptions);
     const { accountId, apiToken } = await resolveProfile(config, options);
     
@@ -71,7 +70,8 @@ function dumpHelp() {
         '',
         'OPTIONS:',
         '    -n, --name <name>        Name to use for Cloudflare Worker script [default: Name of script defined in .denoflare config, or https url basename sans extension]',
-        '        --profile <name>     Explicit name of profile to load from config',
+        '        --profile <name>     Name of profile to load from config (default: only profile or default profile in config)',
+        '        --config <path>      Path to config file (default: .denoflare in cwd or parents)',
         '',
         'ARGS:',
         '    <script-reference>    Name of script defined in .denoflare config, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',

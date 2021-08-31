@@ -29,7 +29,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     const scriptName = scriptUrl ? undefined : scriptReference;
     
     // read the script-based cloudflare worker contents
-    const config = await loadConfig(verbose);
+    const config = await loadConfig(options);
     let port = 8080;
     let bindings: Record<string, Binding> = {};
     let isolation: Isolation = 'isolate';
@@ -211,7 +211,8 @@ function dumpHelp() {
         '',
         'OPTIONS:',
         '        --port <number>     Local port to use for the http server (default: 8080)',
-        '        --profile <name>    Explicit name of profile to load from config',
+        '        --profile <name>    Name of profile to load from config (default: only profile or default profile in config)',
+        '        --config <path>     Path to config file (default: .denoflare in cwd or parents)',
         '',
         'ARGS:',
         '    <script-reference>    Name of script defined in .denoflare config, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
