@@ -690,7 +690,8 @@ export class TailwebAppVM {
         const rt: AdditionalLog[] = [];
         const includeIpAddress = this.extraFields.includes('ip-address');
         const includeUserAgent = this.extraFields.includes('user-agent');
-        if (includeIpAddress || includeUserAgent) {
+        const includeReferer = this.extraFields.includes('referer');
+        if (includeIpAddress || includeUserAgent || includeReferer) {
             if (!isTailMessageCronEvent(message.event)) {
                 if (includeIpAddress) {
                     const ipAddress = message.event.request.headers['cf-connecting-ip'] || undefined;
@@ -699,6 +700,20 @@ export class TailwebAppVM {
                 if (includeUserAgent) {
                     const userAgent = message.event.request.headers['user-agent'] || undefined;
                     if (userAgent) rt.push(computeAdditionalLogForExtraField('User agent', userAgent));
+                }
+                if (includeReferer) {
+                    const referer = message.event.request.headers['referer'] || undefined;
+                    if (referer) {
+                        const refererUrl = tryParseUrl(referer);
+                        let log = true;
+                        if (refererUrl !== undefined) {
+                            const requestUrl = tryParseUrl(message.event.request.url);
+                            if (requestUrl && requestUrl.origin === refererUrl.origin) {
+                                log = false;
+                            }
+                        }
+                        if (log) rt.push(computeAdditionalLogForExtraField('Referer', referer));
+                    }
                 }
             }
         }
@@ -768,6 +783,7 @@ export interface FilterState {
 const EXTRA_FIELDS_OPTIONS: TextItem[] = [
     { id: 'ip-address', text: 'IP address' }, 
     { id: 'user-agent', text: 'User agent' }, 
+    { id: 'referer', text: 'Referer' }, 
 ];
 
 const STATE_KEY = 'state1';
@@ -884,13 +900,21 @@ function distinct(values: string[]): string[] { // and maintain order
     return rt;
 }
 
+function tryParseUrl(url: string): URL | undefined {
+    try {
+        return new URL(url);
+    } catch {
+        return undefined;
+    }
+}
+
 //
 
 interface State {
     readonly profiles: Record<string, ProfileState>; // profileId -> state
     selectedProfileId?: string;
     filter?: FilterState;
-    extraFields?: string[]; // ip-address, user-agent
+    extraFields?: string[]; // ip-address, user-agent, referer
 }
 
 interface ProfileState {

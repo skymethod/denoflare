@@ -46,6 +46,7 @@ export const FILTER_EDITOR_CSS = css`
 
     #filter-field-options {
         display: flex;
+        flex-wrap: wrap;
         gap: 1px;
     }
 
