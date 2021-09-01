@@ -40,11 +40,12 @@ export default {
             const headers = computeHeaders('image/jpeg', { immutable: true });
             return new Response(Bytes.ofBase64(TWITTER_IMAGE_JPG_B64).array(), { headers });
         } else if (url.pathname === '/robots.txt') {
-            const headers = computeHeaders('text/plain; charset=utf-8', { immutable: false });
+            const headers = computeHeaders('text/plain; charset=utf-8');
             return new Response('User-agent: *\nDisallow:\n', { headers });
         }
         
-        return new Response('not found', { status: 404 });
+        const headers = computeHeaders('text/html; charset=utf-8');
+        return new Response(NOT_FOUND, { status: 404, headers });
     }
 
 };
@@ -117,6 +118,60 @@ function encodeHtml(value: string): string {
         .replace(/>/g, '&gt;');
 }
 
+const ICONS_MANIFEST_AND_THEME_COLORS = `
+<link rel="icon" href="${FAVICON_ICO_PATHNAME}">
+<link rel="icon" href="${FAVICON_SVG_PATHNAME}" type="${SVG_MIME_TYPE}">
+<link rel="mask-icon" href="${FAVICON_SVG_PATHNAME}" color="${Material.primaryColor200Hex}">
+<link rel="manifest" href="${MANIFEST_PATHNAME}">
+<meta name="theme-color" content="${Material.primaryColor900Hex}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="${Material.primaryColor900Hex}">
+`;
+
+const COMMON_STYLES = `
+body {
+    font-family: ${Material.sansSerifFontFamily};
+    background-color: ${Material.backgroundColorHex};
+    color: red; /* to catch non-explicit text colors */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+#centered {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+
+    /* body2 */
+    font-size: 0.875rem;
+    letter-spacing: 0.01786rem;
+    font-weight: normal;
+    line-height: 1.25rem;
+
+    /* medium-emphasis text */
+    color: rgba(255, 255, 255, 0.60);
+}
+`;
+
+const NOT_FOUND = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found</title>
+${ICONS_MANIFEST_AND_THEME_COLORS}
+<style>
+${COMMON_STYLES}
+</style>
+</head>
+<body>
+  <div id="centered">Not found</div>
+</body>
+</html>`;
+
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
     const { short_name: name, description } = computeManifest(url);
     const { twitter } = staticData;
@@ -150,59 +205,29 @@ ${twitter ? `<meta name="twitter:site" content="${twitter}">` : ''}
 <meta property="og:url" content="${url.origin}">
 <link rel="canonical" href="${url.origin}">
 
-<link rel="icon" href="${FAVICON_ICO_PATHNAME}">
-<link rel="icon" href="${FAVICON_SVG_PATHNAME}" type="${SVG_MIME_TYPE}">
-<link rel="mask-icon" href="${FAVICON_SVG_PATHNAME}" color="${Material.primaryColor200Hex}">
-<link rel="manifest" href="${MANIFEST_PATHNAME}">
-<meta name="theme-color" content="${Material.primaryColor900Hex}" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="${Material.primaryColor900Hex}">
+${ICONS_MANIFEST_AND_THEME_COLORS}
 
 <style>
-body {
-    font-family: ${Material.sansSerifFontFamily};
-    background-color: ${Material.backgroundColorHex};
-    color: red; /* to catch non-explicit text colors */
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+${COMMON_STYLES}
 
-#old-browser {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-
-    /* body2 */
-    font-size: 0.875rem;
-    letter-spacing: 0.01786rem;
-    font-weight: normal;
-    line-height: 1.25rem;
-
-    /* medium-emphasis text */
-    color: rgba(255, 255, 255, 0.60);
-}
-
-#old-browser a {
+#centered a {
     color: ${Material.primaryColor300Hex};
     text-underline-offset: 0.2rem;
     text-decoration: none;
 }
 
-#old-browser a:hover {
+#centered a:hover {
     text-decoration: underline;
 }
 
-.js #old-browser {
+.js #centered {
     display: none;
 }
 
 </style>
 </head>
 <body>
-  <div id="old-browser">
+  <div id="centered">
     <div>${encodeHtml(name)} requires a current version of:
       <ul>
         <li><a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a></li>
