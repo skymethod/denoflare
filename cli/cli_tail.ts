@@ -69,7 +69,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
                 }
             }
         };
-        const _cn = new TailConnection(tail.url, callbacks).setOptions({ filters });
+        const _cn = new TailConnection(tail.url, callbacks, { websocketPingIntervalSeconds: 5 }).setOptions({ filters });
 
         let currentTail = tail;
         const sendHeartbeatOnExpiry = () => {
