@@ -216,8 +216,10 @@ ${COMMON_STYLES}
     text-decoration: none;
 }
 
-#centered a:hover {
-    text-decoration: underline;
+@media (hover: hover) {
+    #centered a:hover {
+        text-decoration: underline;
+    }
 }
 
 .js #centered {

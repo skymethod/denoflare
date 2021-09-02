@@ -39,8 +39,10 @@ header {
     opacity: 0.5;
 }
 
-#github-logo-anchor:hover {
-    opacity: 0.75;
+@media (hover: hover) {
+    #github-logo-anchor:hover {
+        opacity: 0.75;
+    }
 }
 
 #github-logo {

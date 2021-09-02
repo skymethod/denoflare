@@ -94,9 +94,11 @@ export const MATERIAL_CSS = css`
     user-select: none; -webkit-user-select: none;
 }
 
-.action-icon:hover {
-    background-color: var(--surface-04-background-color);
-    opacity: 1;
+@media (hover: hover) {
+    .action-icon:hover {
+        background-color: var(--surface-04-background-color);
+        opacity: 1;
+    }
 }
 
 /** button */
@@ -119,18 +121,22 @@ button.selected {
     color: var(--high-emphasis-text-color);
 }
 
-button:hover {
-    background-color: var(--surface-04-background-color);
-    color: var(--high-emphasis-text-color);
+@media (hover) {
+    button:hover {
+        background-color: var(--surface-04-background-color);
+        color: var(--high-emphasis-text-color);
+    }
 }
 
 button:disabled {
     color: var(--disabled-text-color);
 }
 
-button:disabled:hover {
-    background-color: var(--surface-01-background-color);
-    cursor: default;
+@media (hover) {
+    button:disabled:hover {
+        background-color: var(--surface-01-background-color);
+        cursor: default;
+    }
 }
 
 /** anchors */
@@ -141,8 +147,10 @@ a {
     text-decoration: none;
 }
 
-a:hover {
-    text-decoration: underline;
+@media (hover: hover) {
+    a:hover {
+        text-decoration: underline;
+    }
 }
 
 /** forms */
