@@ -80,7 +80,10 @@ export function initSidebar(document: HTMLDocument, vm: TailwebAppVM, data: Stat
 const PROFILES_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Profiles</div>
     <div class="button-grid">
-        ${vm.profiles.map(profile => html`<button class="${ profile.id === vm.selectedProfileId ? 'selected' : ''}" @click=${() => { vm.selectedProfileId = profile.id; }} ?disabled="${vm.profileForm.showing}">${profile.text}</button>
+        ${vm.profiles.map(profile => html`<button 
+            class="${ profile.id === vm.selectedProfileId ? 'selected' : ''}" 
+            @click=${() => { vm.selectedProfileId = profile.id; }}
+            ?disabled="${vm.profileForm.showing}">${profile.text}</button>
         ${profile.id === vm.selectedProfileId ? html`${actionIcon(EDIT_ICON, { onclick: () => vm.editProfile(profile.id) })}` : ''}`)}
         <div class="button-grid-new">${actionIcon(ADD_ICON, { text: 'New', onclick: () => vm.newProfile() })}</div>
     </div>
@@ -90,7 +93,11 @@ const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
     <div class="overline medium-emphasis-text">Scripts</div>
     <div id="scripts-scroller" class="hidden-vertical-scroll">
         <div class="button-grid">
-            ${vm.scripts.map(script => html`<button class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" @click=${(e: MouseEvent) => handleScriptClick(e, script.id, vm)} ?disabled="${vm.profileForm.showing}">${script.text}</button>
+            ${vm.scripts.map(script => 
+                html`<button
+                    class="${vm.selectedScriptIds.has(script.id) ? 'selected' : ''}" 
+                    @click=${(e: MouseEvent) => handleScriptClick(e, script.id, vm)} 
+                    ?disabled="${vm.profileForm.showing}">${script.text}</button>
             `)}
         </div>
     </div>
