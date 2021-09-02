@@ -16,7 +16,7 @@ Since Denoflare is still under active development, it's easiest to simply "insta
 ```sh
 # e.g. bash
 function denoflare {
-    deno run --unstable --allow-read --allow-net --allow-env https://raw.githubusercontent.com/skymethod/denoflare/v0.1.3/cli/cli.ts "$@"
+    deno run --unstable --allow-read --allow-net --allow-env https://raw.githubusercontent.com/skymethod/denoflare/v0.1.4/cli/cli.ts "$@"
 }
 ```
 
