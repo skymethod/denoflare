@@ -14,17 +14,31 @@ export interface TailControllerCallbacks {
     onTailConnectionMessage(accountId: string, scriptId: string, timeStamp: number, message: TailMessage): void;
     onTailConnectionUnparsedMessage(accountId: string, scriptId: string, timeStamp: number, message: UnparsedMessage, parseError: Error): void;
     onTailsChanged(tailKeys: ReadonlySet<TailKey>): void;
+    onNetworkStatusChanged(online: boolean): void;
+    onTailFailedToStart(accountId: string, scriptId: string, trigger: string, error: Error): void;
 }
-
-const INACTIVE_TAIL_MILLIS = 5000; // reclaim inactive tails older than this
 
 export class TailController {
     private readonly callbacks: TailControllerCallbacks;
     private readonly records = new Map<TailKey, Record>();
-    private tailOptions: TailOptions = { filters: [] };
+    private readonly websocketPingIntervalSeconds: number;
+    private readonly inactiveTailSeconds: number;
 
-    constructor(callbacks: TailControllerCallbacks) {
+    private tailOptions: TailOptions = { filters: [] };
+    private online?: boolean;
+
+    constructor(callbacks: TailControllerCallbacks, opts: { websocketPingIntervalSeconds: number, inactiveTailSeconds: number }) {
         this.callbacks = callbacks;
+        this.websocketPingIntervalSeconds = opts.websocketPingIntervalSeconds;
+        this.inactiveTailSeconds = opts.inactiveTailSeconds;
+
+        // deno-lint-ignore no-explicit-any
+        const navigatorAsAny = window.navigator as any;
+        if (typeof navigatorAsAny.onLine === 'boolean') {
+            this.setOnline(navigatorAsAny.onLine);
+        }
+        window.addEventListener('online', () => this.setOnline(true));
+        window.addEventListener('offline', () => this.setOnline(false));
     }
 
     setTailOptions(tailOptions: TailOptions) {
@@ -44,13 +58,13 @@ export class TailController {
             record.state = 'inactive';
             record.stopRequestedTime = Date.now();
             setTimeout(() => {
-                if (record.state === 'inactive' && record.stopRequestedTime && (Date.now() - record.stopRequestedTime) >= INACTIVE_TAIL_MILLIS) {
-                    record.state = 'closing';
-                    console.log(`Closing ${unpackTailKey(record.tailKey).scriptId}, inactive for ${Date.now() - record.stopRequestedTime}ms`);
+                if (record.state === 'inactive' && record.stopRequestedTime && (Date.now() - record.stopRequestedTime) >= this.inactiveTailSeconds) {
+                    record.state = 'stopping';
+                    console.log(`Stopping ${record.scriptId}, inactive for ${Date.now() - record.stopRequestedTime}ms`);
                     record.connection?.close(1000 /* normal closure */, 'no longer interested');
                     this.records.delete(record.tailKey);
                 }
-            }, INACTIVE_TAIL_MILLIS);
+            }, this.inactiveTailSeconds * 1000);
         }
         if (stopKeys.size > 0) {
             this.dispatchTailsChanged();
@@ -65,38 +79,9 @@ export class TailController {
                 existingRecord.state = 'started';
                 existingRecord.stopRequestedTime = undefined;
             } else {
-                const record: Record = { state: 'starting', tailKey };
+                const record: Record = { state: 'starting', tailKey, apiToken, accountId, scriptId, retryCountAfterClose: 0 };
                 this.records.set(tailKey, record);
-
-                const tailCreatingTime = Date.now();
-                this.callbacks.onTailCreating(accountId, scriptId);
-                const tail = await createTail(accountId, scriptId, apiToken);
-                this.callbacks.onTailCreated(accountId, scriptId, Date.now() - tailCreatingTime, tail);
-                
-                // we might have been inactivated already, don't start the ws
-                if (record.state !== 'starting') return;
-
-                const { callbacks } = this;
-                const openingTime = Date.now();
-                const tailConnectionCallbacks: TailConnectionCallbacks = {
-                    onOpen(_cn: TailConnection, timeStamp: number) {
-                        callbacks.onTailConnectionOpen(accountId, scriptId, timeStamp, Date.now() - openingTime);
-                    },
-                    onClose(_cn: TailConnection, timeStamp: number, code: number, reason: string, wasClean: boolean) {
-                        callbacks.onTailConnectionClose(accountId, scriptId, timeStamp, code, reason, wasClean);
-                    },
-                    onError(_cn: TailConnection, timeStamp: number, errorInfo?: ErrorInfo) {
-                        callbacks.onTailConnectionError(accountId, scriptId, timeStamp, errorInfo);
-                    },
-                    onTailMessage(_cn: TailConnection, timeStamp: number, message: TailMessage) {
-                        if (record.state !== 'started') return;
-                        callbacks.onTailConnectionMessage(accountId, scriptId, timeStamp, message);
-                    },
-                    onUnparsedMessage(_cn: TailConnection, timeStamp: number, message: UnparsedMessage, parseError: Error) {
-                        callbacks.onTailConnectionUnparsedMessage(accountId, scriptId, timeStamp, message, parseError);
-                    },
-                };
-                record.connection = new TailConnection(tail.url, tailConnectionCallbacks).setOptions(this.tailOptions);
+                await this.startTailConnection(record);
                 record.state = 'started';
             }
             this.dispatchTailsChanged();
@@ -112,6 +97,84 @@ export class TailController {
 
     private computeStartingOrStartedTailKeys(): Set<TailKey> {
         return new Set([...this.records.values()].filter(v => v.state === 'starting' || v.state === 'started').map(v => v.tailKey))
+    }
+
+    private setOnline(online: boolean) {
+        if (online === this.online) return;
+        const oldOnline = this.online;
+        this.online = online;
+        this.callbacks.onNetworkStatusChanged(online);
+        if (typeof oldOnline === 'boolean') {
+            if (online) {
+                for (const record of this.records.values()) {
+                    if (record.state === 'started') {
+                        const { accountId, scriptId } = record;
+                        this.startTailConnection(record)
+                            .catch(e => this.callbacks.onTailFailedToStart(accountId, scriptId, 'restart-after-coming-online', e as Error));
+                    }
+                }
+            } else {
+                for (const record of this.records.values()) {
+                    record.connection?.close(1000 /* normal closure */, 'offline');
+                }
+            }
+        }
+    }
+
+    private async startTailConnection(record: Record) {
+        const allowedToStart = record.state === 'starting' || record.state === 'started';
+        if (!allowedToStart) return;
+        
+        const { accountId, scriptId } = unpackTailKey(record.tailKey);
+        const { apiToken } = record;
+        if (!record.tail || Date.now() > new Date(record.tail.expires_at).getTime() - 1000 * 60 * 5) {
+            const tailCreatingTime = Date.now();
+            this.callbacks.onTailCreating(accountId, scriptId);
+            const tail = await createTail(accountId, scriptId, apiToken);
+            record.tail = tail;
+            this.callbacks.onTailCreated(accountId, scriptId, Date.now() - tailCreatingTime, tail);
+        }
+
+        // we might have been inactivated already, don't start the ws
+        if (record.state === 'inactive') return;
+
+        const { callbacks, websocketPingIntervalSeconds } = this;
+        // deno-lint-ignore no-this-alias
+        const dis = this;
+        
+        const openingTime = Date.now();
+        const tailConnectionCallbacks: TailConnectionCallbacks = {
+            onOpen(_cn: TailConnection, timeStamp: number) {
+                record.retryCountAfterClose = 0;
+                callbacks.onTailConnectionOpen(accountId, scriptId, timeStamp, Date.now() - openingTime);
+            },
+            onClose(_cn: TailConnection, timeStamp: number, code: number, reason: string, wasClean: boolean) {
+                callbacks.onTailConnectionClose(accountId, scriptId, timeStamp, code, reason, wasClean);
+                record.closeTime = Date.now();
+                if (record.state === 'started' && dis.online !== false) {
+                    // we didn't want to close, reschedule another TailConnection
+                    record.retryCountAfterClose++;
+                    const delaySeconds = Math.min(record.retryCountAfterClose * 5, 60);
+                    console.log(`Will attempt to restart ${scriptId} in ${delaySeconds} seconds`);
+                    setTimeout(async function() {
+                        if (record.state === 'started') {
+                            await dis.startTailConnection(record);
+                        }
+                    }, delaySeconds * 1000);
+                }
+            },
+            onError(_cn: TailConnection, timeStamp: number, errorInfo?: ErrorInfo) {
+                callbacks.onTailConnectionError(accountId, scriptId, timeStamp, errorInfo);
+            },
+            onTailMessage(_cn: TailConnection, timeStamp: number, message: TailMessage) {
+                if (record.state !== 'started') return;
+                callbacks.onTailConnectionMessage(accountId, scriptId, timeStamp, message);
+            },
+            onUnparsedMessage(_cn: TailConnection, timeStamp: number, message: UnparsedMessage, parseError: Error) {
+                callbacks.onTailConnectionUnparsedMessage(accountId, scriptId, timeStamp, message, parseError);
+            },
+        };
+        record.connection = new TailConnection(record.tail!.url, tailConnectionCallbacks, { websocketPingIntervalSeconds }).setOptions(this.tailOptions);
     }
     
 }
@@ -130,9 +193,17 @@ export function packTailKey(accountId: string, scriptId: string) {
 
 interface Record {
     readonly tailKey: TailKey;
-    state: 'starting' | 'started' | 'inactive' | 'closing';
+    readonly accountId: string;
+    readonly scriptId: string;
+
+    state: 'starting' | 'started' | 'inactive' | 'stopping';
+    apiToken: string;
+    retryCountAfterClose: number;
+
     connection?: TailConnection;
     stopRequestedTime?: number;
+    closeTime?: number;
+    tail?: Tail;
 }
 
 //
@@ -184,6 +255,16 @@ export class SwitchableTailControllerCallbacks implements TailControllerCallback
     onTailsChanged(tails: ReadonlySet<TailKey>) {
         if (!this.enabledFn()) return;
         this.callbacks.onTailsChanged(tails);
+    }
+
+    onNetworkStatusChanged(online: boolean) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onNetworkStatusChanged(online);
+    }
+
+    onTailFailedToStart(accountId: string, scriptId: string, trigger: string, error: Error) {
+        if (!this.enabledFn()) return;
+        this.callbacks.onTailFailedToStart(accountId, scriptId, trigger, error);
     }
 
 }

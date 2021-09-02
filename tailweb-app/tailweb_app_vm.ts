@@ -4,6 +4,7 @@ import { isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, Tai
 import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
 import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog } from '../common/tail_pretty.ts';
 import { generateUuid } from '../common/uuid_v4.ts';
+import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
 import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
@@ -137,9 +138,21 @@ export class TailwebAppVM {
                 logTailsChange('Tailing', added);
                 dis.tails = tails;
                 dis.onChange();
-            }
+            },
+            onNetworkStatusChanged(online: boolean) {
+                if (online) {
+                    logWithPrefix('%cONLINE%c', 'color: green');
+                } else {
+                    logWithPrefix('%cOFFLINE%c', 'color: red');
+                }
+            },
+            onTailFailedToStart(_accountId: string, scriptId: string, trigger: string, error: Error) {
+                verboseWithPrefix(`Tail for ${scriptId} failed to start (${trigger}): ${error.name} ${error.message}`);
+            },
         };
-        this.tailController = new TailController(new SwitchableTailControllerCallbacks(callbacks, () => !this.demoMode));
+        const websocketPingIntervalSeconds = AppConstants.WEBSOCKET_PING_INTERVAL_SECONDS;
+        const inactiveTailSeconds = AppConstants.INACTIVE_TAIL_SECONDS;
+        this.tailController = new TailController(new SwitchableTailControllerCallbacks(callbacks, () => !this.demoMode), { websocketPingIntervalSeconds, inactiveTailSeconds });
         this.tailControllerCallbacks = callbacks;
 
         this.extraFields = [...(this.state.extraFields || [])];

@@ -1,4 +1,5 @@
 import { parseTailMessage, TailMessage, TailOptions } from './tail.ts';
+import { formatLocalYyyyMmDdHhMmSs } from './tail_pretty.ts';
 
 export class TailConnection {
 
@@ -8,19 +9,32 @@ export class TailConnection {
     private readonly callbacks: TailConnectionCallbacks;
 
     private options?: TailOptions
+    private heartbeatId?: number;
 
-    constructor(webSocketUrl: string, callbacks: TailConnectionCallbacks) {
+    constructor(webSocketUrl: string, callbacks: TailConnectionCallbacks, opts: { websocketPingIntervalSeconds: number }) {
         this.ws = new WebSocket(webSocketUrl, 'trace-v1'); // else 406 Not Acceptable
         this.callbacks = callbacks;
+        const { websocketPingIntervalSeconds } = opts;
         this.ws.addEventListener('open', event => {
             const { timeStamp } = event;
             this.sendOptionsIfOpen();
             if (callbacks.onOpen) {
                 callbacks.onOpen(this, timeStamp);
             }
+            if (websocketPingIntervalSeconds > 0) {
+                if (TailConnection.VERBOSE) console.log(formatLocalYyyyMmDdHhMmSs(new Date()), `sending ws ping {} every ${websocketPingIntervalSeconds}`);
+                this.heartbeatId = setInterval(() => {
+                    if (this.ws.readyState === WebSocket.OPEN) {
+                        if (TailConnection.VERBOSE) console.log(formatLocalYyyyMmDdHhMmSs(new Date()), `sending ws ping {}`);
+                        this.ws.send('{}');
+                    }
+                }, websocketPingIntervalSeconds * 1000);
+            }
         });
         this.ws.addEventListener('close', event => {
             const { code, reason, wasClean, timeStamp } = event;
+            if (TailConnection.VERBOSE) console.log(formatLocalYyyyMmDdHhMmSs(new Date()), 'TailConnection: ws close', { code, reason, wasClean, timeStamp });
+            clearInterval(this.heartbeatId);
             if (callbacks.onClose) {
                 callbacks.onClose(this, timeStamp, code, reason, wasClean);
             }
@@ -28,6 +42,8 @@ export class TailConnection {
         this.ws.addEventListener('error', event => {
             const { timeStamp } = event;
             const errorInfo = computeErrorInfo(event);
+            if (TailConnection.VERBOSE) console.log(formatLocalYyyyMmDdHhMmSs(new Date()), 'TailConnection: ws error', errorInfo);
+
             if (callbacks.onError) {
                 callbacks.onError(this, timeStamp, errorInfo);
             }
