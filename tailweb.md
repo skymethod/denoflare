@@ -37,7 +37,7 @@ Currently, tailweb surfaces the following properties in its tail output, if prov
 Since it is a standard module-based Cloudflare Worker, you can deploy it like any other worker with `denoflare push`:
 
 ```sh
-denoflare push --name tail https://raw.githubusercontent.com/skymethod/denoflare/v0.1.3/tailweb-worker/tailweb_worker.ts
+denoflare push --name tail https://raw.githubusercontent.com/skymethod/denoflare/v0.1.4/tailweb-worker/tailweb_worker.ts
 ```
 
 ## Host it locally
@@ -45,5 +45,5 @@ denoflare push --name tail https://raw.githubusercontent.com/skymethod/denoflare
 Since it is a standard module-based Cloudflare Worker, you can serve it locally like any other worker with `denoflare serve`:
 
 ```sh
-denoflare serve https://raw.githubusercontent.com/skymethod/denoflare/v0.1.3/tailweb-worker/tailweb_worker.ts
+denoflare serve https://raw.githubusercontent.com/skymethod/denoflare/v0.1.4/tailweb-worker/tailweb_worker.ts
 ```
