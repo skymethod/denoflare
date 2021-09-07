@@ -171,6 +171,7 @@ export class TailController {
                 callbacks.onTailConnectionMessage(accountId, scriptId, timeStamp, message);
             },
             onUnparsedMessage(_cn: TailConnection, timeStamp: number, message: UnparsedMessage, parseError: Error) {
+                console.log('onUnparsedMessage', timeStamp, message, parseError);
                 callbacks.onTailConnectionUnparsedMessage(accountId, scriptId, timeStamp, message, parseError);
             },
         };
