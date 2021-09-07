@@ -1,7 +1,17 @@
 export async function fileExists(path: string): Promise<boolean> {
+    return await exists(path, info => info.isFile);
+}
+
+export async function directoryExists(path: string): Promise<boolean> {
+    return await exists(path, info => info.isDirectory);
+}
+
+//
+
+async function exists(path: string, test: (info: Deno.FileInfo) => boolean) {
     try {
         const info = await Deno.stat(path);
-        return info.isFile;
+        return test(info);
     } catch (e) {
         if (e instanceof Deno.errors.NotFound) {
             return false;

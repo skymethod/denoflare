@@ -1,4 +1,5 @@
 import { Config, Profile, Script } from './config.ts';
+import { checkObject } from './check.ts';
 
 // deno-lint-ignore no-explicit-any
 export function checkConfig(config: any): Config {
@@ -55,14 +56,6 @@ export function isValidProfileName(profileName: string): boolean {
 }
 
 //
-
-// deno-lint-ignore no-explicit-any
-function checkObject(name: string, value: any): value is Record<string, unknown> {
-    if (typeof value !== 'object') throw new Error(`Bad ${name}: expected object, found ${typeof value}`);
-    if (Array.isArray(value)) throw new Error(`Bad ${name}: expected object, found array`);
-    if (value === null) throw new Error(`Bad ${name}: expected object, found null`);
-    return value;
-}
 
 function isValidBindingName(bindingName: string): boolean {
     return /^[a-zA-Z0-9_]+$/.test(bindingName);

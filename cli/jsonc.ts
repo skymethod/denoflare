@@ -1,8 +1,8 @@
-import { parseJsonc as parseJsonc_ } from './deps_cli.ts';
+import { _parseJsonc } from './deps_cli.ts';
 
 // deno-lint-ignore no-explicit-any
 export function parseJsonc(input: string, errors?: ParseError[], options?: ParseOptions): any {
-	return parseJsonc_(input, errors, options);
+	return _parseJsonc(input, errors, options);
 }
 
 export function formatParseError(error: ParseError, input: string): string {
