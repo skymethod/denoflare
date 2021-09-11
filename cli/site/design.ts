@@ -1,14 +1,15 @@
 import { html, marked } from '../deps_cli.ts';
 import { Page } from './page.ts';
+import { SidebarNode } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts';
 
-export function computeHtml(markdown: string, page: Page, path: string, config: SiteConfig, opts: { verbose?: boolean, dumpEnv?: boolean }): string {
+export function computeHtml(opts: { page: Page, path: string, config: SiteConfig, sidebar: SidebarNode, verbose?: boolean, dumpEnv?: boolean }): string {
+    const { page, path, config, sidebar, verbose, dumpEnv } = opts;
+    const { markdown } = page;
     const { siteMetadata, themeColor, themeColorDark } = config;
-    const { verbose, dumpEnv } = opts;
     const { twitterUsername } = siteMetadata;
 
-    const pageTitle = page.frontmatter.title || page.titleFromFirstH1 || page.titleFromFilename || 'untitled';
-    const title = `${pageTitle} · ${siteMetadata.title}`;
+    const title = `${page.titleResolved} · ${siteMetadata.title}`;
     
     const description = page.frontmatter.summary || siteMetadata.description;
 
@@ -36,6 +37,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
 <body>
 $MARKDOWN
 ${ dumpEnv ? html`<pre>${Object.entries(Deno.env.toObject()).sort((lhs, rhs) => lhs[0].localeCompare(rhs[0])).map(v => `${v[0]}: ${v[1]}`).join('\n')}</pre>` : '' }
+<pre>${JSON.stringify(sidebar, undefined, 2)}</pre>
 </body>
 </html>
 `.toString();

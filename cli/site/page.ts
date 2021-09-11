@@ -4,6 +4,7 @@ export interface Page {
     readonly frontmatter: Frontmatter;
     readonly titleFromFirstH1?: string;
     readonly titleFromFilename?: string;
+    readonly titleResolved: string;
     readonly markdown: string; // excluding front matter
 }
 
@@ -63,7 +64,8 @@ export async function readPageFromFile(file: string): Promise<Page> {
             titleFromFilename = filename;
         }
     }
-    return { markdown, titleFromFirstH1, titleFromFilename, frontmatter: { title, type, summary, order, hidden, hideChildren } };
+    const titleResolved = title || titleFromFirstH1 || titleFromFilename || 'untitled';
+    return { markdown, titleFromFirstH1, titleFromFilename, titleResolved, frontmatter: { title, type, summary, order, hidden, hideChildren } };
 }
 
 //

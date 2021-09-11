@@ -3,6 +3,7 @@ import { directoryExists } from '../fs_util.ts';
 import { ParseError, parseJsonc } from '../jsonc.ts';
 import { computeHtml } from './design.ts';
 import { Page, readPageFromFile } from './page.ts';
+import { computeSidebar, SidebarInputItem } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts'
 import { checkSiteConfig } from './site_config_validation.ts';
 
@@ -32,12 +33,33 @@ export class SiteModel {
             }
         }
 
+        // read config
         const config = await computeConfig(this.resources);
 
+        // read frontmatter from all md
         for (const [_, resource] of this.resources.entries()) {
             if (resource.extension === '.md') {
-                const page = await readPageFromFile(resource.inputPath);
-                const outputHtml = computeHtml(page.markdown, page, resource.canonicalPath, config, { verbose: false, dumpEnv: false });
+                resource.page = await readPageFromFile(resource.inputPath);
+            }
+        }
+
+        // construct sidebar
+        const sidebarInputItems: SidebarInputItem[] = [...this.resources.entries()]
+            .filter(v => v[1].extension === '.md')
+            .map(v => ({ 
+                title: v[1].page!.titleResolved, 
+                path: v[1].canonicalPath,
+                hidden: v[1].page!.frontmatter.hidden,
+                hideChildren: v[1].page!.frontmatter.hideChildren,
+            }));
+        const sidebar = computeSidebar(sidebarInputItems);
+
+        // transform markdown into html
+        for (const [_, resource] of this.resources.entries()) {
+            if (resource.extension === '.md') {
+                const { canonicalPath: path } = resource;
+                const page = resource.page!;
+                const outputHtml = computeHtml({ page, path, config, sidebar, verbose: false, dumpEnv: false });
                 resource.outputText = outputHtml;
             }
         }
