@@ -1,6 +1,6 @@
-export { basename, dirname, join, fromFileUrl, resolve, toFileUrl, extname } from 'https://deno.land/std@0.106.0/path/mod.ts';
+export { basename, dirname, join, fromFileUrl, resolve, toFileUrl, extname, relative, isAbsolute, normalize, parse as parsePath } from 'https://deno.land/std@0.106.0/path/mod.ts';
 export { parse as parseFlags } from 'https://deno.land/std@0.106.0/flags/mod.ts';
-export { ensureDir } from 'https://deno.land/std@0.106.0/fs/mod.ts';
+export { ensureDir, walk, emptyDir } from 'https://deno.land/std@0.106.0/fs/mod.ts';
 
 export { createGraph } from 'https://deno.land/x/deno_graph@0.2.2/mod.ts';
 export type { ModuleGraphJson } from 'https://deno.land/x/deno_graph@0.2.2/mod.ts';

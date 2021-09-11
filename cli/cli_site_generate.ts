@@ -1,9 +1,7 @@
 import { CLI_VERSION } from './cli_version.ts';
-import { html, marked, ensureDir, join } from './deps_cli.ts';
+import { ensureDir, resolve, walk } from './deps_cli.ts';
 import { directoryExists, fileExists } from './fs_util.ts';
-import { ParseError, parseJsonc } from './jsonc.ts';
-import { checkSiteConfig } from './site_config_validation.ts';
-import { SiteConfig } from './site_generator.ts';
+import { InputFileInfo, SiteModel } from './site/site_model.ts';
 
 export async function generate(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length < 2) {
@@ -13,83 +11,34 @@ export async function generate(args: (string | number)[], options: Record<string
 
     const verbose = !!options.verbose;
 
-    const repoDir = args[0];
+    let repoDir = args[0];
     if (typeof repoDir !== 'string') throw new Error(`Bad repoDir: ${repoDir}`);
     if (!await directoryExists(repoDir)) throw new Error(`Bad repoDir, does not exist: ${repoDir}`);
+    repoDir = resolve(Deno.cwd(), repoDir);
 
-    const outputDir = args[1];
+    let outputDir = args[1];
     if (typeof outputDir !== 'string') throw new Error(`Bad outputDir: ${outputDir}`);
     if (await fileExists(outputDir)) throw new Error(`Bad outputDir, exists as file: ${outputDir}`);
+    outputDir = resolve(Deno.cwd(), outputDir);
 
-    const config = await loadSiteConfig(repoDir);
-
-    const indexHtml = await computeIndexHtml(repoDir, config, { verbose, dumpEnv: !!options.dumpEnv });
-    if (verbose) console.log(indexHtml);
-
+    const siteModel = new SiteModel(repoDir);
+    
+    const inputFiles: InputFileInfo[] = [];
+    for await (const entry of walk(repoDir)) {
+        if (entry.isDirectory) continue;
+        const path = entry.path;
+        if (path.includes('/.git/')) continue;
+        if (path.startsWith(outputDir)) continue;
+        inputFiles.push({ path: path, version: '0' });
+    }
+    siteModel.setInputFiles(inputFiles);
+    
     if (verbose) console.log(`Ensuring dir exists: ${outputDir}`);
     await ensureDir(outputDir);
-    if (verbose) console.log(`Writing index.html`);
-    const indexHtmlFilename = join(outputDir, 'index.html');
-    await Deno.writeTextFile(indexHtmlFilename, indexHtml);
-    if (verbose) console.log(`Done writing to ${outputDir}`);
-}
-
-//
-
-async function loadSiteConfig(repoDir: string): Promise<SiteConfig> {
-    for (const name of [ 'config.jsonc', 'config.json']) {
-        const filename = join(repoDir, name);
-        if (await fileExists(filename)) {
-            const contents = await Deno.readTextFile(filename);
-            const errors: ParseError[] = [];
-            const siteConfig = parseJsonc(contents, errors, {  allowTrailingComma: true });
-            return checkSiteConfig(siteConfig);
-        }
-    }
-    throw new Error(`Site config (config.jsonc, config.json) not found in repoDir: ${repoDir}`);
-}
-
-async function computeIndexHtml(repoDir: string, config: SiteConfig, opts: { verbose: boolean, dumpEnv: boolean }): Promise<string> {
-    const { title, description, origin, themeColor, themeColorDark } = config;
-    let { twitterUsername } = config;
-    if (twitterUsername !== undefined && !twitterUsername.startsWith('@')) twitterUsername = '@' + twitterUsername;
-    const { verbose, dumpEnv} = opts;
-
-    const rt =  html`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
-<meta name="description" content="${description}">
-<meta property="og:title" content="${title}">
-<meta property="og:description" content="${description}">
-<meta property="og:locale" content="en_US">
-<meta property="og:type" content="website">
-${ twitterUsername ? html`<meta name="twitter:site" content="${twitterUsername}">` : '' }
-<meta property="og:url" content="${origin}">
-<link rel="canonical" href="${origin}">
-${ themeColorDark ? html`<meta name="theme-color" content="${themeColorDark}" media="(prefers-color-scheme: dark)">` : '' }
-${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
-</head>
-<body>
-$MARKDOWN
-${ dumpEnv ? html`<pre>${Object.entries(Deno.env.toObject()).sort((lhs, rhs) => lhs[0].localeCompare(rhs[0])).map(v => `${v[0]}: ${v[1]}`).join('\n')}</pre>` : '' }
-</body>
-</html>
-`.toString();
-
-    const { lexer, parser } = marked;
-
-    const indexMdPath = join(repoDir, 'index.md');
-    if (!await fileExists(indexMdPath)) throw new Error(`index.md not found in repoDir: ${repoDir}`);
-    const indexMd = await Deno.readTextFile(indexMdPath);
-    const indexMdResolved = indexMd.replaceAll(/\$([_A-Z0-9]+)/g, (_, g1) => Deno.env.get(g1) || '');
-    const tokens = lexer(indexMdResolved);
-    if (verbose) console.log(tokens);
-    const markdownHtml = parser(tokens);
-
-    return rt.replace('$MARKDOWN\n', markdownHtml);
+    console.log(`Writing output`);
+    const start = Date.now();
+    await siteModel.writeOutput(outputDir);
+    console.log(`Done writing to ${outputDir}, took ${Date.now() - start}ms`);
 }
 
 //
