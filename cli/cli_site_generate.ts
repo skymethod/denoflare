@@ -31,7 +31,7 @@ export async function generate(args: (string | number)[], options: Record<string
         if (path.startsWith(outputDir)) continue;
         inputFiles.push({ path: path, version: '0' });
     }
-    siteModel.setInputFiles(inputFiles);
+    await siteModel.setInputFiles(inputFiles);
     
     if (verbose) console.log(`Ensuring dir exists: ${outputDir}`);
     await ensureDir(outputDir);
