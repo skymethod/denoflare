@@ -50,7 +50,7 @@ function checkThemeColor(name: string, value: any): value is string | undefined 
 // deno-lint-ignore no-explicit-any
 function checkRepo(name: string, value: any): value is string | undefined {
     if (value === undefined) return true;
-    if (typeof value !== 'string' || !/^[\w]+\/[\w]+$/.test(value)) throw new Error(`Bad ${name}: ${value}`);
+    if (typeof value !== 'string' || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) throw new Error(`Bad ${name}: ${value}`);
     return true;
 }
 

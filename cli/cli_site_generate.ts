@@ -1,3 +1,4 @@
+import { CliStats } from './cli_common.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { ensureDir, resolve, walk } from './deps_cli.ts';
 import { directoryExists, fileExists } from './fs_util.ts';
@@ -23,6 +24,9 @@ export async function generate(args: (string | number)[], options: Record<string
 
     const siteModel = new SiteModel(repoDir);
     
+    // 3-7ms to here
+    let start = Date.now();
+    console.log('Building site...');
     const inputFiles: InputFileInfo[] = [];
     for await (const entry of walk(repoDir)) {
         if (entry.isDirectory) continue;
@@ -32,13 +36,15 @@ export async function generate(args: (string | number)[], options: Record<string
         inputFiles.push({ path: path, version: '0' });
     }
     await siteModel.setInputFiles(inputFiles);
+    console.log(`Built site, took ${Date.now() - start}ms`);
     
+    start = Date.now();
     if (verbose) console.log(`Ensuring dir exists: ${outputDir}`);
     await ensureDir(outputDir);
     console.log(`Writing output`);
-    const start = Date.now();
     await siteModel.writeOutput(outputDir);
-    console.log(`Done writing to ${outputDir}, took ${Date.now() - start}ms`);
+    console.log(`Wrote output to ${outputDir}, took ${Date.now() - start}ms`);
+    console.log(`Done in ${Date.now() - CliStats.launchTime}ms`);
 }
 
 //

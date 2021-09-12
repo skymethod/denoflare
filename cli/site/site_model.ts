@@ -28,7 +28,8 @@ export class SiteModel {
                 const extension = extname(inputPath);
                 const includeInOutput = shouldIncludeInOutput(path, extension);
                 const canonicalPath = computeCanonicalResourcePath(path);
-                resource = { inputPath, extension, includeInOutput, canonicalPath };
+                const contentRepoPath = computeContentRepoPath(inputPath, this.inputDir);
+                resource = { inputPath, extension, includeInOutput, canonicalPath, contentRepoPath };
                 this.resources.set(path, resource);
             }
         }
@@ -58,9 +59,9 @@ export class SiteModel {
         // transform markdown into html
         for (const [_, resource] of this.resources.entries()) {
             if (resource.extension === '.md') {
-                const { canonicalPath: path } = resource;
+                const { canonicalPath: path, contentRepoPath } = resource;
                 const page = resource.page!;
-                const outputHtml = await computeHtml({ page, path, config, sidebar, verbose: false, dumpEnv: false });
+                const outputHtml = await computeHtml({ page, path, contentRepoPath, config, sidebar, verbose: false, dumpEnv: false });
                 resource.outputText = outputHtml;
             }
         }
@@ -110,6 +111,7 @@ interface ResourceInfo {
     readonly extension: string; // with dot, e.g. .md
     readonly includeInOutput: boolean;
     readonly canonicalPath: string; // e.g. / for /index.html
+    readonly contentRepoPath: string; // e.g. /index.md
     page?: Page;
     outputText?: string;
 }
@@ -143,6 +145,13 @@ function computeResourcePath(inputFile: string, inputDir: string): string {
     const relativePath = relative(inputDir, inputFile);
     if (relativePath.startsWith('/')) throw new Error(`Unexpected relative path: ${relativePath}, inputFile=${inputFile}, inputDir=${inputDir}`);
     return '/' + replaceSuffix(relativePath, '.md', '.html');
+}
+
+function computeContentRepoPath(inputFile: string, inputDir: string): string {
+    if (!inputFile.startsWith(inputDir)) throw new Error(`Bad inputFile: ${inputFile}, must reside under ${inputDir}`);
+    const relativePath = relative(inputDir, inputFile);
+    if (relativePath.startsWith('/')) throw new Error(`Unexpected relative path: ${relativePath}, inputFile=${inputFile}, inputDir=${inputDir}`);
+    return '/' + relativePath;
 }
 
 function computeCanonicalResourcePath(resourcePath: string): string {

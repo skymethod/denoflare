@@ -3,6 +3,12 @@ import { isValidScriptName } from '../common/config_validation.ts';
 import { basename, extname } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 
+const launchTime = Date.now();
+
+export class CliStats {
+    static readonly launchTime = launchTime;
+}
+
 export async function computeContentsForScriptReference(scriptSpec: string, config: Config, nameFromOptions?: string): Promise<{ scriptName: string, rootSpecifier: string, script?: Script }> {
     if (isValidScriptName(scriptSpec)) {
         const script = config.scripts && config.scripts[scriptSpec];

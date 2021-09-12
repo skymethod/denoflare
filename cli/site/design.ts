@@ -5,10 +5,10 @@ import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
 import { computeToc, TocNode } from './toc.ts';
 
-export async function computeHtml(opts: { page: Page, path: string, config: SiteConfig, sidebar: SidebarNode, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
-    const { page, path, config, sidebar, verbose } = opts;
+export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
+    const { page, path, contentRepoPath, config, sidebar, verbose } = opts;
     const { markdown } = page;
-    const { siteMetadata, themeColor, themeColorDark, product } = config;
+    const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo } = config;
     const { twitterUsername } = siteMetadata;
 
     const title = `${page.titleResolved} · ${siteMetadata.title}`;
@@ -47,6 +47,11 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     // set product
     outputHtml = outputHtml.replaceAll(/<!-- start: product -->.*?<!-- end: product -->/sg, escape(product));
 
+    // product github
+    outputHtml = outputHtml.replace(/<!-- start: product github -->(.*?)<!-- end: product github -->/s, (_, g1) => {
+        return computeProductGithubHtml(g1, productRepo);
+    });
+
     // choose page type template
     const isDocument = (page.frontmatter.type || 'document') === 'document';
     if (isDocument) {
@@ -77,6 +82,11 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
             return computeTocHtml(substr, toc);
         });
     }
+
+    // content github
+    outputHtml = outputHtml.replace(/<!-- start: content github -->(.*?)<!-- end: content github -->/s, (_, g1) => {
+        return computeContentGithubHtml(g1, contentRepoPath, contentRepo);
+    });
 
     return outputHtml;
 }
@@ -174,7 +184,6 @@ function computeTocHtml(designHtml: string, toc: TocNode[]): string {
         const pieces: string[] = [];
         for (const tocItem of toc) {
             appendTocNodeHtml(tocItem, tocItemTemplate, tocItemWithChildrenTemplate, pieces);
-
         }
         return pieces.join('');
     });
@@ -203,4 +212,14 @@ function computeTocItemHtml(node: TocNode, template: string): string {
     return template
         .replaceAll(/<!-- start: toc-item-text -->(.*?)<!-- end: toc-item-text -->/g, escape(node.title))
         .replace(/ href=".*?"/, ` href="#${escape(node.anchorId)}"`);
+}
+
+function computeProductGithubHtml(designHtml: string, productRepo: string | undefined): string {
+    if (!productRepo) return '';
+    return designHtml.replace(/ href=".*?"/, ` href="https://github.com/${escape(productRepo)}"`);
+}
+
+function computeContentGithubHtml(designHtml: string, contentRepoPath: string, contentRepo: string | undefined): string {
+    if (!contentRepo) return '';
+    return designHtml.replace(/ href=".*?"/, ` href="https://github.com/${escape(contentRepo)}/blob/HEAD${escape(contentRepoPath)}"`);
 }
