@@ -56,7 +56,7 @@ function trimHidden(node: Node) {
     if (node.hideChildren) {
         node.children.splice(0);
     } else {
-        node.children = node.children.filter(v => !v.hidden);
+        node.children = node.children.filter(v => !v.hidden && !v.path.endsWith('/404'));
         for (const child of node.children) {
             trimHidden(child);
         }
