@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#7e57c2" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#7e57c2">
 
+<!-- start -->
 <style name="main-styles">
 
 /* reset */
@@ -2564,34 +2565,37 @@ blockquote .markdown-header-anchor-positioner {
                 </a>
                 <!-- TODO more dropdown? -->
             </div>
+            <!-- start: sidebar -->
             <div class="sidebar-section sidebar-nav-section" style="position:relative;overflow:hidden;width:100%;height:100%">
                 <div style="position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;-webkit-overflow-scrolling:touch;margin-right:0;margin-bottom:0">
                     <div class="sidebar-nav-section-shadow"></div>
                     <ul class="sidebar-nav">
 
-                        <!-- Overview -->
+                        <!-- start: sidebar-nav-item -->
                         <li class="sidebar-nav-item" is-active="">
                             <a aria-current="page" class="sidebar-nav-link" is-active="" href="#product-link">
                                 <span class="sidebar-nav-link-highlight"></span>
-                                <span class="sidebar-nav-link-text">Overview</span>
+                                <span class="sidebar-nav-link-text"><!-- start: sidebar-nav-item-text -->Overview<!-- end: sidebar-nav-item-text --></span>
                             </a>
                         </li>
+                        <!-- end: sidebar-nav-item -->
 
-                        <!-- Nav group 1 -->
+                        <!-- start: sidebar-nav-item-with-children -->
                         <li class="sidebar-nav-item" is-expanded><!-- to expand: is-expanded-->
                             <button class="button sidebar-nav-expand-collapse-button">
                                 <span class="sidebar-nav-expand-collapse-button-content" aria-hidden="true"></span>
-                                <span is-visually-hidden="">Expand<!-- -->: <!-- -->Nav group 1</span>
+                                <span is-visually-hidden="">Expand<!-- -->: <!-- --><!-- start: sidebar-nav-item-text -->Nav group 1<!-- end: sidebar-nav-item-text --></span>
                             </button>
                             <a class="sidebar-nav-link" href="#nav-group-1">
                                 <span class="sidebar-nav-link-highlight"></span>
-                                <span class="sidebar-nav-link-text">Nav group 1</span>
+                                <span class="sidebar-nav-link-text"><!-- start: sidebar-nav-item-text -->Nav group 1<!-- end: sidebar-nav-item-text --></span>
                             </a>
                             <div class="sidebar-nav-item-collapse-container sidebar-nav-item-collapse-hidden" style="min-height:0px;height: auto;"> <!-- to unhide, add: height: auto; -->
                                 <div class="sidebar-nav-item-collapse-wrapper">
                                     <div class="sidebar-nav-item-collapse-wrapper-inner">
                                         <div class="sidebar-nav-item-collapse-content">
                                             <ul class="sidebar-nav-subnav" depth="1" style="--depth:1">
+                                                <!-- start: children -->
                                                 <li class="sidebar-nav-item">
                                                     <a class="sidebar-nav-link" tabindex="-1" aria-hidden="true" href="#subitem-1"><!-- to activate: is-active="" -->
                                                         <span class="sidebar-nav-link-highlight"></span>
@@ -2604,17 +2608,19 @@ blockquote .markdown-header-anchor-positioner {
                                                         <span class="sidebar-nav-link-text">Subitem 2</span>
                                                     </a>
                                                 </li>
+                                                <!-- end: children -->
                                             </ul>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </li>
-                        <!-- more items -->
+                        <!-- end: sidebar-nav-item-with-children -->
                     </ul>
                 </div>
                 <!-- TODO internal scroller -->
             </div>
+            <!-- end: sidebar -->
         </div>
         <div class="sidebar-shadow"></div>
     </div>
@@ -2663,13 +2669,14 @@ blockquote .markdown-header-anchor-positioner {
         </div>
     </div>
 
-    <!-- page-type="overview" -->
+    <!-- start: page-type="overview" -->
     <main class="body" style="display:none;">
         <div id="docs-content-overview"></div>
         <div class="content" page-type="overview">
             <article class="markdown">
                 <div class="markdown-content-column">
-                    <!-- markdown start -->
+
+                    <!-- start: markdown -->
                     <h1 id="product-documentation">Product documentation</h1>
                     <p>
                         Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
@@ -2689,13 +2696,15 @@ blockquote .markdown-header-anchor-positioner {
                         <span>Nunc mattis enim</span>
                     </h2>
                     <p>This is an overview page.</p>
+                    <!-- end: markdown -->
+                    
                 </div>
             </article>
         </div>
     </main>
+    <!-- end: page-type="overview" -->
 
-
-    <!-- page-type="document" -->
+    <!-- start: page-type="document" -->
     <main class="body" style="display:block;">
 
         <!-- only shown when page-type="document" and wide desktop -->
@@ -2729,7 +2738,8 @@ blockquote .markdown-header-anchor-positioner {
 
             <article class="markdown">
                 <div class="markdown-content-column">
-                    <!-- markdown start -->
+
+                    <!-- start: markdown -->
                     <h1 id="page-title">Page Title</h1>
 
                     <h2 id="first">
@@ -2774,11 +2784,13 @@ blockquote .markdown-header-anchor-positioner {
                             </a>
                         </li>
                     </ul>
+                     <!-- end: markdown -->
 
                 </div>
             </article>
         </div>
     </main>
+    <!-- end: page-type="document" -->
 
     <footer class="footer">
         <div class="footer-content">

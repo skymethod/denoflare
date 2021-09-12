@@ -59,7 +59,7 @@ export class SiteModel {
             if (resource.extension === '.md') {
                 const { canonicalPath: path } = resource;
                 const page = resource.page!;
-                const outputHtml = computeHtml({ page, path, config, sidebar, verbose: false, dumpEnv: false });
+                const outputHtml = await computeHtml({ page, path, config, sidebar, verbose: false, dumpEnv: false });
                 resource.outputText = outputHtml;
             }
         }
@@ -95,6 +95,13 @@ export interface InputFileInfo {
     readonly version: string;
 }
 
+export function replaceSuffix(path: string, fromSuffix: string, toSuffix: string, opts: { required?: boolean } = { }): string {
+    const { required } = opts;
+    const endsWith = path.endsWith(fromSuffix);
+    if (!endsWith && !!required) throw new Error(`Bad path: ${path}, expected to end in suffix: ${fromSuffix}`);
+    return endsWith ? (path.substring(0, path.length - fromSuffix.length) + toSuffix) : path;
+}
+
 //
 
 interface ResourceInfo {
@@ -127,14 +134,14 @@ function shouldIncludeInOutput(path: string, extension: string): boolean {
 function computeOutputPath(inputFile: string, inputDir: string, outputDir: string) {
     const relativePath = relative(inputDir, inputFile);
     const outputPath = resolve(outputDir, relativePath);
-    return replaceMdWithHtml(outputPath);
+    return replaceSuffix(outputPath, '.md', '.html');
 }
 
 function computeResourcePath(inputFile: string, inputDir: string): string {
     if (!inputFile.startsWith(inputDir)) throw new Error(`Bad inputFile: ${inputFile}, must reside under ${inputDir}`);
     const relativePath = relative(inputDir, inputFile);
     if (relativePath.startsWith('/')) throw new Error(`Unexpected relative path: ${relativePath}, inputFile=${inputFile}, inputDir=${inputDir}`);
-    return '/' + replaceMdWithHtml(relativePath);
+    return '/' + replaceSuffix(relativePath, '.md', '.html');
 }
 
 function computeCanonicalResourcePath(resourcePath: string): string {
@@ -154,8 +161,4 @@ async function computeConfig(resources: Map<string, ResourceInfo>): Promise<Site
         }
     }
     throw new Error(`Site config not found: /config.jsonc or /config.json`);
-}
-
-function replaceMdWithHtml(path: string): string {
-    return path.endsWith('.md') ? (path.substring(0, path.length - '.md'.length) + '.html') : path;
 }
