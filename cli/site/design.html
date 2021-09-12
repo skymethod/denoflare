@@ -2519,7 +2519,7 @@ blockquote .markdown-header-anchor-positioner {
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" role="img" aria-labelledby="title-for-product-logo"><title id="title-for-product-logo">Product logo</title><g><rect fill="none" height="24" width="24"/><path d="M19,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V5C21,3.9,20.11,3,19,3z M19,19H5V7h14V19z M17,12H7v-2 h10V12z M13,16H7v-2h6V16z"/></g></svg>
                 </div>
                 <span class="nav-logo-lockup-text">
-                    <span class="mobile-title-header-text-scaler" style="--length: 7">Product</span>
+                    <span class="mobile-title-header-text-scaler" style="--length: 7"><!-- start: product -->Product<!-- end: product --></span>
                 </span>
             </div>
         </a>
@@ -2559,7 +2559,7 @@ blockquote .markdown-header-anchor-positioner {
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" role="img" aria-labelledby="title-for-product-logo"><title id="title-for-product-logo">Product logo</title><g><rect fill="none" height="24" width="24"/><path d="M19,3H5C3.89,3,3,3.9,3,5v14c0,1.1,0.89,2,2,2h14c1.1,0,2-0.9,2-2V5C21,3.9,20.11,3,19,3z M19,19H5V7h14V19z M17,12H7v-2 h10V12z M13,16H7v-2h6V16z"/></g></svg>
                         </div>
                         <span class="nav-logo-lockup-text">
-                            <span class="sidebar-product-title-text-scaler" style="--length: 7">Product</span>
+                            <span class="sidebar-product-title-text-scaler" style="--length: 7"><!-- start: product -->Product<!-- end: product --></span>
                         </span>
                     </div>
                 </a>
@@ -2708,22 +2708,30 @@ blockquote .markdown-header-anchor-positioner {
     <main class="body" style="display:block;">
 
         <!-- only shown when page-type="document" and wide desktop -->
+        <!-- start: toc -->
         <div class="body-sidebar" with-styled-webkit-scrollbars="">
             <div class="body-sidebar-content-scroll-fade"></div>
             <div class="body-sidebar-content">
                 <nav>
                     <ul class="table-of-contents">
                         <li><a class="table-of-contents-link" href="#docs-content">↑ Top</a></li>
-                        <li><a class="table-of-contents-link" href="#first">First</a></li>
-                        <li><a class="table-of-contents-link" href="#second">Second</a>
+                        <!-- start: toc-item -->
+                        <li><a class="table-of-contents-link" href="#first"><!-- start: toc-item-text -->First<!-- end: toc-item-text --></a></li>
+                        <!-- end: toc-item -->
+                        <!-- start: toc-item-with-children -->
+                        <li><a class="table-of-contents-link" href="#second"><!-- start: toc-item-text -->Second<!-- end: toc-item-text --></a></a>
                             <ul>
+                                <!-- start: toc-children -->
                                 <li><a class="table-of-contents-link" href="#see-also-1">See also</a></li>
+                                <!-- start: toc-children -->
                             </ul>
                         </li>
+                        <!-- end: toc-item-with-children -->
                     </ul>
                 </nav>
             </div>
         </div>
+        <!-- end: toc -->
 
         <div id="docs-content"></div>
         <div class="content" page-type="document"><!-- document=leave room for toc sidebar -->

@@ -12,16 +12,19 @@ export function computeSidebar(items: SidebarInputItem[]): SidebarNode {
         node.title = item.title;
         node.hideChildren = item.hideChildren;
         node.hidden = item.hidden;
+        node.order = item.order;
     }
     trimHidden(root);
+    sort(root);
     return root;
 }
 
 export interface SidebarInputItem {
     readonly title: string;
     readonly path: string;
-    readonly hidden?: boolean;
-    readonly hideChildren?: boolean;
+    readonly hidden: boolean | undefined;
+    readonly hideChildren: boolean | undefined;
+    readonly order: number | undefined;
 }
 
 //
@@ -32,6 +35,7 @@ interface Node {
     hidden?: boolean;
     hideChildren?: boolean;
     children: Node[];
+    order?: number;
 }
 
 function ensureNode(path: string, root: Node): Node {
@@ -56,5 +60,22 @@ function trimHidden(node: Node) {
         for (const child of node.children) {
             trimHidden(child);
         }
+    }
+}
+
+function sort(node: Node) {
+    node.children.sort((lhs, rhs) => {
+        if (lhs.order !== undefined && rhs.order !== undefined) {
+            return lhs.order - rhs.order;
+        } else if (lhs.order === undefined && rhs.order === undefined) {
+            return lhs.title.localeCompare(rhs.title);
+        } else if (lhs.order !== undefined && rhs.order === undefined) {
+            return 1;
+        } else {
+            return -1;
+        }
+    });
+    for (const child of node.children) {
+        sort(child);
     }
 }

@@ -3,11 +3,12 @@ import { Page } from './page.ts';
 import { SidebarNode } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
+import { computeToc, TocNode } from './toc.ts';
 
 export async function computeHtml(opts: { page: Page, path: string, config: SiteConfig, sidebar: SidebarNode, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
-    const { page, path, config, sidebar, verbose, dumpEnv } = opts;
+    const { page, path, config, sidebar, verbose } = opts;
     const { markdown } = page;
-    const { siteMetadata, themeColor, themeColorDark } = config;
+    const { siteMetadata, themeColor, themeColorDark, product } = config;
     const { twitterUsername } = siteMetadata;
 
     const title = `${page.titleResolved} · ${siteMetadata.title}`;
@@ -39,8 +40,15 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     const startMarker = '<!-- start -->';
     outputHtml += designHtml.substring(designHtml.indexOf(startMarker) + startMarker.length);
 
+    // hide the organization stuff for now
+    outputHtml = outputHtml.replace('<div class="mobile-header">', '<div class="mobile-header" style="visibility:hidden;">');
+    outputHtml = outputHtml.replace('<div class="sidebar-section sidebar-header-section">', '<div class="sidebar-section sidebar-header-section" style="visibility:hidden;">');
+
+    // set product
+    outputHtml = outputHtml.replaceAll(/<!-- start: product -->.*?<!-- end: product -->/sg, escape(product));
+
+    // choose page type template
     const isDocument = (page.frontmatter.type || 'document') === 'document';
-    console.log(`${page.titleResolved} isDocument=${isDocument}`);
     if (isDocument) {
         outputHtml = outputHtml.replace(/<!-- start: page-type="overview" -->.*?<!-- end: page-type="overview" -->/s, '');
     } else {
@@ -48,18 +56,27 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
         outputHtml = outputHtml.replace(` style="display:none;"`, '');
     }
 
-    outputHtml = outputHtml.replace(/<!-- start: sidebar -->.*?<!-- end: sidebar -->/s, (substr, args) => {
+    // render sidebar
+    outputHtml = outputHtml.replace(/<!-- start: sidebar -->.*?<!-- end: sidebar -->/s, (substr) => {
         return computeSidebarHtml(substr, sidebar, path);
     });
 
+    // render markdown
     const { lexer, parser } = marked;
 
     const markdownResolved = markdown.replaceAll(/\$([_A-Z0-9]+)/g, (_, g1) => Deno.env.get(g1) || ''); // TODO more replacements
     const tokens = lexer(markdownResolved);
     if (verbose) console.log(tokens);
     const markdownHtml = parser(tokens);
-
     outputHtml = outputHtml.replace(/<!-- start: markdown -->.*?<!-- end: markdown -->/s, markdownHtml);
+
+    // render toc
+    if (isDocument) {
+        const toc = computeToc();
+        outputHtml = outputHtml.replace(/<!-- start: toc -->.*?<!-- end: toc -->/s, (substr) => {
+            return computeTocHtml(substr, toc);
+        });
+    }
 
     return outputHtml;
 }
@@ -121,11 +138,69 @@ function appendSidebarNodeHtml(node: SidebarNode, path: string, navItemTemplate:
 
 function computeSidebarItemHtml(node: SidebarNode, path: string, template: string): string {
     let rt = template
-        .replaceAll(/<!-- start: sidebar-nav-item-text -->(.*?)<!-- end: sidebar-nav-item-text -->/g, node.title)
-        .replace(/ href=".*?"/, ` href="${node.path}"`);
+        .replaceAll(/<!-- start: sidebar-nav-item-text -->(.*?)<!-- end: sidebar-nav-item-text -->/g, escape(node.title))
+        .replace(/ href=".*?"/, ` href="${escape(node.path)}"`);
     const active = node.path === path;
     if (!active) {
         rt = rt.replaceAll(' is-active=""', '');
     }
     return rt;
+}
+
+const ENTITIES: { [char: string]: string } = {
+    "<": "&lt;",
+    ">": "&gt;",
+    "&": "&amp;",
+    "'": "&#39;", // "&#39;" is shorter than "&apos;"
+    '"': "&#34;", // "&#34;" is shorter than "&quot;"
+};
+
+function escape(text: string): string {
+    return text.replaceAll(/[&<>"']/g, (char) => {
+        return ENTITIES[char];
+    });
+}
+
+function computeTocHtml(designHtml: string, toc: TocNode[]): string {
+    if (toc.length === 0) return '';
+    let tocItemWithChildrenTemplate = '';
+    let outputHtml = designHtml.replace(/<!-- start: toc-item-with-children -->(.*?)<!-- end: toc-item-with-children -->/s, (_, g1) => {
+        tocItemWithChildrenTemplate = g1;
+        return '';
+    });
+
+    outputHtml = outputHtml.replace(/<!-- start: toc-item -->(.*?)<!-- end: toc-item -->/s, (_, g1) => {
+        const tocItemTemplate: string = g1;
+        const pieces: string[] = [];
+        for (const tocItem of toc) {
+            appendTocNodeHtml(tocItem, tocItemTemplate, tocItemWithChildrenTemplate, pieces);
+
+        }
+        return pieces.join('');
+    });
+
+    return outputHtml;
+}
+
+function appendTocNodeHtml(node: TocNode, tocItemTemplate: string, tocItemWithChildrenTemplate: string, pieces: string[]) {
+    const children = node.children || [];
+    if (children.length === 0) {
+        pieces.push(computeTocItemHtml(node, tocItemTemplate));
+    } else {
+        let rt = computeTocItemHtml(node, tocItemWithChildrenTemplate);
+        rt = rt.replace(/<!-- start: toc-children -->(.*?)<!-- end: toc-children -->/s, () => {
+            const subpieces: string[] = [];
+            for (const child of children) {
+                appendTocNodeHtml(child, tocItemTemplate, tocItemWithChildrenTemplate, subpieces);
+            }
+            return subpieces.join('');
+        });
+        pieces.push(rt);
+    }
+}
+
+function computeTocItemHtml(node: TocNode, template: string): string {
+    return template
+        .replaceAll(/<!-- start: toc-item-text -->(.*?)<!-- end: toc-item-text -->/g, escape(node.title))
+        .replace(/ href=".*?"/, ` href="#${escape(node.anchorId)}"`);
 }

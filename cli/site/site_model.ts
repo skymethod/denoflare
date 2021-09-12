@@ -51,6 +51,7 @@ export class SiteModel {
                 path: v[1].canonicalPath,
                 hidden: v[1].page!.frontmatter.hidden,
                 hideChildren: v[1].page!.frontmatter.hideChildren,
+                order: v[1].page!.frontmatter.order,
             }));
         const sidebar = computeSidebar(sidebarInputItems);
 
