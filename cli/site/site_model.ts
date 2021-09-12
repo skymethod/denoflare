@@ -19,6 +19,8 @@ export class SiteModel {
     }
 
     async setInputFiles(files: InputFileInfo[]) {
+        const contentUpdateTime = Date.now();
+
         for (const file of files) {
             const inputPath = file.path;
             if (!isAbsolute(inputPath)) throw new Error(`Bad inputPath: ${inputPath}, must be absolute`);
@@ -61,7 +63,7 @@ export class SiteModel {
             if (resource.extension === '.md') {
                 const { canonicalPath: path, contentRepoPath } = resource;
                 const page = resource.page!;
-                const outputHtml = await computeHtml({ page, path, contentRepoPath, config, sidebar, verbose: false, dumpEnv: false });
+                const outputHtml = await computeHtml({ page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose: false, dumpEnv: false });
                 resource.outputText = outputHtml;
             }
         }

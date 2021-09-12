@@ -5,8 +5,8 @@ import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
 import { computeToc, TocNode } from './toc.ts';
 
-export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
-    const { page, path, contentRepoPath, config, sidebar, verbose } = opts;
+export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
+    const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose } = opts;
     const { markdown } = page;
     const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo } = config;
     const { twitterUsername } = siteMetadata;
@@ -86,6 +86,11 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     // content github
     outputHtml = outputHtml.replace(/<!-- start: content github -->(.*?)<!-- end: content github -->/s, (_, g1) => {
         return computeContentGithubHtml(g1, contentRepoPath, contentRepo);
+    });
+
+    // content time
+    outputHtml = outputHtml.replace(/<!-- start: content time -->(.*?)<!-- end: content time -->/s, (_, g1) => {
+        return computeContentUpdateTimeHtml(g1, contentUpdateTime);
     });
 
     return outputHtml;
@@ -222,4 +227,9 @@ function computeProductGithubHtml(designHtml: string, productRepo: string | unde
 function computeContentGithubHtml(designHtml: string, contentRepoPath: string, contentRepo: string | undefined): string {
     if (!contentRepo) return '';
     return designHtml.replace(/ href=".*?"/, ` href="https://github.com/${escape(contentRepo)}/blob/HEAD${escape(contentRepoPath)}"`);
+}
+
+function computeContentUpdateTimeHtml(_designHtml: string, contentUpdateTime: number): string {
+    const instant = new Date(contentUpdateTime).toISOString();
+    return html`<time datetime="${instant}" title="${instant}">${instant}</time>`.toString();
 }

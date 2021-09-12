@@ -2495,8 +2495,27 @@ blockquote .markdown-header-anchor-positioner {
 
 </style>
 
+<script>
+
+function setRelativeTime(time) {
+    const date = new Date(time.dateTime);
+    let unit = 'second';
+    let value = (Date.now() - date.getTime()) / 1000;
+    if (value > 60) { value = value / 60; unit = 'minute'; }
+    if (value > 60) { value = value / 60; unit = 'hour'; }
+    if (value > 48) { value = value / 24; unit = 'day'; }
+    time.textContent = new Intl.RelativeTimeFormat().format(-Math.floor(value), unit);
+    time.title = new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'long' }).format(date);
+}
+
+function init() {
+    [...document.getElementsByTagName('time')].forEach(setRelativeTime);
+}
+
+</script>
+
 </head>
-<body class="page">
+<body class="page" onload="init()">
     <div class="mobile-header">
         <a class="mobile-header-logo-link link link-without-underline" href="#organization-link">
             <div class="nav-logo-lockup nav-logo-lockup-with-small-gap">
@@ -2817,7 +2836,7 @@ blockquote .markdown-header-anchor-positioner {
                 </span>
                 <span class="footer-content-dot-spacer"> <!-- -->&nbsp; · &nbsp;<!-- --> </span>
                 <!-- end: content github -->
-                <span class="footer-content-time">Updated<!-- --> <time datetime="2021-09-07T00:00:00.000Z" title="2021-09-07">21 hours ago</time></span>
+                <span class="footer-content-time">Updated<!-- --> <!-- start: content time --><time datetime="2021-09-07T00:00:00.000Z" title="2021-09-07">21 hours ago</time><!-- end: content time --></span>
             </div>
         </div>
     </footer>
