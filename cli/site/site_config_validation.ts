@@ -31,7 +31,7 @@ function checkNotBlankString(name: string, value: any): value is string {
 
 // deno-lint-ignore no-explicit-any
 function checkSiteMetadata(siteMetadata: any): SiteMetadata {
-    const { title, description, twitterUsername, image, imageAlt, origin, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor } = siteMetadata;
+    const { title, description, twitterUsername, image, imageAlt, origin, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor, manifest } = siteMetadata;
     checkNotBlankString('title', title);
     checkNotBlankString('description', description);
     checkTwitterUsername('twitterUsername', twitterUsername);
@@ -44,7 +44,8 @@ function checkSiteMetadata(siteMetadata: any): SiteMetadata {
     if (faviconMaskColor !== undefined) checkColor('faviconMaskColor', faviconMaskColor);
     if (faviconMaskColor && !faviconMaskSvg) throw new Error(`faviconMaskSvg required when faviconMaskColor defined`);
     if (!faviconMaskColor && faviconMaskSvg) throw new Error(`faviconMaskColor required when faviconMaskSvg defined`);
-    return { title, description, twitterUsername, image, imageAlt, origin, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor };
+    if (manifest !== undefined) checkObject('manifest', manifest);
+    return { title, description, twitterUsername, image, imageAlt, origin, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor, manifest };
 }
 
 // deno-lint-ignore no-explicit-any

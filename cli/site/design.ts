@@ -5,8 +5,8 @@ import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
 import { computeToc, TocNode } from './toc.ts';
 
-export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, inputDir: string, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
-    const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose, inputDir } = opts;
+export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, inputDir: string, manifestPath: string | undefined, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
+    const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose, inputDir, manifestPath } = opts;
     const { markdown } = page;
     const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo, productSvg } = config;
     const { twitterUsername, image, imageAlt, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor } = siteMetadata;
@@ -39,7 +39,7 @@ ${ twitterUsername ? html`<meta name="twitter:site" content="${twitterUsername}"
 ${ faviconIco ? html`<link rel="icon" href="${faviconIco}">` : '' }
 ${ faviconSvg ? html`<link rel="icon" href="${faviconSvg}" type="image/svg+xml">` : '' }
 ${ faviconMaskSvg && faviconMaskColor ? html`<link rel="mask-icon" href="${faviconMaskSvg}" color="${faviconMaskColor}">` : '' }
-<link rel="manifest" href="/TODO.webmanifest">
+${ manifestPath ? html`<link rel="manifest" href="${manifestPath}">` : '' }
 ${ themeColorDark ? html`<meta name="theme-color" content="${themeColorDark}" media="(prefers-color-scheme: dark)">` : '' }
 ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
 `.toString();

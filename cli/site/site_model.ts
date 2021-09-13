@@ -1,4 +1,4 @@
-import { relative, resolve, extname, emptyDir, isAbsolute, dirname, ensureDir } from '../deps_cli.ts';
+import { relative, resolve, extname, emptyDir, isAbsolute, dirname, ensureDir, join } from '../deps_cli.ts';
 import { directoryExists } from '../fs_util.ts';
 import { ParseError, parseJsonc } from '../jsonc.ts';
 import { computeHtml } from './design.ts';
@@ -6,11 +6,14 @@ import { Page, readPageFromFile } from './page.ts';
 import { computeSidebar, SidebarInputItem } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts'
 import { checkSiteConfig } from './site_config_validation.ts';
+import { Bytes } from '../../common/bytes.ts';
 
 export class SiteModel {
 
     private readonly inputDir: string;
     private readonly resources = new Map<string, ResourceInfo>();
+
+    private currentManifestPath: string | undefined;
 
     constructor(inputDir: string) {
         if (!directoryExists(inputDir)) throw new Error(`Bad inputDir: ${inputDir}, must exist`);
@@ -39,6 +42,23 @@ export class SiteModel {
         // read config
         const config = await computeConfig(this.resources);
 
+        // generate app manifest
+        const { manifestPath, manifestContents } = await computeManifest(config);
+        if (this.currentManifestPath !== manifestPath) {
+            this.resources.set(manifestPath, {
+                inputPath: join(this.inputDir, manifestPath),
+                extension: '.webmanifest',
+                includeInOutput: true,
+                canonicalPath: manifestPath,
+                contentRepoPath: '<generated>',
+                outputText: manifestContents,
+            });
+            if (this.currentManifestPath) {
+                this.resources.delete(this.currentManifestPath);
+            }
+            this.currentManifestPath = manifestPath;
+        }
+
         // read frontmatter from all md
         for (const [_, resource] of this.resources.entries()) {
             if (resource.extension === '.md') {
@@ -64,7 +84,7 @@ export class SiteModel {
                 const { canonicalPath: path, contentRepoPath } = resource;
                 const { inputDir } = this;
                 const page = resource.page!;
-                const outputHtml = await computeHtml({ inputDir, page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose: false, dumpEnv: false });
+                const outputHtml = await computeHtml({ inputDir, page, path, contentRepoPath, config, sidebar, contentUpdateTime, manifestPath, verbose: false, dumpEnv: false });
                 resource.outputText = outputHtml;
             }
         }
@@ -174,4 +194,28 @@ async function computeConfig(resources: Map<string, ResourceInfo>): Promise<Site
         }
     }
     throw new Error(`Site config not found: /config.jsonc or /config.json`);
+}
+
+async function computeManifest(config: SiteConfig): Promise<{ manifestPath: string; manifestContents: string; }> {
+    const icons = config.siteMetadata.faviconSvg ? [{ src: config.siteMetadata.faviconSvg, type: 'image/svg+xml' }] : [];
+    const manifest: Record<string, unknown> = {
+        'short_name': config.siteMetadata.title,
+        name: config.siteMetadata.title,
+        description: config.siteMetadata.description,
+        icons: icons,
+        'theme_color': config.themeColorDark || config.themeColor,
+        'background_color': '#1d1f20',
+        display: 'standalone',
+        'start_url': '/',
+        lang: 'en-US',
+        dir: 'ltr',
+    };
+    if (config.siteMetadata.manifest) {
+        for (const [name, value] of Object.entries(config.siteMetadata.manifest)) {
+            manifest[name] = value;
+        }
+    }
+    const manifestContents = JSON.stringify(manifest, undefined, 2);
+    const manifestPath = `/app.${(await Bytes.ofUtf8(manifestContents).sha1()).hex()}.webmanifest`;
+    return { manifestPath, manifestContents };
 }
