@@ -1,6 +1,6 @@
 import { fromFileUrl, html, marked } from '../deps_cli.ts';
 import { Page } from './page.ts';
-import { SidebarNode } from './sidebar.ts';
+import { computeBreadcrumbs, SidebarNode } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
 import { computeToc, TocNode } from './toc.ts';
@@ -47,6 +47,9 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     // set product
     outputHtml = outputHtml.replaceAll(/<!-- start: product -->.*?<!-- end: product -->/sg, escape(product));
 
+    // set product link
+    outputHtml = outputHtml.replaceAll(/ href="#product-link"/sg, ` href="/"`);
+
     // product github
     outputHtml = outputHtml.replace(/<!-- start: product github -->(.*?)<!-- end: product github -->/s, (_, g1) => {
         return computeProductGithubHtml(g1, productRepo);
@@ -64,6 +67,11 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     // render sidebar
     outputHtml = outputHtml.replace(/<!-- start: sidebar -->.*?<!-- end: sidebar -->/s, (substr) => {
         return computeSidebarHtml(substr, sidebar, path);
+    });
+
+    // render breadcrumbs
+    outputHtml = outputHtml.replace(/<!-- start: breadcrumb -->(.*?)<!-- end: breadcrumb -->/s, (_, g1) => {
+        return computeBreadcrumbsHtml(g1, sidebar, path);
     });
 
     // render markdown
@@ -126,6 +134,17 @@ async function computeDesignHtml(): Promise<string> {
         _designHtml = await readOrFetchDesignHtml();
     }
     return _designHtml!;
+}
+
+function computeBreadcrumbsHtml(designHtml: string, sidebar: SidebarNode, path: string): string {
+    const breadcrumbs = computeBreadcrumbs(sidebar, path);
+    return breadcrumbs.map(v => computeBreadcrumbHtml(v, designHtml)).join('\n');
+}
+
+function computeBreadcrumbHtml(node: SidebarNode, designHtml: string): string {
+    return designHtml
+    .replaceAll(/<!-- start: breadcrumb-text -->(.*?)<!-- end: breadcrumb-text -->/g, escape(node.title))
+    .replace(/ href=".*?"/, ` href="${escape(node.path)}"`)
 }
 
 function computeSidebarHtml(designHtml: string, sidebar: SidebarNode, path: string): string {

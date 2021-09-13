@@ -27,6 +27,24 @@ export interface SidebarInputItem {
     readonly order: number | undefined;
 }
 
+export function computeBreadcrumbs(sidebar: SidebarNode, path: string): SidebarNode[] {
+    const rt: SidebarNode[] = [];
+    const find = (nodes: readonly SidebarNode[]) => {
+        for (const node of nodes) {
+            if (node.path === path) return rt;
+            if (node.children.length > 0) {
+                rt.push(node);
+                const found = find(node.children);
+                if (found) return true;
+                rt.pop();
+            }
+        }
+        return false;
+    }
+    find(sidebar.children);
+    return rt;
+}
+
 //
 
 interface Node {
