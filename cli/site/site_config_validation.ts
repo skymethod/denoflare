@@ -14,8 +14,8 @@ export function checkSiteConfig(config: any): SiteConfig {
     checkRepo('productRepo', productRepo);
     if (productSvg !== undefined) checkNotBlankString('productSvg', productSvg);
     checkRepo('contentRepo', contentRepo);
-    checkThemeColor('themeColor', themeColor);
-    checkThemeColor('themeColorDark', themeColorDark);
+    checkColor('themeColor', themeColor);
+    checkColor('themeColorDark', themeColorDark);
     if (themeColorDark && !themeColor) throw new Error(`themeColor required when themeColorDark defined`);
     checkSiteMetadata(siteMetadata);
     return { organization, organizationSuffix, organizationSvg, organizationUrl, product, productRepo, productSvg, contentRepo, themeColor, themeColorDark, siteMetadata };
@@ -31,17 +31,24 @@ function checkNotBlankString(name: string, value: any): value is string {
 
 // deno-lint-ignore no-explicit-any
 function checkSiteMetadata(siteMetadata: any): SiteMetadata {
-    const { title, description, twitterUsername, image, origin } = siteMetadata;
+    const { title, description, twitterUsername, image, imageAlt, origin, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor } = siteMetadata;
     checkNotBlankString('title', title);
     checkNotBlankString('description', description);
     checkTwitterUsername('twitterUsername', twitterUsername);
     if (image !== undefined) checkNotBlankString('image', image);
+    if (imageAlt !== undefined) checkNotBlankString('imageAlt', imageAlt);
     checkOrigin('origin', origin);
-    return { title, description, twitterUsername, image, origin };
+    if (faviconIco !== undefined) checkNotBlankString('faviconIco', faviconIco);
+    if (faviconSvg !== undefined) checkNotBlankString('faviconSvg', faviconSvg);
+    if (faviconMaskSvg !== undefined) checkNotBlankString('faviconMaskSvg', faviconMaskSvg);
+    if (faviconMaskColor !== undefined) checkColor('faviconMaskColor', faviconMaskColor);
+    if (faviconMaskColor && !faviconMaskSvg) throw new Error(`faviconMaskSvg required when faviconMaskColor defined`);
+    if (!faviconMaskColor && faviconMaskSvg) throw new Error(`faviconMaskColor required when faviconMaskSvg defined`);
+    return { title, description, twitterUsername, image, imageAlt, origin, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor };
 }
 
 // deno-lint-ignore no-explicit-any
-function checkThemeColor(name: string, value: any): value is string | undefined {
+function checkColor(name: string, value: any): value is string | undefined {
     if (value === undefined) return true;
     if (typeof value !== 'string' || !/^#[a-fA-F0-9]{6}$/.test(value)) throw new Error(`Bad ${name}: ${value}`);
     return true;

@@ -62,8 +62,9 @@ export class SiteModel {
         for (const [_, resource] of this.resources.entries()) {
             if (resource.extension === '.md') {
                 const { canonicalPath: path, contentRepoPath } = resource;
+                const { inputDir } = this;
                 const page = resource.page!;
-                const outputHtml = await computeHtml({ page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose: false, dumpEnv: false });
+                const outputHtml = await computeHtml({ inputDir, page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose: false, dumpEnv: false });
                 resource.outputText = outputHtml;
             }
         }

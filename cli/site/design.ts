@@ -1,15 +1,15 @@
-import { fromFileUrl, html, marked } from '../deps_cli.ts';
+import { fromFileUrl, html, join, marked } from '../deps_cli.ts';
 import { Page } from './page.ts';
 import { computeBreadcrumbs, SidebarNode } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
 import { computeToc, TocNode } from './toc.ts';
 
-export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
-    const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose } = opts;
+export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, inputDir: string, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
+    const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose, inputDir } = opts;
     const { markdown } = page;
-    const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo } = config;
-    const { twitterUsername } = siteMetadata;
+    const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo, productSvg } = config;
+    const { twitterUsername, image, imageAlt, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor } = siteMetadata;
 
     const title = `${page.titleResolved} · ${siteMetadata.title}`;
     
@@ -17,6 +17,7 @@ export async function computeHtml(opts: { page: Page, path: string, contentRepoP
 
     const origin = siteMetadata.origin || 'http://example.com';
     const url = origin + path;
+    const imageUrl = typeof image === 'string' && image.startsWith('/') ? `${origin}${image}` : image;
 
     let outputHtml = html`<!DOCTYPE html>
 <html lang="en" theme="dark">
@@ -27,11 +28,18 @@ export async function computeHtml(opts: { page: Page, path: string, contentRepoP
 <meta name="description" content="${description}">
 <meta property="og:title" content="${title}">
 <meta property="og:description" content="${description}">
+${ imageUrl ? html`<meta property="og:image" content="${imageUrl}">` : '' }
+${ imageUrl && imageAlt ? html`<meta property="og:image:alt" content="${imageAlt}">` : '' }
 <meta property="og:locale" content="en_US">
 <meta property="og:type" content="website">
+${ imageUrl ? html`<meta name="twitter:card" content="summary_large_image">` : '' }
 ${ twitterUsername ? html`<meta name="twitter:site" content="${twitterUsername}">` : '' }
 <meta property="og:url" content="${url}">
 <link rel="canonical" href="${url}">
+${ faviconIco ? html`<link rel="icon" href="${faviconIco}">` : '' }
+${ faviconSvg ? html`<link rel="icon" href="${faviconSvg}" type="image/svg+xml">` : '' }
+${ faviconMaskSvg && faviconMaskColor ? html`<link rel="mask-icon" href="${faviconMaskSvg}" color="${faviconMaskColor}">` : '' }
+<link rel="manifest" href="/TODO.webmanifest">
 ${ themeColorDark ? html`<meta name="theme-color" content="${themeColorDark}" media="(prefers-color-scheme: dark)">` : '' }
 ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
 `.toString();
@@ -49,6 +57,12 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
 
     // set product link
     outputHtml = outputHtml.replaceAll(/ href="#product-link"/sg, ` href="/"`);
+
+    // set product logo
+    const productSvgContents = await readSvg(inputDir, productSvg);
+    outputHtml = outputHtml.replaceAll(/<!-- start: product logo -->(.*?)<!-- end: product logo -->/sg, (_, g1) => {
+        return computeProductLogoHtml(g1, productSvgContents);
+    });
 
     // product github
     outputHtml = outputHtml.replace(/<!-- start: product github -->(.*?)<!-- end: product github -->/s, (_, g1) => {
@@ -274,4 +288,16 @@ function computeExternalAnchorHtml(href: string, text: string): string {
         <span is-visually-hidden="">Open external link</span>
     </span>
 </a>`.toString();
+}
+
+function computeProductLogoHtml(designHtml: string, productSvgContents: string | undefined): string {
+    return productSvgContents || designHtml;
+}
+
+async function readSvg(inputDir: string, svgPath: string | undefined): Promise<string | undefined> {
+    if (!svgPath) return undefined;
+    const path = join(inputDir, svgPath);
+    const contents = await Deno.readTextFile(path);
+    const i = contents.indexOf('<svg');
+    return i < 0 ? contents : contents.substring(i);
 }
