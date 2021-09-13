@@ -250,8 +250,7 @@ function computeContentUpdateTimeHtml(_designHtml: string, contentUpdateTime: nu
 function computeExternalAnchorHtml(href: string, text: string): string {
     return html
 `<a href="${href}" class="markdown-link">
-    <span class="markdown-link-content">${text}</span>
-    <span class="markdown-link-external-icon" aria-hidden="true">
+    <span class="markdown-link-content">${text}</span><span class="markdown-link-external-icon" aria-hidden="true">
         <svg fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 16 16" role="img" aria-labelledby="title-for-external-link-icon" xmlns="http://www.w3.org/2000/svg"><title id="title-for-external-link-icon">External link icon</title><path d="M6.75,1.75h-5v12.5h12.5v-5m0,-4v-3.5h-3.5M8,8l5.5-5.5"></path></svg>
         <span is-visually-hidden="">Open external link</span>
     </span>
