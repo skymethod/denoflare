@@ -2508,8 +2508,30 @@ function setRelativeTime(time) {
     time.title = new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'long' }).format(date);
 }
 
+function initThemeToggle() {
+    const toggle = document.getElementById('theme-toggle');
+    const tooltip = document.getElementById('theme-toggle-tooltip');
+    const applyTheme = (light) => {
+        const theme = light ? 'light' : 'dark';
+        document.documentElement.setAttribute('theme', theme);
+        tooltip.textContent = `Set theme to ${light ? 'dark' : 'light'}`;
+        return theme;
+    };
+    toggle.addEventListener('change', (event) => {
+        const newTheme = applyTheme(!toggle.checked);
+        localStorage.setItem('theme', newTheme);
+    });
+    const savedTheme = localStorage.getItem('theme');
+    if (/^(light|dark)$/.test(savedTheme)) {
+        const light = savedTheme === 'light';
+        applyTheme(light);
+        toggle.checked = !light;
+    }
+}
+
 function init() {
     [...document.getElementsByTagName('time')].forEach(setRelativeTime);
+    initThemeToggle();
 }
 
 </script>
@@ -2601,7 +2623,7 @@ function init() {
 
                         <!-- start: sidebar-nav-item-with-children -->
                         <li class="sidebar-nav-item" is-expanded><!-- to expand: is-expanded-->
-                            <button class="button sidebar-nav-expand-collapse-button">
+                            <button class="button sidebar-nav-expand-collapse-button" onclick="this.parentElement.toggleAttribute('is-expanded')">
                                 <span class="sidebar-nav-expand-collapse-button-content" aria-hidden="true"></span>
                                 <span is-visually-hidden="">Expand<!-- -->: <!-- --><!-- start: sidebar-nav-item-text -->Nav group 1<!-- end: sidebar-nav-item-text --></span>
                             </button>
@@ -2672,8 +2694,8 @@ function init() {
             <div class="toolbar-tools-spacer"></div>
             <div>
                 <div class="tooltip-root">
-                    <div class="theme-toggle" data-is-loading="true">
-                        <input type="checkbox" id="theme-toggle" class="theme-toggle-input">
+                    <div class="theme-toggle" data-is-loading="false">
+                        <input type="checkbox" checked="true" id="theme-toggle" class="theme-toggle-input">
                         <label class="theme-toggle-toggle" for="theme-toggle">
                             <div class="theme-toggle-toggle-handle"></div>
                             <div class="theme-toggle-toggle-handle-icon theme-toggle-sun">
@@ -2683,7 +2705,7 @@ function init() {
                                 <svg viewBox="0 0 16 16" fill="currentColor" role="img" aria-labelledby="title-for-dark-theme-icon" xmlns="http://www.w3.org/2000/svg"><title id="title-for-dark-theme-icon">Dark theme icon (depiction of a moon)</title><path d="M7.067 3.087a5 5 0 005.466 7.026 5 5 0 11-5.466-7.026z"></path></svg>
                             </div>
                         </label>
-                        <span class="tooltip" role="tooltip" position="bottom-end">Set theme to dark (⇧+D)</span>
+                        <span class="tooltip" role="tooltip" position="bottom-end" id="theme-toggle-tooltip">Set theme to dark</span>
                     </div>
                 </div>
             </div>
