@@ -1,5 +1,6 @@
 import { CLI_VERSION } from './cli_version.ts';
 import { generate } from './cli_site_generate.ts';
+import { serve } from './cli_site_serve.ts';
 
 export async function site(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -8,7 +9,7 @@ export async function site(args: (string | number)[], options: Record<string, un
         return;
     }
 
-    const fn = { generate }[subcommand];
+    const fn = { generate, serve }[subcommand];
     if (fn) {
         await fn(args.slice(1), options);
     } else {
@@ -28,6 +29,7 @@ function dumpHelp() {
         '',
         'SUBCOMMANDS:',
         '    generate    Generate static output for Cloudfare Pages',
+        '    serve       Host static Cloudflare Pages site locally',
         '',
         'For subcommand-specific help: denoflare site [subcommand] --help',
     ];

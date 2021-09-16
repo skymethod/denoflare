@@ -1,4 +1,4 @@
-export { basename, dirname, join, fromFileUrl, resolve, toFileUrl, extname, relative, isAbsolute, normalize, parse as parsePath } from 'https://deno.land/std@0.106.0/path/mod.ts';
+export { basename, dirname, join, fromFileUrl, resolve, toFileUrl, extname, relative, isAbsolute, normalize, parse as parsePath, globToRegExp } from 'https://deno.land/std@0.106.0/path/mod.ts';
 export { parse as parseFlags } from 'https://deno.land/std@0.106.0/flags/mod.ts';
 export { ensureDir, walk, emptyDir } from 'https://deno.land/std@0.106.0/fs/mod.ts';
 

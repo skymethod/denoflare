@@ -113,6 +113,18 @@ export class SiteModel {
         }
     }
 
+    async handle(request: Request): Promise<Response> {
+        const url = new URL(request.url);
+        const { pathname } = url;
+        const resource = findResource(pathname, this.resources);
+        if (!resource) {
+            const notFoundResource = findResource('/404', this.resources);
+            if (notFoundResource) return await computeReponseForResource(notFoundResource, 404);
+            return new Response('not found', { status: 404 });
+        }
+        return await computeReponseForResource(resource, 200);
+    }
+
 }
 
 export interface InputFileInfo {
@@ -141,16 +153,24 @@ interface ResourceInfo {
 
 //
 
-const EXTENSIONS_TO_INCLUDE_IN_OUTPUT = new Set([
-    '.html',
-    '.ico',
-    '.jpg',
-    '.json',
-    '.md',
-    '.png',
-    '.svg',
-    '.txt',
+const EXTENSIONS_TO_INCLUDE_IN_OUTPUT = new Map([
+    // content-type from Cloudflare Pages
+    ['.html', 'text/html; charset=utf-8'],
+    ['.ico', 'image/x-icon'],
+    ['.jpg', 'image/jpeg'],
+    ['.json', 'application/json'],
+    ['.md', 'text/html; charset=utf-8'],
+    ['.png', 'image/png'],
+    ['.svg', 'image/svg+xml'],
+    ['.txt', 'text/plain'],
+    ['.webmanifest', 'application/manifest+json'],
 ]);
+
+function computeContentType(resource: ResourceInfo): string {
+    const contentType = EXTENSIONS_TO_INCLUDE_IN_OUTPUT.get(resource.extension);
+    if (contentType) return contentType;
+    throw new Error(`Unable to compute content-type for ${resource.canonicalPath}, extension=${resource.extension}`);
+}
 
 function shouldIncludeInOutput(path: string, extension: string): boolean {
     if (path === '/config.json' || path === '/config.jsonc') return false;
@@ -218,4 +238,17 @@ async function computeManifest(config: SiteConfig): Promise<{ manifestPath: stri
     const manifestContents = JSON.stringify(manifest, undefined, 2);
     const manifestPath = `/app.${(await Bytes.ofUtf8(manifestContents).sha1()).hex()}.webmanifest`;
     return { manifestPath, manifestContents };
+}
+
+function findResource(pathname: string, resources: Map<string, ResourceInfo>): ResourceInfo | undefined {
+    return resources.get(pathname) || [...resources.values()].find(v => v.canonicalPath === pathname);
+}
+
+async function computeReponseForResource(resource: ResourceInfo, status: number ): Promise<Response> {
+    const headers: HeadersInit = { 'Content-Type': computeContentType(resource) }
+    if (resource.outputText) {
+        return new Response(resource.outputText, { headers });
+    }
+    const body: BodyInit = resource.outputText ? resource.outputText : await Deno.readFile(resource.inputPath);
+    return new Response(body, { status, headers });
 }

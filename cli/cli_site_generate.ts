@@ -1,7 +1,9 @@
+import { checkString } from '../common/check.ts';
 import { CliStats } from './cli_common.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { ensureDir, resolve, walk } from './deps_cli.ts';
-import { directoryExists, fileExists } from './fs_util.ts';
+import { ensureDir, resolve } from './deps_cli.ts';
+import { fileExists } from './fs_util.ts';
+import { RepoDir } from './repo_dir.ts';
 import { InputFileInfo, SiteModel } from './site/site_model.ts';
 
 export async function generate(args: (string | number)[], options: Record<string, unknown>) {
@@ -12,29 +14,19 @@ export async function generate(args: (string | number)[], options: Record<string
 
     const verbose = !!options.verbose;
 
-    let repoDir = args[0];
-    if (typeof repoDir !== 'string') throw new Error(`Bad repoDir: ${repoDir}`);
-    if (!await directoryExists(repoDir)) throw new Error(`Bad repoDir, does not exist: ${repoDir}`);
-    repoDir = resolve(Deno.cwd(), repoDir);
+    const repoDir = await RepoDir.of(resolve(Deno.cwd(), checkString('repoDir', args[0])));
 
     let outputDir = args[1];
     if (typeof outputDir !== 'string') throw new Error(`Bad outputDir: ${outputDir}`);
     if (await fileExists(outputDir)) throw new Error(`Bad outputDir, exists as file: ${outputDir}`);
     outputDir = resolve(Deno.cwd(), outputDir);
 
-    const siteModel = new SiteModel(repoDir);
+    const siteModel = new SiteModel(repoDir.path);
     
     // 3-7ms to here
     let start = Date.now();
     console.log('Building site...');
-    const inputFiles: InputFileInfo[] = [];
-    for await (const entry of walk(repoDir)) {
-        if (entry.isDirectory) continue;
-        const path = entry.path;
-        if (path.includes('/.git/')) continue;
-        if (path.startsWith(outputDir)) continue;
-        inputFiles.push({ path: path, version: '0' });
-    }
+    const inputFiles: InputFileInfo[] = (await repoDir.listFiles()).map(v => ({ path: v.path, version: '0' }));
     await siteModel.setInputFiles(inputFiles);
     console.log(`Built site, took ${Date.now() - start}ms`);
     
