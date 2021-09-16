@@ -34,7 +34,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
     
     // read the script-based cloudflare worker contents
-    let port = 8080;
+    let port = DEFAULT_PORT;
     let bindings: Record<string, Binding> = {};
     let isolation: Isolation = 'isolate';
     let script: Script | undefined;
@@ -201,6 +201,8 @@ interface LocalRequestServer {
 
 //
 
+const DEFAULT_PORT = 8080;
+
 function dumpHelp() {
     const lines = [
         `denoflare-serve ${CLI_VERSION}`,
@@ -214,7 +216,7 @@ function dumpHelp() {
         '        --verbose     Toggle verbose output (when applicable)',
         '',
         'OPTIONS:',
-        '        --port <number>     Local port to use for the http server (default: 8080)',
+        `        --port <number>     Local port to use for the http server (default: ${DEFAULT_PORT})`,
         '        --profile <name>    Name of profile to load from config (default: only profile or default profile in config)',
         '        --config <path>     Path to config file (default: .denoflare in cwd or parents)',
         '',

@@ -13,7 +13,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
     const verbose = !!options.verbose;
     if (verbose) RepoDir.VERBOSE = true;
-    
+
     const watch = !!options.watch;
 
     const repoDir = await RepoDir.of(resolve(Deno.cwd(), checkString('repoDir', args[0])));
@@ -38,7 +38,10 @@ export async function serve(args: (string | number)[], options: Record<string, u
     
     await buildSite();
     
-    const port = 8099;
+    let port = DEFAULT_PORT;
+    if (typeof options.port === 'number') {
+        port = options.port;
+    }
     const server = Deno.listen({ port });
     console.log(`Local server running on http://localhost:${port}`);
 
@@ -62,6 +65,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
 //
 
+const DEFAULT_PORT = 8099;
+
 function dumpHelp() {
     const lines = [
         `denoflare-site-serve ${CLI_VERSION}`,
@@ -74,8 +79,11 @@ function dumpHelp() {
         '    -h, --help        Prints help information',
         '        --verbose     Toggle verbose output (when applicable)',
         '',
+        'OPTIONS:',
+        `        --port <number>     Local port to use for the http server (default: ${DEFAULT_PORT})`,
+        '',
         'ARGS:',
-        '    <repo-dir>      Local path to the git repo to use as the source input for generation',
+        '    <repo-dir>      Local path to the git repo to use as the source input',
     ];
     for (const line of lines) {
         console.log(line);
