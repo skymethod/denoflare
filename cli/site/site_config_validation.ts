@@ -1,4 +1,4 @@
-import { checkObject } from '../../common/check.ts';
+import { checkObject, checkOrigin } from '../../common/check.ts';
 import { SiteConfig, SiteMetadata } from './site_config.ts';
 
 // deno-lint-ignore no-explicit-any
@@ -37,7 +37,7 @@ function checkSiteMetadata(siteMetadata: any): SiteMetadata {
     checkTwitterUsername('twitterUsername', twitterUsername);
     if (image !== undefined) checkNotBlankString('image', image);
     if (imageAlt !== undefined) checkNotBlankString('imageAlt', imageAlt);
-    checkOrigin('origin', origin);
+    if (origin !== undefined) checkOrigin('origin', origin);
     if (faviconIco !== undefined) checkNotBlankString('faviconIco', faviconIco);
     if (faviconSvg !== undefined) checkNotBlankString('faviconSvg', faviconSvg);
     if (faviconMaskSvg !== undefined) checkNotBlankString('faviconMaskSvg', faviconMaskSvg);
@@ -66,12 +66,5 @@ function checkRepo(name: string, value: any): value is string | undefined {
 function checkTwitterUsername(name: string, value: any): value is string | undefined {
     if (value === undefined) return true;
     if (typeof value !== 'string' || !/^@\w+$/.test(value)) throw new Error(`Bad ${name}: ${value}`);
-    return true;
-}
-
-// deno-lint-ignore no-explicit-any
-function checkOrigin(name: string, value: any): value is string | undefined {
-    if (value === undefined) return true;
-    if (typeof value !== 'string' || new URL(value).toString() !== new URL(value).origin + '/') throw new Error(`Bad ${name}: ${value}`);
     return true;
 }

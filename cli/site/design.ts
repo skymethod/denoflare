@@ -5,8 +5,9 @@ import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
 import { computeToc, TocNode } from './toc.ts';
 
-export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, inputDir: string, manifestPath: string | undefined, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
-    const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose, inputDir, manifestPath } = opts;
+export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, inputDir: string, 
+        manifestPath: string | undefined, localOrigin: string | undefined, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
+    const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose, inputDir, manifestPath, localOrigin } = opts;
     const { markdown } = page;
     const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo, productSvg } = config;
     const { twitterUsername, image, imageAlt, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor } = siteMetadata;
@@ -15,7 +16,7 @@ export async function computeHtml(opts: { page: Page, path: string, contentRepoP
     
     const description = page.frontmatter.summary || siteMetadata.description;
 
-    const origin = siteMetadata.origin || 'http://example.com';
+    const origin = localOrigin || siteMetadata.origin || 'https://NO-ORIGIN';
     const url = origin + path;
     const imageUrl = typeof image === 'string' && image.startsWith('/') ? `${origin}${image}` : image;
 

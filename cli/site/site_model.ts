@@ -12,10 +12,13 @@ export class SiteModel {
 
     private readonly inputDir: string;
     private readonly resources = new Map<string, ResourceInfo>(); // key = "resource path", e.g. /index.html for /index.md
+    private readonly localOrigin?: string;
 
     private currentManifestPath: string | undefined;
 
-    constructor(inputDir: string) {
+    constructor(inputDir: string, opts: { localOrigin?: string } = {}) {
+        const { localOrigin } = opts;
+        this.localOrigin = localOrigin;
         if (!directoryExists(inputDir)) throw new Error(`Bad inputDir: ${inputDir}, must exist`);
         if (!isAbsolute(inputDir)) throw new Error(`Bad inputDir: ${inputDir}, must be absolute`);
         this.inputDir = inputDir;
@@ -85,13 +88,15 @@ export class SiteModel {
                 const { canonicalPath: path, contentRepoPath } = resource;
                 const { inputDir } = this;
                 const page = resource.page!;
-                const outputHtml = await computeHtml({ inputDir, page, path, contentRepoPath, config, sidebar, contentUpdateTime, manifestPath, verbose: false, dumpEnv: false });
+                const { localOrigin } = this;
+                const outputHtml = await computeHtml({ inputDir, page, path, contentRepoPath, config, sidebar, contentUpdateTime, manifestPath, localOrigin, verbose: false, dumpEnv: false });
                 resource.outputText = outputHtml;
             }
         }
     }
 
     async writeOutput(outputDir: string) {
+        await checkConfigForOutput(this.resources);
         if (!isAbsolute(outputDir)) throw new Error(`Bad outputDir: ${outputDir}, must be absolute`);
         console.log(`writeOutput ${outputDir}`);
         await emptyDir(outputDir);
@@ -227,6 +232,11 @@ async function computeConfig(resources: Map<string, ResourceInfo>): Promise<Site
         }
     }
     throw new Error(`Site config not found: /config.jsonc or /config.json`);
+}
+
+async function checkConfigForOutput(resources: Map<string, ResourceInfo>) {
+    const config = await computeConfig(resources);
+    if (!config.siteMetadata.origin) throw new Error(`Missing config.siteMetadata.origin, required when writing output`);
 }
 
 async function computeManifest(config: SiteConfig): Promise<{ manifestPath: string; manifestContents: string; }> {

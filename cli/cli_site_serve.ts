@@ -16,8 +16,14 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
     const watch = !!options.watch;
 
+    let port = DEFAULT_PORT;
+    if (typeof options.port === 'number') {
+        port = options.port;
+    }
+    const localOrigin = `http://localhost:${port}`;
+
     const repoDir = await RepoDir.of(resolve(Deno.cwd(), checkString('repoDir', args[0])));
-    const siteModel = new SiteModel(repoDir.path);
+    const siteModel = new SiteModel(repoDir.path, { localOrigin });
 
     const buildSite = async () => {
         const start = Date.now();
@@ -38,12 +44,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
     
     await buildSite();
     
-    let port = DEFAULT_PORT;
-    if (typeof options.port === 'number') {
-        port = options.port;
-    }
     const server = Deno.listen({ port });
-    console.log(`Local server running on http://localhost:${port}`);
+    console.log(`Local server running on ${localOrigin}`);
 
     async function handle(conn: Deno.Conn) {
         const httpConn = Deno.serveHttp(conn);
