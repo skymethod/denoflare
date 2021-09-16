@@ -11,7 +11,7 @@ import { Bytes } from '../../common/bytes.ts';
 export class SiteModel {
 
     private readonly inputDir: string;
-    private readonly resources = new Map<string, ResourceInfo>();
+    private readonly resources = new Map<string, ResourceInfo>(); // key = "resource path", e.g. /index.html for /index.md
 
     private currentManifestPath: string | undefined;
 
@@ -20,7 +20,7 @@ export class SiteModel {
         if (!isAbsolute(inputDir)) throw new Error(`Bad inputDir: ${inputDir}, must be absolute`);
         this.inputDir = inputDir;
     }
-    
+
     async setInputFiles(files: InputFileInfo[]) {
         const contentUpdateTime = Date.now();
 
@@ -118,7 +118,17 @@ export class SiteModel {
         const url = new URL(request.url);
         const { pathname } = url;
         const resource = findResource(pathname, this.resources);
-        if (!resource) {
+        if (resource) {
+            if (pathname.endsWith('.html')) {
+                url.pathname = replaceSuffix(pathname, '.html', '');
+                const headers: HeadersInit = { 'Location': url.toString() };
+                return new Response('', { status: 308, headers });
+            } else if (pathname.endsWith('/index')) {
+                url.pathname = replaceSuffix(pathname, '/index', '');
+                const headers: HeadersInit = { 'Location': url.toString() };
+                return new Response('', { status: 308, headers });
+            }
+        } else {
             const notFoundResource = findResource('/404', this.resources);
             if (notFoundResource) return await computeReponseForResource(notFoundResource, 404);
             return new Response('not found', { status: 404 });
@@ -145,10 +155,10 @@ export function replaceSuffix(path: string, fromSuffix: string, toSuffix: string
 //
 
 interface ResourceInfo {
-    readonly inputPath: string; // fs path to source file
+    readonly inputPath: string; // full fs path to source file
     readonly extension: string; // with dot, e.g. .md
     readonly includeInOutput: boolean;
-    readonly canonicalPath: string; // e.g. / for /index.html
+    readonly canonicalPath: string; // e.g. / for /index.html, and /foo for /foo.html
     readonly contentRepoPath: string; // e.g. /index.md
     page?: Page;
     outputText?: string;
@@ -244,7 +254,10 @@ async function computeManifest(config: SiteConfig): Promise<{ manifestPath: stri
 }
 
 function findResource(pathname: string, resources: Map<string, ResourceInfo>): ResourceInfo | undefined {
-    return resources.get(pathname) || [...resources.values()].find(v => v.canonicalPath === pathname);
+    const rt = resources.get(pathname);
+    if (rt) return rt;
+    const canonical = computeCanonicalResourcePath(pathname);
+    return [...resources.values()].find(v => v.canonicalPath === canonical);
 }
 
 async function computeReponseForResource(resource: ResourceInfo, status: number ): Promise<Response> {
