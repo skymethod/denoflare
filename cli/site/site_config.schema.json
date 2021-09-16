@@ -1,0 +1,115 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://denoflare.dev/site_config",
+    "title": "Denoflare site configuration file",
+    "description": "Top-level configuration object for a Denoflare docs site",
+    "type": "object",
+    "required": [ "product", "siteMetadata" ],
+    "dependentRequired": {
+        "themeColorDark": [ "themeColor" ]
+    },
+    "properties": {
+        "organization": {
+            "description": "short first (bold) part of org name",
+            "type": "string"
+        },
+        "organizationSuffix": {
+            "description": "short second part of org name",
+            "type": "string"
+        },
+        "organizationSvg": {
+            "description": "content repo /path/to/organization.svg must use fill=\"currentColor\"",
+            "type": "string"
+        },
+        "organizationUrl": {
+            "description": "abs url to org",
+            "type": "string",
+            "format": "uri"
+        },
+        "product": {
+            "description": "product name for sidebar, etc",
+            "type": "string"
+        },
+        "productRepo": {
+            "description": "e.g. \"ghuser/project-repo\", used for gh link in header",
+            "type": "string"
+        },
+        "productSvg": {
+            "description": "content repo /path/to/product.svg must use fill=\"currentColor\"",
+            "type": "string"
+        },
+        "contentRepo": {
+            "description": "e.g. \"ghuser/docs-repo\", used for edit this page in footer",
+            "type": "string"
+        },
+        "themeColor": {
+            "description": "#rrggbb",
+            "type": "string",
+            "pattern": "^#[a-fA-F0-9]{6}$"
+        },
+        "themeColorDark": {
+            "description": "#rrggbb",
+            "type": "string",
+            "pattern": "^#[a-fA-F0-9]{6}$"
+        },
+        "siteMetadata": {
+            "description": "Required for title, description, url",
+            "type": "object",
+            "required": [ "title", "description" ],
+            "dependentRequired": {
+                "faviconMaskSvg": [ "faviconMaskColor" ],
+                "imageAlt": [ "image" ]
+            },
+            "properties": {
+                "title": {
+                    "description": "html title, og:title, twitter:title = <page title> · <siteMetadata.title>",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "html meta description, og:description, twitter:description = <siteMetadata.description>",
+                    "type": "string"
+                },
+                "twitterUsername": {
+                    "description": "@username for twitter:site",
+                    "type": "string",
+                    "pattern": "^@\\w+$"
+                },
+                "image": {
+                    "description": "abs or relative url to twitter:image",
+                    "type": "string",
+                    "format": "uri-reference"
+                },
+                "imageAlt": {
+                    "description": "alt text for twitter:image",
+                    "type": "string"
+                },
+                "origin": {
+                    "description": "abs url to site (origin), e.g. https://mysite.dev",
+                    "type": "string",
+                    "format": "uri"
+                },
+                "faviconIco": {
+                    "description": "relative url favicon ico",
+                    "type": "string"
+                },
+                "faviconSvg": {
+                    "description": "relative url favicon svg",
+                    "type": "string"
+                },
+                "faviconMaskSvg": {
+                    "description": "relative url favicon mask svg",
+                    "type": "string"
+                },
+                "faviconMaskColor": {
+                    "description": "#rrggbb favicon mask color (required if faviconMaskSvg provided)",
+                    "type": "string",
+                    "pattern": "^#[a-fA-F0-9]{6}$"
+                },
+                "manifest": {
+                    "description": "override default web app manifest members",
+                    "type": "object"
+                }
+            }
+        }
+    }
+}

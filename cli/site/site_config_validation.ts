@@ -65,7 +65,7 @@ function checkRepo(name: string, value: any): value is string | undefined {
 // deno-lint-ignore no-explicit-any
 function checkTwitterUsername(name: string, value: any): value is string | undefined {
     if (value === undefined) return true;
-    if (typeof value !== 'string' || !/^@\w+/.test(value)) throw new Error(`Bad ${name}: ${value}`);
+    if (typeof value !== 'string' || !/^@\w+$/.test(value)) throw new Error(`Bad ${name}: ${value}`);
     return true;
 }
 

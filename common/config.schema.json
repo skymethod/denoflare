@@ -1,0 +1,83 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://denoflare.dev/config",
+    "title": "Denoflare configuration file",
+    "description": "Top-level Denoflare configuration object",
+    "type": "object",
+    "properties": {
+        "scripts": {
+            "description": "Known script definitions, by unique `script-name`.",
+            "type": "object",
+            "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "patternProperties": {
+                "*": {
+                    "description": "Script-level configuration",
+                    "type": "object",
+                    "required": [ "path" ],
+                    "properties": {
+                        "path": {
+                            "description": "Local file path, or https: url to a module-based worker entry point .ts, or a non-module-based worker bundled .js",
+                            "type": "string"
+                        },
+                        "bindings": {
+                            "description": "Bindings for worker environment variables to use when running locally, or deploying to Cloudflare",
+                            "type": "object",
+                            "propertyNames": {
+                                "pattern": "^[a-zA-Z0-9_]+$"
+                            }
+                        },
+                        "localPort": {
+                            "description": "If specified, use this port when running `serve`, the local dev server.",
+                            "type": "number"
+                        },
+                        "localHostname": {
+                            "description": "If specified, replace the hostname portion of the incoming `Request.url` at runtime to use this hostname instead of `localhost`.\n\nUseful if your worker does hostname-based routing.",
+                            "type": "string"
+                        },
+                        "localIsolation": {
+                            "description": "If specified, use this isolation level when running `serve`, the local dev server.\n\n(Default: 'isolate')",
+                            "type": "string",
+                            "enum": ["none", "isolate"],
+                            "default": "isolate"
+                        },
+                        "profile": {
+                            "description": "If specified, use a specific, named Profile defined in `config.profiles`.\n\n(Default: the Profile marked as `default`, or the only Profile defined)",
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "profiles": {
+            "description": "Profile definitions by unique `profile-name`",
+            "type": "object",
+            "propertyNames": {
+                "pattern": "^[a-z][a-z0-9_-]{0,36}$"
+            },
+            "patternProperties": {
+                "*": {
+                    "description": "Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage.",
+                    "type": "object",
+                    "required": [ "accountId", "apiToken" ],
+                    "properties": {
+                        "accountId": {
+                            "description": "Cloudflare Account ID: 32-char hex string.\n\nThis value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.",
+                            "type": "string"
+                        },
+                        "apiToken": {
+                            "description": "Cloudflare API token: Value obtained from the Cloudflare dashboard (My Profile -> [API Tokens](https://dash.cloudflare.com/profile/api-tokens)) when creating the token under this account.\n\nThis value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.",
+                            "type": "string"
+                        },
+                        "default": {
+                            "description": "If there are multiple profiles defined, choose this one as the default (when no `--profile` is explicitly specified or configured).\n\nThere can only be one default profile.",
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_-]{0,36}$"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

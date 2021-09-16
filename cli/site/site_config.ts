@@ -8,13 +8,13 @@ export interface SiteConfig {
 
     readonly product: string; // (required) product name for sidebar, etc
     readonly productRepo?: string; // e.g. "ghuser/project-repo", used for gh link in header
-    readonly productSvg: string; // (required) content repo /path/to/product.svg must use fill="currentColor" 
+    readonly productSvg?: string; // content repo /path/to/product.svg must use fill="currentColor" 
     readonly contentRepo?: string; // e.g. "ghuser/docs-repo", used for edit this page in footer
 
     readonly themeColor?: string; // #rrggbb
     readonly themeColorDark?: string; // #rrggbb
 
-    readonly siteMetadata: SiteMetadata; // (required for title, description, url)
+    readonly siteMetadata: SiteMetadata; // (required for title, description)
 }
 
 export interface SiteMetadata {
