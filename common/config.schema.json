@@ -12,7 +12,7 @@
                 "pattern": "^[a-z][a-z0-9_-]{0,63}$"
             },
             "patternProperties": {
-                "*": {
+                ".*": {
                     "description": "Script-level configuration",
                     "type": "object",
                     "required": [ "path" ],
@@ -26,6 +26,56 @@
                             "type": "object",
                             "propertyNames": {
                                 "pattern": "^[a-zA-Z0-9_]+$"
+                            },
+                            "patternProperties": {
+                                ".*": {
+                                    "anyOf": [
+                                        {
+                                            "type": "object",
+                                            "description": "Plain-text environment variable binding",
+                                            "required": [ "value" ],
+                                            "properties": {
+                                                "value": {
+                                                    "description": "Value is the string value, with the following replacements:\n  - `${localPort}` replaced with the localhost port used when running `serve`, the local dev server.\n  This can be useful when defining a variable for the server Origin, for example.",
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Secret-text environment variable binding",
+                                            "required": [ "secret" ],
+                                            "properties": {
+                                                "secret": {
+                                                    "description": "Value can be:\n - Secret literal string value\n - `aws:<aws-profile-name>`, replaced with the associated `<aws_access_key_id>:<aws_secret_access_key>` from `~/.aws/credentials`.\nUseful if you want to keep your credentials in a single file.",
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Workers KV Namespace environment variable binding",
+                                            "required": [ "kvNamespace" ],
+                                            "properties": {
+                                                "kvNamespace": {
+                                                    "description": "For now, this is the underlying Cloudflare API ID of the Workers KV Namespace.",
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Workers Durable Object Namespace environment variable binding",
+                                            "required": [ "doNamespace" ],
+                                            "properties": {
+                                                "doNamespace": {
+                                                    "description": "For now, this is either:\n - The underlying Cloudflare API ID of the Workers Durable Object Namespace\n - `local:<DOClassName>`: Pointer to a Durable Object class name defined in the same worker script. e.g. `local:MyCounterDO`",
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
                             }
                         },
                         "localPort": {
@@ -57,7 +107,7 @@
                 "pattern": "^[a-z][a-z0-9_-]{0,36}$"
             },
             "patternProperties": {
-                "*": {
+                ".*": {
                     "description": "Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage.",
                     "type": "object",
                     "required": [ "accountId", "apiToken" ],
