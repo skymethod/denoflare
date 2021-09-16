@@ -20,10 +20,11 @@ export class SiteModel {
         if (!isAbsolute(inputDir)) throw new Error(`Bad inputDir: ${inputDir}, must be absolute`);
         this.inputDir = inputDir;
     }
-
+    
     async setInputFiles(files: InputFileInfo[]) {
         const contentUpdateTime = Date.now();
 
+        // ensure resources exist
         for (const file of files) {
             const inputPath = file.path;
             if (!isAbsolute(inputPath)) throw new Error(`Bad inputPath: ${inputPath}, must be absolute`);
@@ -131,6 +132,8 @@ export interface InputFileInfo {
     readonly path: string;
     readonly version: string;
 }
+
+//
 
 export function replaceSuffix(path: string, fromSuffix: string, toSuffix: string, opts: { required?: boolean } = { }): string {
     const { required } = opts;

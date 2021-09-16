@@ -1,6 +1,7 @@
 import { checkString } from '../common/check.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { resolve } from './deps_cli.ts';
+import { computeFileInfoVersion } from './fs_util.ts';
 import { RepoDir } from './repo_dir.ts';
 import { InputFileInfo, SiteModel } from './site/site_model.ts';
 
@@ -10,17 +11,32 @@ export async function serve(args: (string | number)[], options: Record<string, u
         return;
     }
 
-    const _verbose = !!options.verbose;
+    const verbose = !!options.verbose;
+    if (verbose) RepoDir.VERBOSE = true;
+    
+    const watch = !!options.watch;
 
     const repoDir = await RepoDir.of(resolve(Deno.cwd(), checkString('repoDir', args[0])));
-
     const siteModel = new SiteModel(repoDir.path);
+
+    const buildSite = async () => {
+        const start = Date.now();
+        console.log('Building site...');
+        const inputFiles: InputFileInfo[] = (await repoDir.listFiles({ stat: true })).map(v => ({ path: v.path, version: computeFileInfoVersion(v.info!) }));
+        await siteModel.setInputFiles(inputFiles);
+        console.log(`Built site, took ${Date.now() - start}ms`);
+    };
+    if (watch) {
+        let timeoutId: number | undefined;
+        repoDir.startWatching(_events => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(async () => {
+                await buildSite();
+            }, 50);
+        });
+    }
     
-    const start = Date.now();
-    console.log('Building site...');
-    const inputFiles: InputFileInfo[] = (await repoDir.listFiles({ stat: true })).map(v => ({ path: v.path, version: computeInputFileInfoVersion(v.info!) }));
-    await siteModel.setInputFiles(inputFiles);
-    console.log(`Built site, took ${Date.now() - start}ms`);
+    await buildSite();
     
     const port = 8099;
     const server = Deno.listen({ port });
@@ -45,10 +61,6 @@ export async function serve(args: (string | number)[], options: Record<string, u
 }
 
 //
-
-function computeInputFileInfoVersion(info: Deno.FileInfo): string {
-    return `${info.size}|${info.mtime instanceof Date ? (info.mtime.getTime()) : ''}`;
-}
 
 function dumpHelp() {
     const lines = [
