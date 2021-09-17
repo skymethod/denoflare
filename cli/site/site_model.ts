@@ -43,6 +43,8 @@ export class SiteModel {
             }
         }
 
+        // console.log([...this.resources.keys()].sort().map(v => `${v} ${this.resources.get(v)!.canonicalPath}`).join('\n'));
+
         // read config
         const config = await computeConfig(this.resources);
 
@@ -71,14 +73,14 @@ export class SiteModel {
         }
 
         // construct sidebar
-        const sidebarInputItems: SidebarInputItem[] = [...this.resources.entries()]
-            .filter(v => v[1].extension === '.md')
+        const sidebarInputItems: SidebarInputItem[] = [...this.resources.values()]
+            .filter(v => v.extension === '.md')
             .map(v => ({ 
-                title: v[1].page!.titleResolved, 
-                path: v[1].canonicalPath,
-                hidden: v[1].page!.frontmatter.hidden,
-                hideChildren: v[1].page!.frontmatter.hideChildren,
-                order: v[1].page!.frontmatter.order,
+                title: v.page!.titleResolved, 
+                path: v.canonicalPath === '/' ? v.canonicalPath : replaceSuffix(v.canonicalPath, '/', ''),
+                hidden: v.page!.frontmatter.hidden,
+                hideChildren: v.page!.frontmatter.hideChildren,
+                order: v.page!.frontmatter.order,
             }));
         const sidebar = computeSidebar(sidebarInputItems);
 
@@ -267,7 +269,7 @@ function findResource(pathname: string, resources: Map<string, ResourceInfo>): R
     const rt = resources.get(pathname);
     if (rt) return rt;
     const canonical = computeCanonicalResourcePath(pathname);
-    return [...resources.values()].find(v => v.canonicalPath === canonical);
+    return [...resources.values()].find(v => v.canonicalPath === canonical || v.canonicalPath === (canonical + '/'));
 }
 
 async function computeReponseForResource(resource: ResourceInfo, status: number ): Promise<Response> {

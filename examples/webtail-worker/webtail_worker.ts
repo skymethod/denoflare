@@ -34,7 +34,7 @@ export default {
             return new Response(Bytes.ofBase64(FAVICON_ICO_B64).array(), { headers });
         } else if (url.pathname === MANIFEST_PATHNAME) {
             const headers = computeHeaders('application/manifest+json', { immutable: true });
-            return new Response(JSON.stringify(computeManifest(url), undefined, 2), { headers });
+            return new Response(JSON.stringify(computeManifest(), undefined, 2), { headers });
         } else if (url.pathname === TWITTER_IMAGE_JPG_PATHNAME) {
             const headers = computeHeaders('image/jpeg', { immutable: true });
             return new Response(Bytes.ofBase64(TWITTER_IMAGE_JPG_B64).array(), { headers });
@@ -64,11 +64,11 @@ const MANIFEST_PATHNAME = `/app.${MANIFEST_VERSION}.webmanifest`;
 const TWITTER_IMAGE_JPG_PATHNAME = `/og-image.${TWITTER_IMAGE_VERSION}.jpg`;
 const SVG_MIME_TYPE = 'image/svg+xml';
 
-function computeManifest(url: URL): AppManifest {
-    const name = 'Denoflare Tail';
+function computeManifest(): AppManifest {
+    const name = 'Webtail';
     return {
         'short_name': name,
-        name: `${name} (${url.hostname})`,
+        name: `${name} for Cloudflare Workers`,
         description: 'View live requests and logs from Cloudflare Workers from the comfort of your browser.',
         icons: [
             { 
@@ -172,7 +172,7 @@ ${COMMON_STYLES}
 </html>`;
 
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
-    const { short_name: name, description } = computeManifest(url);
+    const { short_name: name, description } = computeManifest();
     const { twitter } = staticData;
     const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>

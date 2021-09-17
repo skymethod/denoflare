@@ -4,7 +4,7 @@ import { serve } from './cli_site_serve.ts';
 
 export async function site(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
-    if (options.help || typeof subcommand !== 'string') {
+    if (options.help && args.length === 0 || typeof subcommand !== 'string') {
         dumpHelp();
         return;
     }
@@ -22,7 +22,7 @@ export async function site(args: (string | number)[], options: Record<string, un
 function dumpHelp() {
     const lines = [
         `denoflare-site ${CLI_VERSION}`,
-        'Develop and deploy a Cloudflare Pages static site',
+        'Develop and deploy a static docs site to Cloudflare Pages',
         '',
         'USAGE:',
         '    denoflare site [subcommand] [FLAGS] [OPTIONS] [args]',

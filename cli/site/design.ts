@@ -174,7 +174,7 @@ function computeSidebarHtml(designHtml: string, sidebar: SidebarNode, path: stri
         const pieces: string[] = [];
         pieces.push(computeSidebarItemHtml(sidebar, path, navItemTemplate));
         for (const child of sidebar.children) {
-            appendSidebarNodeHtml(child, path, navItemTemplate, navItemWithChildrenTemplate, pieces);
+            appendSidebarNodeHtml(child, path, navItemTemplate, navItemWithChildrenTemplate, pieces, 1);
         }
         return pieces.join('');
     });
@@ -182,15 +182,15 @@ function computeSidebarHtml(designHtml: string, sidebar: SidebarNode, path: stri
     return outputHtml;
 }
 
-function appendSidebarNodeHtml(node: SidebarNode, path: string, navItemTemplate: string, navItemWithChildrenTemplate: string, pieces: string[]) {
+function appendSidebarNodeHtml(node: SidebarNode, path: string, navItemTemplate: string, navItemWithChildrenTemplate: string, pieces: string[], depth: number) {
     if (node.children.length === 0) {
         pieces.push(computeSidebarItemHtml(node, path, navItemTemplate));
     } else {
-        let rt = computeSidebarItemHtml(node, path, navItemWithChildrenTemplate);
+        let rt = computeSidebarItemHtml(node, path, navItemWithChildrenTemplate, depth);
         rt = rt.replace(/<!-- start: children -->(.*?)<!-- end: children -->/s, () => {
             const subpieces: string[] = [];
             for (const child of node.children) {
-                appendSidebarNodeHtml(child, path, navItemTemplate, navItemWithChildrenTemplate, subpieces);
+                appendSidebarNodeHtml(child, path, navItemTemplate, navItemWithChildrenTemplate, subpieces, depth + 1);
             }
             return subpieces.join('');
         });
@@ -198,11 +198,13 @@ function appendSidebarNodeHtml(node: SidebarNode, path: string, navItemTemplate:
     }
 }
 
-function computeSidebarItemHtml(node: SidebarNode, path: string, template: string): string {
+function computeSidebarItemHtml(node: SidebarNode, path: string, template: string, depth?: number): string {
     let rt = template
         .replaceAll(/<!-- start: sidebar-nav-item-text -->(.*?)<!-- end: sidebar-nav-item-text -->/g, escape(node.title))
-        .replace(/ href=".*?"/, ` href="${escape(node.path)}"`);
-    const active = node.path === path;
+        .replace(/ href=".*?"/, ` href="${escape(node.path)}"`)
+        .replaceAll(`depth="1" style="--depth:1"`, `depth="${depth}" style="--depth:${depth}"`)
+        ;
+    const active = node.path === path || (node.path + '/') === path;
     if (!active) {
         rt = rt.replaceAll(' is-active=""', '');
     }

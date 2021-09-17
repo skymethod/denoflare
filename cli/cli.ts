@@ -31,7 +31,7 @@ function dumpHelp() {
         '    serve       Run a worker script on a local web server',
         '    push        Upload a worker script to Cloudflare Workers',
         '    tail        View a stream of logs from a published worker',
-        '    site        Develop and deploy a Cloudflare Pages static site',
+        '    site        Develop and deploy a static docs site to Cloudflare Pages',
         '    version     Dump cli version',
         '',
         'For command-specific help: denoflare [command] --help',

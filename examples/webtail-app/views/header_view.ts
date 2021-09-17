@@ -8,7 +8,7 @@ import { WebtailAppVM } from '../webtail_app_vm.ts';
 export const HEADER_HTML = html`
 <header class="h6 high-emphasis-text">
     <div id="header-content">
-        Denoflare Tail
+        Webtail
         <span id="header-version" class="overline medium-emphasis-text"></span>
         <a href="https://github.com/skymethod/denoflare" target="_blank" id="github-logo-anchor"><img id="github-logo"></a>
     </div>
