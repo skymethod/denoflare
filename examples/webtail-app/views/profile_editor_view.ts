@@ -2,7 +2,7 @@
 /// <reference lib="dom.iterable" />
 
 import { css, html } from '../deps_app.ts';
-import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { WebtailAppVM } from '../webtail_app_vm.ts';
 
 export const PROFILE_EDITOR_HTML = html`
 <form id="profile-form" autocomplete="off">
@@ -100,7 +100,7 @@ export const PROFILE_EDITOR_CSS = css`
 
 `;
 
-export function initProfileEditor(document: HTMLDocument, vm: TailwebAppVM): () => void {
+export function initProfileEditor(document: HTMLDocument, vm: WebtailAppVM): () => void {
     const profileForm = document.getElementById('profile-form') as HTMLFormElement;
     const profileFormTitleDiv = document.getElementById('profile-form-title') as HTMLElement;
     const profileFieldset = document.getElementById('profile-fieldset') as HTMLFieldSetElement;

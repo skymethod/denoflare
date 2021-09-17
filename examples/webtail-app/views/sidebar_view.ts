@@ -1,9 +1,8 @@
 /// <reference lib="dom" />
 
-import { setSubtract, setUnion } from '../../common/sets.ts';
-import { html, LitElement, css } from '../deps_app.ts';
+import { html, LitElement, css, setSubtract, setUnion } from '../deps_app.ts';
 import { StaticData } from '../static_data.ts';
-import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { WebtailAppVM } from '../webtail_app_vm.ts';
 import { HEADER_HTML, initHeader } from './header_view.ts';
 import { actionIcon, ADD_ICON, EDIT_ICON } from './icons.ts';
 
@@ -57,7 +56,7 @@ export const SIDEBAR_CSS = css`
 
 `;
 
-export function initSidebar(document: HTMLDocument, vm: TailwebAppVM, data: StaticData): () => void {
+export function initSidebar(document: HTMLDocument, vm: WebtailAppVM, data: StaticData): () => void {
     const updateHeader = initHeader(document, vm, data);
     const aboutAnchor = document.getElementById('sidebar-about') as HTMLAnchorElement;
     const profilesDiv = document.getElementById('profiles') as HTMLDivElement;
@@ -77,7 +76,7 @@ export function initSidebar(document: HTMLDocument, vm: TailwebAppVM, data: Stat
 
 //
 
-const PROFILES_HTML = (vm: TailwebAppVM) => html`
+const PROFILES_HTML = (vm: WebtailAppVM) => html`
     <div class="overline medium-emphasis-text">Profiles</div>
     <div class="button-grid">
         ${vm.profiles.map(profile => html`<button 
@@ -89,7 +88,7 @@ const PROFILES_HTML = (vm: TailwebAppVM) => html`
     </div>
 `;
 
-const SCRIPTS_HTML = (vm: TailwebAppVM) => html`
+const SCRIPTS_HTML = (vm: WebtailAppVM) => html`
     <div class="overline medium-emphasis-text">Scripts</div>
     <div id="scripts-scroller" class="hidden-vertical-scroll">
         <div class="button-grid">
@@ -114,7 +113,7 @@ function isMacintosh() {
     return navigator.platform.indexOf('Mac') > -1;
 }
 
-function handleScriptClick(e: MouseEvent, scriptId: string, vm: TailwebAppVM) {
+function handleScriptClick(e: MouseEvent, scriptId: string, vm: WebtailAppVM) {
     e.preventDefault();
     const newScriptIds = new Set([scriptId]);
     const multi = isMacintosh() ? e.metaKey : e.ctrlKey;

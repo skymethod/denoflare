@@ -2,7 +2,7 @@
 /// <reference lib="dom.iterable" />
 
 import { css, html, LitElement } from '../deps_app.ts';
-import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { WebtailAppVM } from '../webtail_app_vm.ts';
 import { CHECK_BOX_CHECKED_ICON, CHECK_BOX_UNCHECKED_ICON } from './icons.ts';
 
 export const FILTER_EDITOR_HTML = html`
@@ -73,7 +73,7 @@ export const FILTER_EDITOR_CSS = css`
 
 `;
 
-export function initFilterEditor(document: HTMLDocument, vm: TailwebAppVM): () => void {
+export function initFilterEditor(document: HTMLDocument, vm: WebtailAppVM): () => void {
     const filterForm = document.getElementById('filter-form') as HTMLFormElement;
     const filterFieldset = document.getElementById('filter-fieldset') as HTMLFieldSetElement;
     const filterFieldLabel = document.getElementById('filter-field-label') as HTMLLabelElement;
@@ -130,23 +130,23 @@ export function initFilterEditor(document: HTMLDocument, vm: TailwebAppVM): () =
 
 //
 
-function computeType(vm: TailwebAppVM): 'choice' | 'options' | 'text' {
+function computeType(vm: WebtailAppVM): 'choice' | 'options' | 'text' {
     return vm.filterForm.fieldValueChoices.length > 0 ? 'choice' 
         : vm.filterForm.fieldValueOptions.length ? 'options' 
         : 'text';
 }
 
-const CHOICES_HTML = (vm: TailwebAppVM) => {
+const CHOICES_HTML = (vm: WebtailAppVM) => {
     return vm.filterForm.fieldValueChoices.map(choice => html`<button class="${choice.id === vm.filterForm.fieldValue ? 'selected' : ''}" @click=${(e: Event) => { e.preventDefault(); vm.selectFilterChoice(choice.id); }} ?disabled="${!vm.filterForm.showing}">${choice.text}</button>`);
 };
 
-const OPTIONS_HTML = (vm: TailwebAppVM) => {
+const OPTIONS_HTML = (vm: WebtailAppVM) => {
     return vm.filterForm.fieldValueOptions.map(option => {
         const selected = fieldValueSet(vm).has(option.id);
         return html`<button class="${selected ? 'selected' : ''}" @click=${(e: Event) => { e.preventDefault(); vm.toggleFilterOption(option.id); }} ?disabled="${!vm.filterForm.showing}">${selected ? CHECK_BOX_CHECKED_ICON : CHECK_BOX_UNCHECKED_ICON} ${option.text}</button>`;
     });
 };
 
-function fieldValueSet(vm: TailwebAppVM): Set<string> {
+function fieldValueSet(vm: WebtailAppVM): Set<string> {
     return new Set((vm.filterForm.fieldValue || '').split(',').map(v => v.trim()).filter(v => v.length > 0));
 }

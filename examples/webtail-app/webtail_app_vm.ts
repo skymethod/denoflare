@@ -1,9 +1,5 @@
-import { CloudflareApiError, listScripts, listTails, Tail } from '../common/cloudflare_api.ts';
-import { setEqual, setIntersect, setSubtract } from '../common/sets.ts';
-import { isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions } from '../common/tail.ts';
-import { ErrorInfo, UnparsedMessage } from '../common/tail_connection.ts';
-import { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog } from '../common/tail_pretty.ts';
-import { generateUuid } from '../common/uuid_v4.ts';
+import { CloudflareApiError, listScripts, listTails, Tail, setEqual, setIntersect, setSubtract, isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions, ErrorInfo, 
+    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog, generateUuid } from './deps_app.ts';
 import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
@@ -12,7 +8,7 @@ import { SwitchableTailControllerCallbacks, TailController, TailControllerCallba
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
 
-export class TailwebAppVM {
+export class WebtailAppVM {
 
     private _profiles: TextItem[] = [];
     get profiles(): TextItem[] { return this.demoMode ? DemoMode.profiles : this._profiles; }

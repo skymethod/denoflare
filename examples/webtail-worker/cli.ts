@@ -1,9 +1,19 @@
-import { basename, dirname, join, fromFileUrl, resolve } from './deps_cli.ts';
-import { Bytes } from '../common/bytes.ts';
-import { ModuleWatcher } from './module_watcher.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags } from './deps_cli.ts';
 
-export async function tailweb(args: (string | number)[], options: Record<string, unknown>) {
+const args = parseFlags(Deno.args);
+
+if (args._.length > 0) {
+    await webtail(args._, args);
+    Deno.exit(0);
+}
+
+dumpHelp();
+
+Deno.exit(1);
+
+//
+
+async function webtail(args: (string | number)[], options: Record<string, unknown>) {
     const command = args[0];
     const fn = { build, b64 }[command];
     if (options.help || !fn) {
@@ -12,8 +22,6 @@ export async function tailweb(args: (string | number)[], options: Record<string,
     }
     await fn(args.slice(1));
 }
-
-//
 
 async function b64(args: (string | number)[]) {
     const path = args[0];
@@ -25,12 +33,10 @@ async function b64(args: (string | number)[]) {
 
 async function build(_args: (string | number)[]) {
     const thisPath = fromFileUrl(import.meta.url);
-    const denoflareCliPath = dirname(thisPath);
-    const denoflarePath = resolve(denoflareCliPath, '..');
-    const tailwebAppPath = join(denoflarePath, 'tailweb-app');
-    const tailwebWorkerPath = join(denoflarePath, 'tailweb-worker');
-    const appPath = join(tailwebAppPath, 'tailweb_app.ts');
-    const dataPath = join(tailwebWorkerPath, 'tailweb_data.ts');
+    const webtailWorkerPath = dirname(thisPath);
+    const webtailAppPath = resolve(webtailWorkerPath, '../webtail-app');
+    const appPath = join(webtailAppPath, 'webtail_app.ts');
+    const dataPath = join(webtailWorkerPath, 'webtail_data.ts');
 
     const regenerateAppContents = async () => {
         console.log(`bundling ${basename(appPath)} into bundle.js...`);
@@ -51,8 +57,8 @@ async function build(_args: (string | number)[]) {
 
             const scriptBytes = Bytes.ofUtf8(scriptContentsStr);
             const scriptBytesSha1 = await scriptBytes.sha1();
-            await updateData('TAILWEB_APP_B64', scriptBytes.base64(), dataPath);
-            await updateData('TAILWEB_APP_HASH', scriptBytesSha1.hex(), dataPath);
+            await updateData('WEBTAIL_APP_B64', scriptBytes.base64(), dataPath);
+            await updateData('WEBTAIL_APP_HASH', scriptBytesSha1.hex(), dataPath);
         } catch (e) {
             console.warn('error in regenerateAppContents', e);
         }   
@@ -76,19 +82,19 @@ async function updateData(name: string, value: string, dataPath: string) {
 
 function dumpHelp() {
     const lines = [
-        `denoflare-tailweb ${CLI_VERSION}`,
-        'Tools for developing tailweb - will probably move out of cli at some point',
+        `webtail-cli`,
+        'Tools for developing webtail',
         '',
         'USAGE:',
-        '    denoflare tailweb [FLAGS] [OPTIONS] [--] build',
-        '    denoflare tailweb [FLAGS] [OPTIONS] [--] b64 <path>',
+        '    deno run --unstable --allow-net examples/webtail-worker/cli.ts [FLAGS] [OPTIONS] [--] build',
+        '    deno run --unstable --allow-net --allow-read examples/webtail-worker/cli.ts [FLAGS] [OPTIONS] [--] b64 <path>',
         '',
         'FLAGS:',
         '    -h, --help        Prints help information',
         '        --verbose     Toggle verbose output (when applicable)',
         '',
         'ARGS:',
-        '    build         Watch for changes in tailweb-app, and bundle as worker embedded resource',
+        '    build         Watch for changes in webtail-app, and bundle as worker embedded resource',
         '    b64 <path>    Dump out the b64 of a given file',
     ];
     for (const line of lines) {

@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 
 import { css, html, LitElement } from '../deps_app.ts';
-import { FilterState, TailwebAppVM } from '../tailweb_app_vm.ts';
+import { FilterState, WebtailAppVM } from '../webtail_app_vm.ts';
 import { actionIcon, CLEAR_ICON } from './icons.ts';
 
 export const CONSOLE_HTML = html`
@@ -99,7 +99,7 @@ export const CONSOLE_CSS = css`
 
 `;
 
-export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => void {
+export function initConsole(document: HTMLDocument, vm: WebtailAppVM): () => void {
     const consoleDiv = document.getElementById('console') as HTMLDivElement;
     const consoleHeaderFiltersDiv = document.getElementById('console-header-filters') as HTMLDivElement;
     const consoleHeaderTailsElement = document.getElementById('console-header-tails') as HTMLElement;
@@ -175,7 +175,7 @@ export function initConsole(document: HTMLDocument, vm: TailwebAppVM): () => voi
 
 //
 
-const FILTERS_HTML = (vm: TailwebAppVM) => {
+const FILTERS_HTML = (vm: WebtailAppVM) => {
     return html`Showing <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSelectionFields(); }}>${vm.computeSelectionFieldsText()}</a>
      for <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editEventFilter(); }}>${computeEventFilterText(vm.filter)}</a>
      with <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editStatusFilter(); }}>${computeStatusFilterText(vm.filter)}</a>,

@@ -10,10 +10,12 @@
 			"path": "cli-webworker"
 		},
 		{
-			"path": "tailweb-worker"
+			"path": "examples/webtail-worker",
+			"name": "examples/webtail-worker"
 		},
 		{
-			"path": "tailweb-app"
+			"path": "examples/webtail-app",
+			"name": "examples/webtail-app"
 		}
 	],
 	"settings": {

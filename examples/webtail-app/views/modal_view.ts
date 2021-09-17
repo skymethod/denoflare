@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 
 import { css, html } from '../deps_app.ts';
-import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { WebtailAppVM } from '../webtail_app_vm.ts';
 import { FILTER_EDITOR_HTML, initFilterEditor } from './filter_editor_view.ts';
 import { initProfileEditor, PROFILE_EDITOR_HTML } from './profile_editor_view.ts';
 import { initWelcomePanel, WELCOME_PANEL_HTML } from './welcome_panel.ts';
@@ -44,7 +44,7 @@ export const MODAL_CSS = css`
 
 `;
 
-export function initModal(document: HTMLDocument, vm: TailwebAppVM): () => void {
+export function initModal(document: HTMLDocument, vm: WebtailAppVM): () => void {
 
     const modal = document.getElementById('modal') as HTMLDivElement;
     const updateProfileEditor = initProfileEditor(document, vm);

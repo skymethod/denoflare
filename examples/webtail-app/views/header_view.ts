@@ -3,7 +3,7 @@
 import { css, html } from '../deps_app.ts';
 import { Material } from '../material.ts';
 import { StaticData } from '../static_data.ts';
-import { TailwebAppVM } from '../tailweb_app_vm.ts';
+import { WebtailAppVM } from '../webtail_app_vm.ts';
 
 export const HEADER_HTML = html`
 <header class="h6 high-emphasis-text">
@@ -52,7 +52,7 @@ header {
 
 `;
 
-export function initHeader(document: HTMLDocument, vm: TailwebAppVM, data: StaticData): () => void {
+export function initHeader(document: HTMLDocument, vm: WebtailAppVM, data: StaticData): () => void {
     const headerContentElement = document.getElementById('header-content') as HTMLElement;
     if ((data.flags || '').includes('demo-toggle')) {
         headerContentElement.addEventListener('dblclick', e => {

@@ -1,7 +1,4 @@
-import { createTail, Tail } from '../common/cloudflare_api.ts';
-import { setSubtract } from '../common/sets.ts';
-import { TailMessage, TailOptions } from '../common/tail.ts';
-import { ErrorInfo, TailConnection, TailConnectionCallbacks, UnparsedMessage } from '../common/tail_connection.ts';
+import { createTail, Tail, TailMessage, TailOptions, setSubtract, ErrorInfo, TailConnection, TailConnectionCallbacks, UnparsedMessage } from './deps_app.ts';
 
 export type TailKey = string; // accountId-scriptId
 

@@ -1,9 +1,9 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { CloudflareApi } from '../common/cloudflare_api.ts';
+import { CloudflareApi } from '../../common/cloudflare_api.ts';
 import { initSidebar, SIDEBAR_CSS, SIDEBAR_HTML } from './views/sidebar_view.ts';
-import { TailwebAppVM } from './tailweb_app_vm.ts';
+import { WebtailAppVM } from './webtail_app_vm.ts';
 import { css, html, LitElement } from './deps_app.ts';
 import { MATERIAL_CSS } from './material.ts';
 import { initModal, MODAL_CSS, MODAL_HTML } from './views/modal_view.ts';
@@ -83,7 +83,7 @@ function parseStaticData(): StaticData {
 
 const data = parseStaticData();
 
-const vm = new TailwebAppVM();
+const vm = new WebtailAppVM();
 const updateSidebar = initSidebar(document, vm, data);
 const updateConsole = initConsole(document, vm);
 const updateModal = initModal(document, vm);

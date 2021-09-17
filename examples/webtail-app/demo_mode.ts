@@ -1,6 +1,5 @@
-import { Tail } from '../common/cloudflare_api.ts';
-import { TailMessage } from '../common/tail.ts';
-import { TextItem } from './tailweb_app_vm.ts';
+import { Tail, TailMessage } from './deps_app.ts';
+import { TextItem } from './webtail_app_vm.ts';
 import { packTailKey, TailControllerCallbacks, TailKey } from './tail_controller.ts';
 
 export class DemoMode {

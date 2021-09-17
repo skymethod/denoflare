@@ -1,6 +1,5 @@
-import { Bytes } from '../common/bytes.ts';
-import { IncomingRequestCf, ModuleWorkerContext } from '../common/cloudflare_workers_types.d.ts';
-import { TAILWEB_APP_B64, TAILWEB_APP_HASH } from './tailweb_data.ts';
+import { Bytes, IncomingRequestCf, ModuleWorkerContext } from './deps_worker.ts';
+import { WEBTAIL_APP_B64, WEBTAIL_APP_HASH } from './webtail_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_JPG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
@@ -102,11 +101,11 @@ function isFetchAllowed(method: string, url: URL): boolean {
 }
 
 function computeAppJsPath(): string {
-    return `/app.${TAILWEB_APP_HASH}.js`;
+    return `/app.${WEBTAIL_APP_HASH}.js`;
 }
 
 function computeAppResponse(): Response {
-    const array = Bytes.ofBase64(TAILWEB_APP_B64).array();
+    const array = Bytes.ofBase64(WEBTAIL_APP_B64).array();
     return new Response(array, { headers: computeHeaders('text/javascript; charset=utf-8', { immutable: true }) });
 }
 
