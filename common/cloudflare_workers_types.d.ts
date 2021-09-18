@@ -693,6 +693,19 @@ export interface CloudflareWebSocketExtensions {
      * https://developers.cloudflare.com/workers/runtime-apis/websockets#accept
      * */
     accept(): void;
+
+    /**
+     * Cloudflare-specific behavior:
+     * 
+     * readyState is not implemented (and associated WebSocket.CONNECTED, CONNECTING etc), by the time you get it, it's already in the OPEN state
+     * 
+     * send() may throw:
+     *  - if accept() hasn't been called
+     *  - if close() has already been called
+     *  - if onerror has fired.
+     *  - Otherwise, it adds the message to a send queue, which shouldn't ever throw
+     *  - send() doesn't care if onclose has occurred since they represent opposite directions of the stream.
+     */
 }
 
 export interface CloudflareResponseInitExtensions {
