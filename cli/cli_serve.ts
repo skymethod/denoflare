@@ -13,6 +13,10 @@ import { CLI_VERSION } from './cli_version.ts';
 import { Binding, Isolation, Script } from '../common/config.ts';
 import { computeContentsForScriptReference } from './cli_common.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
+import { RpcChannel } from '../common/rpc_channel.ts';
+import { ModuleWorkerExecution } from '../common/module_worker_execution.ts';
+import { redefineGlobalFetchToWorkaroundBareIpAddresses } from '../common/deno_workarounds.ts';
+import { FetchUtil } from '../common/fetch_util.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
     const scriptSpec = args[0];
@@ -23,9 +27,17 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
     const verbose = !!options.verbose;
     if (verbose) {
+        // in cli
         ModuleWatcher.VERBOSE = verbose;
+        WorkerManager.VERBOSE = verbose;
+
+        // in common
+        RpcChannel.VERBOSE = verbose;
+        ModuleWorkerExecution.VERBOSE = verbose;
+        FetchUtil.VERBOSE = verbose;
     }
 
+    const start = Date.now();
     const config = await loadConfig(options);
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
     const { scriptName, rootSpecifier } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
@@ -53,7 +65,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     }
     const profile = await resolveProfile(config, options);
 
-    consoleLog(`isolation=${isolation}`);
+    redefineGlobalFetchToWorkaroundBareIpAddresses();
 
     const computeScriptContents = async (scriptPathOrModuleWorkerUrl: string, scriptType: 'module' | 'script'): Promise<Uint8Array> => {
         if (scriptType === 'script') {
@@ -64,7 +76,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         const result = await Deno.emit(scriptPathOrModuleWorkerUrl, {
             bundle: 'module',
         });
-        consoleLog(result);
+        if (verbose) consoleLog('computeScriptContents: result', result);
         const workerJs = result.files['deno:///bundle.js'];
         const rt = new TextEncoder().encode(workerJs);
         console.log(`Compiled ${scriptPathOrModuleWorkerUrl} into module contents in ${Date.now() - start}ms`);
@@ -184,6 +196,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             }
         }
     }
+    consoleLog(`Started in ${Date.now() - start}ms (isolation=${isolation})`);
 
     const server = Deno.listen({ port });
     consoleLog(`Local server running on http://localhost:${port}`);

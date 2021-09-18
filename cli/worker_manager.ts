@@ -8,6 +8,8 @@ import { runScript, WorkerFetch } from '../common/rpc_script.ts';
 import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
 
 export class WorkerManager {
+    static VERBOSE = false;
+
     private readonly workerUrl: string;
 
     private currentWorker?: WorkerInfo;
@@ -18,16 +20,18 @@ export class WorkerManager {
 
     static async start(): Promise<WorkerManager> {
         // compile the permissionless deno worker (once)
-       
         const webworkerRootSpecifier = computeWebworkerRootSpecifier();
+        consoleLog(`Compiling ${webworkerRootSpecifier} into worker contents...`);
+        const start = Date.now();
         const result = await Deno.emit(webworkerRootSpecifier, {
             bundle: 'module',
         });
-        consoleLog(result);
+        if (WorkerManager.VERBOSE) consoleLog(result);
         const workerJs = result.files['deno:///bundle.js'];
         const contents = new TextEncoder().encode(workerJs);
         const blob = new Blob([contents]);
         const workerUrl = URL.createObjectURL(blob);
+        consoleLog(`Compiled ${webworkerRootSpecifier} into worker contents in ${Date.now() - start}ms`);
         return new WorkerManager(workerUrl);
     }
 
@@ -64,7 +68,7 @@ export class WorkerManager {
         addRequestHandlerForRpcKvNamespace(rpcChannel, kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace));
 
         // run the script in the deno worker
-        await runScript({ scriptContents, scriptType, bindings }, rpcChannel);
+        await runScript({ scriptContents, scriptType, bindings, verbose: WorkerManager.VERBOSE }, rpcChannel);
 
         this.currentWorker = { worker, rpcChannel, bodies };
     }

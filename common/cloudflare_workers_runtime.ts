@@ -9,7 +9,6 @@ export type DONamespaceProvider = (doNamespace: string) => DurableObjectNamespac
 
 export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider) {
     defineGlobalCaches(globalCachesProvider);
-    redefineGlobalFetch();
     defineGlobalWebsocketPair();
     redefineGlobalResponse();
 }
@@ -27,26 +26,6 @@ export function defineScriptGlobals(bindings: Record<string, Binding>, globalCac
 }
 
 //
-
-const _fetch = fetch;
-
-function redefineGlobalFetch() {
-    // https://github.com/denoland/deno/issues/7660
-
-    // deno-lint-ignore no-explicit-any
-    const fetchFromDeno = function(arg1: any, arg2: any) {
-        if (typeof arg1 === 'string' && arg2 === undefined) {
-            let url = arg1 as string;
-            if (url.startsWith('https://1.1.1.1/')) {
-                url = 'https://one.one.one.one/' + url.substring('https://1.1.1.1/'.length);
-            }
-            arg1 = url;
-        }
-        return _fetch(arg1, arg2);
-    };
-
-    globalThisAsAny().fetch = fetchFromDeno;
-}
 
 function defineGlobalCaches(globalCachesProvider: GlobalCachesProvider) {
     globalThisAsAny()['caches'] = globalCachesProvider();

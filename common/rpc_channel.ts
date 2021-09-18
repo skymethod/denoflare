@@ -4,7 +4,8 @@ import { consoleLog } from './console.ts';
 export type Data = any;
 
 export class RpcChannel {
-    
+    static VERBOSE = false;
+
     private readonly requests = new Map<number, Request>();
     private readonly postMessage: (message: Data, transfer: Transferable[]) => void;
     private readonly requestDataHandlers = new Map<string, RequestDataHandler>();
@@ -19,7 +20,7 @@ export class RpcChannel {
 
     async receiveMessage(data: Data): Promise<boolean> /*handled*/ {
         if (isRpcResponse(data)) {
-            consoleLog(`${this.tag}: receiveMessage response ${data.rpcMethod}`);
+            if (RpcChannel.VERBOSE) consoleLog(`${this.tag}: receiveMessage response ${data.rpcMethod}`);
             const request = this.requests.get(data.num);
             if (request) {
                 this.requests.delete(data.num);
@@ -29,7 +30,7 @@ export class RpcChannel {
         }
 
         if (isRpcRequest(data)) {
-            consoleLog(`${this.tag}: receiveMessage request ${data.rpcMethod}`);
+            if (RpcChannel.VERBOSE) consoleLog(`${this.tag}: receiveMessage request ${data.rpcMethod}`);
             const { rpcMethod, num } = data;
             const handler = this.requestDataHandlers.get(rpcMethod);
             if (handler) {
@@ -70,7 +71,7 @@ export class RpcChannel {
             }
         });
         const rpcRequest: RpcRequest = { requestKind: 'rpc', rpcMethod, num, data };
-        consoleLog(`${this.tag}: sendRequest ${rpcRequest.rpcMethod}`);
+        if (RpcChannel.VERBOSE) consoleLog(`${this.tag}: sendRequest ${rpcRequest.rpcMethod}`);
         this.postMessage(rpcRequest, transfer);
         return rt;
     }

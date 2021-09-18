@@ -14,15 +14,23 @@ import { packResponse } from './rpc_fetch.ts';
 import { makeIncomingRequestCfProperties } from './incoming_request_cf_properties.ts';
 import { LocalDurableObjects } from './local_durable_objects.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
+import { ModuleWorkerExecution } from './module_worker_execution.ts';
+import { FetchUtil } from './fetch_util.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
-        const scriptDef = requestData as ScriptDef;
-        const b = new Blob([ scriptDef.scriptContents ]);
+        const { verbose, scriptContents, scriptType, bindings } = requestData as ScriptDef;
+        if (verbose) {
+            // in common
+            RpcChannel.VERBOSE = verbose;
+            ModuleWorkerExecution.VERBOSE = verbose;
+            FetchUtil.VERBOSE = verbose;
+        }
+        const b = new Blob([ scriptContents ]);
         const u = URL.createObjectURL(b);
 
         let objects: LocalDurableObjects | undefined; 
-        const exec = await WorkerExecution.start(u, scriptDef.scriptType, scriptDef.bindings, {
+        const exec = await WorkerExecution.start(u, scriptType, bindings, {
             onModuleWorkerInfo: moduleWorkerInfo => { 
                 const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
                 objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
@@ -73,4 +81,5 @@ export interface ScriptDef {
     readonly scriptType: 'module' | 'script';
     readonly scriptContents: Uint8Array;
     readonly bindings: Record<string, Binding>;
+    readonly verbose: boolean;
 }

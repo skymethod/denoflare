@@ -6,6 +6,7 @@ import { IncomingRequestCf, ModuleWorkerContext } from './cloudflare_workers_typ
 import { WorkerExecutionCallbacks } from './worker_execution.ts';
 
 export class ModuleWorkerExecution {
+    static VERBOSE = false;
     private readonly worker: ModuleWorker;
 
     private constructor(worker: ModuleWorker) {
@@ -16,7 +17,7 @@ export class ModuleWorkerExecution {
         const { globalCachesProvider, onModuleWorkerInfo, kvNamespaceProvider, doNamespaceProvider } = callbacks;
         defineModuleGlobals(globalCachesProvider);
         const module = await import(scriptPath);
-        consoleLog(module);
+        if (ModuleWorkerExecution.VERBOSE) consoleLog('ModuleWorkerExecution: module', module);
         const moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor> = {};
         for (const [ name, value ] of Object.entries(module)) {
             if (typeof value === 'function') {
