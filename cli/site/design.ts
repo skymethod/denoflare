@@ -90,14 +90,12 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     });
 
     // render markdown
-    const { lexer, parser } = marked;
-
     const markdownResolved = markdown.replaceAll(/\$([_A-Z0-9]+)/g, (_, g1) => Deno.env.get(g1) || ''); // TODO more replacements
-    const tokens = lexer(markdownResolved);
+    const tokens = marked.lexer(markdownResolved);
     if (verbose) console.log(tokens);
-    const { Renderer } = marked;
-    const renderer = new class extends Renderer {
-        link(href: string | null, title: string | null, text: string) {
+
+    const renderer = new class extends marked.Renderer {
+        link(href: string | null, title: string | null, text: string): string {
             if (typeof href === 'string' && /^https?:\/\//.test(href)) {
                 return computeExternalAnchorHtml(href, text);
             }
@@ -107,8 +105,21 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
             a += `><span class="markdown-link-content">${escape(text)}</span></a>`;
             return a;
         }
+        heading(text: string, level: 1 | 2 | 3 | 4 | 5 | 6, _raw: string, slugger: marked.Slugger): string {
+            const textEscaped = escape(text);
+            if (level === 1) return `<h1>${textEscaped}</h1>`;
+
+            const idEscaped = escape(slugger.slug(text));
+            return '' +
+`<h${level} id="${idEscaped}">
+    <span class="markdown-header-anchor-positioner">
+        <a class="markdown-header-anchor link link-without-underline" href="#${idEscaped}" aria-hidden="true">​</a>
+    </span>
+    <span>${textEscaped}</span>
+</h${level}>`;
+        }
     }();
-    const markdownHtml = parser(tokens, { renderer });
+    const markdownHtml = marked.parser(tokens, { renderer });
     outputHtml = outputHtml.replace(/<!-- start: markdown -->.*?<!-- end: markdown -->/s, markdownHtml);
 
     // render toc
