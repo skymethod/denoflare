@@ -1,6 +1,6 @@
 export { css, html, LitElement, svg, SVGTemplateResult, CSSResult, TemplateResult } from 'https://cdn.skypack.dev/lit-element@2.5.1';
 export type { Tail } from 'https://raw.githubusercontent.com/skymethod/denoflare/f7bc536c3defc51951ea6c2c01444a10fcddab26/common/cloudflare_api.ts';
-export { createTail, CloudflareApiError, listScripts, listTails } from 'https://raw.githubusercontent.com/skymethod/denoflare/f7bc536c3defc51951ea6c2c01444a10fcddab26/common/cloudflare_api.ts';
+export { createTail, CloudflareApiError, listScripts, listTails, CloudflareApi } from 'https://raw.githubusercontent.com/skymethod/denoflare/f7bc536c3defc51951ea6c2c01444a10fcddab26/common/cloudflare_api.ts';
 export { setSubtract, setEqual, setIntersect, setUnion } from 'https://raw.githubusercontent.com/skymethod/denoflare/f7bc536c3defc51951ea6c2c01444a10fcddab26/common/sets.ts';
 export { TailConnection } from 'https://raw.githubusercontent.com/skymethod/denoflare/f7bc536c3defc51951ea6c2c01444a10fcddab26/common/tail_connection.ts';
 export { formatLocalYyyyMmDdHhMmSs, dumpMessagePretty } from 'https://raw.githubusercontent.com/skymethod/denoflare/f7bc536c3defc51951ea6c2c01444a10fcddab26/common/tail_pretty.ts';

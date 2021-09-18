@@ -16,15 +16,15 @@ export const WELCOME_PANEL_HTML = html`
     <ul>
         <li>Tail multiple workers at the same time</li>
         <li>Advanced filtering and multi-color output similar to <a href="https://developers.cloudflare.com/workers/cli-wrangler/commands#tail" target="_blank">wrangler tail</a></li>
-        <li>Durable object class/name/id and colo information can be surfaced with <a href="TODO WEBTAIL DOCS LINK#logprops" target="_blank">logprops</a></li>
+        <li>Durable object class/name/id and colo information can be surfaced with <a href="https://denoflare.dev/examples/webtail#logprops" target="_blank">logprops</a></li>
         <li>Multiple profiles, switch easily between multiple accounts</li>
         <li>No need to log in with your full Cloudflare credentials.  Profiles are stored locally in the browser, and can be permissioned only for tailing workers</li>
         <li>Implemented as <a href="https://github.com/skymethod/denoflare/tree/master/examples/webtail-worker" target="_blank">an open-source Cloudflare Worker</a>, 
-           <a href="TODO WEBTAIL DOCS LINK#deploy-it-to-your-own-account" target="_blank">deploy it to your own account</a>, 
-            or <a href="TODO WEBTAIL DOCS LINK#host-it-locally" target="_blank">host it locally</a> with <a href="https://github.com/skymethod/denoflare" target="_blank"><code>denoflare</code></a></li>
+           <a href="https://denoflare.dev/examples/webtail#deploy-it-to-your-own-account" target="_blank">deploy it to your own account</a>, 
+            or <a href="https://denoflare.dev/examples/webtail#host-it-locally" target="_blank">host it locally</a> with <a href="https://github.com/skymethod/denoflare" target="_blank"><code>denoflare</code></a></li>
     </ul>
     <p id="welcome-panel-trailer">Create a new profile to get started!</p>
-    <p id="about-panel-trailer">Learn more at the <a href="https://github.com/skymethod/denoflare" target="_blank">Denoflare GitHub repo</a>!</p>
+    <p id="about-panel-trailer">Head over to the <a href="https://github.com/skymethod/denoflare" target="_blank">Denoflare GitHub repo</a> to request features, report bugs, or check out the code!</p>
   </div>
 
   <div class="form-rhs">

@@ -1,10 +1,9 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { CloudflareApi } from '../../common/cloudflare_api.ts';
 import { initSidebar, SIDEBAR_CSS, SIDEBAR_HTML } from './views/sidebar_view.ts';
 import { WebtailAppVM } from './webtail_app_vm.ts';
-import { css, html, LitElement } from './deps_app.ts';
+import { CloudflareApi, css, html, LitElement } from './deps_app.ts';
 import { MATERIAL_CSS } from './material.ts';
 import { initModal, MODAL_CSS, MODAL_HTML } from './views/modal_view.ts';
 import { HEADER_CSS } from './views/header_view.ts';
@@ -95,7 +94,6 @@ vm.onChange = () => {
 };
 
 CloudflareApi.URL_TRANSFORMER = v => `/fetch/${v.substring('https://'.length)}`;
-
 vm.start();
 
 setAppState('started');

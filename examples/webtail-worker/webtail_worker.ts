@@ -1,7 +1,7 @@
 import { Bytes, IncomingRequestCf, ModuleWorkerContext } from './deps_worker.ts';
 import { WEBTAIL_APP_B64, WEBTAIL_APP_HASH } from './webtail_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
-import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_JPG_B64 } from './twitter.ts';
+import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
 
@@ -35,9 +35,9 @@ export default {
         } else if (url.pathname === MANIFEST_PATHNAME) {
             const headers = computeHeaders('application/manifest+json', { immutable: true });
             return new Response(JSON.stringify(computeManifest(), undefined, 2), { headers });
-        } else if (url.pathname === TWITTER_IMAGE_JPG_PATHNAME) {
-            const headers = computeHeaders('image/jpeg', { immutable: true });
-            return new Response(Bytes.ofBase64(TWITTER_IMAGE_JPG_B64).array(), { headers });
+        } else if (url.pathname === TWITTER_IMAGE_PNG_PATHNAME) {
+            const headers = computeHeaders('image/png', { immutable: true });
+            return new Response(Bytes.ofBase64(TWITTER_IMAGE_PNG_B64).array(), { headers });
         } else if (url.pathname === '/robots.txt') {
             const headers = computeHeaders('text/plain; charset=utf-8');
             return new Response('User-agent: *\nDisallow:\n', { headers });
@@ -61,7 +61,7 @@ const MANIFEST_VERSION = '1';
 const FAVICON_SVG_PATHNAME = `/favicon.${FAVICON_VERSION}.svg`;
 const FAVICON_ICO_PATHNAME = `/favicon.${FAVICON_VERSION}.ico`;
 const MANIFEST_PATHNAME = `/app.${MANIFEST_VERSION}.webmanifest`;
-const TWITTER_IMAGE_JPG_PATHNAME = `/og-image.${TWITTER_IMAGE_VERSION}.jpg`;
+const TWITTER_IMAGE_PNG_PATHNAME = `/og-image.${TWITTER_IMAGE_VERSION}.png`;
 const SVG_MIME_TYPE = 'image/svg+xml';
 
 function computeManifest(): AppManifest {
@@ -172,7 +172,7 @@ ${COMMON_STYLES}
 </html>`;
 
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
-    const { short_name: name, description } = computeManifest();
+    const { name, description } = computeManifest();
     const { twitter } = staticData;
     const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>
@@ -195,7 +195,7 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <meta name="description" content="${encodeHtml(description)}">
 <meta property="og:title" content="${encodeHtml(name)}">
 <meta property="og:description" content="${encodeHtml(description)}">
-<meta property="og:image" content="${url.origin}${TWITTER_IMAGE_JPG_PATHNAME}">
+<meta property="og:image" content="${url.origin}${TWITTER_IMAGE_PNG_PATHNAME}">
 <meta property="og:image:alt" content="${encodeHtml(name)} screenshot">
 <meta property="og:locale" content="en_US">
 <meta property="og:type" content="website">
