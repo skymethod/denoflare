@@ -1,11 +1,12 @@
 import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
-import { gzip } from './deps_cli.ts';
+import { gzip, isAbsolute, resolve } from './deps_cli.ts';
 import { putScript, Binding as ApiBinding } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { computeContentsForScriptReference } from './cli_common.ts';
 import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding } from '../common/config.ts';
+import { ModuleWatcher } from './module_watcher.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
     const scriptSpec = args[0];
@@ -20,26 +21,47 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
     
-    console.log(`bundling ${scriptName} into bundle.js...`);
-    let start = Date.now();
-    const result = await Deno.emit(rootSpecifier, { bundle: 'module' });
-    console.log(`bundle finished in ${Date.now() - start}ms`);
+    const buildAndPutScript = async () => {
+        console.log(`bundling ${scriptName} into bundle.js...`);
+        let start = Date.now();
+        const result = await Deno.emit(rootSpecifier, { bundle: 'module' });
+        console.log(`bundle finished in ${Date.now() - start}ms`);
 
-    if (result.diagnostics.length > 0) {
-        console.warn(Deno.formatDiagnostics(result.diagnostics));
-        throw new Error('bundle failed');
+        if (result.diagnostics.length > 0) {
+            console.warn(Deno.formatDiagnostics(result.diagnostics));
+            throw new Error('bundle failed');
+        }
+
+        const bindings = script ? await computeBindings(script) : [];
+        const scriptContentsStr = result.files['deno:///bundle.js'];
+        if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
+        const scriptContents = new TextEncoder().encode(scriptContentsStr);
+        const compressedScriptContents = gzip(scriptContents);
+
+        console.log(`putting script ${scriptName}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
+        start = Date.now();
+        await putScript(accountId, scriptName, scriptContents, bindings, apiToken);
+        console.log(`put script ${scriptName} in ${Date.now() - start}ms`);
     }
+    await buildAndPutScript();
 
-    const bindings = script ? await computeBindings(script) : [];
-    const scriptContentsStr = result.files['deno:///bundle.js'];
-    if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
-    const scriptContents = new TextEncoder().encode(scriptContentsStr);
-    const compressedScriptContents = gzip(scriptContents);
-
-    console.log(`putting script ${scriptName}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
-    start = Date.now();
-    await putScript(accountId, scriptName, scriptContents, bindings, apiToken);
-    console.log(`put script ${scriptName} in ${Date.now() - start}ms`);
+    const watch = !!options.watch;
+    if (watch) {
+        console.log('Watching for changes...');
+        const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
+        if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
+        const scriptPathOrUrl = scriptUrl ? scriptUrl.toString() : script ? script.path : isAbsolute(rootSpecifier) ? rootSpecifier : resolve(Deno.cwd(), rootSpecifier);
+        const _moduleWatcher = new ModuleWatcher(scriptPathOrUrl, async () => {
+            try {
+                await buildAndPutScript();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                console.log('Watching for changes...');
+            }
+        });
+        return new Promise(() => {});
+    }
 }
 
 //
@@ -78,6 +100,7 @@ function dumpHelp() {
         'FLAGS:',
         '    -h, --help        Prints help information',
         '        --verbose     Toggle verbose output (when applicable)',
+        '        --watch       Re-upload the worker script when local changes are detected',
         '',
         'OPTIONS:',
         '    -n, --name <name>        Name to use for Cloudflare Worker script [default: Name of script defined in .denoflare config, or https url basename sans extension]',

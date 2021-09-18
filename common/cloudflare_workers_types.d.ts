@@ -39,6 +39,9 @@ export interface IncomingRequestCfProperties {
     /** ASN of the incoming request, e.g. 395747. */
     readonly asn: number;
 
+    /** The organisation which owns the ASN of the incoming request, e.g. Google Cloud. */
+    readonly asOrganization: string;
+
     /** The three-letter IATA airport code of the data center that the request hit, e.g. "DFW". */
     readonly colo: string;
 

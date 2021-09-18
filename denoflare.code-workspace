@@ -16,6 +16,10 @@
 		{
 			"path": "examples/webtail-app",
 			"name": "examples/webtail-app"
+		},
+		{
+			"path": "examples/hello-worker",
+			"name": "examples/hello-worker"
 		}
 	],
 	"settings": {
@@ -24,7 +28,8 @@
 		"deno.suggest.imports.hosts": {
 			"https://github.com": false,
 			"https://deno.land": false,
-			"https://cdn.skypack.dev": false
+			"https://cdn.skypack.dev": false,
+			"https://raw.githubusercontent.com": false
 		},
 		"deno.enable": true
 	}

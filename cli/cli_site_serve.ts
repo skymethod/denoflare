@@ -80,6 +80,7 @@ function dumpHelp() {
         'FLAGS:',
         '    -h, --help        Prints help information',
         '        --verbose     Toggle verbose output (when applicable)',
+        '        --watch       Rebuild the site when file system changes are detected in <repo-dir>',
         '',
         'OPTIONS:',
         `        --port <number>     Local port to use for the http server (default: ${DEFAULT_PORT})`,
