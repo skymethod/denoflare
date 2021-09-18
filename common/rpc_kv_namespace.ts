@@ -24,7 +24,7 @@ export class RpcKVNamespace implements KVNamespace {
     // deno-lint-ignore no-explicit-any
     async get(key: any, opts: any): Promise<any> {
         if (typeof key === 'string') {
-            if (opts.type === 'arrayBuffer') {
+            if (opts.type === 'arrayBuffer' || opts === 'arrayBuffer') {
                 const { kvNamespace } = this;
                 const req: KVNamespaceGetArrayBufferRequest = { type: 'arrayBuffer', key, kvNamespace };
                 return await this.channel.sendRequest('kv-namespace-get', req, responseData => {
