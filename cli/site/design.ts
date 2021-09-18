@@ -3,7 +3,7 @@ import { Page } from './page.ts';
 import { computeBreadcrumbs, SidebarNode } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
-import { computeToc, TocNode } from './toc.ts';
+import { computeToc, Heading, TocNode } from './toc.ts';
 
 export async function computeHtml(opts: { page: Page, path: string, contentRepoPath: string, config: SiteConfig, sidebar: SidebarNode, contentUpdateTime: number, inputDir: string, 
         manifestPath: string | undefined, localOrigin: string | undefined, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
@@ -94,6 +94,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     const tokens = marked.lexer(markdownResolved);
     if (verbose) console.log(tokens);
 
+    const headings: Heading[] = [];
     const renderer = new class extends marked.Renderer {
         link(href: string | null, title: string | null, text: string): string {
             if (typeof href === 'string' && /^https?:\/\//.test(href)) {
@@ -109,7 +110,10 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
             const textEscaped = escape(text);
             if (level === 1) return `<h1>${textEscaped}</h1>`;
 
-            const idEscaped = escape(slugger.slug(text));
+            const id = slugger.slug(text);
+            headings.push({ level, text, id });
+            const idEscaped = escape(id);
+
             return '' +
 `<h${level} id="${idEscaped}">
     <span class="markdown-header-anchor-positioner">
@@ -126,13 +130,16 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
             const highlightedCodeHtml = hljs.highlight(code, { language }).value;
             return `<pre class="code-block code-block-scrolls-horizontally"><code>${highlightedCodeHtml}</code></pre>`;
         }
+        codespan(code: string): string {
+            return `<code class="inline-code">${code}</code>`;
+        }
     }();
     const markdownHtml = marked.parser(tokens, { renderer });
     outputHtml = outputHtml.replace(/<!-- start: markdown -->.*?<!-- end: markdown -->/s, markdownHtml);
 
     // render toc
     if (isDocument) {
-        const toc = computeToc();
+        const toc = computeToc(headings);
         outputHtml = outputHtml.replace(/<!-- start: toc -->.*?<!-- end: toc -->/s, (substr) => {
             return computeTocHtml(substr, toc);
         });

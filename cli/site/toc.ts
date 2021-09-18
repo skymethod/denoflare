@@ -4,18 +4,12 @@ export interface TocNode {
     readonly children?: readonly TocNode[];
 }
 
-export function computeToc(): TocNode[] {
-    // TODO
-    return [];
-    // return [
-    //     { title: 'First', anchorId: 'first' },
-    //     { title: 'Second', anchorId: 'second' },
-    //     { 
-    //         title: 'Third', 
-    //         anchorId: 'third',
-    //         children: [
-    //             { title: 'See also', anchorId: 'see-also-1' },
-    //         ]
-    //      },
-    // ];
+export interface Heading {
+    readonly level: 2 | 3 | 4 | 5 | 6 | 7;
+    readonly id: string;
+    readonly text: string;
+}
+
+export function computeToc(headings: Heading[]): TocNode[] {
+    return headings.map(v => ({ title: v.text, anchorId: v.id }));
 }
