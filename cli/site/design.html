@@ -46,6 +46,7 @@ a, button, input, select, textarea {
 
 :root {
     --sans-serif-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    --monospace-font-family: Menlo, "SF Mono", "Andale Mono", "Roboto Mono", Monaco, monospace;
     --html-font-size: 17px;
     --font-family: var(--sans-serif-font-family);
     --line-height: 1.5;
@@ -102,11 +103,19 @@ a, button, input, select, textarea {
     --header-height: var(--sixty-four-px-rem);
     --logo-lockup-gap: .4rem;
     --logo-lockup-gap-small: .2rem;
+    --code-font-size: .9em;
 }
 
 @media (max-width: 1280px) {
     :root {
         --html-font-size: 16px;
+    }
+}
+
+@media (max-width: 414px) {
+    :root {
+        --header-height: 4rem;
+        --code-font-size: .8em;
     }
 }
 
@@ -118,6 +127,9 @@ html[theme=light] {
     --background-color-rgb: 255, 255, 255;
     --background-color: rgb(var(--background-color-rgb));
     --shadow-color-rgb: var(--color-rgb);
+    --code-block-scrollbar-color: hsla(0, 0%, 100%, 0.25);
+    --code-block-color: #fff;
+    --code-block-background-color: var(--color);
 }
 
 html[theme=dark] {
@@ -126,6 +138,9 @@ html[theme=dark] {
     --background-color-rgb: var(--gray-0-rgb);
     --background-color: rgb(var(--background-color-rgb));
     --shadow-color-rgb: 0, 0, 0;
+    --code-block-scrollbar-color: hsla(0, 0%, 100%, 0.25);
+    --code-block-color: rgb(var(--color-rgb));
+    --code-block-background-color: var(--gray-05);
 }
 
 /* html */
@@ -2493,6 +2508,87 @@ blockquote .markdown-header-anchor-positioner {
     --focus-size: 0;
 }
 
+</style>
+
+<style name="codeblock">
+    .code-block {
+        -webkit-font-smoothing: antialiased;
+        position: relative;
+        display: block;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: var(--monospace-font-family);
+        font-size: var(--code-font-size);
+        margin: 0;
+        --padding-vertical: .9em;
+        --padding-horizontal: 1.25em;
+        --border-radius: .5em;
+        border-radius: var(--border-radius);
+        background: var(--code-block-background-color);
+        color: var(--code-block-color);
+        --outdent: 0rem;
+        margin-left: calc(var(--outdent) * -1);
+        width: calc(100% + var(--outdent) * 2);
+        max-width: calc(100% + var(--outdent) * 2);
+        cursor: text;
+    }
+
+    .code-block > code {
+        display: block;
+        padding: var(--padding-vertical) var(--padding-horizontal);
+        font-family: inherit;
+        cursor: default;
+    }
+
+    .code-block > code > * {
+        cursor: text;
+    }
+
+    .code-block > code::-webkit-scrollbar {
+        height: 14px;
+    }
+
+    .code-block > code::-webkit-scrollbar-track-piece {
+        background: transparent;
+        border-radius: var(--border-radius);
+    }
+
+    .code-block > code::-webkit-scrollbar-thumb {
+        border-radius: var(--border-radius);
+        box-shadow: inset 0 1px 1px rgba(var(--background-color-rgb), .1);
+        background-color: var(--code-block-scrollbar-color);
+        background-clip: padding-box;
+        border: 4px solid transparent;
+        border-radius: calc(var(--border-radius) * 20);
+    }
+
+    [theme=dark] .code-block > code::-webkit-scrollbar-thumb {
+        box-shadow: inset 0 1px 1px rgba(var(--color-rgb), .1);
+    }
+    
+    .code-block-scrolls-horizontally > code {
+        word-break: normal;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .code-block-scrolls-horizontally > code {
+        white-space: pre;
+    }
+
+</style>
+
+<style name="highlight-js">
+pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5px}/*!
+  Theme: GitHub Dark
+  Description: Dark theme as seen on github.com
+  Author: github.com
+  Maintainer: @Hirse
+  Updated: 2021-05-15
+
+  Outdated base version: https://github.com/primer/github-syntax-dark
+  Current colors taken from GitHub's CSS
+*/.hljs{color:#c9d1d9;background:#0d1117}.hljs-doctag,.hljs-keyword,.hljs-meta .hljs-keyword,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-variable.language_{color:#ff7b72}.hljs-title,.hljs-title.class_,.hljs-title.class_.inherited__,.hljs-title.function_{color:#d2a8ff}.hljs-attr,.hljs-attribute,.hljs-literal,.hljs-meta,.hljs-number,.hljs-operator,.hljs-selector-attr,.hljs-selector-class,.hljs-selector-id,.hljs-variable{color:#79c0ff}.hljs-meta .hljs-string,.hljs-regexp,.hljs-string{color:#a5d6ff}.hljs-built_in,.hljs-symbol{color:#ffa657}.hljs-code,.hljs-comment,.hljs-formula{color:#8b949e}.hljs-name,.hljs-quote,.hljs-selector-pseudo,.hljs-selector-tag{color:#7ee787}.hljs-subst{color:#c9d1d9}.hljs-section{color:#1f6feb;font-weight:700}.hljs-bullet{color:#f2cc60}.hljs-emphasis{color:#c9d1d9;font-style:italic}.hljs-strong{color:#c9d1d9;font-weight:700}.hljs-addition{color:#aff5b4;background-color:#033a16}.hljs-deletion{color:#ffdcd7;background-color:#67060c}
 </style>
 
 <script>

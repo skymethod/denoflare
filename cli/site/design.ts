@@ -1,4 +1,4 @@
-import { fromFileUrl, html, join, marked } from '../deps_cli.ts';
+import { fromFileUrl, html, join, marked, hljs } from '../deps_cli.ts';
 import { Page } from './page.ts';
 import { computeBreadcrumbs, SidebarNode } from './sidebar.ts';
 import { SiteConfig } from './site_config.ts';
@@ -117,6 +117,14 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     </span>
     <span>${textEscaped}</span>
 </h${level}>`;
+        }
+        code(code: string, language: string | undefined, _isEscaped: boolean): string {
+            if ((language || '').length === 0) {
+                return `<pre class="code-block code-block-scrolls-horizontally"><code>${escape(code)}</code></pre>`;
+            }
+            language = language === 'jsonc' ? 'json' : language; // highlight.js does not support jsonc
+            const highlightedCodeHtml = hljs.highlight(code, { language }).value;
+            return `<pre class="code-block code-block-scrolls-horizontally"><code>${highlightedCodeHtml}</code></pre>`;
         }
     }();
     const markdownHtml = marked.parser(tokens, { renderer });

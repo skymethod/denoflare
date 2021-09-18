@@ -8,3 +8,4 @@ export { gzip } from 'https://deno.land/x/compress@v0.3.9/zlib/mod.ts';
 export { parse as _parseJsonc } from 'https://cdn.skypack.dev/jsonc-parser@3.0.0';
 export { default as marked } from 'https://cdn.skypack.dev/marked@3.0.2?dts';
 export { html } from 'https://deno.land/x/html_escape@v1.1.5/html.ts';
+export { default as hljs } from 'https://cdn.skypack.dev/highlight.js@11.2.0';
