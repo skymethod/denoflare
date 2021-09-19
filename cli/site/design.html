@@ -526,6 +526,19 @@ html {
     }
 }
 
+.button-is-primary {
+    background: var(--logo-color);
+    color: #fff;
+    padding-left: 2em;
+    padding-right: 2em;
+}
+
+[theme=dark] .button-is-primary {
+    --border-color: rgba(var(--logo-color-rgb), .7);
+    color: inherit;
+    background: transparent;
+}
+
 /* mobile-title-header-sidebar-toggle-button */
 
 .mobile-title-header-sidebar-toggle-button {
@@ -2913,6 +2926,10 @@ function init() {
                     </h2>
                     <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Interdum posuere lorem ipsum dolor sit. Mus mauris vitae ultricies leo integer. Condimentum id venenatis a condimentum vitae sapien pellentesque habitant.</p>
                 
+                    <a href="#sign-up" class="button button-is-primary">
+                        <span>Sign up</span>
+                    </a>
+
                     <h2 id="second">
                         <span class="markdown-header-anchor-positioner">
                             <a class="markdown-header-anchor link link-without-underline" href="#second" aria-hidden="true">​</a>

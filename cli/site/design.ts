@@ -90,7 +90,14 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     });
 
     // render markdown
-    const markdownResolved = markdown.replaceAll(/\$([_A-Z0-9]+)/g, (_, g1) => Deno.env.get(g1) || ''); // TODO more replacements
+    const markdownResolved = markdown
+
+        // simple $ENV_VAR replacements
+        .replaceAll(/\$([_A-Z0-9]+)/g, (_, g1) => Deno.env.get(g1) || '') 
+        
+        // primary buttons
+        .replaceAll(/<Button\s+type="primary"\s+href="(.*?)"\s*>(.*?)<\/Button>/g, (_, g1, g2) => computePrimaryButtonHtml(g1, g2))
+        ;
     const tokens = marked.lexer(markdownResolved);
     if (verbose) console.log(tokens);
 
@@ -329,4 +336,11 @@ async function readSvg(inputDir: string, svgPath: string | undefined): Promise<s
     const contents = await Deno.readTextFile(path);
     const i = contents.indexOf('<svg');
     return i < 0 ? contents : contents.substring(i);
+}
+
+function computePrimaryButtonHtml(href: string, text: string): string {
+return html
+`<p>
+<a href="${href}" class="button button-is-primary">${text}</a>
+</p>`.toString();
 }
