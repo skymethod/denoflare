@@ -65,6 +65,29 @@ export class SiteModel {
             this.currentManifestPath = manifestPath;
         }
 
+        // generate robots.txt
+        const robotsTxtPath = '/robots.txt';
+        const sitemapXmlPath = '/sitemap.xml';
+        this.resources.set(robotsTxtPath, {
+            inputPath: join(this.inputDir, robotsTxtPath),
+            extension: '.txt',
+            includeInOutput: true,
+            canonicalPath: robotsTxtPath,
+            contentRepoPath: '<generated>',
+            outputText: `User-agent: *\nDisallow:\nSitemap: ${this.localOrigin || config.siteMetadata.origin || ''}${sitemapXmlPath}\n`,
+        });
+
+        // generate sitemap.xml
+        const sitemapXmlContents = await computeSitemapXml(this.resources, config, this.localOrigin);
+        this.resources.set(sitemapXmlPath, {
+            inputPath: join(this.inputDir, sitemapXmlPath),
+            extension: '.xml',
+            includeInOutput: true,
+            canonicalPath: sitemapXmlPath,
+            contentRepoPath: '<generated>',
+            outputText: sitemapXmlContents,
+        });
+
         // read frontmatter from all md
         for (const [_, resource] of this.resources.entries()) {
             if (resource.extension === '.md') {
@@ -184,6 +207,7 @@ const EXTENSIONS_TO_INCLUDE_IN_OUTPUT = new Map([
     ['.svg', 'image/svg+xml'],
     ['.txt', 'text/plain'],
     ['.webmanifest', 'application/manifest+json'],
+    ['.xml', 'text/xml'],
 ]);
 
 function computeContentType(resource: ResourceInfo): string {
@@ -279,4 +303,23 @@ async function computeReponseForResource(resource: ResourceInfo, status: number 
     }
     const body: BodyInit = resource.outputText ? resource.outputText : await Deno.readFile(resource.inputPath);
     return new Response(body, { status, headers });
+}
+
+function computeSitemapXml(resources: Map<string, ResourceInfo>, config: SiteConfig, localOrigin: string | undefined): string {
+    const lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ];
+    const notFoundResourceCanonicalPath = findResource('/404', resources)?.canonicalPath;
+    const canonicalPaths = [...resources.values()]
+        .filter(v => v.includeInOutput && (v.extension === '.html' || v.extension === '.md') && v.canonicalPath !== notFoundResourceCanonicalPath)
+        .map(v => v.canonicalPath)
+        .sort();
+    for (const canonicalPath of canonicalPaths) {
+        lines.push('  <url>');
+        lines.push(`    <loc>${localOrigin || config.siteMetadata.origin || ''}${canonicalPath}</loc>`);
+        lines.push('  </url>');
+    }
+    lines.push('</urlset>');
+    return lines.join('\n');
 }
