@@ -74,7 +74,7 @@ export class SiteModel {
 
         // construct sidebar
         const sidebarInputItems: SidebarInputItem[] = [...this.resources.values()]
-            .filter(v => v.extension === '.md')
+            .filter(v => v.extension === '.md' && v.includeInOutput)
             .map(v => ({ 
                 title: v.page!.titleResolved, 
                 path: v.canonicalPath === '/' ? v.canonicalPath : replaceSuffix(v.canonicalPath, '/', ''),
@@ -193,7 +193,7 @@ function computeContentType(resource: ResourceInfo): string {
 }
 
 function shouldIncludeInOutput(path: string, extension: string): boolean {
-    if (path === '/config.json' || path === '/config.jsonc') return false;
+    if (path === '/config.json' || path === '/config.jsonc' || path.toLowerCase() === '/readme.html') return false;
     return path === '/_redirects' || EXTENSIONS_TO_INCLUDE_IN_OUTPUT.has(extension);
 }
 
