@@ -86,7 +86,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     const scriptPathOrUrl = scriptUrl ? scriptUrl.toString() : script!.path;
 
     const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
-        const scriptType = scriptPathOrUrl.endsWith('.ts') ? 'module' : 'script';
+        const scriptType = /^.*\.(ts|mjs)$/.test(scriptPathOrUrl) ? 'module' : 'script';
         if (isolation === 'none') {
             const { accountId, apiToken } = profile;
             let objects: LocalDurableObjects | undefined; 
