@@ -80,7 +80,7 @@ export function packRequest(info: RequestInfo, init: RequestInit |  undefined, b
         // Request
         const { method, url } = info;
         const headers = [...info.headers.entries()];
-        const bodyId = bodies.computeBodyId(info.body);
+        const bodyId = (method === 'GET' || method === 'HEAD') ? undefined : bodies.computeBodyId(info.body);
         return { method, url, headers, bodyId };
     } else if (typeof info === 'string') {
         // url String
