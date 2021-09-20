@@ -57,9 +57,14 @@ export async function resolveBinding(binding: Binding, localPort: number | undef
 
 export async function resolveProfile(config: Config, options: Record<string, unknown>): Promise<Profile> {
     const profile = findProfile(config, options);
-    const accountId = await resolveString(profile.accountId);
-    const apiToken = await resolveString(profile.apiToken);
-    return { accountId, apiToken };
+    if (profile === undefined) throw new Error(`Unable to find profile, no profiles in config`);
+    return await resolveProfileComponents(profile);
+}
+
+export async function resolveProfileOpt(config: Config, options: Record<string, unknown>): Promise<Profile | undefined> {
+    const profile = findProfile(config, options);
+    if (profile === undefined) return undefined;
+    return await resolveProfileComponents(profile);
 }
 
 //
@@ -96,7 +101,7 @@ async function findConfigFilePath(): Promise<string | undefined> {
     }
 }
 
-function findProfile(config: Config, options: Record<string, unknown>): Profile {
+function findProfile(config: Config, options: Record<string, unknown>): Profile | undefined {
     const profiles = config.profiles || {};
     const { profile: optionProfileName } = options;
     if (optionProfileName !== undefined) {
@@ -106,11 +111,17 @@ function findProfile(config: Config, options: Record<string, unknown>): Profile 
         return optionProfile;
     }
     const profilesArr = Object.values(profiles);
-    if (profilesArr.length == 0) throw new Error(`Unable to find profile, no profiles in config`);
+    if (profilesArr.length == 0) return undefined;
     const defaultProfiles = profilesArr.filter(v => v.default);
     if (defaultProfiles.length === 1) return defaultProfiles[0];
     if (profilesArr.length === 1) return profilesArr[0];
     throw new Error(`Unable to find profile, ${profilesArr.length} profiles in config`);
+}
+
+async function resolveProfileComponents(profile: Profile): Promise<Profile> {
+    const accountId = await resolveString(profile.accountId);
+    const apiToken = await resolveString(profile.apiToken);
+    return { accountId, apiToken };
 }
 
 async function resolveString(string: string): Promise<string> {

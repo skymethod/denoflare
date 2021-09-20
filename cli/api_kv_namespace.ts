@@ -1,5 +1,6 @@
 import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVPutOptions, KVValueAndMetadata } from '../common/cloudflare_workers_types.d.ts';
 import { getKeyMetadata, getKeyValue } from '../common/cloudflare_api.ts';
+import { Profile } from '../common/config.ts';
 
 export class ApiKVNamespace implements KVNamespace {
 
@@ -54,6 +55,12 @@ export class ApiKVNamespace implements KVNamespace {
         this.accountId = accountId;
         this.apiToken = apiToken;
         this.namespaceId = namespaceId;
+    }
+
+    static ofProfile(profile: Profile | undefined, kvNamespace: string) {
+        if (!profile) throw new Error('Cannot use a kvNamespace binding without configuring a profile to use for its credentials');
+        const { accountId, apiToken } = profile;
+        return new ApiKVNamespace(accountId, apiToken, kvNamespace);
     }
     
 }

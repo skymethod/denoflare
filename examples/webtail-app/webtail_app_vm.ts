@@ -1,5 +1,5 @@
 import { CloudflareApiError, listScripts, listTails, Tail, setEqual, setIntersect, setSubtract, isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions, ErrorInfo, 
-    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog, generateUuid, CloudflareApi } from './deps_app.ts';
+    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog, generateUuid } from './deps_app.ts';
 import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';

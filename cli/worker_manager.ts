@@ -35,7 +35,7 @@ export class WorkerManager {
         return new WorkerManager(workerUrl);
     }
 
-    async run(scriptContents: Uint8Array, scriptType: 'module' | 'script', opts: { bindings: Record<string, Binding>, profile: Profile }): Promise<void> {
+    async run(scriptContents: Uint8Array, scriptType: 'module' | 'script', opts: { bindings: Record<string, Binding>, profile: Profile | undefined }): Promise<void> {
         const { bindings, profile } = opts;
 
         if (this.currentWorker) {
@@ -64,8 +64,7 @@ export class WorkerManager {
         addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
 
         // handle rpc kv requests, forward to cloudflare api
-        const { accountId, apiToken } = profile;
-        addRequestHandlerForRpcKvNamespace(rpcChannel, kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace));
+        addRequestHandlerForRpcKvNamespace(rpcChannel, kvNamespace => ApiKVNamespace.ofProfile(profile, kvNamespace));
 
         // run the script in the deno worker
         await runScript({ scriptContents, scriptType, bindings, verbose: WorkerManager.VERBOSE }, rpcChannel);

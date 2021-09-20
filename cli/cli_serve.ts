@@ -1,4 +1,4 @@
-import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
+import { loadConfig, resolveBindings, resolveProfileOpt } from './config_loader.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
 import { LocalDurableObjects } from '../common/local_durable_objects.ts';
@@ -63,7 +63,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             port = options.port;
         }
     }
-    const profile = await resolveProfile(config, options);
+    const profile = await resolveProfileOpt(config, options);
 
     redefineGlobalFetchToWorkaroundBareIpAddresses();
 
@@ -88,7 +88,6 @@ export async function serve(args: (string | number)[], options: Record<string, u
     const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
         const scriptType = /^.*\.(ts|mjs)$/.test(scriptPathOrUrl) ? 'module' : 'script';
         if (isolation === 'none') {
-            const { accountId, apiToken } = profile;
             let objects: LocalDurableObjects | undefined; 
             const callbacks: WorkerExecutionCallbacks = {
                 onModuleWorkerInfo: moduleWorkerInfo => { 
@@ -96,7 +95,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                     objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
                 },
                 globalCachesProvider: () => new NoopCfGlobalCaches(),
-                kvNamespaceProvider: kvNamespace => new ApiKVNamespace(accountId, apiToken, kvNamespace),
+                kvNamespaceProvider: kvNamespace => ApiKVNamespace.ofProfile(profile, kvNamespace),
                 doNamespaceProvider: doNamespace => {
                     // console.log(`doNamespaceProvider`, doNamespace, objects);
                     if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
