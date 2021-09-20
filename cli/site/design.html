@@ -2617,6 +2617,13 @@ pre code.hljs{display:block;overflow-x:auto;padding:1em}code.hljs{padding:3px 5p
 
 <script>
 
+function toggleExpanded(button) {
+    const li = button.parentElement;
+    li.toggleAttribute('is-expanded');
+    const container = li.querySelector('.sidebar-nav-item-collapse-container');
+    container.style.height = container.style.height === 'auto' ? '0' : 'auto';
+}
+
 function setRelativeTime(time) {
     const date = new Date(time.dateTime);
     let unit = 'second';
@@ -2747,7 +2754,7 @@ function init() {
 
                         <!-- start: sidebar-nav-item-with-children -->
                         <li class="sidebar-nav-item" is-expanded is-active=""><!-- to expand: is-expanded-->
-                            <button class="button sidebar-nav-expand-collapse-button" onclick="this.parentElement.toggleAttribute('is-expanded')">
+                            <button class="button sidebar-nav-expand-collapse-button" onclick="toggleExpanded(this)">
                                 <span class="sidebar-nav-expand-collapse-button-content" aria-hidden="true"></span>
                                 <span is-visually-hidden="">Expand<!-- -->: <!-- --><!-- start: sidebar-nav-item-text -->Nav group 1<!-- end: sidebar-nav-item-text --></span>
                             </button>
