@@ -11,6 +11,7 @@ export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider) 
     defineGlobalCaches(globalCachesProvider);
     defineGlobalWebsocketPair();
     redefineGlobalResponse();
+    patchGlobalRequest();
 }
 
 export function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider) {
@@ -23,6 +24,7 @@ export function defineScriptGlobals(bindings: Record<string, Binding>, globalCac
     applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceProvider, doNamespaceProvider);
     defineGlobalCaches(globalCachesProvider);
     redefineGlobalResponse();
+    patchGlobalRequest();
 }
 
 //
@@ -33,6 +35,18 @@ function defineGlobalCaches(globalCachesProvider: GlobalCachesProvider) {
 
 function redefineGlobalResponse() {
     globalThisAsAny()['Response'] = DenoflareResponse;
+}
+
+const _clone = Request.prototype.clone;
+
+function patchGlobalRequest() {
+    // clone the non-standard .cf property as well
+    Request.prototype.clone = function() {
+        const rt = _clone.bind(this)();
+        // deno-lint-ignore no-explicit-any
+        (rt as any).cf = structuredClone((this as any).cf);
+        return rt;
+    }
 }
 
 function defineGlobalWebsocketPair() {
