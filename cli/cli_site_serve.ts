@@ -52,15 +52,15 @@ export async function serve(args: (string | number)[], options: Record<string, u
         for await (const { request, respondWith } of httpConn) {
             try {
                 const response = await siteModel.handle(request);
-                await respondWith(response).catch(e => console.error(`Error in respondWith`, e));
+                await respondWith(response).catch(e => console.error(`Error in respondWith`, e.stack || e));
             } catch (e) {
-                console.error('Error servicing request', e);
+                console.error('Error servicing request', e.stack || e);
             }
         }
     }
 
     for await (const conn of server) {
-        handle(conn).catch(e => console.error('Error in handle', e));
+        handle(conn).catch(e => console.error('Error in handle', e.stack || e));
     }
 
 }

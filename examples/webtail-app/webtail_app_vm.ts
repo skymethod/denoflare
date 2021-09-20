@@ -807,7 +807,7 @@ function loadState(): State {
             return rt;
         }
     } catch (e) {
-        console.warn('loadState: Error loading state', e);
+        console.warn('loadState: Error loading state', e.stack || e);
     }
     console.log('loadState: returning new state');
     return { profiles: {} };

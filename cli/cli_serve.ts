@@ -117,7 +117,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 try {
                     await workerManager.run(scriptContents, scriptType, { bindings, profile });
                 } catch (e) {
-                    consoleError('Error running script', e);
+                    consoleError('Error running script', e.stack || e);
                     Deno.exit(1);
                 }
             };
@@ -182,17 +182,17 @@ export async function serve(args: (string | number)[], options: Record<string, u
                         if (serverWebsocket === undefined) throw new Error(`Bad response: expected websocket`);
                         serverWebsocket.setRealWebsocket(socket);
                     }
-                    await respondWith(response).catch(e => consoleError(`Error in respondWith`, e));
+                    await respondWith(response).catch(e => consoleError(`Error in respondWith`, e.stack || e));
                 } else {
                     // normal request
                     let res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
                     if (DenoflareResponse.is(res)) {
                         res = res.toRealResponse();
                     }
-                    await respondWith(res).catch(e => consoleError(`Error in respondWith`, e));
+                    await respondWith(res).catch(e => consoleError(`Error in respondWith`, e.stack || e));
                 }
             } catch (e) {
-                consoleError('Error servicing request', e);
+                consoleError('Error servicing request', e.stack || e);
             }
         }
     }
@@ -202,7 +202,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     consoleLog(`Local server running on http://localhost:${port}`);
 
     for await (const conn of server) {
-        handle(conn).catch(e => consoleError('Error in handle', e));
+        handle(conn).catch(e => consoleError('Error in handle', e.stack || e));
     }
 }
 

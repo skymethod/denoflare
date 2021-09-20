@@ -60,7 +60,7 @@ async function build(_args: (string | number)[]) {
             await updateData('WEBTAIL_APP_B64', scriptBytes.base64(), dataPath);
             await updateData('WEBTAIL_APP_HASH', scriptBytesSha1.hex(), dataPath);
         } catch (e) {
-            console.warn('error in regenerateAppContents', e);
+            console.warn('error in regenerateAppContents', e.stack || e);
         }   
     }
 

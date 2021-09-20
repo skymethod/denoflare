@@ -11,7 +11,7 @@ export class ModuleWatcher {
     constructor(entryPointPath: string, modificationCallback: () => void) {
         this.entryPointPath = entryPointPath;
         this.modificationCallback = modificationCallback;
-        this.initWatcher().catch(e => console.error('Error in initWatcher', e));
+        this.initWatcher().catch(e => console.error('Error in initWatcher', e.stack || e));
     }
 
     close() {

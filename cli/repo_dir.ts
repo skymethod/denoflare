@@ -18,7 +18,7 @@ export class RepoDir {
         if (this.watcher) throw new Error(`Already watching!`);
         this.watcher = Deno.watchFs(this.path);
         this.processEvents(this.watcher, handler).catch(e => {
-            console.error(`Error processing fs watcher events`, e);
+            console.error(`Error processing fs watcher events`, e.stack || e);
         });
     }
 
