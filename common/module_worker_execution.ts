@@ -14,8 +14,8 @@ export class ModuleWorkerExecution {
     }
 
     static async create(scriptPath: string, bindings: Record<string, Binding>, callbacks: WorkerExecutionCallbacks): Promise<ModuleWorkerExecution> {
-        const { globalCachesProvider, onModuleWorkerInfo, kvNamespaceProvider, doNamespaceProvider } = callbacks;
-        defineModuleGlobals(globalCachesProvider);
+        const { globalCachesProvider, webSocketPairProvider, onModuleWorkerInfo, kvNamespaceProvider, doNamespaceProvider } = callbacks;
+        defineModuleGlobals(globalCachesProvider, webSocketPairProvider);
         const module = await import(scriptPath);
         if (ModuleWorkerExecution.VERBOSE) consoleLog('ModuleWorkerExecution: module', module);
         const moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor> = {};

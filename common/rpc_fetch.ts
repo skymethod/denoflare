@@ -3,7 +3,7 @@ import { Constants } from './constants.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
-export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies): (info: RequestInfo, init?: RequestInit) => Promise<Response> {
+export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies): (info: RequestInfo, init?: RequestInit) => Promise<Response | DenoflareResponse> {
     return async (info: RequestInfo, init?: RequestInit) => {
         const data = packRequest(info, init, bodies);
         return await channel.sendRequest('fetch', data, responseData => unpackResponse(responseData, makeBodyResolverOverRpc(channel)));
@@ -45,10 +45,12 @@ export async function packResponse(response: Response, bodies: Bodies): Promise<
     if (DenoflareResponse.is(response)) {
         if (typeof response.bodyInit === 'string') {
             const bodyText = response.bodyInit;
-            return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined };
+            return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined, bodyNull: false };
         } else if (response.bodyInit instanceof ReadableStream) {
             const bodyId = bodies.computeBodyId(response.bodyInit);
-            return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined };
+            return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false };
+        } else if (response.bodyInit === null) {
+            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes: undefined, bodyNull: true };
         } else {
             throw new Error(`packResponse: DenoflareResponse bodyInit=${response.bodyInit}`);
         }
@@ -57,21 +59,27 @@ export async function packResponse(response: Response, bodies: Bodies): Promise<
     if (contentLength > -1 && contentLength <= Constants.MAX_CONTENT_LENGTH_TO_PACK_OVER_RPC) {
         const bodyBytes = await response.arrayBuffer();
         // consoleLog(`packResponse: contentLength=${contentLength} bodyBytes.byteLength=${bodyBytes.byteLength} url=${response.url}`);
-        return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes };
+        return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false };
     }
     const bodyId = bodies.computeBodyId(response.body);
-    return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined };
+    return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false };
 }
 
 const _Response = Response;
 
-export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolver): Response {
-    const { status, bodyId, bodyText, bodyBytes } = packed;
+export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolver): Response | DenoflareResponse {
+    const { status, bodyId, bodyText, bodyBytes, bodyNull } = packed;
     const headers = new Headers(packed.headers);
-    const body = bodyText !== undefined ? bodyText
+    const body = bodyNull ? null 
+        : bodyText !== undefined ? bodyText
         : bodyBytes !== undefined ? bodyBytes
         : bodyId === undefined ? undefined 
         : bodyResolver(bodyId);
+    if (status === 101) {
+        // deno-lint-ignore no-explicit-any
+        const webSocket: any = {}; // TODO
+        return new DenoflareResponse(body, { status, headers, webSocket });
+    }
     return new _Response(body, { status, headers });
 }
 
@@ -129,6 +137,7 @@ export interface PackedResponse {
     readonly bodyId: number | undefined;
     readonly bodyText: string | undefined;
     readonly bodyBytes: ArrayBuffer | undefined;
+    readonly bodyNull: boolean;
 }
 
 export class Bodies {

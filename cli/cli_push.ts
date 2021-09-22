@@ -1,6 +1,6 @@
 import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
@@ -32,7 +32,11 @@ export async function push(args: (string | number)[], options: Record<string, un
             throw new Error('bundle failed');
         }
 
-        const bindings = script ? await computeBindings(script) : [];
+        start = Date.now();
+        const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
+        const bindings = script ? await computeBindings(script, scriptName, doNamespaces) : [];
+        console.log(`computed bindings in ${Date.now() - start}ms`);
+        
         const scriptContentsStr = result.files['deno:///bundle.js'];
         if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
         const scriptContents = new TextEncoder().encode(scriptContentsStr);
@@ -42,6 +46,11 @@ export async function push(args: (string | number)[], options: Record<string, un
         start = Date.now();
         await putScript(accountId, scriptName, scriptContents, bindings, apiToken);
         console.log(`put script ${scriptName} in ${Date.now() - start}ms`);
+        if (doNamespaces.hasPendingUpdates()) {
+            start = Date.now();
+            await doNamespaces.flushPendingUpdates();
+            console.log(`updated durable object namespaces in ${Date.now() - start}ms`);
+        }
     }
     await buildAndPutScript();
 
@@ -66,16 +75,60 @@ export async function push(args: (string | number)[], options: Record<string, un
 
 //
 
-async function computeBindings(script: Script): Promise<ApiBinding[]> {
+class DurableObjectNamespaces {
+    private readonly accountId: string;
+    private readonly apiToken: string;
+
+    private readonly pendingUpdates: { id: string, name?: string, script?: string, class?: string }[] = [];
+
+    constructor(accountId: string, apiToken: string) {
+        this.accountId = accountId;
+        this.apiToken = apiToken;
+    }
+
+    async getOrCreateNamespaceId(namespaceSpec: string, scriptName: string): Promise<string> {
+        const tokens = namespaceSpec.split(':');
+        if (tokens.length !== 2) throw new Error(`Bad durable object namespace spec: ${namespaceSpec}`);
+        const name = tokens[0];
+        if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error(`Bad durable object namespace name: ${name}`);
+        const className = tokens[1];
+        const namespaces = await listDurableObjectsNamespaces(this.accountId, this.apiToken);
+        let namespace = namespaces.find(v => v.name === name);
+        if (!namespace)  {
+            console.log(`Creating new durable object namespace: ${name}`);
+            namespace = await createDurableObjectsNamespace(this.accountId, this.apiToken, { name });
+        }
+        if (namespace.class !== className || namespace.script !== scriptName) {
+            this.pendingUpdates.push({ id: namespace.id, name, script: scriptName, class: className });
+        }
+        return namespace.id;
+    }
+
+    hasPendingUpdates() {
+        return this.pendingUpdates.length > 0;
+    }
+
+    async flushPendingUpdates() {
+        for (const payload of this.pendingUpdates) {
+            console.log(`Updating durable object namespace ${payload.name}: script=${payload.script}, class=${payload.class}`);
+            await updateDurableObjectsNamespace(this.accountId, this.apiToken, payload);
+        }
+        this.pendingUpdates.splice(0);
+    }
+}
+
+//
+
+async function computeBindings(script: Script, scriptName: string, doNamespaces: DurableObjectNamespaces): Promise<ApiBinding[]> {
     const resolvedBindings = await resolveBindings(script.bindings || {}, undefined);
     const rt: ApiBinding[] = [];
     for (const [name, binding] of Object.entries(resolvedBindings)) {
-        rt.push(computeBinding(name, binding));
+        rt.push(await computeBinding(name, binding, doNamespaces, scriptName));
     }
     return rt;
 }
 
-function computeBinding(name: string, binding: Binding): ApiBinding {
+async function computeBinding(name: string, binding: Binding, doNamespaces: DurableObjectNamespaces, scriptName: string): Promise<ApiBinding> {
     if (isTextBinding(binding)) {
         return { type: 'plain_text', name, text: binding.value };
     } else if (isSecretBinding(binding)) {
@@ -83,7 +136,7 @@ function computeBinding(name: string, binding: Binding): ApiBinding {
     } else if (isKVNamespaceBinding(binding)) {
         return { type: 'kv_namespace', name, namespace_id: binding.kvNamespace };
     } else if (isDONamespaceBinding(binding)) {
-        return { type: 'durable_object_namespace', name, namespace_id: binding.doNamespace };
+        return { type: 'durable_object_namespace', name, namespace_id: await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName) };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

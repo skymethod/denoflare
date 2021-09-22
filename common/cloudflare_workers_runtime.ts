@@ -1,15 +1,15 @@
 import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isSecretBinding, isTextBinding } from './config.ts';
 import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair } from './cloudflare_workers_types.d.ts';
-import { DenoflareServerWebSocket, DenoflareServerWebSocketLocator } from './denoflare_server_web_socket.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 
 export type GlobalCachesProvider = () => CfGlobalCaches;
 export type KVNamespaceProvider = (kvNamespace: string) => KVNamespace;
 export type DONamespaceProvider = (doNamespace: string) => DurableObjectNamespace;
+export type WebSocketPairProvider = () => { server: WebSocket & CloudflareWebSocketExtensions, client: WebSocket };
 
-export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider) {
+export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider, webSocketPairProvider: WebSocketPairProvider) {
     defineGlobalCaches(globalCachesProvider);
-    defineGlobalWebsocketPair();
+    defineGlobalWebsocketPair(webSocketPairProvider);
     redefineGlobalResponse();
     patchGlobalRequest();
 }
@@ -49,7 +49,8 @@ function patchGlobalRequest() {
     }
 }
 
-function defineGlobalWebsocketPair() {
+function defineGlobalWebsocketPair(webSocketPairProvider: WebSocketPairProvider) {
+    DenoflareWebSocketPair.provider = webSocketPairProvider;
     globalThisAsAny()['WebSocketPair'] = DenoflareWebSocketPair;
 }
 
@@ -69,45 +70,14 @@ function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceP
 //
 
 class DenoflareWebSocketPair implements WebSocketPair {
+    static provider: WebSocketPairProvider = () => { throw new Error(`DenoflareWebSocketPair: no provider set`); };
+
     readonly 0: WebSocket; // client, returned in the ResponseInit
     readonly 1: WebSocket & CloudflareWebSocketExtensions; // server, accept(), addEventListener(), send() and close()
 
     constructor() {
-        const server = new DenoflareServerWebSocket();
-        // deno-lint-ignore no-explicit-any
-        this['0'] = new DenoflareClientWebSocket(server) as any;
-        // deno-lint-ignore no-explicit-any
-        this['1'] = server as any;
+        const { server, client } = DenoflareWebSocketPair.provider();
+        this['0'] = client;
+        this['1'] = server;
     }
-}
-
-class DenoflareClientWebSocket implements CloudflareWebSocketExtensions, DenoflareServerWebSocketLocator {
-    private readonly server: DenoflareServerWebSocket;
-
-    constructor(server: DenoflareServerWebSocket) {
-        this.server = server;
-    }
-
-    getDenoflareServerWebSocket(): DenoflareServerWebSocket | undefined {
-        return this.server;
-    }
-
-    //
-
-    accept() {
-        throw new Error(`DenoflareClientWebSocket.accept()`);
-    }
-
-    send(_data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
-        throw new Error(`DenoflareClientWebSocket.send()`);
-    }
-
-    close(_code?: number, _reason?: string): void {
-        throw new Error(`DenoflareClientWebSocket.close()`);
-    }
-
-    addEventListener(_type: string, _listener: EventListenerOrEventListenerObject, _options?: boolean | AddEventListenerOptions): void {
-        throw new Error(`DenoflareClientWebSocket.addEventListener()`);
-    }
-
 }

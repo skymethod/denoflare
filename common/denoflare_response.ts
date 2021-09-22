@@ -1,13 +1,13 @@
-import { DenoflareServerWebSocket, DenoflareServerWebSocketLocator, isDenoflareServerWebSocketLocator } from './denoflare_server_web_socket.ts';
 import { CloudflareResponseInitExtensions } from './cloudflare_workers_types.d.ts';
 
-export class DenoflareResponse implements DenoflareServerWebSocketLocator {
+export class DenoflareResponse {
     readonly _kind = 'DenoflareResponse';
 
     readonly bodyInit?: BodyInit | null;
     readonly init?: ResponseInit & CloudflareResponseInitExtensions;
     readonly headers: Headers;
     readonly status: number;
+    readonly webSocket: WebSocket | undefined;
 
     constructor(bodyInit?: BodyInit | null, init?: ResponseInit & CloudflareResponseInitExtensions) {
         // console.log(`DenoflareResponse()`, arguments);
@@ -15,6 +15,7 @@ export class DenoflareResponse implements DenoflareServerWebSocketLocator {
         this.init = init;
         this.headers = init && init.headers ? new Headers(init.headers) : new Headers();
         this.status = init && init.status !== undefined ? init.status : 200;
+        this.webSocket = init?.webSocket;
     }
 
     // deno-lint-ignore no-explicit-any
@@ -64,12 +65,6 @@ export class DenoflareResponse implements DenoflareServerWebSocketLocator {
 
     toRealResponse(): Response {
         return new _Response(this.bodyInit, this.init);
-    }
-
-    getDenoflareServerWebSocket(): DenoflareServerWebSocket | undefined {
-        return this.init && this.init.webSocket && isDenoflareServerWebSocketLocator(this.init.webSocket) 
-            ? this.init.webSocket.getDenoflareServerWebSocket() 
-            : undefined;
     }
 
     // deno-lint-ignore no-explicit-any

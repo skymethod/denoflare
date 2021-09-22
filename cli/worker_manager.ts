@@ -6,6 +6,7 @@ import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk,
 import { addRequestHandlerForRpcKvNamespace } from '../common/rpc_kv_namespace.ts';
 import { runScript, WorkerFetch } from '../common/rpc_script.ts';
 import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
+import { DenoflareResponse } from '../common/denoflare_response.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -72,7 +73,7 @@ export class WorkerManager {
         this.currentWorker = { worker, rpcChannel, bodies };
     }
 
-    async fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response> {
+    async fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response | DenoflareResponse> {
         const { currentWorker } = this;
         if (currentWorker === undefined) throw new Error(`Must call run() before calling fetch()`);
         const { bodies, rpcChannel } = currentWorker;

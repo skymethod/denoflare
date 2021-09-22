@@ -1,11 +1,12 @@
 import { IncomingRequestCf, IncomingRequestCfProperties } from './cloudflare_workers_types.d.ts';
-import { DONamespaceProvider, GlobalCachesProvider, KVNamespaceProvider } from './cloudflare_workers_runtime.ts';
+import { DONamespaceProvider, GlobalCachesProvider, KVNamespaceProvider, WebSocketPairProvider } from './cloudflare_workers_runtime.ts';
 import { Binding } from './config.ts';
 import { consoleLog } from './console.ts';
 import { DurableObjectConstructor } from './local_durable_objects.ts';
 import { cloneRequestWithHostname } from './fetch_util.ts';
 import { ModuleWorkerExecution } from './module_worker_execution.ts';
 import { ScriptWorkerExecution } from './script_worker_execution.ts';
+import { generateUuid } from './uuid_v4.ts';
 
 export interface ModuleWorkerInfo {
     readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
@@ -14,6 +15,7 @@ export interface ModuleWorkerInfo {
 
 export interface WorkerExecutionCallbacks {
     globalCachesProvider: GlobalCachesProvider;
+    webSocketPairProvider: WebSocketPairProvider;
     kvNamespaceProvider: KVNamespaceProvider;
     doNamespaceProvider: DONamespaceProvider;
     incomingRequestCfPropertiesProvider: () => IncomingRequestCfProperties;
@@ -49,8 +51,17 @@ export class WorkerExecution {
 function makeIncomingRequestCf(request: Request, cf: IncomingRequestCfProperties, opts: { cfConnectingIp: string, hostname?: string }): IncomingRequestCf {
     const { cfConnectingIp, hostname } = opts;
     if (hostname) request = cloneRequestWithHostname(request, hostname);
-    const req = new Request(request, { headers: [ ...request.headers, ['cf-connecting-ip', cfConnectingIp] ] });
+    if (request.method === 'GET' || request.method === 'HEAD') {
+        const { method, headers, url } = request;
+        request = new Request(url, { method, headers });
+    }
+    const req = new Request(request, { headers: [ ...request.headers, ['cf-connecting-ip', cfConnectingIp], [ 'cf-ray', generateNewCfRay() ] ] });
     // deno-lint-ignore no-explicit-any
     (req as any).cf = cf;
     return req as IncomingRequestCf;
+}
+
+function generateNewCfRay(): string {
+    const tokens = generateUuid().split('-');
+    return tokens[3] + tokens[4];
 }

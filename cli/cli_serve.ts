@@ -17,6 +17,8 @@ import { RpcChannel } from '../common/rpc_channel.ts';
 import { ModuleWorkerExecution } from '../common/module_worker_execution.ts';
 import { redefineGlobalFetchToWorkaroundBareIpAddresses } from '../common/deno_workarounds.ts';
 import { FetchUtil } from '../common/fetch_util.ts';
+import { LocalWebSockets } from '../common/local_web_sockets.ts';
+import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_types.d.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
     const scriptSpec = args[0];
@@ -35,6 +37,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         RpcChannel.VERBOSE = verbose;
         ModuleWorkerExecution.VERBOSE = verbose;
         FetchUtil.VERBOSE = verbose;
+        LocalWebSockets.VERBOSE = verbose;
     }
 
     const start = Date.now();
@@ -89,12 +92,14 @@ export async function serve(args: (string | number)[], options: Record<string, u
         const scriptType = /^.*\.(ts|mjs)$/.test(scriptPathOrUrl) ? 'module' : 'script';
         if (isolation === 'none') {
             let objects: LocalDurableObjects | undefined; 
+            const localWebSockets = new LocalWebSockets();
             const callbacks: WorkerExecutionCallbacks = {
                 onModuleWorkerInfo: moduleWorkerInfo => { 
                     const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
                     objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
                 },
                 globalCachesProvider: () => new NoopCfGlobalCaches(),
+                webSocketPairProvider: () => localWebSockets.allocateNewWebSocketPair(),
                 kvNamespaceProvider: kvNamespace => ApiKVNamespace.ofProfile(profile, kvNamespace),
                 doNamespaceProvider: doNamespace => {
                     // console.log(`doNamespaceProvider`, doNamespace, objects);
@@ -167,19 +172,17 @@ export async function serve(args: (string | number)[], options: Record<string, u
                     // websocket upgrade request
                     if (upgrade !== 'websocket') throw new Error(`Unsupported upgrade: ${upgrade}`);
                     const { socket, response } = Deno.upgradeWebSocket(request);
-                    socket.onopen = () => consoleLog('cli: socket opened');
-                    socket.onmessage = (e) => {
-                        consoleLog('cli: socket message:', e.data);
-                    };
-                    socket.onerror = (e) => consoleLog('cli: socket errored:', e);
-                    socket.onclose = () => consoleLog('cli: socket closed');
-
+                    const denoWebSocketForwarder = new DenoWebSocketForwarder(socket);
                     const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
                     if (DenoflareResponse.is(res) && res.init && res.init.webSocket) {
                         if (res.init?.status !== 101) throw new Error(`Bad response status: expected 101, found ${res.init?.status}`);
-                        const serverWebsocket = res.getDenoflareServerWebSocket();
-                        if (serverWebsocket === undefined) throw new Error(`Bad response: expected websocket`);
-                        serverWebsocket.setRealWebsocket(socket);
+                        denoWebSocketForwarder.setClientSocket(res.init.webSocket);
+                    } else {
+                        if (!DenoflareResponse.is(res)) {
+                            console.warn('WARNING: Did not receive a DenoflareResponse back from a WS upgrade request!');
+                        } else if (!res.init || !res.init.webSocket) {
+                            console.warn('WARNING: Did not receive a WebSocket back from a WS upgrade request!');
+                        }
                     }
                     await respondWith(response).catch(e => consoleError(`Error in respondWith`, e.stack || e));
                 } else {
@@ -208,7 +211,55 @@ export async function serve(args: (string | number)[], options: Record<string, u
 //
 
 interface LocalRequestServer {
-    fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response>;
+    fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response | DenoflareResponse>;
+}
+
+class DenoWebSocketForwarder {
+    private readonly socket: WebSocket;
+
+    private clientSocket: WebSocket & CloudflareWebSocketExtensions | undefined;
+
+    constructor(socket: WebSocket) {
+        socket.onopen = _event => {
+            consoleLog('DenoWebSocketForwarder: socket onopen');
+        };
+        socket.onmessage = event => {
+            consoleLog('DenoWebSocketForwarder: socket onmessage:', event.data);
+            this.ensureClientSocket().send(event.data);
+        };
+        socket.onerror = event => {
+            consoleLog('DenoWebSocketForwarder: socket onerror:', event);
+            // only useful on this side, and will be followed by close
+        };
+        socket.onclose = event => {
+            const { code, reason } = event;
+            consoleLog('DenoWebSocketForwarder: socket onclose');
+            this.ensureClientSocket().close(code, reason);
+        };
+        this.socket = socket;
+    }
+
+    setClientSocket(clientSocket: WebSocket & CloudflareWebSocketExtensions) {
+        if (this.clientSocket) throw new Error('DenoWebSocketForwarder: already set clientSocket');
+        clientSocket.onmessage = event => {
+            this.socket.send(event.data);
+        };
+        clientSocket.onclose = event => {
+            const { code, reason } = event;
+            this.socket.close(code, reason);
+        }
+        this.clientSocket = clientSocket;
+        clientSocket.accept();
+        console.log('DenoWebSocketForwarder: setClientSocket');
+    }
+
+    //
+
+    private ensureClientSocket(): WebSocket {
+        if (!this.clientSocket) throw new Error(`DenoWebSocketForwarder: no clientSocket`);
+        return this.clientSocket;
+    }
+
 }
 
 //

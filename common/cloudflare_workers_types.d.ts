@@ -709,7 +709,7 @@ export interface CloudflareWebSocketExtensions {
 }
 
 export interface CloudflareResponseInitExtensions {
-    webSocket?: WebSocket;
+    webSocket?: WebSocket & CloudflareWebSocketExtensions;
 }
 
 // non-standard class, only on CF

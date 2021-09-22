@@ -20,6 +20,10 @@
 		{
 			"path": "examples/hello-worker",
 			"name": "examples/hello-worker"
+		},
+		{
+			"path": "examples/tiered-websockets-worker",
+			"name": "examples/tiered-websockets-worker"
 		}
 	],
 	"settings": {
