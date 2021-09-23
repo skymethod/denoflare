@@ -72,6 +72,10 @@ function isRpcStubWebSocket(socket: WebSocket): socket is RpcStubWebSocket {
     return (socket as any).kind === 'RpcStubWebSocket';
 }
 
+function dumpOpenWarning() {
+    console.warn('WARNING: ws open event is not called for cf sockets, opened after .accept()');
+}
+
 //
 
 class Pair {
@@ -100,10 +104,13 @@ class RpcStubWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
     private readonly messageListeners: EventListenerOrEventListenerObject[] = [];
     private readonly closeListeners: EventListenerOrEventListenerObject[] = [];
     private readonly errorListeners: EventListenerOrEventListenerObject[] = [];
+    private readonly openListeners: EventListenerOrEventListenerObject[] = [];
 
     private nextSeq = 1;
     private _onmessage: ((this: WebSocket, ev: MessageEvent) => any) | null = null;
     private _onclose: ((this: WebSocket, ev: CloseEvent) => any) | null = null;
+    private _onopen: ((this: WebSocket, ev: Event) => any) | null = null;
+    private _onerror: ((this: WebSocket, ev: Event | ErrorEvent) => any) | null = null;
 
     constructor(side: Side, channel: RpcChannel, isolateId: string, id: number) {
         const className = `RpcStubWebSocket(${side},${isolateId},${id})`;
@@ -120,6 +127,13 @@ class RpcStubWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
 
     get onclose(): ((this: WebSocket, ev: CloseEvent) => any) | null { return this._onclose; }
     set onclose(value: ((this: WebSocket, ev: CloseEvent) => any) | null) { this._onclose = value; }
+
+    get onopen(): ((this: WebSocket, ev: Event) => any) | null { return this._onopen; }
+    set onopen(value: ((this: WebSocket, ev: Event) => any) | null) { this._onopen = value; dumpOpenWarning(); }
+
+    // not implemented yet, but don't crash
+    get onerror(): ((this: WebSocket, ev: Event | ErrorEvent) => any) | null { return this._onerror; }
+    set onerror(value: ((this: WebSocket, ev: Event | ErrorEvent) => any) | null) { this._onerror = value; }
 
     accept() {
         const { isolateId, id, side } = this;
@@ -140,6 +154,9 @@ class RpcStubWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
             this.closeListeners.push(listener);
         } else if (type === 'error') {
             this.errorListeners.push(listener);
+        } else if (type === 'open') {
+            this.openListeners.push(listener);
+            dumpOpenWarning();
         } else {
             throw new Error(`${this._className}.addEventListener: '${type}' not implemented`);
         }

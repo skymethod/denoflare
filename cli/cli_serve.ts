@@ -180,9 +180,11 @@ export async function serve(args: (string | number)[], options: Record<string, u
                         denoWebSocketForwarder.setClientSocket(res.init.webSocket);
                     } else {
                         if (!DenoflareResponse.is(res)) {
-                            console.warn('WARNING: Did not receive a DenoflareResponse back from a WS upgrade request!');
+                            const txt = await res.text();
+                            console.warn('WARNING: Did not receive a DenoflareResponse back from a WS upgrade request!', res, txt);
                         } else if (!res.init || !res.init.webSocket) {
-                            console.warn('WARNING: Did not receive a WebSocket back from a WS upgrade request!');
+                            const txt = await res.text();
+                            console.warn('WARNING: Did not receive a WebSocket back from a WS upgrade request!', res, txt);
                         }
                     }
                     await respondWith(response).catch(e => consoleError(`Error in respondWith`, e.stack || e));
