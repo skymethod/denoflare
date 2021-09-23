@@ -53,6 +53,12 @@ export class RpcChannel {
         return false;
     }
 
+    fireRequest<T>(rpcMethod: string, data: Data): void {
+        this.sendRequest(rpcMethod, data, () => {}).catch(e => {
+            console.error(`fireRequest error in ${rpcMethod}`, e.stack || e);
+        });
+    }
+
     sendRequest<T>(rpcMethod: string, data: Data, unpackResponseDataFn: (data: Data) => T, transfer: Transferable[] = []): Promise<T> {
         const num = this.nextRequestNum++;
         const request: Request = { num, onRpcResponse: () => {}};

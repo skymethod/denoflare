@@ -16,6 +16,7 @@ import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_
 import { ModuleWorkerExecution } from './module_worker_execution.ts';
 import { FetchUtil } from './fetch_util.ts';
 import { LocalWebSockets } from './local_web_sockets.ts';
+import { RpcStubWebSockets } from './rpc_stub_web_sockets.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -31,14 +32,14 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
         const u = URL.createObjectURL(b);
 
         let objects: LocalDurableObjects | undefined; 
-        const localWebSockets = new LocalWebSockets();
+        const rpcStubWebSockets = new RpcStubWebSockets(channel);
         const exec = await WorkerExecution.start(u, scriptType, bindings, {
             onModuleWorkerInfo: moduleWorkerInfo => { 
                 const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
                 objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
             },
             globalCachesProvider: () => new NoopCfGlobalCaches(),
-            webSocketPairProvider: () => localWebSockets.allocateNewWebSocketPair(),
+            webSocketPairProvider: () => rpcStubWebSockets.allocateNewWebSocketPair(),
             kvNamespaceProvider: kvNamespace => new RpcKVNamespace(kvNamespace, channel),
             doNamespaceProvider: doNamespace => {
                 // console.log(`doNamespaceProvider`, doNamespace, objects);
@@ -50,14 +51,14 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
 
         const bodies = new Bodies();
         // deno-lint-ignore no-explicit-any
-        (globalThis as any).fetch = makeFetchOverRpc(channel, bodies);
+        (globalThis as any).fetch = makeFetchOverRpc(channel, bodies, v => rpcStubWebSockets.unpackWebSocket(v));
         addRequestHandlerForReadBodyChunk(channel, bodies);
         channel.addRequestHandler('worker-fetch', async workerFetchData => {
             const workerFetch = workerFetchData as WorkerFetch;
             const request = unpackRequest(workerFetch.packedRequest, makeBodyResolverOverRpc(channel));
 
             const response = await exec.fetch(request, workerFetch.opts);
-            const responseData = await packResponse(response, bodies);
+            const responseData = await packResponse(response, bodies, v => rpcStubWebSockets.packWebSocket(v));
             return responseData;
         });
     });

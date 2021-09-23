@@ -32,6 +32,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         // in cli
         ModuleWatcher.VERBOSE = verbose;
         WorkerManager.VERBOSE = verbose;
+        DenoWebSocketForwarder.VERBOSE = verbose;
 
         // in common
         RpcChannel.VERBOSE = verbose;
@@ -215,16 +216,18 @@ interface LocalRequestServer {
 }
 
 class DenoWebSocketForwarder {
+    static VERBOSE = false;
+
     private readonly socket: WebSocket;
 
     private clientSocket: WebSocket & CloudflareWebSocketExtensions | undefined;
 
     constructor(socket: WebSocket) {
         socket.onopen = _event => {
-            consoleLog('DenoWebSocketForwarder: socket onopen');
+            if (DenoWebSocketForwarder.VERBOSE) consoleLog('DenoWebSocketForwarder: socket onopen');
         };
         socket.onmessage = event => {
-            consoleLog('DenoWebSocketForwarder: socket onmessage:', event.data);
+            if (DenoWebSocketForwarder.VERBOSE) consoleLog('DenoWebSocketForwarder: socket onmessage:', event.data);
             this.ensureClientSocket().send(event.data);
         };
         socket.onerror = event => {
@@ -233,7 +236,7 @@ class DenoWebSocketForwarder {
         };
         socket.onclose = event => {
             const { code, reason } = event;
-            consoleLog('DenoWebSocketForwarder: socket onclose');
+            if (DenoWebSocketForwarder.VERBOSE) consoleLog('DenoWebSocketForwarder: socket onclose');
             this.ensureClientSocket().close(code, reason);
         };
         this.socket = socket;
@@ -241,6 +244,7 @@ class DenoWebSocketForwarder {
 
     setClientSocket(clientSocket: WebSocket & CloudflareWebSocketExtensions) {
         if (this.clientSocket) throw new Error('DenoWebSocketForwarder: already set clientSocket');
+        clientSocket.accept();
         clientSocket.onmessage = event => {
             this.socket.send(event.data);
         };
@@ -249,7 +253,6 @@ class DenoWebSocketForwarder {
             this.socket.close(code, reason);
         }
         this.clientSocket = clientSocket;
-        clientSocket.accept();
         console.log('DenoWebSocketForwarder: setClientSocket');
     }
 

@@ -1,12 +1,13 @@
+import { CloudflareWebSocketExtensions } from './cloudflare_workers_types.d.ts';
 import { consoleLog } from './console.ts';
 import { Constants } from './constants.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
-export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies): (info: RequestInfo, init?: RequestInit) => Promise<Response | DenoflareResponse> {
+export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies, webSocketResolver: WebSocketResolver): (info: RequestInfo, init?: RequestInit) => Promise<Response | DenoflareResponse> {
     return async (info: RequestInfo, init?: RequestInit) => {
         const data = packRequest(info, init, bodies);
-        return await channel.sendRequest('fetch', data, responseData => unpackResponse(responseData, makeBodyResolverOverRpc(channel)));
+        return await channel.sendRequest('fetch', data, responseData => unpackResponse(responseData, makeBodyResolverOverRpc(channel), webSocketResolver));
     }
 }
 
@@ -38,37 +39,41 @@ export function addRequestHandlerForReadBodyChunk(channel: RpcChannel, bodies: B
 }
 
 export type BodyResolver = (bodyId: number) => ReadableStream<Uint8Array>;
+export type WebSocketResolver = (webSocketId: string) => WebSocket & CloudflareWebSocketExtensions;
+export type WebSocketPacker = (webSocket: WebSocket & CloudflareWebSocketExtensions) => string;
 
-export async function packResponse(response: Response, bodies: Bodies): Promise<PackedResponse> {
+export async function packResponse(response: Response, bodies: Bodies, webSocketPacker: WebSocketPacker): Promise<PackedResponse> {
     const { status } = response;
     const headers = [...response.headers.entries()];
     if (DenoflareResponse.is(response)) {
+        const webSocketId = response.init?.webSocket ? webSocketPacker(response.init?.webSocket) : undefined;
         if (typeof response.bodyInit === 'string') {
             const bodyText = response.bodyInit;
-            return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined, bodyNull: false };
+            return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined, bodyNull: false, webSocketId };
         } else if (response.bodyInit instanceof ReadableStream) {
             const bodyId = bodies.computeBodyId(response.bodyInit);
-            return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false };
+            return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, webSocketId };
         } else if (response.bodyInit === null) {
-            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes: undefined, bodyNull: true };
+            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes: undefined, bodyNull: true, webSocketId };
         } else {
             throw new Error(`packResponse: DenoflareResponse bodyInit=${response.bodyInit}`);
         }
     }
+    const webSocketId = undefined;
     const contentLength = parseInt(response.headers.get('content-length') || '-1');
     if (contentLength > -1 && contentLength <= Constants.MAX_CONTENT_LENGTH_TO_PACK_OVER_RPC) {
         const bodyBytes = await response.arrayBuffer();
         // consoleLog(`packResponse: contentLength=${contentLength} bodyBytes.byteLength=${bodyBytes.byteLength} url=${response.url}`);
-        return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false };
+        return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId };
     }
     const bodyId = bodies.computeBodyId(response.body);
-    return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false };
+    return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, webSocketId };
 }
 
 const _Response = Response;
 
-export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolver): Response | DenoflareResponse {
-    const { status, bodyId, bodyText, bodyBytes, bodyNull } = packed;
+export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolver, webSocketResolver: WebSocketResolver): Response | DenoflareResponse {
+    const { status, bodyId, bodyText, bodyBytes, bodyNull, webSocketId } = packed;
     const headers = new Headers(packed.headers);
     const body = bodyNull ? null 
         : bodyText !== undefined ? bodyText
@@ -76,8 +81,8 @@ export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolve
         : bodyId === undefined ? undefined 
         : bodyResolver(bodyId);
     if (status === 101) {
-        // deno-lint-ignore no-explicit-any
-        const webSocket: any = {}; // TODO
+        if (!webSocketId) throw new Error(`unpackResponse: 101 responses must have a webSocketId`);
+        const webSocket = webSocketResolver(webSocketId);
         return new DenoflareResponse(body, { status, headers, webSocket });
     }
     return new _Response(body, { status, headers });
@@ -138,6 +143,7 @@ export interface PackedResponse {
     readonly bodyText: string | undefined;
     readonly bodyBytes: ArrayBuffer | undefined;
     readonly bodyNull: boolean;
+    readonly webSocketId: string | undefined;
 }
 
 export class Bodies {

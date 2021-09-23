@@ -7,6 +7,7 @@ import { addRequestHandlerForRpcKvNamespace } from '../common/rpc_kv_namespace.t
 import { runScript, WorkerFetch } from '../common/rpc_script.ts';
 import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
+import { RpcHostWebSockets } from './rpc_host_web_sockets.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -55,12 +56,15 @@ export class WorkerManager {
         };
         worker.onmessageerror = e => consoleError('host: onmessageerror', e);
 
+        // host side of the rpc websocket impl
+        const rpcHostWebSockets = new RpcHostWebSockets(rpcChannel);
+
         // make external fetch calls on behalf of the worker
         const bodies = new Bodies();
         rpcChannel.addRequestHandler('fetch', async requestData => {
             const { method, url, headers } = requestData as PackedRequest;
             const res = await fetch(url, { method, headers });
-            return await packResponse(res, bodies);
+            return await packResponse(res, bodies, v => rpcHostWebSockets.packWebSocket(v));
         });
         addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
 
@@ -70,20 +74,20 @@ export class WorkerManager {
         // run the script in the deno worker
         await runScript({ scriptContents, scriptType, bindings, verbose: WorkerManager.VERBOSE }, rpcChannel);
 
-        this.currentWorker = { worker, rpcChannel, bodies };
+        this.currentWorker = { worker, rpcChannel, bodies, rpcHostWebSockets };
     }
 
     async fetch(request: Request, opts: { cfConnectingIp: string, hostname?: string }): Promise<Response | DenoflareResponse> {
         const { currentWorker } = this;
         if (currentWorker === undefined) throw new Error(`Must call run() before calling fetch()`);
-        const { bodies, rpcChannel } = currentWorker;
+        const { bodies, rpcChannel, rpcHostWebSockets } = currentWorker;
         const packedRequest = packRequest(request, undefined, bodies);
         const workerFetch: WorkerFetch = {
             packedRequest, 
             opts,
         };
         const res = await rpcChannel.sendRequest('worker-fetch', workerFetch, responseData => {
-            return unpackResponse(responseData, makeBodyResolverOverRpc(rpcChannel));
+            return unpackResponse(responseData, makeBodyResolverOverRpc(rpcChannel), v => rpcHostWebSockets.unpackWebSocket(v));
         });
         return res;
     }
@@ -113,4 +117,5 @@ interface WorkerInfo {
     readonly rpcChannel: RpcChannel;
     readonly bodies: Bodies;
     readonly worker: Worker;
+    readonly rpcHostWebSockets: RpcHostWebSockets;
 }
