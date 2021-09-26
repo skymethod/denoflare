@@ -50,6 +50,9 @@ export async function packResponse(response: Response, bodies: Bodies, webSocket
         if (typeof response.bodyInit === 'string') {
             const bodyText = response.bodyInit;
             return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined, bodyNull: false, webSocketId };
+        } else if (response.bodyInit instanceof Uint8Array) {
+            const bodyBytes = response.bodyInit;
+            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId };
         } else if (response.bodyInit instanceof ReadableStream) {
             const bodyId = bodies.computeBodyId(response.bodyInit);
             return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, webSocketId };

@@ -24,6 +24,14 @@
 		{
 			"path": "examples/tiered-websockets-worker",
 			"name": "examples/tiered-websockets-worker"
+		},
+		{
+			"path": "examples/isolate-hotel-worker",
+			"name": "examples/isolate-hotel-worker"
+		},
+		{
+			"path": "examples/isolate-hotel-app",
+			"name": "examples/isolate-hotel-app"
 		}
 	],
 	"settings": {
