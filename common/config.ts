@@ -71,6 +71,7 @@ export interface TextBinding {
     /** Value is the string value, with the following replacements:
      *  - `${localPort}` replaced with the localhost port used when running `serve`, the local dev server.
      *    This can be useful when defining a variable for the server Origin, for example.
+     *  - `${pushId}` replaced with an incremental push identifier used when running `serve`, the local dev server, or `push` --watch.
      */
     readonly value: string;
 }

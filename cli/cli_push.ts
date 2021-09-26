@@ -20,7 +20,10 @@ export async function push(args: (string | number)[], options: Record<string, un
     const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
-    
+    const watch = !!options.watch;
+
+    let pushNumber = 1;
+
     const buildAndPutScript = async () => {
         console.log(`bundling ${scriptName} into bundle.js...`);
         let start = Date.now();
@@ -34,7 +37,8 @@ export async function push(args: (string | number)[], options: Record<string, un
 
         start = Date.now();
         const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
-        const bindings = script ? await computeBindings(script, scriptName, doNamespaces) : [];
+        const pushId = watch ? `${pushNumber++}` : undefined;
+        const bindings = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : [];
         console.log(`computed bindings in ${Date.now() - start}ms`);
         
         const scriptContentsStr = result.files['deno:///bundle.js'];
@@ -54,7 +58,6 @@ export async function push(args: (string | number)[], options: Record<string, un
     }
     await buildAndPutScript();
 
-    const watch = !!options.watch;
     if (watch) {
         console.log('Watching for changes...');
         const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
@@ -119,8 +122,8 @@ class DurableObjectNamespaces {
 
 //
 
-async function computeBindings(script: Script, scriptName: string, doNamespaces: DurableObjectNamespaces): Promise<ApiBinding[]> {
-    const resolvedBindings = await resolveBindings(script.bindings || {}, undefined);
+async function computeBindings(script: Script, scriptName: string, doNamespaces: DurableObjectNamespaces, pushId: string | undefined): Promise<ApiBinding[]> {
+    const resolvedBindings = await resolveBindings(script.bindings || {}, undefined, pushId);
     const rt: ApiBinding[] = [];
     for (const [name, binding] of Object.entries(resolvedBindings)) {
         rt.push(await computeBinding(name, binding, doNamespaces, scriptName));

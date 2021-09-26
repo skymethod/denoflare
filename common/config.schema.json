@@ -36,7 +36,7 @@
                                             "required": [ "value" ],
                                             "properties": {
                                                 "value": {
-                                                    "description": "Value is the string value, with the following replacements:\n  - `${localPort}` replaced with the localhost port used when running `serve`, the local dev server.\n  This can be useful when defining a variable for the server Origin, for example.",
+                                                    "description": "Value is the string value, with the following replacements:\n  - `${localPort}` replaced with the localhost port used when running `serve`, the local dev server.\n  This can be useful when defining a variable for the server Origin, for example.\n  - `${pushId}` replaced with an incremental push identifier used when running `serve`, the local dev server, or `push` --watch.",
                                                     "type": "string"
                                                 }
                                             }

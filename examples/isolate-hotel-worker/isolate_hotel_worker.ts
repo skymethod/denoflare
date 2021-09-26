@@ -11,9 +11,9 @@ export default {
         const url = new URL(request.url);
 
         if (url.pathname === '/') {
-            const { version, flags, twitter } = env;
+            const { version, flags, twitter, pushId } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
-            return new Response(computeHtml(url, { version, flags, twitter }), { headers });
+            return new Response(computeHtml(url, { version, flags, twitter, pushId }), { headers });
         } else if (url.pathname === computeAppJsPath()) {
             return computeAppResponse();
         } else if (url.pathname === FAVICON_SVG_PATHNAME) {
@@ -43,6 +43,7 @@ export interface WorkerEnv {
     readonly version?: string;
     readonly flags?: string;
     readonly twitter?: string;
+    readonly pushId?: string;
 }
 
 //
@@ -156,7 +157,8 @@ ${COMMON_STYLES}
 
 function computeHtml(url: URL, staticData: Record<string, unknown>) {
     const { name, description } = computeManifest();
-    const { twitter } = staticData;
+    const { twitter, pushId } = staticData;
+    const title = [name, pushId].filter(v => v !== '').join(' ');
     const appJsPath = computeAppJsPath();
         return `<!DOCTYPE html>
 <html lang="en" class="no-js">
@@ -164,7 +166,7 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>${encodeHtml(name)}</title>
+<title>${encodeHtml(title)}</title>
 
 <script id="static-data-script" type="application/json">${JSON.stringify(staticData)}</script>
 <script type="module">

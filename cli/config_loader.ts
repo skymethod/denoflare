@@ -28,15 +28,15 @@ export async function loadConfig(options: Record<string, unknown>): Promise<Conf
     return config;
 }
 
-export async function resolveBindings(bindings: Record<string, Binding>, localPort: number | undefined): Promise<Record<string, Binding>> {
+export async function resolveBindings(bindings: Record<string, Binding>, localPort: number | undefined, pushId: string | undefined): Promise<Record<string, Binding>> {
     const rt: Record<string, Binding> = {};
     for (const [name, binding] of Object.entries(bindings || {})) {
-        rt[name] = await resolveBinding(binding, localPort);
+        rt[name] = await resolveBinding(binding, localPort, pushId);
     }
     return rt;
 }
 
-export async function resolveBinding(binding: Binding, localPort: number | undefined): Promise<Binding> {
+export async function resolveBinding(binding: Binding, localPort: number | undefined, pushId: string | undefined): Promise<Binding> {
     if (isSecretBinding(binding)) {
         const m = /^aws:(.*?)$/.exec(binding.secret);
         if (m) {
@@ -49,6 +49,11 @@ export async function resolveBinding(binding: Binding, localPort: number | undef
             if (binding.value.includes('${localPort}')) throw new Error(`Cannot resolve: localPort`);
         } else {
             value = binding.value.replaceAll('${localPort}', localPort.toString());
+        }
+        if (pushId === undefined) {
+            if (binding.value.includes('${pushId}')) throw new Error(`Cannot resolve: pushId`);
+        } else {
+            value = binding.value.replaceAll('${pushId}', pushId);
         }
         return { value };
     }

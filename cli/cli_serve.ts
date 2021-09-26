@@ -51,7 +51,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     
     // read the script-based cloudflare worker contents
     let port = DEFAULT_PORT;
-    let bindings: Record<string, Binding> = {};
+    let bindingsProvider: () => Promise<Record<string, Binding>> = () => Promise.resolve({});
     let isolation: Isolation = 'isolate';
     let script: Script | undefined;
     let localHostname: string | undefined;
@@ -59,7 +59,11 @@ export async function serve(args: (string | number)[], options: Record<string, u
         script = config.scripts && config.scripts[scriptName];
         if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
         if (script.localPort) port = script.localPort;
-        bindings = await resolveBindings(script.bindings || {}, port);
+        let pushNumber = 1;
+        bindingsProvider = async () => {
+            const pushId = isolation === 'none' ? undefined : `${pushNumber++}`;
+            return await resolveBindings(script!.bindings || {}, port, pushId);
+        }
         isolation = script.localIsolation || isolation;
         localHostname = script.localHostname;
     } else {
@@ -109,6 +113,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 },
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
+            const bindings = await bindingsProvider();
             return await WorkerExecution.start(scriptPathOrUrl, scriptType, bindings, callbacks);
         } else {
             // start the host for the permissionless deno workers
@@ -117,6 +122,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
             // run the cloudflare worker script inside deno worker
             const runScript = async () => {
                 consoleLog(`runScript: ${scriptPathOrUrl}`);
+
+                const bindings = await bindingsProvider();
 
                 const scriptContents = await computeScriptContents(scriptPathOrUrl, scriptType);
                 try {
