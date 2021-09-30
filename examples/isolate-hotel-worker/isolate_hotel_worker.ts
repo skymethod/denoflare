@@ -69,9 +69,7 @@ async function registerRequest(WorldDO: DurableObjectNamespace, colo: string, ct
 async function getOrInitCanaryClient(WorldDO: DurableObjectNamespace, colo: string, ctx: ModuleWorkerContext): Promise<CanaryClient> {
     if (!_canaryClient) {
         _canaryClient = await CanaryClient.create(WorldDO, colo);
-        ctx.waitUntil(new Promise((resolve, reject) => {
-
-        }));
+        ctx.waitUntil(new Promise(() => {})); // see how long it lasts on an infinite promise
     }
     return _canaryClient;
 }
