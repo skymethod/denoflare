@@ -9,7 +9,7 @@ export function addRequestHandlerForRpcKvNamespace(channel: RpcChannel, kvNamesp
             const target = kvNamespaceResolver(kvNamespace);
             const buffer = await target.get(key, { type: 'arrayBuffer', cacheTtl });
             const res: KVNamespaceGetArrayBufferResponse = { type: req.type, buffer };
-            return res;
+            return { data: res, transfer: buffer ? [ buffer ] : [] };
         }
         throw new Error(`RequestHandlerForRpcKvNamespace: Implement ${req.type}, req=${JSON.stringify(req)}`);
     });

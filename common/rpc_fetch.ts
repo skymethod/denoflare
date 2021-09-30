@@ -34,7 +34,7 @@ export function addRequestHandlerForReadBodyChunk(channel: RpcChannel, bodies: B
     channel.addRequestHandler('read-body-chunk', async requestData => {
         const { bodyId } = requestData;
         const { value, done } = await bodies.readBodyChunk(bodyId);
-        return { value, done };
+        return { data: { value, done }, transfer: value ? [ value.buffer ] : [] };
     });
 }
 
@@ -65,7 +65,7 @@ export async function packResponse(response: Response, bodies: Bodies, webSocket
     const webSocketId = undefined;
     const contentLength = parseInt(response.headers.get('content-length') || '-1');
     if (contentLength > -1 && contentLength <= Constants.MAX_CONTENT_LENGTH_TO_PACK_OVER_RPC) {
-        const bodyBytes = await response.arrayBuffer();
+        const bodyBytes = new Uint8Array(await response.arrayBuffer());
         // consoleLog(`packResponse: contentLength=${contentLength} bodyBytes.byteLength=${bodyBytes.byteLength} url=${response.url}`);
         return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId };
     }
@@ -91,7 +91,7 @@ export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolve
     return new _Response(body, { status, headers });
 }
 
-export function packRequest(info: RequestInfo, init: RequestInit |  undefined, bodies: Bodies): PackedRequest {
+export function packRequest(info: RequestInfo, init: RequestInit | undefined, bodies: Bodies): PackedRequest {
     if (typeof info === 'object' && init === undefined) {
         // Request
         const { method, url } = info;
@@ -144,7 +144,7 @@ export interface PackedResponse {
     readonly headers: [string, string][];
     readonly bodyId: number | undefined;
     readonly bodyText: string | undefined;
-    readonly bodyBytes: ArrayBuffer | undefined;
+    readonly bodyBytes: Uint8Array | undefined;
     readonly bodyNull: boolean;
     readonly webSocketId: string | undefined;
 }

@@ -35,16 +35,21 @@ export class RpcChannel {
             const handler = this.requestDataHandlers.get(rpcMethod);
             if (handler) {
                 let responseData: Data | undefined;
+                let transfer: Transferable[] = [];
                 let error: Error | undefined;
                 try {
                     responseData = await handler(data.data);
+                    if (typeof responseData === 'object' && responseData.data !== undefined && Array.isArray(responseData.transfer)) {
+                        transfer = responseData.transfer;
+                        responseData = responseData.data;
+                    }
                 } catch (e) {
                     error = e;
                 }
                 if (error) {
-                    this.postMessage({ responseKind: 'error', num, rpcMethod, error: { message: error.message, name: error.name, stack: error.stack} } as RpcErrorResponse, []);
+                    this.postMessage({ responseKind: 'error', num, rpcMethod, error: { message: error.message, name: error.name, stack: error.stack } } as RpcErrorResponse, transfer);
                 } else {
-                    this.postMessage({ responseKind: 'ok', num, rpcMethod, data: responseData } as RpcOkResponse, []);
+                    this.postMessage({ responseKind: 'ok', num, rpcMethod, data: responseData } as RpcOkResponse, transfer);
                 }
             }
             return true;
@@ -100,7 +105,7 @@ function isRpcRequest(data: Data): data is RpcRequest {
 
 //
 
-type RequestDataHandler = (requestData: Data) => Promise<Data>;
+type RequestDataHandler = (requestData: Data) => Promise<Data> | Promise<{ data: Data, transfer: Transferable[] }>;
 
 interface Request {
     num: number;

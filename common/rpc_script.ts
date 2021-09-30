@@ -59,15 +59,19 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
 
             const response = await exec.fetch(request, workerFetch.opts);
             const responseData = await packResponse(response, bodies, v => rpcStubWebSockets.packWebSocket(v));
-            return responseData;
+            return { data: responseData, transfer: responseData.bodyBytes ? [ responseData.bodyBytes.buffer ] : [] };
         });
     });
 }
 
 export async function runScript(script: ScriptDef, channel: RpcChannel) {
+    const { verbose } = script;
+    const start = Date.now();
+    const len = script.scriptContents.length;
     await channel.sendRequest('run-script', script, _responseData => {
         return {};
-    }, [ ]);
+    }, [ script.scriptContents.buffer ]);
+    if (verbose) console.log(`runScript scriptContents.length=${len} took ${Date.now() - start}ms`);
 }
 
 //

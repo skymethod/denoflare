@@ -48,12 +48,12 @@ export async function resolveBinding(binding: Binding, localPort: number | undef
         if (localPort === undefined) {
             if (binding.value.includes('${localPort}')) throw new Error(`Cannot resolve: localPort`);
         } else {
-            value = binding.value.replaceAll('${localPort}', localPort.toString());
+            value = value.replace('${localPort}', localPort.toString());
         }
         if (pushId === undefined) {
-            if (binding.value.includes('${pushId}')) throw new Error(`Cannot resolve: pushId`);
+            if (value.includes('${pushId}')) throw new Error(`Cannot resolve: pushId`);
         } else {
-            value = binding.value.replaceAll('${pushId}', pushId);
+            value = value.replace('${pushId}', pushId);
         }
         return { value };
     }

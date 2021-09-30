@@ -8,8 +8,8 @@ import { addRequestHandlerForRunScript } from '../common/rpc_script.ts';
     consoleLog('worker: start');
     
     const rpcChannel = new RpcChannel('worker', self.postMessage.bind(self));
-    self.onmessage = function(event) {
-        if (rpcChannel.receiveMessage(event.data)) return;
+    self.onmessage = async function(event) {
+        if (await rpcChannel.receiveMessage(event.data)) return;
         consoleLog('worker: onmessage', event.data);
     };
     self.onmessageerror = function(event) {

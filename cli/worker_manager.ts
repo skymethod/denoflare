@@ -64,7 +64,8 @@ export class WorkerManager {
         rpcChannel.addRequestHandler('fetch', async requestData => {
             const { method, url, headers } = requestData as PackedRequest;
             const res = await fetch(url, { method, headers });
-            return await packResponse(res, bodies, v => rpcHostWebSockets.packWebSocket(v));
+            const packed = await packResponse(res, bodies, v => rpcHostWebSockets.packWebSocket(v));
+            return { data: packed, transfer: packed.bodyBytes ? [ packed.bodyBytes.buffer ] : [] };
         });
         addRequestHandlerForReadBodyChunk(rpcChannel, bodies);
 
