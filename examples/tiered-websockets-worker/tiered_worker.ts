@@ -6,7 +6,18 @@ import { TieredWorkerEnv } from './tiered_worker_env.d.ts';
 export { ColoTierDO } from './colo_tier_do.ts';
 import * as _ from './globals.d.ts';
 
-// Hosted version: https://tiered-websockets.denoflare.dev
+/*
+Simple example worker to explore WebSocket tiering within Cloudflare
+
+Hosted version: https://tiered-websockets.denoflare.dev
+
+The client app (browser) creates a connection to the (bundled) entry point worker (this file), which serves as the terminating WS server.
+
+This worker additionally creates a single WS connection (per isolate) as a client to a "colo tier" DO.
+The colo tier DO broadcasts a tick message on a repeating interval out to its worker clients, which then republish the message out to 
+each of the worker's browser clients.
+
+*/
 
 export default {
 
