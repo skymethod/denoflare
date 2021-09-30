@@ -2,19 +2,11 @@ import { Client } from './client.ts';
 import { DurableObjectNamespace, IncomingRequestCf, ModuleWorkerContext } from './deps.ts';
 import { getIsolateId } from './isolate_id.ts';
 import { Server } from './server.ts';
-import { TieredWorkerEnv } from './tiered_types.d.ts';
+import { TieredWorkerEnv } from './tiered_worker_env.d.ts';
 export { ColoTierDO } from './colo_tier_do.ts';
+import * as _ from './globals.d.ts';
 
-declare global {
-
-    // https://developers.cloudflare.com/workers/runtime-apis/websockets
-
-    interface Response {
-        // non-standard member
-        webSocket?: WebSocket; 
-    }
-
-}
+// Hosted version: https://tiered-websockets.denoflare.dev
 
 export default {
 
@@ -40,7 +32,7 @@ export default {
 
 //
 
-const VERSION = 3;
+const VERSION = 4;
 
 let _server: Server | undefined;
 

@@ -1,15 +1,24 @@
-import { Bytes, IncomingRequestCf, ModuleWorkerContext } from './deps_worker.ts';
+import { Bytes, DurableObjectNamespace, IncomingRequestCf, ModuleWorkerContext } from './deps_worker.ts';
 import { ISOLATE_HOTEL_APP_B64, ISOLATE_HOTEL_APP_HASH } from './isolate_hotel_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
+import { IsolateHotelWorkerEnv } from './isolate_hotel_worker_env.d.ts';
+import { CanaryClient } from './canary_client.ts';
+export { WorldDO } from './world_do.ts';
+import * as _ from './globals.d.ts';
+
+// WORK IN PROGRESS: DO NOT USE
 
 export default {
 
-    fetch(request: IncomingRequestCf, env: WorkerEnv, _ctx: ModuleWorkerContext): Response {
+    async fetch(request: IncomingRequestCf, env: IsolateHotelWorkerEnv, ctx: ModuleWorkerContext): Promise<Response> {
+        console.log(`version: ${[env.version, env.pushId].filter(v => v !== undefined).join('-')}`);
         const url = new URL(request.url);
 
+        const { WorldDO } = env;
+        await registerRequest(WorldDO, request.cf.colo, ctx);
         if (url.pathname === '/') {
             const { version, flags, twitter, pushId } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
@@ -39,13 +48,6 @@ export default {
 
 };
 
-export interface WorkerEnv {
-    readonly version?: string;
-    readonly flags?: string;
-    readonly twitter?: string;
-    readonly pushId?: string;
-}
-
 //
 
 const MANIFEST_VERSION = '1';
@@ -54,6 +56,25 @@ const FAVICON_ICO_PATHNAME = `/favicon.${FAVICON_VERSION}.ico`;
 const MANIFEST_PATHNAME = `/app.${MANIFEST_VERSION}.webmanifest`;
 const TWITTER_IMAGE_PNG_PATHNAME = `/og-image.${TWITTER_IMAGE_VERSION}.png`;
 const SVG_MIME_TYPE = 'image/svg+xml';
+
+let _canaryClient: CanaryClient | undefined;
+let _requests = 0;
+
+async function registerRequest(WorldDO: DurableObjectNamespace, colo: string, ctx: ModuleWorkerContext): Promise<void> {
+    const requests = ++_requests;
+    const client = await getOrInitCanaryClient(WorldDO, colo, ctx);
+    client.register({ requests });
+}
+
+async function getOrInitCanaryClient(WorldDO: DurableObjectNamespace, colo: string, ctx: ModuleWorkerContext): Promise<CanaryClient> {
+    if (!_canaryClient) {
+        _canaryClient = await CanaryClient.create(WorldDO, colo);
+        ctx.waitUntil(new Promise((resolve, reject) => {
+
+        }));
+    }
+    return _canaryClient;
+}
 
 function computeManifest(): AppManifest {
     const name = 'Isolate Hotel';

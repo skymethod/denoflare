@@ -1,26 +1,3 @@
-declare global {
-
-    // https://developers.cloudflare.com/workers/runtime-apis/websockets
-
-    // non-standard class, only on CF
-    class WebSocketPair {
-        0: WebSocket;
-        1: WebSocket;
-    }
-
-    interface ResponseInit {
-        // non-standard member
-        webSocket?: WebSocket; 
-    }
-
-    interface WebSocket {
-        /** Accepts the Websocket connection and begins terminating requests for the WebSocket at Cloudflare's edge. 
-         * 
-         * This effectively enables the Workers runtime to begin responding to and handling WebSocket requests. */
-        accept(): void;
-    }
-}
-
 export class Server {
     private readonly sockets = new Map<string, WebSocket>();
     private readonly debug: boolean;

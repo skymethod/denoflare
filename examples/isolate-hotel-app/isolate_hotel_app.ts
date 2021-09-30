@@ -40,7 +40,8 @@ function parseStaticData(): StaticData {
     const data = JSON.parse(script.text);
     const version = typeof data.version === 'string' ? data.version : undefined;
     const flags = typeof data.flags === 'string' ? data.flags : undefined;
-    return { version, flags };
+    const debug = typeof data.debug === 'object' ? data.debug : undefined;
+    return { version, flags, debug };
 }
 
 const _data = parseStaticData();
