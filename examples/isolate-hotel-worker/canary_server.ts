@@ -1,4 +1,8 @@
+import { checkIsolateInfo, IsolateInfo } from './isolate_info.ts';
+
 export class CanaryServer {
+
+    readonly isolates = new Map<string, IsolateInfo>();
 
     private readonly sockets = new Map<string, WebSocket>();
 
@@ -18,6 +22,10 @@ export class CanaryServer {
             try {
                 const obj = JSON.parse(event.data);
                 console.log('message', clientId, obj);
+                if (obj.method === 'register') {
+                    checkIsolateInfo(obj.info);
+                    this.register(obj.info);
+                }
             } catch (e) {
                 console.warn('message error', clientId, e.stack || e);
             }
@@ -31,6 +39,11 @@ export class CanaryServer {
             console.warn('error');
         });
         return new Response(null, { status: 101, webSocket: pair[0] });
+    }
+
+    register(info: IsolateInfo) {
+        const { colo, isolateId } = info;
+        this.isolates.set(`${colo}-${isolateId}`, info);
     }
 
 }

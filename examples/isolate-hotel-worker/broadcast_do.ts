@@ -1,7 +1,9 @@
 import { checkEqual } from '../../common/check.ts';
+import { CanaryClient } from './canary_client.ts';
 import { ColoFromTrace } from './colo_from_trace.ts';
 import { DurableObjectState } from './deps_worker.ts';
 import { IsolateHotelWorkerEnv } from './isolate_hotel_worker_env.d.ts';
+import { IsolateTracker, MutableDurableObjectInfo, newMutableDurableObjectInfo } from './isolate_info.ts';
 
 export class BroadcastDO {
     
@@ -10,24 +12,40 @@ export class BroadcastDO {
     private readonly sockets = new Map<string, WebSocket>();
 
     private colo!: string;
+    private canaryClient!: CanaryClient;
+
+    durableObjectInfo!: MutableDurableObjectInfo;
 
     constructor(state: DurableObjectState, env: IsolateHotelWorkerEnv) {
         this.state = state;
         this.env = env;
         this.state.blockConcurrencyWhile(async () => {
             this.colo = await new ColoFromTrace().get();
+            this.durableObjectInfo = newMutableDurableObjectInfo({ type: 'broadcast', id: state.id.toString() });
+            IsolateTracker.get(this.colo).registerDurableObject(this);
+            this.canaryClient = await CanaryClient.create(env.WorldDO, this.colo);
         });
     }
 
     async fetch(request: Request): Promise<Response> {
-        console.log(`version: ${[this.env.version, this.env.pushId].filter(v => v !== undefined).join('-')}`);
-        const { colo } = this;
+        const version = [this.env.version, this.env.pushId].filter(v => v !== undefined).join('-');
+        console.log(`version: ${version}`);
+        const { colo, canaryClient } = this;
         const url = new URL(request.url);
-        console.log('logprops:', { colo, durableObjectClass: 'WorldDO', durableObjectId: this.state.id.toString(), durableObjectName: request.headers.get('do-name') || url.hostname });
+        const durableObjectName = request.headers.get('do-name') || url.hostname;
+        this.durableObjectInfo.name = durableObjectName;
+        this.durableObjectInfo.atts['version'] = version;
+        console.log('logprops:', { colo, durableObjectClass: 'WorldDO', durableObjectId: this.state.id.toString(), durableObjectName });
         const { pathname } = url;
-        return this.tryHandleWs(pathname, request) 
-            || await this.tryHandleChange(pathname, request) 
-            || new Response('not found', { status: 404 });
+
+        try {
+            return this.tryHandleWs(pathname, request) 
+                || await this.tryHandleChange(pathname, request) 
+                || new Response('not found', { status: 404 });
+        } finally {
+            this.durableObjectInfo.fetches++;
+            canaryClient.register(IsolateTracker.get(colo).info());
+        }
     }
 
     //

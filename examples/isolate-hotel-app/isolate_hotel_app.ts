@@ -57,7 +57,7 @@ ws.onopen = _ev => {
     console.log('open');
 };
 ws.onmessage = ev => {
-    console.log('onmessage', ev.data);
+    console.log('onmessage', JSON.stringify(JSON.parse(ev.data), undefined, 2));
 };
 ws.onerror = _ev => {
     console.warn('onerror');

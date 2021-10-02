@@ -38,6 +38,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         start = Date.now();
         const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
         const pushId = watch ? `${pushNumber++}` : undefined;
+        const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const bindings = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : [];
         console.log(`computed bindings in ${Date.now() - start}ms`);
         
@@ -46,10 +47,10 @@ export async function push(args: (string | number)[], options: Record<string, un
         const scriptContents = new TextEncoder().encode(scriptContentsStr);
         const compressedScriptContents = gzip(scriptContents);
 
-        console.log(`putting script ${scriptName}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
+        console.log(`putting script ${scriptName}${pushIdSuffix}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
         start = Date.now();
         await putScript(accountId, scriptName, scriptContents, bindings, apiToken);
-        console.log(`put script ${scriptName} in ${Date.now() - start}ms`);
+        console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
         if (doNamespaces.hasPendingUpdates()) {
             start = Date.now();
             await doNamespaces.flushPendingUpdates();

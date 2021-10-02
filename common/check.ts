@@ -13,6 +13,12 @@ export function checkString(name: string, value: any): string {
 }
 
 // deno-lint-ignore no-explicit-any
+export function checkNumber(name: string, value: any): number {
+    if (typeof value !== 'number') throw new Error(`Bad ${name}: expected number, found ${typeof value}`);
+    return value;
+}
+
+// deno-lint-ignore no-explicit-any
 export function checkOrigin(name: string, value: any): string {
     if (typeof value !== 'string' || new URL(value).toString() !== new URL(value).origin + '/') throw new Error(`Bad ${name}: ${value}`);
     return value;

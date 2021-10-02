@@ -1,5 +1,6 @@
 import { DurableObjectNamespace } from './deps_worker.ts';
 import { getIsolateId } from './isolate_id.ts';
+import { IsolateInfo } from './isolate_info.ts';
 
 export class CanaryClient {
 
@@ -35,11 +36,9 @@ export class CanaryClient {
         return new CanaryClient(colo, isolateId, res.webSocket);
     }
 
-    register(opts: { requests: number; }) {
-        const { requests } = opts;
-        const { colo, isolateId } = this;
+    register(info: IsolateInfo) {
         const method = 'register';
-        this.socket.send(JSON.stringify({ method, requests, isolateId, colo }));
+        this.socket.send(JSON.stringify({ method, info }));
     }
 
 }
