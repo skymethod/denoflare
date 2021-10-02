@@ -2,11 +2,12 @@ import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObje
 import { Bytes } from './bytes.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 import { consoleWarn } from './console.ts';
+import { Mutex } from './mutex.ts';
 
 export class LocalDurableObjects {
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
     private readonly moduleWorkerEnv: Record<string, unknown>;
-    private readonly durableObjects = new Map<string, Map<string, DurableObject>>(); // className -> hex id -> do
+    private readonly durableObjects = new Map<string, Map<string, DurableObjectWithMutexAroundFetch>>(); // className -> hex id -> do
 
     constructor(moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>, moduleWorkerEnv: Record<string, unknown>) {
         this.moduleWorkerExportedFunctions = moduleWorkerExportedFunctions;
@@ -30,7 +31,7 @@ export class LocalDurableObjects {
         return ctor;
     }
 
-    private resolveDurableObject(className: string, id: DurableObjectId): DurableObject {
+    private resolveDurableObject(className: string, id: DurableObjectId): DurableObjectWithMutexAroundFetch {
         const idStr = id.toString();
         let classObjects = this.durableObjects.get(className);
         if (classObjects !== undefined) {
@@ -39,14 +40,16 @@ export class LocalDurableObjects {
         }
         const ctor = this.findConstructorForClassName(className);
         const storage = new InMemoryDurableObjectStorage();
-        const state: DurableObjectState = new LocalDurableObjectState(id, storage);
+        const mutex = new Mutex();
+        const state: DurableObjectState = new LocalDurableObjectState(id, storage, mutex);
         const durableObject = new ctor(state, this.moduleWorkerEnv);
         if (classObjects === undefined) {
             classObjects = new Map();
             this.durableObjects.set(className, classObjects);
         }
-        classObjects.set(idStr, durableObject);
-        return durableObject;
+        const rt = new DurableObjectWithMutexAroundFetch(durableObject, mutex);
+        classObjects.set(idStr, rt);
+        return rt;
     }
 
 }
@@ -58,6 +61,21 @@ export interface DurableObject {
 }
 
 //
+
+class DurableObjectWithMutexAroundFetch implements DurableObject {
+    private readonly durableObject: DurableObject;
+    private readonly mutex: Mutex;
+
+    constructor(durableObject: DurableObject, mutex: Mutex) {
+        this.durableObject = durableObject;
+        this.mutex = mutex;
+    }
+
+    fetch(request: Request): Promise<Response> {
+        return this.mutex.dispatch(() => this.durableObject.fetch(request));
+    }
+
+}
 
 class LocalDurableObjectNamespace implements DurableObjectNamespace {
     private readonly className: string;
@@ -123,10 +141,13 @@ class LocalDurableObjectId implements DurableObjectId {
 class LocalDurableObjectState implements DurableObjectState {
     readonly id: DurableObjectId;
     readonly storage: DurableObjectStorage;
+    
+    private readonly mutex: Mutex;
 
-    constructor(id: DurableObjectId, storage: DurableObjectStorage) {
+    constructor(id: DurableObjectId, storage: DurableObjectStorage, mutex: Mutex) {
         this.id = id;
         this.storage = storage;
+        this.mutex = mutex;
     }
 
     waitUntil(promise: Promise<unknown>): void {
@@ -136,8 +157,8 @@ class LocalDurableObjectState implements DurableObjectState {
         }, e => consoleWarn(e));
     }
 
-    blockConcurrencyWhile<T>(_fn: () => Promise<T>): Promise<T> {
-        throw new Error(`LocalDurableObjectState.blockConcurrencyWhile() not implemented.`);
+    blockConcurrencyWhile<T>(fn: () => Promise<T>): Promise<T> {
+        return this.mutex.dispatch(fn);
     }
 
 }
