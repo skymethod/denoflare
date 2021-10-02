@@ -6,4 +6,5 @@ export interface IsolateHotelWorkerEnv {
     readonly twitter?: string;
     readonly pushId?: string;
     readonly WorldDO: DurableObjectNamespace;
+    readonly BroadcastDO: DurableObjectNamespace;
 }

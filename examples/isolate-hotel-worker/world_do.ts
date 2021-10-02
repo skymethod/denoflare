@@ -16,6 +16,11 @@ export class WorldDO {
         this.env = env;
         this.state.blockConcurrencyWhile(async () => {
             this.colo = await new ColoFromTrace().get();
+            setInterval(() => {
+                const name = 'broadcast';
+                const stub = env.BroadcastDO.get(env.BroadcastDO.idFromName(name));
+                stub.fetch(`broadcast://${name}/change`, { method: 'POST', body: JSON.stringify({ time: new Date().toISOString() })});
+            }, 5000);
         });
     }
 

@@ -7,6 +7,7 @@ import { AppManifest } from './app_manifest.d.ts';
 import { IsolateHotelWorkerEnv } from './isolate_hotel_worker_env.d.ts';
 import { CanaryClient } from './canary_client.ts';
 export { WorldDO } from './world_do.ts';
+export { BroadcastDO } from './broadcast_do.ts';
 import * as _ from './globals.d.ts';
 
 // WORK IN PROGRESS: DO NOT USE
@@ -16,28 +17,34 @@ export default {
     async fetch(request: IncomingRequestCf, env: IsolateHotelWorkerEnv, ctx: ModuleWorkerContext): Promise<Response> {
         console.log(`version: ${[env.version, env.pushId].filter(v => v !== undefined).join('-')}`);
         const url = new URL(request.url);
+        const { pathname } = url;
 
-        const { WorldDO } = env;
+        const { WorldDO, BroadcastDO } = env;
         await registerRequest(WorldDO, request.cf.colo, ctx);
-        if (url.pathname === '/') {
+        if (pathname === '/') {
             const { version, flags, twitter, pushId } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
             return new Response(computeHtml(url, { version, flags, twitter, pushId }), { headers });
-        } else if (url.pathname === computeAppJsPath()) {
+        } else if (pathname.startsWith('/ws')) {
+            const name = 'broadcast';
+            const stub = BroadcastDO.get(BroadcastDO.idFromName(name));
+            const headers = new Headers([...request.headers, [ 'do-name', name ]]);
+            return stub.fetch(new Request(request, { headers }));
+        } else if (pathname === computeAppJsPath()) {
             return computeAppResponse();
-        } else if (url.pathname === FAVICON_SVG_PATHNAME) {
+        } else if (pathname === FAVICON_SVG_PATHNAME) {
             const headers = computeHeaders(SVG_MIME_TYPE, { immutable: true });
             return new Response(FAVICON_SVG, { headers });
-        } else if (url.pathname === '/favicon.ico' || url.pathname === FAVICON_ICO_PATHNAME) {
-            const headers = computeHeaders('image/x-icon', { immutable: url.pathname.includes(`${FAVICON_VERSION}.`) });
+        } else if (pathname === '/favicon.ico' || pathname === FAVICON_ICO_PATHNAME) {
+            const headers = computeHeaders('image/x-icon', { immutable: pathname.includes(`${FAVICON_VERSION}.`) });
             return new Response(Bytes.ofBase64(FAVICON_ICO_B64).array(), { headers });
-        } else if (url.pathname === MANIFEST_PATHNAME) {
+        } else if (pathname === MANIFEST_PATHNAME) {
             const headers = computeHeaders('application/manifest+json', { immutable: true });
             return new Response(JSON.stringify(computeManifest(), undefined, 2), { headers });
-        } else if (url.pathname === TWITTER_IMAGE_PNG_PATHNAME) {
+        } else if (pathname === TWITTER_IMAGE_PNG_PATHNAME) {
             const headers = computeHeaders('image/png', { immutable: true });
             return new Response(Bytes.ofBase64(TWITTER_IMAGE_PNG_B64).array(), { headers });
-        } else if (url.pathname === '/robots.txt') {
+        } else if (pathname === '/robots.txt') {
             const headers = computeHeaders('text/plain; charset=utf-8');
             return new Response('User-agent: *\nDisallow:\n', { headers });
         }
@@ -63,13 +70,13 @@ let _requests = 0;
 async function registerRequest(WorldDO: DurableObjectNamespace, colo: string, ctx: ModuleWorkerContext): Promise<void> {
     const requests = ++_requests;
     const client = await getOrInitCanaryClient(WorldDO, colo, ctx);
-    client.register({ requests });
+    // client.register({ requests });
 }
 
 async function getOrInitCanaryClient(WorldDO: DurableObjectNamespace, colo: string, ctx: ModuleWorkerContext): Promise<CanaryClient> {
     if (!_canaryClient) {
         _canaryClient = await CanaryClient.create(WorldDO, colo);
-        ctx.waitUntil(new Promise(() => {})); // see how long it lasts on an infinite promise
+        // ctx.waitUntil(new Promise(() => {})); // see how long it lasts on an infinite promise
     }
     return _canaryClient;
 }

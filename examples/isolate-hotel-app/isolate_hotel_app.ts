@@ -4,6 +4,7 @@
 import { css, html, LitElement } from './deps_app.ts';
 import { MATERIAL_CSS } from './material.ts';
 import { StaticData } from './static_data.ts';
+import { generateUuid } from '../../common/uuid_v4.ts';
 
 const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
 
@@ -48,4 +49,30 @@ const _data = parseStaticData();
 
 console.log('TODO the client app');
 
+const clientId = initClientId();
+
+const ws = new WebSocket(document.location.origin.replace('https://', 'wss://').replace('http://', 'ws://') + `/ws/${clientId}`);
+
+ws.onopen = _ev => {
+    console.log('open');
+};
+ws.onmessage = ev => {
+    console.log('onmessage', ev.data);
+};
+ws.onerror = _ev => {
+    console.warn('onerror');
+};
+ws.onclose = ev => {
+    const { code, reason, wasClean } = ev;
+    console.warn('onclose', {code, reason, wasClean });
+};
 setAppState('started');
+
+function initClientId(): string {
+    let clientId = localStorage.getItem('clientId');
+    if (typeof clientId === 'string' && /^[0-9a-f]{16}$/.test(clientId)) return clientId;
+    clientId = generateUuid().split('-').slice(3).join('');
+    console.log(`Generated clientId=${clientId}`);
+    localStorage.setItem('clientId', clientId);
+    return clientId;
+}
