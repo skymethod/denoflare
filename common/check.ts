@@ -17,3 +17,12 @@ export function checkOrigin(name: string, value: any): string {
     if (typeof value !== 'string' || new URL(value).toString() !== new URL(value).origin + '/') throw new Error(`Bad ${name}: ${value}`);
     return value;
 }
+
+export function checkEqual(name: string, value: string, expected: string) {
+    if (value !== expected) throw new Error(`Bad ${name}: expected ${expected}, found ${value}`);
+}
+
+export function checkMatches(name: string, value: string, pattern: RegExp): string {
+    if (!pattern.test(value)) throw new Error(`Bad ${name}: ${value}`);
+    return value;
+}

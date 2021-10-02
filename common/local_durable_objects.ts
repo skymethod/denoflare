@@ -3,6 +3,7 @@ import { Bytes } from './bytes.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 import { consoleWarn } from './console.ts';
 import { Mutex } from './mutex.ts';
+import { checkMatches } from './check.ts';
 
 export class LocalDurableObjects {
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
@@ -80,6 +81,7 @@ class DurableObjectWithMutexAroundFetch implements DurableObject {
 class LocalDurableObjectNamespace implements DurableObjectNamespace {
     private readonly className: string;
     private readonly resolver: DurableObjectResolver;
+    private readonly namesToIds = new Map<string, DurableObjectId>();
 
     constructor(className: string, resolver: DurableObjectResolver) {
         this.className = className;
@@ -87,11 +89,16 @@ class LocalDurableObjectNamespace implements DurableObjectNamespace {
     }
 
     newUniqueId(_opts?: { jurisdiction: 'eu' }): DurableObjectId {
-        throw new Error(`LocalDurableObjectNamespace.newUniqueId not implemented.`);
+        // 64 hex chars
+        return new LocalDurableObjectId(new Bytes(globalThis.crypto.getRandomValues(new Uint8Array(32))).hex());
     }
 
     idFromName(name: string): DurableObjectId {
-        return new LocalDurableObjectId(Bytes.ofUtf8(name).hex());
+        const existing = this.namesToIds.get(name);
+        if (existing) return existing;
+        const rt = this.newUniqueId(); 
+        this.namesToIds.set(name, rt);
+        return rt;
     }
 
     idFromString(hexStr: string): DurableObjectId {
@@ -130,7 +137,7 @@ class LocalDurableObjectId implements DurableObjectId {
     private readonly hexString: string;
 
     constructor(hexString: string) {
-        this.hexString = hexString;
+        this.hexString = checkMatches('hexString', hexString, /^[0-9a-f]{64}$/);
     }
 
     toString(): string {
