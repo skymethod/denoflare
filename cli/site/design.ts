@@ -1,7 +1,7 @@
 import { fromFileUrl, html, join, marked, hljs } from '../deps_cli.ts';
 import { Page } from './page.ts';
 import { computeBreadcrumbs, SidebarNode } from './sidebar.ts';
-import { SiteConfig } from './site_config.ts';
+import { SiteConfig, SiteSearchConfig } from './site_config.ts';
 import { replaceSuffix } from './site_model.ts';
 import { computeToc, Heading, TocNode } from './toc.ts';
 
@@ -9,7 +9,7 @@ export async function computeHtml(opts: { page: Page, path: string, contentRepoP
         manifestPath: string | undefined, localOrigin: string | undefined, verbose?: boolean, dumpEnv?: boolean }): Promise<string> {
     const { page, path, contentRepoPath, config, sidebar, contentUpdateTime, verbose, inputDir, manifestPath, localOrigin } = opts;
     const { markdown } = page;
-    const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo, productSvg } = config;
+    const { siteMetadata, themeColor, themeColorDark, product, productRepo, contentRepo, productSvg, search } = config;
     const { twitterUsername, image, imageAlt, faviconIco, faviconSvg, faviconMaskSvg, faviconMaskColor } = siteMetadata;
 
     const title = `${page.titleResolved} · ${siteMetadata.title}`;
@@ -68,6 +68,16 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     // product github
     outputHtml = outputHtml.replace(/<!-- start: product github -->(.*?)<!-- end: product github -->/s, (_, g1) => {
         return computeProductGithubHtml(g1, productRepo);
+    });
+
+    // docsearch css
+    outputHtml = outputHtml.replace(/<!-- start: docsearch css -->(.*?)<!-- end: docsearch css -->/s, (_, g1) => {
+        return search ? g1 : '';
+    });
+
+    // docsearch script
+    outputHtml = outputHtml.replace(/<!-- start: docsearch script -->(.*?)<!-- end: docsearch script -->/s, (_, g1) => {
+        return search ? computeDocsearchScript(g1, search) : '';
     });
 
     // choose page type template
@@ -343,4 +353,8 @@ return html
 `<p>
 <a href="${href}" class="button button-is-primary">${text}</a>
 </p>`.toString();
+}
+
+function computeDocsearchScript(designHtml: string, search: SiteSearchConfig): string {
+    return designHtml.replace('${apiKey}', search.apiKey).replace('${indexName}', search.indexName);
 }

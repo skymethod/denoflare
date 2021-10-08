@@ -1,11 +1,11 @@
 import { checkObject, checkOrigin } from '../../common/check.ts';
-import { SiteConfig, SiteMetadata } from './site_config.ts';
+import { SiteConfig, SiteMetadata, SiteSearchConfig } from './site_config.ts';
 
 // deno-lint-ignore no-explicit-any
 export function checkSiteConfig(config: any): SiteConfig {
     checkObject('config', config);
 
-    const { organization, organizationSuffix, organizationSvg, organizationUrl, product, productRepo, productSvg, contentRepo, themeColor, themeColorDark, siteMetadata } = config;
+    const { organization, organizationSuffix, organizationSvg, organizationUrl, product, productRepo, productSvg, contentRepo, themeColor, themeColorDark, search, siteMetadata } = config;
     if (organization !== undefined) checkNotBlankString('organization', organization);
     if (organizationSuffix !== undefined) checkNotBlankString('organizationSuffix', organizationSuffix);
     if (organizationSvg !== undefined) checkNotBlankString('organizationSvg', organizationSvg);
@@ -17,8 +17,9 @@ export function checkSiteConfig(config: any): SiteConfig {
     checkColor('themeColor', themeColor);
     checkColor('themeColorDark', themeColorDark);
     if (themeColorDark && !themeColor) throw new Error(`themeColor required when themeColorDark defined`);
+    if (search !== undefined) checkSearch(search);
     checkSiteMetadata(siteMetadata);
-    return { organization, organizationSuffix, organizationSvg, organizationUrl, product, productRepo, productSvg, contentRepo, themeColor, themeColorDark, siteMetadata };
+    return { organization, organizationSuffix, organizationSvg, organizationUrl, product, productRepo, productSvg, contentRepo, themeColor, themeColorDark, search, siteMetadata };
 }
 
 //
@@ -67,4 +68,12 @@ function checkTwitterUsername(name: string, value: any): value is string | undef
     if (value === undefined) return true;
     if (typeof value !== 'string' || !/^@\w+$/.test(value)) throw new Error(`Bad ${name}: ${value}`);
     return true;
+}
+
+// deno-lint-ignore no-explicit-any
+function checkSearch(search: any): SiteSearchConfig {
+    const { indexName, apiKey } = search;
+    checkNotBlankString('indexName', indexName);
+    checkNotBlankString('apiKey', apiKey);
+    return { indexName, apiKey };
 }

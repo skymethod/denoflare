@@ -52,6 +52,21 @@
             "type": "string",
             "pattern": "^#[a-fA-F0-9]{6}$"
         },
+        "search": {
+            "description": "Algolia DocSearch options, if applicable",
+            "type": "object",
+            "required": [ "indexName", "apiKey" ],
+            "properties": {
+                "indexName": {
+                    "description": "Name of the Algolia DocSearch index name for this site",
+                    "type": "string"
+                },
+                "apiKey": {
+                    "description": "Api key provided by Algolia for this site",
+                    "type": "string"
+                }
+            }
+        },
         "siteMetadata": {
             "description": "Required for title, description, url",
             "type": "object",

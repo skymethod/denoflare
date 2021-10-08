@@ -14,6 +14,8 @@ export interface SiteConfig {
     readonly themeColor?: string; // #rrggbb
     readonly themeColorDark?: string; // #rrggbb
 
+    readonly search?: SiteSearchConfig; // Algolia DocSearch options, if applicable
+
     readonly siteMetadata: SiteMetadata; // (required for title, description)
 }
 
@@ -29,4 +31,9 @@ export interface SiteMetadata {
     readonly faviconMaskSvg?: string; // relative url favicon mask svg
     readonly faviconMaskColor?: string; // #rrggbb favicon mask color (required if faviconMaskSvg provided)
     readonly manifest?: Record<string, unknown>; // override default web app manifest members
+}
+
+export interface SiteSearchConfig {
+    readonly indexName: string; // (required) Name of the Algolia DocSearch index name for this site
+    readonly apiKey: string; // (required) Api key provided by Algolia for this site
 }

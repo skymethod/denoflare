@@ -61,6 +61,10 @@ a, button, input, select, textarea {
 
     --gray-0-rgb: 29, 31, 32;
     --gray-0: rgb(var(--gray-0-rgb));
+    --gray-05-rgb: 36, 38, 40;
+    --gray-05: rgb(var(--gray-05-rgb));
+    --gray-1-rgb: 54, 57, 58;
+    --gray-1: rgb(var(--gray-1-rgb));
     --gray-2-rgb: 78, 82, 85;
     --gray-2: rgb(var(--gray-2-rgb));
     --gray-3-rgb: 98, 103, 106;
@@ -742,6 +746,43 @@ html {
     background: linear-gradient(90deg, rgba(var(--shadow-color-rgb), .5) 0, rgba(var(--shadow-color-rgb), .5) calc(100% - 6em), rgba(var(--shadow-color-rgb), 0));
 }
 
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion,
+[theme=dark] .search .algolia-autocomplete .ds-dropdown-menu [class^=ds-dataset-],
+[theme=dark] .search .algolia-autocomplete .ds-dropdown-menu:before {
+    background: var(--gray-0);
+}
+
+[theme=dark] .search .algolia-autocomplete .ds-dropdown-menu [class^=ds-dataset-], [theme=dark] .search .algolia-autocomplete .ds-dropdown-menu:before {
+    border-color: var(--gray-7);
+}
+
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion--text, 
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion--category-header,
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion--title {
+    color: var(--gray-7);
+}
+
+@media all and (max-width: 768px) {
+    [theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion .algolia-docsearch-suggestion--subcategory-column {
+        color: var(--gray-7);
+    }
+}
+
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion--highlight {
+    color: var(--logo-color);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion--text .algolia-docsearch-suggestion--highlight {
+    box-shadow: inset 0 -2px 0 0 var(--logo-color);
+}
+
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion--category-header .algolia-docsearch-suggestion--category-header-lvl0 .algolia-docsearch-suggestion--highlight,
+[theme=dark] .search .algolia-autocomplete .algolia-docsearch-suggestion--category-header .algolia-docsearch-suggestion--category-header-lvl1 .algolia-docsearch-suggestion--highlight {
+    box-shadow: inset 0 -2px 0 0 var(--logo-color);
+    color: inherit;
+}
+
 .toolbar-tools-icon-item-content > a {
     display: block;
     height: 100%;
@@ -810,6 +851,7 @@ html {
     .search-input-bottom-border {
         display: none;
     }
+
 }
 
 /* tooltip */
@@ -2663,6 +2705,9 @@ function init() {
 
 </script>
 
+<!-- start: docsearch css -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.css" />
+<!-- end: docsearch css -->
 </head>
 <body class="page" onload="init()">
     <div class="mobile-header">
@@ -2992,5 +3037,43 @@ function init() {
         </div>
     </footer>
 
+<!-- start: docsearch script -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/docsearch.js@2/dist/cdn/docsearch.min.js"></script>
+<script type="text/javascript"> 
+
+var a = docsearch({
+    apiKey: '${apiKey}',
+    indexName: '${indexName}',
+    inputSelector: '#search-input',
+    autocompleteOptions: {
+        autoselect: true,
+        openOnFocus: true,
+        clearOnSelected: false,
+        tabAutocomplete: false,
+        appendTo: '.search-input-wrapper',
+        hint: false,
+        autoselectOnBlur: matchMedia('(pointer: course)').matches
+    },
+    debug: false
+});
+
+var o = a.autocomplete.autocomplete.getWrapper();
+a.autocomplete.on('autocomplete:shown', (function(e) {
+    o.setAttribute('data-expanded', true);
+})),
+a.autocomplete.on('autocomplete:closed', (function(e) {
+    o.setAttribute('data-expanded', false);
+}));
+var u = a.input[0],
+    l = u.closest('.search');
+u.addEventListener('focus', (function() {
+    l.setAttribute('is-focused', '');
+}));
+u.addEventListener('blur', (function() {
+    l.removeAttribute('is-focused');
+}));
+
+</script>
+<!-- end: docsearch script -->
 </body>
 </html>
