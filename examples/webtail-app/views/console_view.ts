@@ -122,11 +122,33 @@ export function initConsole(document: HTMLDocument, vm: WebtailAppVM): () => voi
                 const tokens = msg.split('%c');
                 for (let i = 0; i < tokens.length; i++) {
                     const span = document.createElement('span');
+                    let rendered = false;
                     if (i > 0 && i < tokens.length - 1) {
                         const style = data[pos + i];
                         span.setAttribute('style', style);
+
+                        // set special do filter links if applicable
+                        if (typeof style === 'string') {
+                            if (style.includes('x-')) {
+                                const m = /x-durable-object-(class|name|id)\s*:\s*'(.*?)'/.exec(style);
+                                if (m) {
+                                    const type = m[1];
+                                    const value = m[2];
+                                    const logpropName = 'durableObject' + type.substring(0, 1).toUpperCase() + type.substring(1);
+                                    const a = document.createElement('a');
+                                    a.href = '#';
+                                    a.onclick = () => {
+                                        vm.setLogpropFilter([ logpropName + ':' + value ]);
+                                        vm.onChange();
+                                    };
+                                    a.appendChild(document.createTextNode(tokens[i]));
+                                    span.appendChild(a);
+                                    rendered = true;
+                                }
+                            }
+                        }
                     }
-                    renderTextIntoSpan(tokens[i], span);
+                    if (!rendered) renderTextIntoSpan(tokens[i], span);
                     lineElement.appendChild(span);
                 }
                 pos += 1 + tokens.length - 1;

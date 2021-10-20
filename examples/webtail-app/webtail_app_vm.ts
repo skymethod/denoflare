@@ -1,10 +1,10 @@
 import { CloudflareApiError, listScripts, listTails, Tail, setEqual, setIntersect, setSubtract, isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions, ErrorInfo, 
-    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, dumpMessagePretty, AdditionalLog, generateUuid } from './deps_app.ts';
+    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, AdditionalLog, generateUuid } from './deps_app.ts';
 import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
 import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
-import { parseLogProps } from '../../common/tail_pretty.ts';
+import { parseLogProps, dumpMessagePretty } from '../../common/tail_pretty.ts';
 import { HeaderFilter } from '../../common/tail.ts';
 
 // deno-lint-ignore no-explicit-any
@@ -465,13 +465,18 @@ export class WebtailAppVM {
         filterForm.helpText = `'key', or 'key:value', comma-separated if multiple, value may include *`;
         filterForm.applyValue = () => {
             const newValue = parseLogpropFiltersFromFieldValue();
-            if (setEqual(new Set(filter.logprop1 || []), new Set(newValue))) return;
-            filter.logprop1 = newValue;
-            this.applyFilter({ save: true });
-            const text = newValue.length === 0 ? 'no logprop filter' : newValue.join(', ');
-            this.logWithPrefix(`Logprop filter changed to: ${text}`);
+            this.setLogpropFilter(newValue);
         };
         this.onChange();
+    }
+
+    setLogpropFilter(logpropFilters: string[]) {
+        const { filter } = this;
+        if (setEqual(new Set(filter.logprop1 || []), new Set(logpropFilters))) return;
+        filter.logprop1 = logpropFilters;
+        this.applyFilter({ save: true });
+        const text = logpropFilters.length === 0 ? 'no logprop filter' : logpropFilters.join(', ');
+        this.logWithPrefix(`Logprop filter changed to: ${text}`);
     }
 
     hasAnyFilters(): boolean {

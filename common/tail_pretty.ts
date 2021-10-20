@@ -19,9 +19,27 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
         const colo = cf?.colo || props.colo || '???';
         if (cf === undefined) {
             // durable object request
-            const durableObjectInfo = computeDurableObjectInfo(props);
-            logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] [%c${durableObjectInfo}%c] ${method} %c${url}`, 
-                'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: gray', '', 'color: red; font-style: bold;');
+            const { durableObjectClass, durableObjectName, durableObjectId } = computeDurableObjectInfo(props);
+            const doTemplates: string[] = [];
+            const doStyles: string[] = [];
+            if (durableObjectClass) {
+                doTemplates.push(`%c${durableObjectClass}%c`);
+                doStyles.push(`color: gray; x-durable-object-class: '${durableObjectClass}'`, '');
+            }
+            if (durableObjectName) {
+                doTemplates.push(`%c${durableObjectName}%c`);
+                doStyles.push(`color: gray; x-durable-object-name: '${durableObjectName}'`, '');
+            }
+            if (durableObjectId) {
+                doTemplates.push(`%c${computeShortDurableObjectId(durableObjectId)}%c`);
+                doStyles.push(`color: gray; x-durable-object-id: '${durableObjectId}'`, '');
+            }
+            if (doTemplates.length === 0) {
+                doTemplates.push(`%cDO%c`);
+                doStyles.push('color: gray', '');
+            }
+            logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ${method} %c${url}`, 
+                'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles, 'color: red; font-style: bold;');
         } else {
             logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] ${method} %c${url}`, 
                 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
@@ -68,15 +86,23 @@ export function parseLogProps(logs: readonly TailMessageLog[]): { props: Record<
 
 //
 
-function computeDurableObjectInfo(props: Record<string, unknown>): string {
-    const durableObjectClass = (typeof props.durableObjectClass === 'string' ? props.durableObjectClass : '').trim();
-    const durableObjectId = (typeof props.durableObjectId === 'string' ? props.durableObjectId : '').trim();
-    const durableObjectName = (typeof props.durableObjectName === 'string' ? props.durableObjectName : '').trim();
-    const rt: string[] = [];
-    if (durableObjectClass.length > 0) rt.push(durableObjectClass);
-    if (durableObjectName.length > 0) rt.push(durableObjectName);
-    if (durableObjectId.length > 0) rt.push(computeShortDurableObjectId(durableObjectId));
-    return rt.length > 0 ? rt.join(' ') : 'DO';
+interface DurableObjectInfo {
+    readonly durableObjectClass?: string;
+    readonly durableObjectId?: string;
+    readonly durableObjectName?: string;
+}
+
+//
+
+function computeDurableObjectInfo(props: Record<string, unknown>): DurableObjectInfo {
+    const durableObjectClass = undefinedIfEmpty((typeof props.durableObjectClass === 'string' ? props.durableObjectClass : '').trim());
+    const durableObjectId = undefinedIfEmpty((typeof props.durableObjectId === 'string' ? props.durableObjectId : '').trim());
+    const durableObjectName = undefinedIfEmpty((typeof props.durableObjectName === 'string' ? props.durableObjectName : '').trim());
+    return { durableObjectClass, durableObjectId, durableObjectName };
+}
+
+function undefinedIfEmpty(str: string): string | undefined {
+    return str === '' ? undefined : str;
 }
 
 function computeShortDurableObjectId(id: string): string {
