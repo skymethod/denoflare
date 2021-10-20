@@ -1,11 +1,9 @@
 import { CloudflareApiError, listScripts, listTails, Tail, setEqual, setIntersect, setSubtract, isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions, ErrorInfo, 
-    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, AdditionalLog, generateUuid } from './deps_app.ts';
+    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, AdditionalLog, generateUuid, dumpMessagePretty, parseLogProps, HeaderFilter } from './deps_app.ts';
 import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
 import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
-import { parseLogProps, dumpMessagePretty } from '../../common/tail_pretty.ts';
-import { HeaderFilter } from '../../common/tail.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
