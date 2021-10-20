@@ -183,7 +183,8 @@ const FILTERS_HTML = (vm: WebtailAppVM) => {
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editMethodFilter(); }}>${computeMethodFilterText(vm.filter)}</a>,
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSamplingRateFilter(); }}>${computeSamplingRateFilterText(vm.filter)}</a>, 
      <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editSearchFilter(); }}>${computeSearchFilterText(vm.filter)}</a>, 
-     and <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editHeaderFilter(); }}>${computeHeaderFilterText(vm.filter)}</a>.
+    <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editHeaderFilter(); }}>${computeHeaderFilterText(vm.filter)}</a>,
+     and <a href="#" @click=${(e: Event) => { e.preventDefault(); vm.editLogpropFilter(); }}>${computeLogpropFilterText(vm.filter)}</a>.
      ${vm.hasAnyFilters() ? html`(<a href="#" @click=${(e: Event) => { e.preventDefault(); vm.resetFilters(); }}>reset</a>)` : ''}`;
 };
 
@@ -232,6 +233,13 @@ function computeHeaderFilterText(filter: FilterState): string {
     return header1.length === 0 ? 'no header filter'
         : header1.length === 1 ? `header filter of ${header1[0]}`
         : `header filters of [${header1.join(', ')}]`;
+}
+
+function computeLogpropFilterText(filter: FilterState): string {
+    const logprop1 = filter.logprop1 || [];
+    return logprop1.length === 0 ? 'no logprop filter'
+        : logprop1.length === 1 ? `logprop filter of ${logprop1[0]}`
+        : `logprop filters of [${logprop1.join(', ')}]`;
 }
 
 function computeTailsText(tailCount: number): string {

@@ -44,24 +44,7 @@ export function formatLocalYyyyMmDdHhMmSs(date: Date): string {
     return [date.getFullYear(), '-', pad2(date.getMonth() + 1), '-', pad2(date.getDate()), ' ', pad2(date.getHours()), ':', pad2(date.getMinutes()), ':', pad2(date.getSeconds())].join('');
 }
 
-//
-
-function computeDurableObjectInfo(props: Record<string, unknown>): string {
-    const durableObjectClass = (typeof props.durableObjectClass === 'string' ? props.durableObjectClass : '').trim();
-    const durableObjectId = (typeof props.durableObjectId === 'string' ? props.durableObjectId : '').trim();
-    const durableObjectName = (typeof props.durableObjectName === 'string' ? props.durableObjectName : '').trim();
-    const rt: string[] = [];
-    if (durableObjectClass.length > 0) rt.push(durableObjectClass);
-    if (durableObjectName.length > 0) rt.push(durableObjectName);
-    if (durableObjectId.length > 0) rt.push(computeShortDurableObjectId(durableObjectId));
-    return rt.length > 0 ? rt.join(' ') : 'DO';
-}
-
-function computeShortDurableObjectId(id: string): string {
-    return /^[0-9a-fA-F]{5,}$/.test(id) ? `${id.substring(0, 4)}…` : id;
-}
-
-function parseLogProps(logs: readonly TailMessageLog[]): { props: Record<string, unknown>, remainingLogs: readonly TailMessageLog[] } {
+export function parseLogProps(logs: readonly TailMessageLog[]): { props: Record<string, unknown>, remainingLogs: readonly TailMessageLog[] } {
     const remainingLogs: TailMessageLog[] = [];
     const props: Record<string, unknown> = {};
     for (const log of logs) {
@@ -81,6 +64,23 @@ function parseLogProps(logs: readonly TailMessageLog[]): { props: Record<string,
         remainingLogs.push(log);
     }
     return { props, remainingLogs };
+}
+
+//
+
+function computeDurableObjectInfo(props: Record<string, unknown>): string {
+    const durableObjectClass = (typeof props.durableObjectClass === 'string' ? props.durableObjectClass : '').trim();
+    const durableObjectId = (typeof props.durableObjectId === 'string' ? props.durableObjectId : '').trim();
+    const durableObjectName = (typeof props.durableObjectName === 'string' ? props.durableObjectName : '').trim();
+    const rt: string[] = [];
+    if (durableObjectClass.length > 0) rt.push(durableObjectClass);
+    if (durableObjectName.length > 0) rt.push(durableObjectName);
+    if (durableObjectId.length > 0) rt.push(computeShortDurableObjectId(durableObjectId));
+    return rt.length > 0 ? rt.join(' ') : 'DO';
+}
+
+function computeShortDurableObjectId(id: string): string {
+    return /^[0-9a-fA-F]{5,}$/.test(id) ? `${id.substring(0, 4)}…` : id;
 }
 
 function appendProps(src: Record<string, unknown> | undefined, dst: Record<string, unknown>) {

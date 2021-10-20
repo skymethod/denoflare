@@ -4,6 +4,8 @@ import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
 import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
+import { parseLogProps } from '../../common/tail_pretty.ts';
+import { HeaderFilter } from '../../common/tail.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
@@ -442,6 +444,36 @@ export class WebtailAppVM {
         this.onChange();
     }
 
+    editLogpropFilter() {
+        if (this.demoMode) return;
+        const { filter, filterForm } = this;
+        const parseLogpropFiltersFromFieldValue = () => {
+            const { fieldValue } = filterForm;
+            const v = (fieldValue || '').trim();
+            if (v === '') return [];
+            return distinct(v.split(',').map(v => v.trim()).filter(v => v !== ''));
+        };
+        const computeFieldValueFromLogPropFilters = () => {
+            return distinct(filter.logprop1 || []).join(', ');
+        };
+        filterForm.showing = true;
+        filterForm.enabled = true;
+        filterForm.fieldName = 'Logprop(s):';
+        filterForm.fieldValueChoices = [];
+        filterForm.fieldValueOptions = [];
+        filterForm.fieldValue = computeFieldValueFromLogPropFilters();
+        filterForm.helpText = `'key', or 'key:value', comma-separated if multiple, value may include *`;
+        filterForm.applyValue = () => {
+            const newValue = parseLogpropFiltersFromFieldValue();
+            if (setEqual(new Set(filter.logprop1 || []), new Set(newValue))) return;
+            filter.logprop1 = newValue;
+            this.applyFilter({ save: true });
+            const text = newValue.length === 0 ? 'no logprop filter' : newValue.join(', ');
+            this.logWithPrefix(`Logprop filter changed to: ${text}`);
+        };
+        this.onChange();
+    }
+
     hasAnyFilters(): boolean {
         const { filter } = this;
         const { event1 } = filter;
@@ -785,6 +817,7 @@ export interface FilterState {
     samplingRate1?: number;  // 0 to 1
     search1?: string; // search string
     header1?: string[]; // foo, or foo:bar
+    logprop1?: string[]; // foo:bar
 }
 
 //
@@ -892,11 +925,38 @@ function computeTailOptionsForFilter(filter: FilterState): TailOptions {
 }
 
 function computeMessagePassesFilter(message: TailMessage, filter: FilterState): boolean {
+    if (!computeMessagePassesLogPropFilter(message, filter.logprop1)) return false;
     if (filter.event1 === 'cron' || filter.event1 === 'http') {
         const isCron = isTailMessageCronEvent(message);
         return isCron && filter.event1 === 'cron' || !isCron && filter.event1 === 'http';
     }
     return true;
+}
+
+function computeMessagePassesLogPropFilter(message: TailMessage, logprop1?: string[]): boolean {
+    if (logprop1 === undefined || logprop1.length === 0) return true;
+    const logpropFilters = logprop1.map(parseHeaderFilter);
+    const { props } = parseLogProps(message.logs);
+    for (const logpropFilter of logpropFilters) {
+        if (computePropsPassLogpropFilter(props, logpropFilter)) return true;
+    }
+    return false;
+}
+
+function computePropsPassLogpropFilter(props: Record<string, unknown>, logpropFilter: HeaderFilter): boolean {
+    const val = props[logpropFilter.key];
+    if (val === undefined) return false;
+    if (logpropFilter.query === undefined) return true;
+    const q = logpropFilter.query.trim().replaceAll(/\*+/g, '*');
+    if (!q.includes('*')) return q === val;
+    if (q === '*') return true;
+    if (typeof val !== 'string') return false;
+    const pattern = '^' + escapeForRegex(q).replaceAll('\\*', '.*') + '$';
+    return new RegExp(pattern).test(val);
+}
+
+function escapeForRegex(str: string): string {
+    return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 }
 
 function distinct(values: string[]): string[] { // and maintain order
