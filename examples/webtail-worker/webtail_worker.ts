@@ -10,6 +10,9 @@ export default {
     async fetch(request: IncomingRequestCf, env: WorkerEnv, _ctx: ModuleWorkerContext): Promise<Response> {
         const url = new URL(request.url);
 
+        const redirectResponse = env.redirectHosts ? computeRedirectResponse(url, env.redirectHosts) : undefined;
+        if (redirectResponse) return redirectResponse;
+
         if (url.pathname === '/') {
             const { version, flags, twitter } = env;
             const headers = computeHeaders('text/html; charset=utf-8');
@@ -53,6 +56,7 @@ export interface WorkerEnv {
     readonly version?: string;
     readonly flags?: string;
     readonly twitter?: string;
+    readonly redirectHosts?: string;
 }
 
 //
@@ -63,6 +67,25 @@ const FAVICON_ICO_PATHNAME = `/favicon.${FAVICON_VERSION}.ico`;
 const MANIFEST_PATHNAME = `/app.${MANIFEST_VERSION}.webmanifest`;
 const TWITTER_IMAGE_PNG_PATHNAME = `/og-image.${TWITTER_IMAGE_VERSION}.png`;
 const SVG_MIME_TYPE = 'image/svg+xml';
+
+let _redirectHosts: Map<string, string> | undefined;
+
+function computeRedirectResponse(url: URL, redirectHosts: string): Response | undefined {
+    if (!_redirectHosts) {
+        _redirectHosts = new Map<string, string>();
+        for (const nvp of redirectHosts.split(',').map(v => v.trim())) {
+            const tokens = nvp.split(':').map(v => v.trim());
+            if (tokens.length === 2 && tokens[0].length > 0 && tokens[1].length > 0) {
+                _redirectHosts.set(tokens[0], tokens[1]);
+            }
+        }
+    }
+    const redirectHost = _redirectHosts.get(url.host);
+    if (redirectHost) {
+        const location = url.toString().replace(url.host, redirectHost);
+        return new Response('', { status: 308, headers: { 'Location' : location } });
+    }
+}
 
 function computeManifest(): AppManifest {
     const name = 'Webtail';
