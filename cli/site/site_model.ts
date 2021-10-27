@@ -218,7 +218,7 @@ function computeContentType(resource: ResourceInfo): string {
 
 function shouldIncludeInOutput(path: string, extension: string): boolean {
     if (path === '/config.json' || path === '/config.jsonc' || path.toLowerCase() === '/readme.html') return false;
-    return path === '/_redirects' || EXTENSIONS_TO_INCLUDE_IN_OUTPUT.has(extension);
+    return path === '/_redirects' || path === '/_headers' || EXTENSIONS_TO_INCLUDE_IN_OUTPUT.has(extension);
 }
 
 function computeOutputPath(inputFile: string, inputDir: string, outputDir: string) {
