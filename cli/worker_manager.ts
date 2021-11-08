@@ -61,9 +61,11 @@ export class WorkerManager {
 
         // make external fetch calls on behalf of the worker
         const bodies = new Bodies();
+        const requestBodyResolver = makeBodyResolverOverRpc(rpcChannel);
         rpcChannel.addRequestHandler('fetch', async requestData => {
-            const { method, url, headers } = requestData as PackedRequest;
-            const res = await fetch(url, { method, headers });
+            const { method, url, headers, bodyId } = requestData as PackedRequest;
+            const body = bodyId === undefined ? undefined : requestBodyResolver(bodyId);
+            const res = await fetch(url, { method, headers, body });
             const packed = await packResponse(res, bodies, v => rpcHostWebSockets.packWebSocket(v));
             return { data: packed, transfer: packed.bodyBytes ? [ packed.bodyBytes.buffer ] : [] };
         });
