@@ -10,8 +10,10 @@ export async function computeDenoGraphLocalPaths(path: string): Promise<string[]
 
 function findLocalPaths(graph: ModuleGraphJson): string[] {
     const rt = new Set<string>();
-    const rootPath = fromFileUrl(graph.root);
-    rt.add(rootPath);
+    for (const root of graph.roots) {
+        const rootPath = fromFileUrl(root);
+        rt.add(rootPath);
+    }
     for (const { specifier } of graph.modules) {
         if (specifier.startsWith('file://')) {
             rt.add(fromFileUrl(specifier));
