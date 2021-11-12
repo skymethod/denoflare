@@ -1,12 +1,17 @@
-import { createGraph, fromFileUrl, ModuleGraphJson, toFileUrl } from './deps_cli.ts';
+import { createGraph, fromFileUrl, ModuleGraphJson, toFileUrl, isAbsolute, join, normalize } from './deps_cli.ts';
 
 export async function computeDenoGraphLocalPaths(path: string): Promise<string[]> {
-    const graph = await createGraph(toFileUrl(path).toString());
+    const absolutePath = toAbsolutePath(path);
+    const graph = await createGraph(toFileUrl(absolutePath).toString());
     const obj = graph.toJSON();
     return findLocalPaths(obj);
 }
 
 //
+
+function toAbsolutePath(path: string): string {
+    return isAbsolute(path) ? path : normalize(join(Deno.cwd(), path));
+}
 
 function findLocalPaths(graph: ModuleGraphJson): string[] {
     const rt = new Set<string>();
