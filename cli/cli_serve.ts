@@ -91,10 +91,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
         return rt;
     }
 
-    const scriptPathOrUrl = scriptUrl ? scriptUrl.toString() : script!.path;
-
     const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
-        const scriptType = /^.*\.(ts|mjs)$/.test(scriptPathOrUrl) ? 'module' : 'script';
+        const scriptType = /^.*\.(ts|mjs)$/.test(rootSpecifier) ? 'module' : 'script';
         if (isolation === 'none') {
             let objects: LocalDurableObjects | undefined; 
             const localWebSockets = new LocalWebSockets();
@@ -114,18 +112,18 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
             const bindings = await bindingsProvider();
-            return await WorkerExecution.start(scriptPathOrUrl, scriptType, bindings, callbacks);
+            return await WorkerExecution.start(rootSpecifier, scriptType, bindings, callbacks);
         } else {
             // start the host for the permissionless deno workers
             const workerManager = await WorkerManager.start();
         
             // run the cloudflare worker script inside deno worker
             const runScript = async () => {
-                consoleLog(`runScript: ${scriptPathOrUrl}`);
+                consoleLog(`runScript: ${rootSpecifier}`);
 
                 const bindings = await bindingsProvider();
 
-                const scriptContents = await computeScriptContents(scriptPathOrUrl, scriptType);
+                const scriptContents = await computeScriptContents(rootSpecifier, scriptType);
                 try {
                     await workerManager.run(scriptContents, scriptType, { bindings, profile });
                 } catch (e) {
@@ -136,8 +134,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
             await runScript();
         
             // when a file-based script changes, recreate the deno worker
-            if (script) {
-                const _moduleWatcher = new ModuleWatcher(scriptPathOrUrl, runScript);
+            if (!rootSpecifier.startsWith('https://')) {
+                const _moduleWatcher = new ModuleWatcher(rootSpecifier, runScript);
             }
             return workerManager;
         }
