@@ -4,12 +4,13 @@ import { push } from './cli_push.ts';
 import { site } from './cli_site.ts';
 import { parseFlags } from './deps_cli.ts';
 import { CLI_VERSION } from './cli_version.ts';
+import { analytics } from './cli_analytics.ts';
 
 const args = parseFlags(Deno.args);
 
 if (args._.length > 0) {
     const command = args._[0];
-    const fn = { serve, push, tail, site, version }[command];
+    const fn = { serve, push, tail, site, analytics, version }[command];
         if (fn) {
             await fn(args._.slice(1), args);
             Deno.exit(0);
@@ -32,6 +33,7 @@ function dumpHelp() {
         '    push        Upload a worker script to Cloudflare Workers',
         '    tail        View a stream of logs from a published worker',
         '    site        Develop and deploy a static docs site to Cloudflare Pages',
+        '    analytics   Dump stats via the Cloudflare GraphQL Analytics API',
         '    version     Dump cli version',
         '',
         'For command-specific help: denoflare [command] --help',
