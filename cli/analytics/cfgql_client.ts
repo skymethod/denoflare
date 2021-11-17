@@ -19,6 +19,10 @@ export class CfGqlClient {
         return await _getDurableObjectStorageByDate(this.profile, startDateInclusive, endDateInclusive);
     }
 
+    async getDurableObjectInvocationsByDate(startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetDurableObjectInvocationsByDateRow>> {
+        return await _getDurableObjectInvocationsByDate(this.profile, startDateInclusive, endDateInclusive);
+    }
+
 }
 
 export interface CfGqlResult<T> {
@@ -252,6 +256,72 @@ async function _getDurableObjectStorageByDate(profile: Profile, startDateInclusi
             const date = group.dimensions.date;
             const maxStoredBytes = group.max.storedBytes;
             rows.push({ date, maxStoredBytes });
+        }
+    }
+    return { fetchMillis, cost, budget, rows };
+}
+
+//#endregion
+
+//#region GetDurableObjectInvocationsByDate
+
+export interface GetDurableObjectInvocationsByDateRow {
+    readonly date: string,
+    readonly avgSampleInterval: number,
+    readonly sumRequests: number,
+}
+
+async function _getDurableObjectInvocationsByDate(profile: Profile, startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetDurableObjectInvocationsByDateRow>> {
+    const resObj = await query(profile, q => q.object('durableObjectsInvocationsAdaptiveGroups')
+        .argLong('limit', 10000)
+        .argRaw('filter', `{date_geq: $start, date_leq: $end}`)
+        .argRaw('orderBy', `[date_ASC]`)
+        .object('dimensions')
+            .scalar('date')
+            .end()
+        .object('avg')
+            .scalar('sampleInterval')
+            .end()
+        .object('sum')
+            .scalar('requests')
+            .end(), { start: startDateInclusive, end: endDateInclusive });
+    
+
+    interface GqlResponse {
+        data: {
+            cost: number,
+            viewer: {
+                budget: number,
+                accounts: {
+                    accountTag: string,
+                    durableObjectsInvocationsAdaptiveGroups: {
+                        dimensions: {
+                            date: string,
+                        },
+                        avg: {
+                            sampleInterval: number,
+                        },
+                        sum: {
+                            requests: number,
+                        },
+                    }[],
+                }[],
+            },
+        },
+    }
+
+    const fetchMillis = resObj.fetchMillis;
+    const res = resObj as GqlResponse;
+    const cost = res.data.cost;
+    const budget = res.data.viewer.budget;
+    const rows: GetDurableObjectInvocationsByDateRow[] = [];
+    for (const account of res.data.viewer.accounts) {
+        checkEqual('account.accountTag', account.accountTag, profile.accountId);
+        for (const group of account.durableObjectsInvocationsAdaptiveGroups) {
+            const date = group.dimensions.date;
+            const avgSampleInterval = group.avg.sampleInterval;
+            const sumRequests = group.sum.requests;
+            rows.push({ date, avgSampleInterval, sumRequests });
         }
     }
     return { fetchMillis, cost, budget, rows };

@@ -51,75 +51,121 @@ async function dumpDurableObjects(profile: Profile) {
     const end = utcCurrentDate();
     const start = addDaysToDate(end, -28);
 
-    if (true) {
-        const { fetchMillis, cost, budget, rows } = await client.getDurableObjectStorageByDate(start, end);
-        for (const row of rows) {
-            const gb = row.maxStoredBytes / 1024 / 1024 / 1024;
-            const cost = gb * .20;
-            console.log(`${row.date}\t${gb.toFixed(2)}gb\t$${cost.toFixed(2)}/mo`);
-        }
-        console.log(`fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
-    }
-    if (true) {
-        const { fetchMillis, cost, budget, rows } = await client.getDurableObjectPeriodicMetricsByDate(start, end);
-        const tableRows: (string | number)[][] = [];
-        tableRows.push([
-            'date',
-            'ws.max',
-            'ws.in',
-            'ws.out',
-            'subreq',
-            'active.gbs',
-            '',
-            'reads',
-            '',
-            'writes',
-            '',
-            'deletes',
-            '',
-            'total.cost',
-        ]);
-        const sums = {
-            activeCost: 0,
-            readUnitsCost: 0,
-            writeUnitsCost: 0,
-            deletesCost: 0,
-            totalCost: 0,
-        }
-        for (const row of rows) {
-            const activeTimeSeconds = row.sumActiveTime / 1000 / 1000;
-            const activeGbSeconds = activeTimeSeconds * 128 / 1024;
-            const activeCost = activeGbSeconds / 400000 * 12.50;
-            sums.activeCost += activeCost;
-            const readUnitsCost = row.sumStorageReadUnits / 1000000 * .20;
-            sums.readUnitsCost += readUnitsCost;
-            const writeUnitsCost = row.sumStorageWriteUnits / 1000000 * 1;
-            sums.writeUnitsCost += writeUnitsCost;
-            const deletesCost = row.sumStorageDeletes / 1000000 * 1;
-            sums.deletesCost += deletesCost;
-            const totalCost = activeCost + readUnitsCost + writeUnitsCost + deletesCost;
-            sums.totalCost += totalCost;
+    const [ storage, periodic, invocations ] = await Promise.all([ 
+        client.getDurableObjectStorageByDate(start, end),
+        client.getDurableObjectPeriodicMetricsByDate(start, end),
+        client.getDurableObjectInvocationsByDate(start, end),
+    ]);
 
-            const tableRow = [
-                row.date, 
-                row.maxActiveWebsocketConnections,
-                row.sumInboundWebsocketMsgCount,
-                row.sumOutboundWebsocketMsgCount,
-                row.sumSubrequests,
-                `${activeGbSeconds.toFixed(2)}gb-s`, 
-                `$${activeCost.toFixed(2)}`, 
-                row.sumStorageReadUnits, 
-                `$${readUnitsCost.toFixed(2)}`,
-                row.sumStorageWriteUnits,
-                `$${writeUnitsCost.toFixed(2)}`,
-                row.sumStorageDeletes,
-                `$${deletesCost.toFixed(2)}`,
-                `$${totalCost.toFixed(2)}`,
-            ];
-            tableRows.push(tableRow);
-        }
-        tableRows.push(['', '', '', '', '', '', `$${sums.activeCost.toFixed(2)}`, '', `$${sums.readUnitsCost.toFixed(2)}`, '', `$${sums.writeUnitsCost.toFixed(2)}`, '', `$${sums.deletesCost.toFixed(2)}`, `$${sums.totalCost.toFixed(2)}`]);
-        dumpTable(tableRows);
+    const tableRows: (string | number)[][] = [];
+    tableRows.push([
+        'date',
+        'req',
+        '',
+        'ws.max',
+        'ws.in',
+        'ws.out',
+        '',
+        'subreq',
+        '',
+        'active.gbs',
+        '',
+        'reads',
+        '',
+        'writes',
+        '',
+        'deletes',
+        '',
+        'storage',
+        '',
+        'total.cost',
+    ]);
+    const sums = {
+        reqCost: 0,
+        wsCost: 0,
+        subreqCost: 0,
+        activeCost: 0,
+        readUnitsCost: 0,
+        writeUnitsCost: 0,
+        deletesCost: 0,
+        storageCost: 0,
+        totalCost: 0,
+    };
+    for (const row of periodic.rows) {
+        const { sumRequests } = invocations.rows.filter(v => v.date === row.date)[0];
+        const { maxStoredBytes } = storage.rows.filter(v => v.date === row.date)[0];
+
+        const reqCost = sumRequests / 1000000 * 0.15;
+        sums.reqCost += reqCost;
+        const wsCost = row.sumInboundWebsocketMsgCount / 1000000 * 0.15;
+        sums.wsCost += wsCost;
+        const subreqCost = row.sumSubrequests / 1000000 * 0.15;
+        sums.subreqCost += subreqCost;
+        const activeTimeSeconds = row.sumActiveTime / 1000 / 1000;
+        const activeGbSeconds = activeTimeSeconds * 128 / 1024;
+        const activeCost = activeGbSeconds / 400000 * 12.50;
+        sums.activeCost += activeCost;
+        const readUnitsCost = row.sumStorageReadUnits / 1000000 * .20;
+        sums.readUnitsCost += readUnitsCost;
+        const writeUnitsCost = row.sumStorageWriteUnits / 1000000 * 1;
+        sums.writeUnitsCost += writeUnitsCost;
+        const deletesCost = row.sumStorageDeletes / 1000000 * 1;
+        sums.deletesCost += deletesCost;
+        const storageGb = maxStoredBytes / 1024 / 1024 / 1024;
+        const storageCost = storageGb * .20 / 30;
+        sums.storageCost += storageCost;
+        const totalCost = reqCost + wsCost + subreqCost + activeCost + readUnitsCost + writeUnitsCost + deletesCost + storageCost;
+        sums.totalCost += totalCost;
+
+        const tableRow = [
+            row.date,
+            sumRequests,
+            `$${reqCost.toFixed(2)}`,
+            row.maxActiveWebsocketConnections,
+            row.sumInboundWebsocketMsgCount,
+            row.sumOutboundWebsocketMsgCount,
+            `$${wsCost.toFixed(2)}`,
+            row.sumSubrequests,
+            `$${subreqCost.toFixed(2)}`,
+            `${activeGbSeconds.toFixed(2)}gb-s`, 
+            `$${activeCost.toFixed(2)}`, 
+            row.sumStorageReadUnits, 
+            `$${readUnitsCost.toFixed(2)}`,
+            row.sumStorageWriteUnits,
+            `$${writeUnitsCost.toFixed(2)}`,
+            row.sumStorageDeletes,
+            `$${deletesCost.toFixed(2)}`,
+            `${storageGb.toFixed(2)}gb`,
+            `$${storageCost.toFixed(2)}`,
+            `$${totalCost.toFixed(2)}`,
+        ];
+        tableRows.push(tableRow);
+    }
+    tableRows.push([
+        '', 
+        '', 
+        `$${sums.reqCost.toFixed(2)}`, 
+        '', 
+        '', 
+        '', 
+        `$${sums.wsCost.toFixed(2)}`, 
+        '', 
+        `$${sums.subreqCost.toFixed(2)}`, 
+        '', 
+        `$${sums.activeCost.toFixed(2)}`, 
+        '', 
+        `$${sums.readUnitsCost.toFixed(2)}`, 
+        '', 
+        `$${sums.writeUnitsCost.toFixed(2)}`, 
+        '', 
+        `$${sums.deletesCost.toFixed(2)}`,
+        '',
+        `$${sums.storageCost.toFixed(2)}`,
+        `$${sums.totalCost.toFixed(2)}`
+    ]);
+    dumpTable(tableRows);
+
+    for (const { fetchMillis, cost, budget } of [ storage, periodic, invocations ]) {
         console.log(`fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
     }
 }
