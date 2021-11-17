@@ -1,7 +1,7 @@
 import { Profile } from '../common/config.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { loadConfig, resolveProfile } from './config_loader.ts';
-import { GraphqlQuery } from './analytics/graphql.ts';
+import { CfGqlClient } from './analytics/cfgql_client.ts';
 
 export async function analytics(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const firstArg = args[0];
@@ -45,51 +45,102 @@ function dumpHelp() {
 }
 
 async function dumpDurableObjects(profile: Profile) {
-    const { accountId, apiToken } = profile;
-
-    const debug = false;
-    const query = GraphqlQuery.create()
-        .scalar('cost')
-        .object('viewer')
-            .scalar('budget')
-            .object('accounts').argObject('filter', 'accountTag', accountId)
-            .scalar('accountTag')
-            .object('durableObjectsStorageGroups')
-                .argLong('limit', 10000)
-                .argRaw('filter', `{date_geq: $start, date_leq: $end}`)
-                .argRaw('orderBy', `[date_ASC]`)
-                .object('dimensions')
-                    .scalar('date')
-                    .end()
-                .object('max')
-                    .scalar('storedBytes')
-                    .end()
-        .top().toString();
-
-    if (debug) console.log(query);
+    const client = new CfGqlClient(profile);
+    // CfGqlClient.DEBUG = true;
 
     const end = utcCurrentDate();
-    const start = addDaysToDate(end, -7);
-    const reqObj = { query, variables: { start, end } };
+    const start = addDaysToDate(end, -28);
 
-    const body = JSON.stringify(reqObj);
-    const res = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', 'Authorization': `Bearer ${apiToken}` }, body });
-    if (res.status !== 200) throw new Error(`Bad res.status: ${res.status}, expected 200, text=${await res.text()}`);
-    const contentType = res.headers.get('content-type');
-    if (contentType !== 'application/json') throw new Error(`Bad res.contentType: ${contentType}, expected application/json, found ${contentType}, text=${await res.text()}`);
-    const resObj = await res.json();
-    
-    if (debug) console.log(JSON.stringify(resObj, undefined, 2));
-
-    const qqlResponse = resObj as GqlResponse;
-    for (const account of qqlResponse.data.viewer.accounts) {
-        for (const group of account.durableObjectsStorageGroups) {
-            const gb = group.max.storedBytes / 1024 / 1024 / 1024;
+    if (true) {
+        const { fetchMillis, cost, budget, rows } = await client.getDurableObjectStorageByDate(start, end);
+        for (const row of rows) {
+            const gb = row.maxStoredBytes / 1024 / 1024 / 1024;
             const cost = gb * .20;
-            console.log(`${group.dimensions.date}\t${Math.round(gb * 100) / 100}gb\t$${Math.round(cost * 100) / 100}/mo`);
+            console.log(`${row.date}\t${gb.toFixed(2)}gb\t$${cost.toFixed(2)}/mo`);
+        }
+        console.log(`fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
+    }
+    if (true) {
+        const { fetchMillis, cost, budget, rows } = await client.getDurableObjectPeriodicMetricsByDate(start, end);
+        const tableRows: (string | number)[][] = [];
+        tableRows.push([
+            'date',
+            'ws.max',
+            'ws.in',
+            'ws.out',
+            'subreq',
+            'active.gbs',
+            '',
+            'reads',
+            '',
+            'writes',
+            '',
+            'deletes',
+            '',
+            'total.cost',
+        ]);
+        const sums = {
+            activeCost: 0,
+            readUnitsCost: 0,
+            writeUnitsCost: 0,
+            deletesCost: 0,
+            totalCost: 0,
+        }
+        for (const row of rows) {
+            const activeTimeSeconds = row.sumActiveTime / 1000 / 1000;
+            const activeGbSeconds = activeTimeSeconds * 128 / 1024;
+            const activeCost = activeGbSeconds / 400000 * 12.50;
+            sums.activeCost += activeCost;
+            const readUnitsCost = row.sumStorageReadUnits / 1000000 * .20;
+            sums.readUnitsCost += readUnitsCost;
+            const writeUnitsCost = row.sumStorageWriteUnits / 1000000 * 1;
+            sums.writeUnitsCost += writeUnitsCost;
+            const deletesCost = row.sumStorageDeletes / 1000000 * 1;
+            sums.deletesCost += deletesCost;
+            const totalCost = activeCost + readUnitsCost + writeUnitsCost + deletesCost;
+            sums.totalCost += totalCost;
+
+            const tableRow = [
+                row.date, 
+                row.maxActiveWebsocketConnections,
+                row.sumInboundWebsocketMsgCount,
+                row.sumOutboundWebsocketMsgCount,
+                row.sumSubrequests,
+                `${activeGbSeconds.toFixed(2)}gb-s`, 
+                `$${activeCost.toFixed(2)}`, 
+                row.sumStorageReadUnits, 
+                `$${readUnitsCost.toFixed(2)}`,
+                row.sumStorageWriteUnits,
+                `$${writeUnitsCost.toFixed(2)}`,
+                row.sumStorageDeletes,
+                `$${deletesCost.toFixed(2)}`,
+                `$${totalCost.toFixed(2)}`,
+            ];
+            tableRows.push(tableRow);
+        }
+        tableRows.push(['', '', '', '', '', '', `$${sums.activeCost.toFixed(2)}`, '', `$${sums.readUnitsCost.toFixed(2)}`, '', `$${sums.writeUnitsCost.toFixed(2)}`, '', `$${sums.deletesCost.toFixed(2)}`, `$${sums.totalCost.toFixed(2)}`]);
+        dumpTable(tableRows);
+        console.log(`fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
+    }
+}
+
+function dumpTable(rows: (string | number)[][]) {
+    const sizes: number[] = [];
+    for (const row of rows) {
+        for (let i = 0; i < row.length; i++) {
+            const size = `${row[i]}`.length;
+            sizes[i] = typeof sizes[i] === 'number' ? Math.max(sizes[i], size) : size;
         }
     }
-    console.log(`cost: ${qqlResponse.data.cost}, budget: ${qqlResponse.data.viewer.budget} (${Math.round(qqlResponse.data.viewer.budget / qqlResponse.data.cost)} left of those)`);
+    for (const row of rows) {
+        const pieces = [];
+        for (let i = 0; i < row.length; i++) {
+            const size = sizes[i];
+            const val = `${row[i]}`;
+            pieces.push(val.padStart(size, ' '));
+        }
+        console.log(pieces.join('  '));
+    }
 }
 
 function utcCurrentDate(): string {
@@ -107,26 +158,4 @@ function addDaysToDate(date: string, days: number) {
         d.getSeconds(),
         d.getMilliseconds()
     ).toISOString().substring(0, 10);
-}
-
-//
-
-interface GqlResponse {
-    data: {
-        cost: number,
-        viewer: {
-            budget: number,
-            accounts: {
-                accountTag: string,
-                durableObjectsStorageGroups: {
-                    dimensions: {
-                        date: string,
-                    },
-                    max: {
-                        storedBytes: number,
-                    },
-                }[],
-            }[],
-        },
-    },
 }
