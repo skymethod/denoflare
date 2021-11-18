@@ -13,6 +13,7 @@ import { CONSOLE_CSS, CONSOLE_HTML, initConsole } from './views/console_view.ts'
 import { FILTER_EDITOR_CSS } from './views/filter_editor_view.ts';
 import { StaticData } from './static_data.ts';
 import { WELCOME_PANEL_CSS } from './views/welcome_panel.ts';
+import { ANALYTICS_HTML, ANALYTICS_CSS, initAnalytics } from './views/analytics_view.ts';
 
 const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
 
@@ -47,6 +48,7 @@ const appHtml = html`
 <main>
 ${SIDEBAR_HTML}
 ${CONSOLE_HTML}
+${ANALYTICS_HTML}
 ${MODAL_HTML}
 </main>`;
 
@@ -63,6 +65,7 @@ appendStylesheets([
     HEADER_CSS.cssText, 
     SIDEBAR_CSS.cssText,
     CONSOLE_CSS.cssText,
+    ANALYTICS_CSS.cssText,
     MODAL_CSS.cssText,
     WELCOME_PANEL_CSS.cssText,
     PROFILE_EDITOR_CSS.cssText,
@@ -85,11 +88,13 @@ const data = parseStaticData();
 const vm = new WebtailAppVM();
 const updateSidebar = initSidebar(document, vm, data);
 const updateConsole = initConsole(document, vm);
+const updateAnalytics = initAnalytics(document, vm);
 const updateModal = initModal(document, vm);
 
 vm.onChange = () => {
     updateSidebar();
     updateConsole();
+    updateAnalytics();
     updateModal();
 };
 

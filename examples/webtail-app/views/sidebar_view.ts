@@ -11,6 +11,7 @@ export const SIDEBAR_HTML = html`
     ${HEADER_HTML}
     <a id="sidebar-about" class="overline medium-emphasis-text" href="#">About</a>
     <div id="profiles"></div>
+    <div id="sidebar-analytics"></div>
     <div id="scripts"></div>
 </div>
 `;
@@ -51,7 +52,11 @@ export const SIDEBAR_CSS = css`
 }
 
 #scripts-scroller {
-    height: calc(100vh - 18rem);
+    height: calc(100vh - 28rem);
+}
+
+#sidebar .extra-top-margin {
+    margin-top: 1rem;
 }
 
 `;
@@ -60,6 +65,7 @@ export function initSidebar(document: HTMLDocument, vm: WebtailAppVM, data: Stat
     const updateHeader = initHeader(document, vm, data);
     const aboutAnchor = document.getElementById('sidebar-about') as HTMLAnchorElement;
     const profilesDiv = document.getElementById('profiles') as HTMLDivElement;
+    const analyticsDiv = document.getElementById('sidebar-analytics') as HTMLDivElement;
     const scriptsDiv = document.getElementById('scripts') as HTMLDivElement;
 
     aboutAnchor.onclick = e => {
@@ -70,6 +76,7 @@ export function initSidebar(document: HTMLDocument, vm: WebtailAppVM, data: Stat
     return () => {
         updateHeader();
         LitElement.render(PROFILES_HTML(vm), profilesDiv);
+        LitElement.render(ANALYTICS_HTML(vm), analyticsDiv);
         LitElement.render(SCRIPTS_HTML(vm), scriptsDiv);
     };
 }
@@ -88,8 +95,20 @@ const PROFILES_HTML = (vm: WebtailAppVM) => html`
     </div>
 `;
 
+const ANALYTICS_HTML = (vm: WebtailAppVM) => html`
+    <div class="overline medium-emphasis-text extra-top-margin">Analytics</div>
+    <div class="button-grid">
+        ${vm.analytics.map(analytic => 
+            html`<button
+                class="${vm.selectedAnalyticId === analytic.id ? 'selected' : ''}" 
+                @click=${() => vm.showAnalytic(analytic.id)} 
+                ?disabled="${vm.profileForm.showing}">${analytic.text}</button>
+        `)}
+    </div>
+`;
+
 const SCRIPTS_HTML = (vm: WebtailAppVM) => html`
-    <div class="overline medium-emphasis-text">Scripts</div>
+    <div class="overline medium-emphasis-text extra-top-margin">Scripts</div>
     <div id="scripts-scroller" class="hidden-vertical-scroll">
         <div class="button-grid">
             ${vm.scripts.map(script => 

@@ -24,7 +24,7 @@ export default {
             const fetchUrl = new URL(fetchUrlStr);
             const { method } = request;
             if (isFetchAllowed(method, fetchUrl)) {
-                const headers = [...request.headers].filter(v => !v[0].startsWith('cf-'));
+                const headers = [...request.headers].filter(v => v[0] === 'authorization');
                 const body = undefined;
                 return await fetch(fetchUrlStr, { method, headers, body });
             }

@@ -1,4 +1,4 @@
-import { checkMatches } from '../../common/check.ts';
+import { checkMatches } from '../check.ts';
 
 export class GraphqlQuery {
     private readonly _parent: GraphqlQuery[];

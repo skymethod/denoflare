@@ -1,5 +1,5 @@
-import { checkEqual } from '../../common/check.ts';
-import { Profile } from '../../common/config.ts';
+import { checkEqual } from '../check.ts';
+import { Profile } from '../config.ts';
 import { GraphqlQuery } from './graphql.ts';
 
 export class CfGqlClient {
@@ -25,10 +25,13 @@ export class CfGqlClient {
 
 }
 
-export interface CfGqlResult<T> {
+export interface CfGqlResultInfo {
     readonly fetchMillis: number;
     readonly cost: number;
     readonly budget: number;
+}
+export interface CfGqlResult<T> {
+    readonly info: CfGqlResultInfo;
     readonly rows: readonly T[];
 }
 
@@ -200,7 +203,7 @@ async function _getDurableObjectPeriodicMetricsByDate(profile: Profile, startDat
              });
         }
     }
-    return { fetchMillis, cost, budget, rows };
+    return { info: { fetchMillis, cost, budget }, rows };
 }
 
 //#endregion
@@ -258,7 +261,7 @@ async function _getDurableObjectStorageByDate(profile: Profile, startDateInclusi
             rows.push({ date, maxStoredBytes });
         }
     }
-    return { fetchMillis, cost, budget, rows };
+    return { info: { fetchMillis, cost, budget }, rows };
 }
 
 //#endregion
@@ -324,7 +327,7 @@ async function _getDurableObjectInvocationsByDate(profile: Profile, startDateInc
             rows.push({ date, avgSampleInterval, sumRequests });
         }
     }
-    return { fetchMillis, cost, budget, rows };
+    return { info: { fetchMillis, cost, budget }, rows };
 }
 
 //#endregion

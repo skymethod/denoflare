@@ -189,6 +189,7 @@ export function initConsole(document: HTMLDocument, vm: WebtailAppVM): () => voi
     // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll
 
     return () => {
+        consoleDiv.style.display = vm.selectedAnalyticId ? 'none' : 'block';
         consoleHeaderFiltersDiv.style.visibility = vm.profiles.length > 0 ? 'visible' : 'hidden';
         consoleHeaderTailsElement.textContent = computeTailsText(vm.tails.size);
         LitElement.render(FILTERS_HTML(vm), consoleHeaderFiltersDiv);

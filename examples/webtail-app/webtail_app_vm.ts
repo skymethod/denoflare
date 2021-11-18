@@ -29,12 +29,22 @@ export class WebtailAppVM {
         this.findScripts();
     }
 
+    private _analytics: TextItem[] = [{ id: 'do-costs', text: 'Durable Object Costs' }];
+    get analytics(): TextItem[] { return this._analytics; }
+
+    private _selectedAnalyticId: string | undefined;
+    get selectedAnalyticId(): string | undefined { return this._selectedAnalyticId; }
+
     private _scripts: TextItem[] = [];
     get scripts(): TextItem[] { return this.demoMode ? DemoMode.scripts : this._scripts; }
 
     private _selectedScriptIds: ReadonlySet<string> = new Set<string>();
     get selectedScriptIds(): ReadonlySet<string> { return this.demoMode ? DemoMode.selectedScriptIds : this._selectedScriptIds; }
     set selectedScriptIds(scriptIds: ReadonlySet<string>) {
+        if (this._selectedAnalyticId !== undefined) {
+            this._selectedAnalyticId = undefined;
+            this.onChange();
+        }
         if (this.demoMode) {
             DemoMode.setSelectedScriptIds(scriptIds);
             return;
@@ -579,6 +589,13 @@ export class WebtailAppVM {
 
     closeAbout() {
         this.aboutShowing = false;
+        this.onChange();
+    }
+
+    showAnalytic(analyticId: string) {
+        const analytic = this.analytics.find(v => v.id === analyticId);
+        if (!analytic || analytic.id === this._selectedAnalyticId) return;
+        this._selectedAnalyticId = analyticId;
         this.onChange();
     }
         
