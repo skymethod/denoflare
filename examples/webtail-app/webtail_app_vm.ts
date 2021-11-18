@@ -4,6 +4,8 @@ import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
 import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
+import { CfGqlClient } from '../../common/analytics/cfgql_client.ts';
+import { computeDurableObjectsCostsTable, DurableObjectsCostsTable } from '../../common/analytics/durable_objects_costs.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
@@ -29,11 +31,12 @@ export class WebtailAppVM {
         this.findScripts();
     }
 
-    private _analytics: TextItem[] = [{ id: 'do-costs', text: 'Durable Object Costs' }];
+    private _analytics: TextItem[] = [{ id: 'durable-objects', text: 'Durable Objects', description: 'Daily metrics and associated costs' }];
     get analytics(): TextItem[] { return this._analytics; }
 
     private _selectedAnalyticId: string | undefined;
     get selectedAnalyticId(): string | undefined { return this._selectedAnalyticId; }
+    analyticsState: AnalyticsState = { querying: false };
 
     private _scripts: TextItem[] = [];
     get scripts(): TextItem[] { return this.demoMode ? DemoMode.scripts : this._scripts; }
@@ -595,8 +598,19 @@ export class WebtailAppVM {
     showAnalytic(analyticId: string) {
         const analytic = this.analytics.find(v => v.id === analyticId);
         if (!analytic || analytic.id === this._selectedAnalyticId) return;
+        if (this.selectedProfileId === undefined) return;
+        const profile = this.state.profiles[this.selectedProfileId];
+        if (profile === undefined) return;
+        const { accountId, apiToken } = profile;
+        
         this._selectedAnalyticId = analyticId;
+        this.analyticsState.querying = true;
+        this.analyticsState.durableObjectsCosts = undefined;
+        this.analyticsState.error = undefined;
         this.onChange();
+
+        const client = new CfGqlClient({ accountId, apiToken });
+        this.queryDurableObjectsCosts(client);
     }
         
     //
@@ -788,6 +802,21 @@ export class WebtailAppVM {
         this.welcomeShowing = shouldShow;
     }
 
+    private async queryDurableObjectsCosts(client: CfGqlClient) {
+        try {
+            this.analyticsState.durableObjectsCosts = await computeDurableObjectsCostsTable(client, { lookbackDays: 14 });
+        } catch (e) {
+            let error = `${e}`;
+            if (error.includes('(code=authz)')) {
+                error = `The auth token for this profile does not have the Account Analytics:Read permission.`
+            }
+            this.analyticsState.error = error;
+        } finally {
+            this.analyticsState.querying = false;
+            this.onChange();
+        }
+    }
+
 }
 
 function computeAdditionalLogForExtraField(name: string, value: string): AdditionalLog {
@@ -827,6 +856,7 @@ export class FilterFormVM {
 export interface TextItem {
     readonly id: string;
     readonly text: string;
+    readonly description?: string;
 }
 
 export interface FilterState {
@@ -838,6 +868,12 @@ export interface FilterState {
     search1?: string; // search string
     header1?: string[]; // foo, or foo:bar
     logprop1?: string[]; // foo:bar
+}
+
+export interface AnalyticsState {
+    querying: boolean;
+    error?: string;
+    durableObjectsCosts?: DurableObjectsCostsTable;
 }
 
 //

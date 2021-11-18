@@ -24,9 +24,10 @@ export default {
             const fetchUrl = new URL(fetchUrlStr);
             const { method } = request;
             if (isFetchAllowed(method, fetchUrl)) {
-                const headers = [...request.headers].filter(v => v[0] === 'authorization');
-                const body = undefined;
-                return await fetch(fetchUrlStr, { method, headers, body });
+                const headers = [...request.headers].filter(v => v[0] === 'authorization' || v[0] === 'content-type');
+                const body = method === 'POST' ? await request.text() : undefined;
+                const request2 = new Request(fetchUrlStr, { method, headers, body });
+                return await fetch(request2);
             }
             throw new Response(`Unable to fetch ${fetchUrl}`, { status: 400 });
         } else if (url.pathname === FAVICON_SVG_PATHNAME) {
@@ -117,7 +118,8 @@ function computeHeaders(contentType: string, opts: { immutable?: boolean } = {})
 }
 
 function isFetchAllowed(method: string, url: URL): boolean {
-    return /^(GET|POST)$/.test(method) 
+    if (method === 'POST' && url.origin === 'https://api.cloudflare.com' && url.pathname === '/client/v4/graphql') return true;
+    return /^(GET|POST)$/.test(method)
         && url.origin === 'https://api.cloudflare.com'
         && url.pathname.startsWith('/client/v4/accounts/') 
         && url.pathname.includes('/workers/scripts');

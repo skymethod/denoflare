@@ -14,6 +14,7 @@ import { FILTER_EDITOR_CSS } from './views/filter_editor_view.ts';
 import { StaticData } from './static_data.ts';
 import { WELCOME_PANEL_CSS } from './views/welcome_panel.ts';
 import { ANALYTICS_HTML, ANALYTICS_CSS, initAnalytics } from './views/analytics_view.ts';
+import { CfGqlClient } from '../../common/analytics/cfgql_client.ts';
 
 const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
 
@@ -98,7 +99,7 @@ vm.onChange = () => {
     updateModal();
 };
 
-CloudflareApi.URL_TRANSFORMER = v => `/fetch/${v.substring('https://'.length)}`;
+CloudflareApi.URL_TRANSFORMER = CfGqlClient.URL_TRANSFORMER = v => `/fetch/${v.substring('https://'.length)}`;
 vm.start();
 
 setAppState('started');

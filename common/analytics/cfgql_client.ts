@@ -4,6 +4,7 @@ import { GraphqlQuery } from './graphql.ts';
 
 export class CfGqlClient {
     static DEBUG = false;
+    static URL_TRANSFORMER: (url: string) => string = v => v;
 
     private readonly profile: Profile;
 
@@ -56,7 +57,8 @@ async function query(profile: Profile, queryFn: (q: GraphqlQuery) => void, varia
 
     const body = JSON.stringify(reqObj);
     const start = Date.now();
-    const res = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', 'Authorization': `Bearer ${apiToken}` }, body });
+    const url = CfGqlClient.URL_TRANSFORMER('https://api.cloudflare.com/client/v4/graphql');
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=utf-8', 'Authorization': `Bearer ${apiToken}` }, body });
     const fetchMillis = Date.now() - start;
     if (CfGqlClient.DEBUG) console.log(res);
 
@@ -68,23 +70,32 @@ async function query(profile: Profile, queryFn: (q: GraphqlQuery) => void, varia
     if (CfGqlClient.DEBUG) console.log(JSON.stringify(resObj, undefined, 2));
 
     if (isGqlErrorResponse(resObj)) {
-        throw new Error(resObj.errors.map(v => `${v.message} (${v.path.join('/')})`).join(', '));
+        throw new Error(resObj.errors.map(computeGqlErrorString).join(', '));
     }
     return resObj;
 }
 
+interface GqlError {
+    readonly message: string;
+    readonly path: readonly string[] | null;
+    readonly extensions: Record<string, string>;
+}
+
 interface GqlErrorResponse {
     readonly data: null,
-    readonly errors: readonly {
-        readonly message: string,
-        readonly path: readonly string[],
-        readonly extensions: Record<string, string>,
-    }[];
+    readonly errors: readonly GqlError[];
 }
 
 // deno-lint-ignore no-explicit-any
 function isGqlErrorResponse(obj: any): obj is GqlErrorResponse {
     return typeof obj === 'object' && obj.data === null && Array.isArray(obj.errors);
+}
+
+function computeGqlErrorString(error: GqlError) {
+    const pieces = [ error.message ];
+    if (error.path) pieces.push(`(${error.path.join('/')})`);
+    if (error.extensions.code) pieces.push(`(code=${error.extensions.code})`);
+    return pieces.join(' ');
 }
 
 //#region GetDurableObjectPeriodicMetricsByDate

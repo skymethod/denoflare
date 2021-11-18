@@ -42,7 +42,7 @@ export const MATERIAL_CSS = css`
     font-weight: bolder;
 }
 
-.overline {
+.overline, th {
     font-size: 0.625rem;
     text-transform: uppercase;
     letter-spacing: 0.15000rem;
@@ -61,7 +61,7 @@ export const MATERIAL_CSS = css`
     color: var(--high-emphasis-text-color);
 }
 
-.medium-emphasis-text, fieldset label {
+.medium-emphasis-text, fieldset label, th {
     color: var(--medium-emphasis-text-color);
 }
 
