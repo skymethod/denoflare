@@ -122,7 +122,7 @@ function isFetchAllowed(method: string, url: URL): boolean {
     return /^(GET|POST)$/.test(method)
         && url.origin === 'https://api.cloudflare.com'
         && url.pathname.startsWith('/client/v4/accounts/') 
-        && url.pathname.includes('/workers/scripts');
+        && (url.pathname.includes('/workers/scripts') || (url.pathname.includes('/workers/durable_objects')));
 }
 
 function computeAppJsPath(): string {

@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 
-import { DurableObjectsCostsTable } from '../../../common/analytics/durable_objects_costs.ts';
+import { DurableObjectsCostsTable, DurableObjectsDailyCostsTable } from '../../../common/analytics/durable_objects_costs.ts';
 import { css, html, LitElement } from '../deps_app.ts';
 import { WebtailAppVM } from '../webtail_app_vm.ts';
 
@@ -13,6 +13,7 @@ export const ANALYTICS_HTML = html`
     <div id="analytics-querying"><progress id="analytics-progress" class="pure-material-progress-circular"></progress> Fetching analytics...</div>
     <div id="analytics-error"></div>
     <div id="analytics-table" class="medium-emphasis-text"></div>
+    <div id="analytics-namespaces-table"  class="medium-emphasis-text"></div>
 </div>
 `;
 
@@ -55,23 +56,45 @@ export const ANALYTICS_CSS = css`
     font-size: 0.5rem; /* default 3em => 1.5rem */
 }
 
-#analytics-table table {
+#analytics table {
     text-align: right;
     border-spacing: 0.375rem;
     font-size: 0.75rem;
     white-space: nowrap;
 }
 
-#analytics-table th {
+#analytics th {
     text-align: center;
 }
 
-#analytics-table .spacer {
+#analytics .spacer {
     width: 0.75rem;
 }
 
 #analytics-table .estimate td {
     padding-top: 1rem;
+}
+
+#analytics .mono {
+    font-family: var(--monospace-font-family);
+}
+
+#analytics-namespaces-table {
+    margin-top: 2rem;
+}
+
+#analytics-namespaces-table a.unselected {
+    color: var(--medium-emphasis-text-color);
+}
+
+@media (hover: hover) {
+    #analytics-namespaces-table a.unselected:hover {
+        color: var(--primary-color);
+    }
+}
+
+#analytics .left-aligned {
+    text-align: left;
 }
 
 `;
@@ -83,6 +106,7 @@ export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => v
     const analyticsQueryingElement = document.getElementById('analytics-querying') as HTMLElement;
     const analyticsErrorElement = document.getElementById('analytics-error') as HTMLElement;
     const analyticsTableElement = document.getElementById('analytics-table') as HTMLElement;
+    const analyticsNamespacesTableElement = document.getElementById('analytics-namespaces-table') as HTMLElement;
 
     return () => {
         analyticsDiv.style.display = vm.selectedAnalyticId ? 'block' : 'none';
@@ -96,7 +120,12 @@ export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => v
         analyticsQueryingElement.style.visibility = querying ? 'visible' : 'hidden';
         analyticsErrorElement.textContent = error || '';
         if (durableObjectsCosts) {
-            LitElement.render(COSTS_HTML(durableObjectsCosts), analyticsTableElement);
+            const renderCosts = (namespaceId: string | undefined) => {
+                const table = durableObjectsCosts.namespaceTables[namespaceId || ''] || durableObjectsCosts.accountTable;
+                LitElement.render(COSTS_HTML(table), analyticsTableElement);
+            }
+            renderCosts(undefined);
+            LitElement.render(NAMESPACES_HTML(durableObjectsCosts, renderCosts), analyticsNamespacesTableElement);
         }
     };
 }
@@ -121,7 +150,45 @@ function formatGb(val: number): string {
     return `${format2(val)}gb`;
 }
 
-const COSTS_HTML = (table: DurableObjectsCostsTable) => html`
+function clickNamespace(e: Event, renderCosts: (namespaceId: string | undefined) => void) {
+    e.preventDefault();
+    const text = (e.target as HTMLElement).textContent || '';
+
+    console.log('clickNamespace', text);
+    renderCosts(text.startsWith('All') ? undefined : text);
+    const anchors = document.querySelectorAll('#analytics-namespaces-table a');
+    anchors.forEach(a => {
+        a.className = a === e.target ? '' : 'unselected';
+    });
+}
+
+const NAMESPACES_HTML = (table: DurableObjectsCostsTable, renderCosts: (namespaceId: string | undefined) => void) => html`
+    <table>
+        <tr>
+            <th>Namespace ID</th><th class="spacer"></th>
+            <th>Script</th>
+            <th>Class</th><th class="spacer"></th>
+            <th>Total</th>
+        </tr>
+        <tr>
+            <td class="left-aligned mono"><a href="#" @click=${(e: Event) => clickNamespace(e, renderCosts)}>All durable objects</a></td><td></td>
+            <td></td>
+            <td></td><td></td>
+            <td>$${(table.accountTable.estimated30DayRow?.totalCost || 0).toFixed(2)}</td>
+        </tr>
+    ${[...Object.entries(table.namespaceTables)].sort((a, b) => (b[1].estimated30DayRow?.totalCost || 0) - (a[1].estimated30DayRow?.totalCost || 0)).map(v => {
+        const [namespaceId, t] = v;
+        return html`<tr>
+            <td class="left-aligned mono"><a href="#" @click=${(e: Event) => clickNamespace(e, renderCosts)} class="unselected">${namespaceId}</a></td><td></td>
+            <td class="left-aligned">${t.namespace?.script || ''}</td>
+            <td class="left-aligned">${t.namespace?.class || ''}</td><td></td>
+            <td>$${(t.estimated30DayRow?.totalCost || 0).toFixed(2)}</td>
+            </tr>`;
+    })}
+    </table>
+`;
+
+const COSTS_HTML = (table: DurableObjectsDailyCostsTable) => html`
     <table>
         <tr>
             <th>UTC Day</th><th class="spacer"></th>
@@ -151,7 +218,7 @@ const COSTS_HTML = (table: DurableObjectsCostsTable) => html`
             <th colspan="2"></th><th></th>
             <th></th>
         </tr>
-        ${table.accountTable.rows.map(v => html`<tr>
+        ${table.rows.map(v => html`<tr>
             <td>${v.date}</td><td></td>
             <td class="high-emphasis-text">${format1(v.sumRequests)}</td>
             <td>$${format2(v.requestsCost)}</td><td></td>
@@ -169,53 +236,32 @@ const COSTS_HTML = (table: DurableObjectsCostsTable) => html`
             <td>$${format2(v.writeUnitsCost)}</td><td></td>
             <td class="high-emphasis-text">${format1(v.sumStorageDeletes)}</td>
             <td>$${format2(v.deletesCost)}</td><td></td>
-            <td class="high-emphasis-text">${formatGb(v.storageGb || 0)}</td>
-            <td>$${format2(v.storageCost || 0)}</td><td></td>
+            <td class="high-emphasis-text">${v.storageGb === undefined ? '?' : formatGb(v.storageGb) }</td>
+            <td>${v.storageCost === undefined ? '' : `$${format2(v.storageCost)}`}</td><td></td>
             <td>$${format2(v.totalCost)}</td>
         </tr>`)}
-        <tr>
-            <td></td><td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.requestsCost)}</td><td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.websocketsCost)}</td><td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.subrequestsCost)}</td><td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.activeCost)}</td><td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.readUnitsCost)}</td><td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.writeUnitsCost)}</td><td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.deletesCost)}</td><td></td>
-            <td></td>
-            <td>$${format2(table.accountTable.totalRow.storageCost || 0)}</td><td></td>
-            <td>$${format2(table.accountTable.totalRow.totalCost)}</td>
-        </tr>
-        ${table.accountTable.estimated30DayRow ? html`<tr class="estimate">
+
+        ${table.estimated30DayRow ? html`<tr class="estimate">
             <td>30-day estimate</td><td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.requestsCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.requestsCost)}</td><td></td>
             <td></td>
             <td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.websocketsCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.websocketsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.subrequestsCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.subrequestsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.activeCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.activeCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.readUnitsCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.readUnitsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.writeUnitsCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.writeUnitsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.deletesCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.deletesCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.storageCost || 0)}</td><td></td>
-            <td>$${format2(table.accountTable.estimated30DayRow.totalCost)}</td>
+            <td>$${format2(table.estimated30DayRow.storageCost || 0)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.totalCost)}</td>
         </tr>` : ''}
     </table>
 `;

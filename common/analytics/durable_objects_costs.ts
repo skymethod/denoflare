@@ -1,3 +1,5 @@
+import { DurableObjectsNamespace, listDurableObjectsNamespaces } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.3.0/common/cloudflare_api.ts';
+import { Profile } from '../config.ts';
 import { CfGqlClient, CfGqlResultInfo } from './cfgql_client.ts';
 
 export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts: { lookbackDays: number; }): Promise<DurableObjectsCostsTable> {
@@ -5,10 +7,11 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
     const end = utcCurrentDate();
     const start = addDaysToDate(end, -lookbackDays);
 
-    const [ storage, periodic, invocations ] = await Promise.all([ 
+    const [ storage, periodic, invocations, namespaces ] = await Promise.all([ 
         client.getDurableObjectStorageByDate(start, end),
         client.getDurableObjectPeriodicMetricsByDate(start, end),
         client.getDurableObjectInvocationsByDate(start, end),
+        tryListDurableObjectsNamespaces(client.profile),
     ]);
 
     const gqlResultInfos = {
@@ -80,9 +83,9 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
     }
     const namespaceTables: Record<string, DurableObjectsDailyCostsTable> = {};
     for (const [ namespaceId, rows] of Object.entries(rowsByNamespace)) {
-        const totalRow = computeTotalRow('', rows);
         const estimated30DayRow = computeEstimated30DayRow(rows);
-        namespaceTables[namespaceId] = { rows, estimated30DayRow, totalRow };
+        const namespace = namespaces.find(v => v.id === namespaceId);
+        namespaceTables[namespaceId] = { rows, estimated30DayRow, namespace };
     }
     const accountRows: DurableObjectsCostsRow[] = [];
     for (const [ date, dateRows] of Object.entries(rowsByDate)) {
@@ -93,9 +96,8 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
     }
     const storageCost =  accountRows.map(v => v.storageCost || 0).reduce((a, b) => a + b);
     const accountOpts = { storageGb: 0, storageCost };
-    const totalRow = computeTotalRow('', accountRows, accountOpts);
     const estimated30DayRow = computeEstimated30DayRow(accountRows, accountOpts);
-    const accountTable: DurableObjectsDailyCostsTable = { rows: accountRows, estimated30DayRow, totalRow };
+    const accountTable: DurableObjectsDailyCostsTable = { rows: accountRows, estimated30DayRow, namespace: undefined };
     return { accountTable, namespaceTables, gqlResultInfos };
 }
 
@@ -107,8 +109,8 @@ export interface DurableObjectsCostsTable {
 
 export interface DurableObjectsDailyCostsTable {
     readonly rows: readonly DurableObjectsCostsRow[];
-    readonly totalRow: DurableObjectsCostsRow;
     readonly estimated30DayRow: DurableObjectsCostsRow | undefined;
+    readonly namespace: DurableObjectsNamespace | undefined;
 }
 
 export interface DurableObjectsCostsRow {
@@ -135,6 +137,15 @@ export interface DurableObjectsCostsRow {
 }
 
 //
+
+async function tryListDurableObjectsNamespaces(profile: Profile): Promise<readonly DurableObjectsNamespace[]> {
+    try {
+        return await listDurableObjectsNamespaces(profile.accountId, profile.apiToken);
+    } catch (e) {
+        console.warn(e);
+        return [];
+    }
+}
 
 function computeTotalRow(date: string, rows: DurableObjectsCostsRow[], opts?: { storageGb: number, storageCost: number }): DurableObjectsCostsRow {
     let computedStorageCost = false;

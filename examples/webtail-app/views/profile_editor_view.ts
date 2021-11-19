@@ -25,6 +25,7 @@ export const PROFILE_EDITOR_HTML = html`
         <li>Scroll down to <span class="cf-section">Create Custom Token</span>, then <span class="cf-button">Get started</span></li>
         <li>Under <span class="cf-section">Permissions</span>, grant your token <span class="cf-section">Account</span> <span class="cf-section">Workers Tail</span> <span class="cf-section">Read</span></li>
         <li>Also (for analytics), grant your token <span class="cf-section">Account</span> <span class="cf-section">Account Analytics</span> <span class="cf-section">Read</span></li>
+        <li>Also (for DO names), grant your token <span class="cf-section">Account</span> <span class="cf-section">Worker Scripts</span> <span class="cf-section">Read</span></li>
     </ol>
   </details>  
 

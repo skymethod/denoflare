@@ -13,7 +13,8 @@ export async function analytics(args: (string | number)[], options: Record<strin
     if (firstArg === 'do' || firstArg === 'durable-objects') {
         const config = await loadConfig(options);
         const profile = await resolveProfile(config, options);
-        await dumpDurableObjects(profile);
+        const namespaceId = typeof args[1] === 'string' ? args[1] : undefined;
+        await dumpDurableObjects(profile, namespaceId);
     } else {
         dumpHelp();
     }
@@ -45,11 +46,11 @@ function dumpHelp() {
     }
 }
 
-async function dumpDurableObjects(profile: Profile) {
+async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined) {
     const client = new CfGqlClient(profile);
     // CfGqlClient.DEBUG = true;
 
-    const table = await computeDurableObjectsCostsTable(client, { lookbackDays: 28 });
+    const tableResult = await computeDurableObjectsCostsTable(client, { lookbackDays: 28 });
     const tableRows: (string | number)[][] = [];
     tableRows.push([
         'date',
@@ -74,7 +75,8 @@ async function dumpDurableObjects(profile: Profile) {
         'total.cost',
     ]);
 
-    for (const row of table.accountTable.rows) {
+    const table = namespaceId ? tableResult.namespaceTables[namespaceId] : tableResult.accountTable;
+    for (const row of table.rows) {
         const tableRow = [
             row.date,
             row.sumRequests,
@@ -93,63 +95,55 @@ async function dumpDurableObjects(profile: Profile) {
             `$${row.writeUnitsCost.toFixed(2)}`,
             row.sumStorageDeletes,
             `$${row.deletesCost.toFixed(2)}`,
-            `${row?.storageGb?.toFixed(2)}gb`,
-            `$${row?.storageCost?.toFixed(2)}`,
+            row.storageGb ? `${row.storageGb?.toFixed(2)}gb` : '?',
+            row.storageCost ? `$${row.storageCost?.toFixed(2)}` : '',
             `$${row.totalCost.toFixed(2)}`,
         ];
         tableRows.push(tableRow);
     }
-    tableRows.push([
-        '', 
-        '', 
-        `$${table.accountTable.totalRow.requestsCost.toFixed(2)}`, 
-        '', 
-        '', 
-        '', 
-        `$${table.accountTable.totalRow.websocketsCost.toFixed(2)}`, 
-        '', 
-        `$${table.accountTable.totalRow.subrequestsCost.toFixed(2)}`, 
-        '', 
-        `$${table.accountTable.totalRow.activeCost.toFixed(2)}`, 
-        '', 
-        `$${table.accountTable.totalRow.readUnitsCost.toFixed(2)}`, 
-        '', 
-        `$${table.accountTable.totalRow.writeUnitsCost.toFixed(2)}`, 
-        '', 
-        `$${table.accountTable.totalRow.deletesCost.toFixed(2)}`,
-        '',
-        `$${table.accountTable.totalRow.storageCost?.toFixed(2)}`,
-        `$${table.accountTable.totalRow.totalCost.toFixed(2)}`
-    ]);
-    if (table.accountTable.estimated30DayRow) {
+
+    if (table.estimated30DayRow) {
         tableRows.push(Array(20).fill(''));
         tableRows.push([
             'est 30-day', 
             '', 
-            `$${table.accountTable.estimated30DayRow.requestsCost.toFixed(2)}`, 
+            `$${table.estimated30DayRow.requestsCost.toFixed(2)}`, 
             '', 
             '', 
             '', 
-            `$${table.accountTable.estimated30DayRow.websocketsCost.toFixed(2)}`, 
+            `$${table.estimated30DayRow.websocketsCost.toFixed(2)}`, 
             '', 
-            `$${table.accountTable.estimated30DayRow.subrequestsCost.toFixed(2)}`, 
+            `$${table.estimated30DayRow.subrequestsCost.toFixed(2)}`, 
             '', 
-            `$${table.accountTable.estimated30DayRow.activeCost.toFixed(2)}`, 
+            `$${table.estimated30DayRow.activeCost.toFixed(2)}`, 
             '', 
-            `$${table.accountTable.estimated30DayRow.readUnitsCost.toFixed(2)}`, 
+            `$${table.estimated30DayRow.readUnitsCost.toFixed(2)}`, 
             '', 
-            `$${table.accountTable.estimated30DayRow.writeUnitsCost.toFixed(2)}`, 
+            `$${table.estimated30DayRow.writeUnitsCost.toFixed(2)}`, 
             '', 
-            `$${table.accountTable.estimated30DayRow.deletesCost.toFixed(2)}`,
+            `$${table.estimated30DayRow.deletesCost.toFixed(2)}`,
             '',
-            `$${table.accountTable.estimated30DayRow.storageCost?.toFixed(2)}`,
-            `$${table.accountTable.estimated30DayRow.totalCost.toFixed(2)}`
+            table.estimated30DayRow.storageCost ? `$${table.estimated30DayRow.storageCost.toFixed(2)}` : '',
+            `$${table.estimated30DayRow.totalCost.toFixed(2)}`
         ]);
         tableRows.push(Array(20).fill(''));
     }
     dumpTable(tableRows);
 
-    for (const [ name, { fetchMillis, cost, budget } ] of Object.entries(table.gqlResultInfos)) {
+    const namespaceIds = [...Object.keys(tableResult.namespaceTables)];
+    if (namespaceIds.length > 1 && !namespaceId) {
+        console.log('\nper namespace:');
+        for (const [ namespaceId, table ] of [...Object.entries(tableResult.namespaceTables)].sort((a, b) => (b[1].estimated30DayRow?.totalCost || 0) - (a[1].estimated30DayRow?.totalCost || 0))) {
+            const estTotal = table.estimated30DayRow?.totalCost || 0;
+            const pieces = [ `$${estTotal.toFixed(2)}`.padStart(7, ' '), namespaceId ];
+            if (table.namespace?.script) pieces.push(table.namespace.script);
+            if (table.namespace?.class) pieces.push(table.namespace.class);
+            console.log(pieces.join(' '));
+        }
+    }
+
+    console.log('');
+    for (const [ name, { fetchMillis, cost, budget } ] of Object.entries(tableResult.gqlResultInfos)) {
         console.log(`${name}: fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
     }
 }

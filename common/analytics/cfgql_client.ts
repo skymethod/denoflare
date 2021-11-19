@@ -6,7 +6,7 @@ export class CfGqlClient {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
 
-    private readonly profile: Profile;
+    readonly profile: Profile;
 
     constructor(profile: Profile) {
         this.profile = profile;
