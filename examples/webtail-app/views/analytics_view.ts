@@ -14,6 +14,7 @@ export const ANALYTICS_HTML = html`
     <div id="analytics-error"></div>
     <div id="analytics-table" class="medium-emphasis-text"></div>
     <div id="analytics-namespaces-table"  class="medium-emphasis-text"></div>
+    <div id="analytics-footnote" class="medium-emphasis-text"><sup>*</sup> Estimated based recent usage</div>
 </div>
 `;
 
@@ -97,6 +98,12 @@ export const ANALYTICS_CSS = css`
     text-align: left;
 }
 
+#analytics-footnote {
+    margin-top: 1rem;
+    font-size: 0.75rem;
+    display: none;
+}
+
 `;
 
 export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => void {
@@ -107,6 +114,7 @@ export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => v
     const analyticsErrorElement = document.getElementById('analytics-error') as HTMLElement;
     const analyticsTableElement = document.getElementById('analytics-table') as HTMLElement;
     const analyticsNamespacesTableElement = document.getElementById('analytics-namespaces-table') as HTMLElement;
+    const analyticsFootnoteElement = document.getElementById('analytics-footnote') as HTMLElement;
 
     return () => {
         analyticsDiv.style.display = vm.selectedAnalyticId ? 'block' : 'none';
@@ -119,13 +127,17 @@ export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => v
 
         analyticsQueryingElement.style.visibility = querying ? 'visible' : 'hidden';
         analyticsErrorElement.textContent = error || '';
+        analyticsFootnoteElement.style.display = durableObjectsCosts ? 'block' : 'none';
         if (durableObjectsCosts) {
             const renderCosts = (namespaceId: string | undefined) => {
                 const table = durableObjectsCosts.namespaceTables[namespaceId || ''] || durableObjectsCosts.accountTable;
-                LitElement.render(COSTS_HTML(table), analyticsTableElement);
+                LitElement.render(COSTS_HTML(table, namespaceId), analyticsTableElement);
             }
             renderCosts(undefined);
             LitElement.render(NAMESPACES_HTML(durableObjectsCosts, renderCosts), analyticsNamespacesTableElement);
+        } else {
+            LitElement.render(undefined, analyticsTableElement);
+            LitElement.render(undefined, analyticsNamespacesTableElement);
         }
     };
 }
@@ -188,7 +200,7 @@ const NAMESPACES_HTML = (table: DurableObjectsCostsTable, renderCosts: (namespac
     </table>
 `;
 
-const COSTS_HTML = (table: DurableObjectsDailyCostsTable) => html`
+const COSTS_HTML = (table: DurableObjectsDailyCostsTable, namespaceId: string | undefined) => html`
     <table>
         <tr>
             <th>UTC Day</th><th class="spacer"></th>
@@ -242,7 +254,7 @@ const COSTS_HTML = (table: DurableObjectsDailyCostsTable) => html`
         </tr>`)}
 
         ${table.estimated30DayRow ? html`<tr class="estimate">
-            <td>30-day estimate</td><td></td>
+            <td>30-day bill<sup>*</sup></td><td></td>
             <td></td>
             <td>$${format2(table.estimated30DayRow.requestsCost)}</td><td></td>
             <td></td>
@@ -262,6 +274,28 @@ const COSTS_HTML = (table: DurableObjectsDailyCostsTable) => html`
             <td></td>
             <td>$${format2(table.estimated30DayRow.storageCost || 0)}</td><td></td>
             <td>$${format2(table.estimated30DayRow.totalCost)}</td>
+        </tr>` : ''}
+        ${table.estimated30DayRowMinusFree ? html`<tr>
+            <td>− free usage</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.requestsCost)}</td><td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.websocketsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.subrequestsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.activeCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.readUnitsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.writeUnitsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.deletesCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.storageCost || 0)}</td><td></td>
+            <td>$${format2(table.estimated30DayRowMinusFree.totalCost)}</td>
         </tr>` : ''}
     </table>
 `;
