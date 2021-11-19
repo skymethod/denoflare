@@ -804,7 +804,7 @@ export class WebtailAppVM {
 
     private async queryDurableObjectsCosts(client: CfGqlClient) {
         try {
-            this.analyticsState.durableObjectsCosts = await computeDurableObjectsCostsTable(client, { lookbackDays: 14 });
+            this.analyticsState.durableObjectsCosts = await computeDurableObjectsCostsTable(client, { lookbackDays: 28 });
         } catch (e) {
             let error = `${e}`;
             if (error.includes('(code=authz)')) {

@@ -121,6 +121,32 @@ async function dumpDurableObjects(profile: Profile) {
         `$${table.totalRow.storageCost.toFixed(2)}`,
         `$${table.totalRow.totalCost.toFixed(2)}`
     ]);
+    if (table.estimated30DayRow) {
+        tableRows.push(Array(20).fill(''));
+        tableRows.push([
+            'est 30-day', 
+            '', 
+            `$${table.estimated30DayRow.requestsCost.toFixed(2)}`, 
+            '', 
+            '', 
+            '', 
+            `$${table.estimated30DayRow.websocketsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRow.subrequestsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRow.activeCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRow.readUnitsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRow.writeUnitsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRow.deletesCost.toFixed(2)}`,
+            '',
+            `$${table.estimated30DayRow.storageCost.toFixed(2)}`,
+            `$${table.estimated30DayRow.totalCost.toFixed(2)}`
+        ]);
+        tableRows.push(Array(20).fill(''));
+    }
     dumpTable(tableRows);
 
 

@@ -71,12 +71,14 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
         });
     }
     const totalRow = computeTotalRow(rows);
-    return { rows, totalRow, gqlResultInfos };
+    const estimated30DayRow = computeEstimated30DayRow(rows);
+    return { rows, totalRow, estimated30DayRow, gqlResultInfos };
 }
 
 export interface DurableObjectsCostsTable {
     readonly rows: readonly DurableObjectsCostsRow[];
     readonly totalRow: DurableObjectsCostsRow;
+    readonly estimated30DayRow: DurableObjectsCostsRow | undefined;
     readonly gqlResultInfos: Record<string, CfGqlResultInfo>;
 }
 
@@ -106,30 +108,62 @@ export interface DurableObjectsCostsRow {
 //
 
 function computeTotalRow(rows: DurableObjectsCostsRow[]): DurableObjectsCostsRow {
-    return rows.reduce((lhs, rhs) => {
-        return {
-            date: '',
-            sumRequests: lhs.sumRequests + rhs.sumRequests,
-            requestsCost: lhs.requestsCost + rhs.requestsCost,
-            maxActiveWebsocketConnections: lhs.maxActiveWebsocketConnections + rhs.maxActiveWebsocketConnections,
-            sumInboundWebsocketMsgCount: lhs.sumInboundWebsocketMsgCount + rhs.sumInboundWebsocketMsgCount,
-            sumOutboundWebsocketMsgCount: lhs.sumOutboundWebsocketMsgCount + rhs.sumOutboundWebsocketMsgCount,
-            websocketsCost: lhs.websocketsCost + rhs.websocketsCost,
-            sumSubrequests: lhs.sumSubrequests + rhs.sumSubrequests,
-            subrequestsCost: lhs.subrequestsCost + rhs.subrequestsCost,
-            activeGbSeconds: lhs.activeGbSeconds + rhs.activeGbSeconds,
-            activeCost: lhs.activeCost + rhs.activeCost,
-            sumStorageReadUnits: lhs.sumStorageReadUnits + rhs.sumStorageReadUnits,
-            readUnitsCost: lhs.readUnitsCost + rhs.readUnitsCost,
-            sumStorageWriteUnits: lhs.sumStorageWriteUnits + rhs.sumStorageWriteUnits,
-            writeUnitsCost: lhs.writeUnitsCost + rhs.writeUnitsCost,
-            sumStorageDeletes: lhs.sumStorageDeletes + rhs.sumStorageDeletes,
-            deletesCost: lhs.deletesCost + rhs.deletesCost,
-            storageGb: lhs.storageGb + rhs.storageGb,
-            storageCost: lhs.storageCost + rhs.storageCost,
-            totalCost: lhs.totalCost + rhs.totalCost,
-        }
-    });
+    return rows.reduce((lhs, rhs) => ({
+        date: '',
+        sumRequests: lhs.sumRequests + rhs.sumRequests,
+        requestsCost: lhs.requestsCost + rhs.requestsCost,
+        maxActiveWebsocketConnections: lhs.maxActiveWebsocketConnections + rhs.maxActiveWebsocketConnections,
+        sumInboundWebsocketMsgCount: lhs.sumInboundWebsocketMsgCount + rhs.sumInboundWebsocketMsgCount,
+        sumOutboundWebsocketMsgCount: lhs.sumOutboundWebsocketMsgCount + rhs.sumOutboundWebsocketMsgCount,
+        websocketsCost: lhs.websocketsCost + rhs.websocketsCost,
+        sumSubrequests: lhs.sumSubrequests + rhs.sumSubrequests,
+        subrequestsCost: lhs.subrequestsCost + rhs.subrequestsCost,
+        activeGbSeconds: lhs.activeGbSeconds + rhs.activeGbSeconds,
+        activeCost: lhs.activeCost + rhs.activeCost,
+        sumStorageReadUnits: lhs.sumStorageReadUnits + rhs.sumStorageReadUnits,
+        readUnitsCost: lhs.readUnitsCost + rhs.readUnitsCost,
+        sumStorageWriteUnits: lhs.sumStorageWriteUnits + rhs.sumStorageWriteUnits,
+        writeUnitsCost: lhs.writeUnitsCost + rhs.writeUnitsCost,
+        sumStorageDeletes: lhs.sumStorageDeletes + rhs.sumStorageDeletes,
+        deletesCost: lhs.deletesCost + rhs.deletesCost,
+        storageGb: lhs.storageGb + rhs.storageGb,
+        storageCost: lhs.storageCost + rhs.storageCost,
+        totalCost: lhs.totalCost + rhs.totalCost,
+    }));
+}
+
+
+function multiplyRow(row: DurableObjectsCostsRow, multiplier: number): DurableObjectsCostsRow {
+    return {
+        date: '',
+        sumRequests: row.sumRequests * multiplier,
+        requestsCost: row.requestsCost * multiplier,
+        maxActiveWebsocketConnections: row.maxActiveWebsocketConnections * multiplier,
+        sumInboundWebsocketMsgCount: row.sumInboundWebsocketMsgCount * multiplier,
+        sumOutboundWebsocketMsgCount: row.sumOutboundWebsocketMsgCount * multiplier,
+        websocketsCost: row.websocketsCost * multiplier,
+        sumSubrequests: row.sumSubrequests * multiplier,
+        subrequestsCost: row.subrequestsCost * multiplier,
+        activeGbSeconds: row.activeGbSeconds * multiplier,
+        activeCost: row.activeCost * multiplier,
+        sumStorageReadUnits: row.sumStorageReadUnits * multiplier,
+        readUnitsCost: row.readUnitsCost * multiplier,
+        sumStorageWriteUnits: row.sumStorageWriteUnits * multiplier,
+        writeUnitsCost: row.writeUnitsCost * multiplier,
+        sumStorageDeletes: row.sumStorageDeletes * multiplier,
+        deletesCost: row.deletesCost * multiplier,
+        storageGb: row.storageGb * multiplier,
+        storageCost: row.storageCost * multiplier,
+        totalCost: row.totalCost * multiplier,
+    };
+}
+
+function computeEstimated30DayRow(rows: DurableObjectsCostsRow[]): DurableObjectsCostsRow | undefined {
+    if (rows.length <= 1) return undefined;
+    
+    const sum = computeTotalRow(rows.slice(0, -1)); // remove the most recent day, since it's always partial
+    const days = rows.length - 1;
+    return multiplyRow(sum, 30 / days);
 }
 
 function utcCurrentDate(): string {

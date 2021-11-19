@@ -70,6 +70,10 @@ export const ANALYTICS_CSS = css`
     width: 0.75rem;
 }
 
+#analytics-table .estimate td {
+    padding-top: 1rem;
+}
+
 `;
 
 export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => void {
@@ -191,5 +195,27 @@ const COSTS_HTML = (table: DurableObjectsCostsTable) => html`
             <td>$${format2(table.totalRow.storageCost)}</td><td></td>
             <td>$${format2(table.totalRow.totalCost)}</td>
         </tr>
+        ${table.estimated30DayRow ? html`<tr class="estimate">
+            <td>30-day estimate</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.requestsCost)}</td><td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.websocketsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.subrequestsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.activeCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.readUnitsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.writeUnitsCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.deletesCost)}</td><td></td>
+            <td></td>
+            <td>$${format2(table.estimated30DayRow.storageCost)}</td><td></td>
+            <td>$${format2(table.estimated30DayRow.totalCost)}</td>
+        </tr>` : ''}
     </table>
 `;
