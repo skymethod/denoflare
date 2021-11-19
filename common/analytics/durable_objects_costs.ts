@@ -17,10 +17,12 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
         'invocations': invocations.info,
     };
 
-    const rows: DurableObjectsCostsRow[] = [];
+    const rowsByNamespace: Record<string, DurableObjectsCostsRow[]> = {};
+    const rowsByDate: Record<string, DurableObjectsCostsRow[]> = {};
     for (const pRow of periodic.rows) {
         const { 
-            date, 
+            date,
+            namespaceId,
             maxActiveWebsocketConnections, 
             sumInboundWebsocketMsgCount, 
             sumOutboundWebsocketMsgCount,
@@ -30,7 +32,17 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
             sumStorageWriteUnits,
             sumStorageDeletes,
          } = pRow;
-        const { sumRequests } = invocations.rows.filter(v => v.date === date)[0] || { sumRequests: 0 };
+        let rows = rowsByNamespace[namespaceId];
+        if (!rows) {
+            rows = [];
+            rowsByNamespace[namespaceId] = rows;
+        }
+        let dateRows = rowsByDate[date];
+        if (!dateRows) {
+            dateRows = [];
+            rowsByDate[date] = dateRows;
+        }
+        const { sumRequests } = invocations.rows.filter(v => v.date === date && v.namespaceId === namespaceId)[0] || { sumRequests: 0 };
         const requestsCost = sumRequests / 1000000 * 0.15; // $0.15 per additional 1 million requests
         const websocketsCost = sumInboundWebsocketMsgCount / 1000000 * 0.15; // $0.15 per additional 1 million requests (inbound only per discord)
         const subrequestsCost = sumSubrequests / 1000000 * 0.15; // $0.15 per additional 1 million requests
@@ -41,13 +53,9 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
         const writeUnitsCost = sumStorageWriteUnits / 1000000 * 1; // $1.00 per additional 1 million write units
         const deletesCost = sumStorageDeletes / 1000000 * 1; // $1.00 per additional 1 million delete operations
 
-        const { maxStoredBytes } = storage.rows.filter(v => v.date === date)[0] || { maxStoredBytes: 0 };
-        const storageGb = maxStoredBytes / 1024 / 1024 / 1024;
-        const storageCost = storageGb * .20 / 30; // $0.20 per additional 1GB of stored data
+        const totalCost = requestsCost + websocketsCost + subrequestsCost + activeCost + readUnitsCost + writeUnitsCost + deletesCost;
 
-        const totalCost = requestsCost + websocketsCost + subrequestsCost + activeCost + readUnitsCost + writeUnitsCost + deletesCost + storageCost;
-
-        rows.push({
+        const row: DurableObjectsCostsRow = {
             date,
             sumRequests,
             requestsCost,
@@ -65,21 +73,42 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
             writeUnitsCost,
             sumStorageDeletes,
             deletesCost,
-            storageGb,
-            storageCost,
             totalCost,
-        });
+        };
+        rows.push(row);
+        dateRows.push(row);
     }
-    const totalRow = computeTotalRow(rows);
-    const estimated30DayRow = computeEstimated30DayRow(rows);
-    return { rows, totalRow, estimated30DayRow, gqlResultInfos };
+    const namespaceTables: Record<string, DurableObjectsDailyCostsTable> = {};
+    for (const [ namespaceId, rows] of Object.entries(rowsByNamespace)) {
+        const totalRow = computeTotalRow('', rows);
+        const estimated30DayRow = computeEstimated30DayRow(rows);
+        namespaceTables[namespaceId] = { rows, estimated30DayRow, totalRow };
+    }
+    const accountRows: DurableObjectsCostsRow[] = [];
+    for (const [ date, dateRows] of Object.entries(rowsByDate)) {
+        const { maxStoredBytes } = storage.rows.filter(v => v.date === date)[0] || { maxStoredBytes: 0 };
+        const storageGb = maxStoredBytes / 1024 / 1024 / 1024;
+        const storageCost = storageGb * .20 / 30; // $0.20 per additional 1GB of stored data
+        accountRows.push(computeTotalRow(date, dateRows, { storageGb, storageCost }));
+    }
+    const storageCost =  accountRows.map(v => v.storageCost || 0).reduce((a, b) => a + b);
+    const accountOpts = { storageGb: 0, storageCost };
+    const totalRow = computeTotalRow('', accountRows, accountOpts);
+    const estimated30DayRow = computeEstimated30DayRow(accountRows, accountOpts);
+    const accountTable: DurableObjectsDailyCostsTable = { rows: accountRows, estimated30DayRow, totalRow };
+    return { accountTable, namespaceTables, gqlResultInfos };
 }
 
 export interface DurableObjectsCostsTable {
+    readonly accountTable: DurableObjectsDailyCostsTable;
+    readonly namespaceTables: Record<string, DurableObjectsDailyCostsTable>; // key = namespaceId
+    readonly gqlResultInfos: Record<string, CfGqlResultInfo>;
+}
+
+export interface DurableObjectsDailyCostsTable {
     readonly rows: readonly DurableObjectsCostsRow[];
     readonly totalRow: DurableObjectsCostsRow;
     readonly estimated30DayRow: DurableObjectsCostsRow | undefined;
-    readonly gqlResultInfos: Record<string, CfGqlResultInfo>;
 }
 
 export interface DurableObjectsCostsRow {
@@ -100,16 +129,22 @@ export interface DurableObjectsCostsRow {
     readonly writeUnitsCost: number;
     readonly sumStorageDeletes: number;
     readonly deletesCost: number;
-    readonly storageGb: number;
-    readonly storageCost: number;
+    readonly storageGb?: number;
+    readonly storageCost?: number;
     readonly totalCost: number;
 }
 
 //
 
-function computeTotalRow(rows: DurableObjectsCostsRow[]): DurableObjectsCostsRow {
+function computeTotalRow(date: string, rows: DurableObjectsCostsRow[], opts?: { storageGb: number, storageCost: number }): DurableObjectsCostsRow {
+    let computedStorageCost = false;
+    const computeStorageCostOnce = () => {
+        const rt = !computedStorageCost ? (opts?.storageCost || 0) : 0;
+        computedStorageCost = true;
+        return rt;
+    };
     return rows.reduce((lhs, rhs) => ({
-        date: '',
+        date,
         sumRequests: lhs.sumRequests + rhs.sumRequests,
         requestsCost: lhs.requestsCost + rhs.requestsCost,
         maxActiveWebsocketConnections: lhs.maxActiveWebsocketConnections + rhs.maxActiveWebsocketConnections,
@@ -126,9 +161,9 @@ function computeTotalRow(rows: DurableObjectsCostsRow[]): DurableObjectsCostsRow
         writeUnitsCost: lhs.writeUnitsCost + rhs.writeUnitsCost,
         sumStorageDeletes: lhs.sumStorageDeletes + rhs.sumStorageDeletes,
         deletesCost: lhs.deletesCost + rhs.deletesCost,
-        storageGb: lhs.storageGb + rhs.storageGb,
-        storageCost: lhs.storageCost + rhs.storageCost,
-        totalCost: lhs.totalCost + rhs.totalCost,
+        storageGb: opts?.storageGb,
+        storageCost: opts?.storageCost,
+        totalCost: lhs.totalCost + rhs.totalCost + computeStorageCostOnce(),
     }));
 }
 
@@ -152,16 +187,16 @@ function multiplyRow(row: DurableObjectsCostsRow, multiplier: number): DurableOb
         writeUnitsCost: row.writeUnitsCost * multiplier,
         sumStorageDeletes: row.sumStorageDeletes * multiplier,
         deletesCost: row.deletesCost * multiplier,
-        storageGb: row.storageGb * multiplier,
-        storageCost: row.storageCost * multiplier,
+        storageGb: row.storageGb === undefined ? undefined : row.storageGb * multiplier,
+        storageCost: row.storageCost === undefined ? undefined : row.storageCost * multiplier,
         totalCost: row.totalCost * multiplier,
     };
 }
 
-function computeEstimated30DayRow(rows: DurableObjectsCostsRow[]): DurableObjectsCostsRow | undefined {
+function computeEstimated30DayRow(rows: DurableObjectsCostsRow[], opts?: { storageGb: number, storageCost: number }): DurableObjectsCostsRow | undefined {
     if (rows.length <= 1) return undefined;
     
-    const sum = computeTotalRow(rows.slice(0, -1)); // remove the most recent day, since it's always partial
+    const sum = computeTotalRow('', rows.slice(0, -1), opts); // remove the most recent day, since it's always partial
     const days = rows.length - 1;
     return multiplyRow(sum, 30 / days);
 }

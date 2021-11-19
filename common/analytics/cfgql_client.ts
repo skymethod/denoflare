@@ -102,6 +102,7 @@ function computeGqlErrorString(error: GqlError) {
 
 export interface GetDurableObjectPeriodicMetricsByDateRow {
     readonly date: string,
+    readonly namespaceId: string,
     readonly maxActiveWebsocketConnections: number,
     /** Sum of active time - microseconds */
     readonly sumActiveTime: number,
@@ -124,6 +125,7 @@ async function _getDurableObjectPeriodicMetricsByDate(profile: Profile, startDat
         .argRaw('orderBy', `[date_ASC]`)
         .object('dimensions')
             .scalar('date')
+            .scalar('namespaceId')
             .end()
         .object('max')
             .scalar('activeWebsocketConnections')
@@ -152,6 +154,7 @@ async function _getDurableObjectPeriodicMetricsByDate(profile: Profile, startDat
                     durableObjectsPeriodicGroups: {
                         dimensions: {
                             date: string,
+                            namespaceId: string,
                         },
                         max: {
                             activeWebsocketConnections: number,
@@ -184,6 +187,7 @@ async function _getDurableObjectPeriodicMetricsByDate(profile: Profile, startDat
         checkEqual('account.accountTag', account.accountTag, profile.accountId);
         for (const group of account.durableObjectsPeriodicGroups) {
             const date = group.dimensions.date;
+            const namespaceId = group.dimensions.namespaceId;
             const maxActiveWebsocketConnections = group.max.activeWebsocketConnections;
             const sumActiveTime = group.sum.activeTime;
             const sumCpuTime = group.sum.cpuTime;
@@ -199,6 +203,7 @@ async function _getDurableObjectPeriodicMetricsByDate(profile: Profile, startDat
 
             rows.push({ 
                 date, 
+                namespaceId,
                 maxActiveWebsocketConnections, 
                 sumActiveTime, 
                 sumCpuTime, 
@@ -281,6 +286,7 @@ async function _getDurableObjectStorageByDate(profile: Profile, startDateInclusi
 
 export interface GetDurableObjectInvocationsByDateRow {
     readonly date: string,
+    readonly namespaceId: string,
     readonly avgSampleInterval: number,
     readonly sumRequests: number,
 }
@@ -292,6 +298,7 @@ async function _getDurableObjectInvocationsByDate(profile: Profile, startDateInc
         .argRaw('orderBy', `[date_ASC]`)
         .object('dimensions')
             .scalar('date')
+            .scalar('namespaceId')
             .end()
         .object('avg')
             .scalar('sampleInterval')
@@ -311,6 +318,7 @@ async function _getDurableObjectInvocationsByDate(profile: Profile, startDateInc
                     durableObjectsInvocationsAdaptiveGroups: {
                         dimensions: {
                             date: string,
+                            namespaceId: string,
                         },
                         avg: {
                             sampleInterval: number,
@@ -333,9 +341,10 @@ async function _getDurableObjectInvocationsByDate(profile: Profile, startDateInc
         checkEqual('account.accountTag', account.accountTag, profile.accountId);
         for (const group of account.durableObjectsInvocationsAdaptiveGroups) {
             const date = group.dimensions.date;
+            const namespaceId = group.dimensions.namespaceId;
             const avgSampleInterval = group.avg.sampleInterval;
             const sumRequests = group.sum.requests;
-            rows.push({ date, avgSampleInterval, sumRequests });
+            rows.push({ date, namespaceId, avgSampleInterval, sumRequests });
         }
     }
     return { info: { fetchMillis, cost, budget }, rows };

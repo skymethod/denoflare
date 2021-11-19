@@ -151,7 +151,7 @@ const COSTS_HTML = (table: DurableObjectsCostsTable) => html`
             <th colspan="2"></th><th></th>
             <th></th>
         </tr>
-        ${table.rows.map(v => html`<tr>
+        ${table.accountTable.rows.map(v => html`<tr>
             <td>${v.date}</td><td></td>
             <td class="high-emphasis-text">${format1(v.sumRequests)}</td>
             <td>$${format2(v.requestsCost)}</td><td></td>
@@ -169,53 +169,53 @@ const COSTS_HTML = (table: DurableObjectsCostsTable) => html`
             <td>$${format2(v.writeUnitsCost)}</td><td></td>
             <td class="high-emphasis-text">${format1(v.sumStorageDeletes)}</td>
             <td>$${format2(v.deletesCost)}</td><td></td>
-            <td class="high-emphasis-text">${formatGb(v.storageGb)}</td>
-            <td>$${format2(v.storageCost)}</td><td></td>
+            <td class="high-emphasis-text">${formatGb(v.storageGb || 0)}</td>
+            <td>$${format2(v.storageCost || 0)}</td><td></td>
             <td>$${format2(v.totalCost)}</td>
         </tr>`)}
         <tr>
             <td></td><td></td>
             <td></td>
-            <td>$${format2(table.totalRow.requestsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.requestsCost)}</td><td></td>
             <td></td>
             <td></td>
             <td></td>
-            <td>$${format2(table.totalRow.websocketsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.websocketsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.totalRow.subrequestsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.subrequestsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.totalRow.activeCost)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.activeCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.totalRow.readUnitsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.readUnitsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.totalRow.writeUnitsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.writeUnitsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.totalRow.deletesCost)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.deletesCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.totalRow.storageCost)}</td><td></td>
-            <td>$${format2(table.totalRow.totalCost)}</td>
+            <td>$${format2(table.accountTable.totalRow.storageCost || 0)}</td><td></td>
+            <td>$${format2(table.accountTable.totalRow.totalCost)}</td>
         </tr>
-        ${table.estimated30DayRow ? html`<tr class="estimate">
+        ${table.accountTable.estimated30DayRow ? html`<tr class="estimate">
             <td>30-day estimate</td><td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.requestsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.requestsCost)}</td><td></td>
             <td></td>
             <td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.websocketsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.websocketsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.subrequestsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.subrequestsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.activeCost)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.activeCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.readUnitsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.readUnitsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.writeUnitsCost)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.writeUnitsCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.deletesCost)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.deletesCost)}</td><td></td>
             <td></td>
-            <td>$${format2(table.estimated30DayRow.storageCost)}</td><td></td>
-            <td>$${format2(table.estimated30DayRow.totalCost)}</td>
+            <td>$${format2(table.accountTable.estimated30DayRow.storageCost || 0)}</td><td></td>
+            <td>$${format2(table.accountTable.estimated30DayRow.totalCost)}</td>
         </tr>` : ''}
     </table>
 `;

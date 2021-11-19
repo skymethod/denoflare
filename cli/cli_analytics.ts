@@ -74,7 +74,7 @@ async function dumpDurableObjects(profile: Profile) {
         'total.cost',
     ]);
 
-    for (const row of table.rows) {
+    for (const row of table.accountTable.rows) {
         const tableRow = [
             row.date,
             row.sumRequests,
@@ -93,8 +93,8 @@ async function dumpDurableObjects(profile: Profile) {
             `$${row.writeUnitsCost.toFixed(2)}`,
             row.sumStorageDeletes,
             `$${row.deletesCost.toFixed(2)}`,
-            `${row.storageGb.toFixed(2)}gb`,
-            `$${row.storageCost.toFixed(2)}`,
+            `${row?.storageGb?.toFixed(2)}gb`,
+            `$${row?.storageCost?.toFixed(2)}`,
             `$${row.totalCost.toFixed(2)}`,
         ];
         tableRows.push(tableRow);
@@ -102,53 +102,52 @@ async function dumpDurableObjects(profile: Profile) {
     tableRows.push([
         '', 
         '', 
-        `$${table.totalRow.requestsCost.toFixed(2)}`, 
+        `$${table.accountTable.totalRow.requestsCost.toFixed(2)}`, 
         '', 
         '', 
         '', 
-        `$${table.totalRow.websocketsCost.toFixed(2)}`, 
+        `$${table.accountTable.totalRow.websocketsCost.toFixed(2)}`, 
         '', 
-        `$${table.totalRow.subrequestsCost.toFixed(2)}`, 
+        `$${table.accountTable.totalRow.subrequestsCost.toFixed(2)}`, 
         '', 
-        `$${table.totalRow.activeCost.toFixed(2)}`, 
+        `$${table.accountTable.totalRow.activeCost.toFixed(2)}`, 
         '', 
-        `$${table.totalRow.readUnitsCost.toFixed(2)}`, 
+        `$${table.accountTable.totalRow.readUnitsCost.toFixed(2)}`, 
         '', 
-        `$${table.totalRow.writeUnitsCost.toFixed(2)}`, 
+        `$${table.accountTable.totalRow.writeUnitsCost.toFixed(2)}`, 
         '', 
-        `$${table.totalRow.deletesCost.toFixed(2)}`,
+        `$${table.accountTable.totalRow.deletesCost.toFixed(2)}`,
         '',
-        `$${table.totalRow.storageCost.toFixed(2)}`,
-        `$${table.totalRow.totalCost.toFixed(2)}`
+        `$${table.accountTable.totalRow.storageCost?.toFixed(2)}`,
+        `$${table.accountTable.totalRow.totalCost.toFixed(2)}`
     ]);
-    if (table.estimated30DayRow) {
+    if (table.accountTable.estimated30DayRow) {
         tableRows.push(Array(20).fill(''));
         tableRows.push([
             'est 30-day', 
             '', 
-            `$${table.estimated30DayRow.requestsCost.toFixed(2)}`, 
+            `$${table.accountTable.estimated30DayRow.requestsCost.toFixed(2)}`, 
             '', 
             '', 
             '', 
-            `$${table.estimated30DayRow.websocketsCost.toFixed(2)}`, 
+            `$${table.accountTable.estimated30DayRow.websocketsCost.toFixed(2)}`, 
             '', 
-            `$${table.estimated30DayRow.subrequestsCost.toFixed(2)}`, 
+            `$${table.accountTable.estimated30DayRow.subrequestsCost.toFixed(2)}`, 
             '', 
-            `$${table.estimated30DayRow.activeCost.toFixed(2)}`, 
+            `$${table.accountTable.estimated30DayRow.activeCost.toFixed(2)}`, 
             '', 
-            `$${table.estimated30DayRow.readUnitsCost.toFixed(2)}`, 
+            `$${table.accountTable.estimated30DayRow.readUnitsCost.toFixed(2)}`, 
             '', 
-            `$${table.estimated30DayRow.writeUnitsCost.toFixed(2)}`, 
+            `$${table.accountTable.estimated30DayRow.writeUnitsCost.toFixed(2)}`, 
             '', 
-            `$${table.estimated30DayRow.deletesCost.toFixed(2)}`,
+            `$${table.accountTable.estimated30DayRow.deletesCost.toFixed(2)}`,
             '',
-            `$${table.estimated30DayRow.storageCost.toFixed(2)}`,
-            `$${table.estimated30DayRow.totalCost.toFixed(2)}`
+            `$${table.accountTable.estimated30DayRow.storageCost?.toFixed(2)}`,
+            `$${table.accountTable.estimated30DayRow.totalCost.toFixed(2)}`
         ]);
         tableRows.push(Array(20).fill(''));
     }
     dumpTable(tableRows);
-
 
     for (const [ name, { fetchMillis, cost, budget } ] of Object.entries(table.gqlResultInfos)) {
         console.log(`${name}: fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
