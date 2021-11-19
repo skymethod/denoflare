@@ -805,7 +805,12 @@ export class WebtailAppVM {
     private async queryDurableObjectsCosts(client: CfGqlClient) {
         try {
             this.analyticsState.durableObjectsCosts = await computeDurableObjectsCostsTable(client, { lookbackDays: 28 });
+            if (this.analyticsState.durableObjectsCosts.accountTable.rows.length === 0) {
+                this.analyticsState.durableObjectsCosts = undefined;
+                throw new Error('No durable object analytics found');
+            }
         } catch (e) {
+            console.warn(e);
             let error = `${e}`;
             if (error.includes('(code=authz)')) {
                 error = `The auth token for this profile does not have the Account Analytics:Read permission.`

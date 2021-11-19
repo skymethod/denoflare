@@ -10,11 +10,11 @@ export const ANALYTICS_HTML = html`
         <div id="analytics-heading" class="h6 high-emphasis-text"></div>
         <div id="analytics-subheading" class="medium-emphasis-text"></div>
     </div>
-    <div id="analytics-querying"><progress id="analytics-progress" class="pure-material-progress-circular"></progress> Fetching analytics...</div>
-    <div id="analytics-error"></div>
+    <div id="analytics-querying"><progress id="analytics-progress" class="pure-material-progress-circular"></progress><div class="medium-emphasis-text">Fetching analytics...</div></div>
+    <div id="analytics-error" class="medium-emphasis-text"></div>
     <div id="analytics-table" class="medium-emphasis-text"></div>
     <div id="analytics-namespaces-table"  class="medium-emphasis-text"></div>
-    <div id="analytics-footnote" class="medium-emphasis-text"><sup>*</sup> Estimated based recent usage</div>
+    <div id="analytics-footnote" class="medium-emphasis-text"><sup>*</sup> Estimated based on recent usage</div>
 </div>
 `;
 
@@ -55,6 +55,12 @@ export const ANALYTICS_CSS = css`
 
 #analytics-progress {
     font-size: 0.5rem; /* default 3em => 1.5rem */
+}
+
+#analytics-querying {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 #analytics table {
@@ -125,7 +131,7 @@ export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => v
         analyticsSubheading.textContent = selectedAnalytic.description || '';
         const { durableObjectsCosts, querying, error } = vm.analyticsState;
 
-        analyticsQueryingElement.style.visibility = querying ? 'visible' : 'hidden';
+        analyticsQueryingElement.style.display = querying ? 'flex' : 'none';
         analyticsErrorElement.textContent = error || '';
         analyticsFootnoteElement.style.display = durableObjectsCosts ? 'block' : 'none';
         if (durableObjectsCosts) {

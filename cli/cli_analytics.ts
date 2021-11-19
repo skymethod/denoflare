@@ -14,7 +14,7 @@ export async function analytics(args: (string | number)[], options: Record<strin
         const config = await loadConfig(options);
         const profile = await resolveProfile(config, options);
         const namespaceId = typeof args[1] === 'string' ? args[1] : undefined;
-        await dumpDurableObjects(profile, namespaceId);
+        await dumpDurableObjects(profile, namespaceId, !!options.budget);
     } else {
         dumpHelp();
     }
@@ -46,7 +46,7 @@ function dumpHelp() {
     }
 }
 
-async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined) {
+async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined, dumpBudget: boolean) {
     const client = new CfGqlClient(profile);
     // CfGqlClient.DEBUG = true;
 
@@ -126,7 +126,30 @@ async function dumpDurableObjects(profile: Profile, namespaceId: string | undefi
             table.estimated30DayRow.storageCost ? `$${table.estimated30DayRow.storageCost.toFixed(2)}` : '',
             `$${table.estimated30DayRow.totalCost.toFixed(2)}`
         ]);
-        tableRows.push(Array(20).fill(''));
+    }
+    if (table.estimated30DayRowMinusFree) {
+        tableRows.push([
+            'minus free', 
+            '', 
+            `$${table.estimated30DayRowMinusFree.requestsCost.toFixed(2)}`, 
+            '', 
+            '', 
+            '', 
+            `$${table.estimated30DayRowMinusFree.websocketsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRowMinusFree.subrequestsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRowMinusFree.activeCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRowMinusFree.readUnitsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRowMinusFree.writeUnitsCost.toFixed(2)}`, 
+            '', 
+            `$${table.estimated30DayRowMinusFree.deletesCost.toFixed(2)}`,
+            '',
+            table.estimated30DayRowMinusFree.storageCost ? `$${table.estimated30DayRowMinusFree.storageCost.toFixed(2)}` : '',
+            `$${table.estimated30DayRowMinusFree.totalCost.toFixed(2)}`
+        ]);
     }
     dumpTable(tableRows);
 
@@ -142,9 +165,11 @@ async function dumpDurableObjects(profile: Profile, namespaceId: string | undefi
         }
     }
 
-    console.log('');
-    for (const [ name, { fetchMillis, cost, budget } ] of Object.entries(tableResult.gqlResultInfos)) {
-        console.log(`${name}: fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
+    if (dumpBudget) {
+        console.log('\ngraphql budget:');
+        for (const [ name, { fetchMillis, cost, budget } ] of Object.entries(tableResult.gqlResultInfos)) {
+            console.log(`${name}: fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
+        }
     }
 }
 

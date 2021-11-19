@@ -86,7 +86,7 @@ export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts:
         const storageCost = storageGb * .20 / 30; // $0.20 per additional 1GB of stored data
         accountRows.push(computeTotalRow(date, dateRows, { storageGb, storageCost }));
     }
-    const storageCost =  accountRows.map(v => v.storageCost || 0).reduce((a, b) => a + b);
+    const storageCost = accountRows.length > 0 ? accountRows.map(v => v.storageCost || 0).reduce((a, b) => a + b) : 0;
     const accountOpts = { storageGb: 0, storageCost };
     const estimated30DayRow = computeEstimated30DayRow(accountRows, false, accountOpts);
     const estimated30DayRowMinusFree = computeEstimated30DayRow(accountRows, true, accountOpts);
