@@ -135,7 +135,20 @@ export interface DurableObjectsCostsRow {
 
 function computeCosts(input: { sumRequests: number, sumInboundWebsocketMsgCount: number, sumSubrequests: number, sumActiveTime: number, sumStorageReadUnits: number, sumStorageWriteUnits: number, sumStorageDeletes: number,
         excludeFreeUsage: boolean, storageCost: number | undefined }) {
-    const { sumRequests, sumInboundWebsocketMsgCount, sumSubrequests, sumActiveTime, sumStorageReadUnits, sumStorageWriteUnits, sumStorageDeletes, excludeFreeUsage, storageCost } = input;
+    const { sumActiveTime, sumStorageReadUnits, sumStorageWriteUnits, sumStorageDeletes, excludeFreeUsage, storageCost } = input;
+    const { sumRequests, sumInboundWebsocketMsgCount, sumSubrequests } = (function() {
+        let { sumRequests, sumInboundWebsocketMsgCount, sumSubrequests } = input;
+        if (excludeFreeUsage) {
+            let remaining = 1000000; // 1 million requests included
+            let take = Math.min(remaining, sumRequests);
+            if (take > 0) { sumRequests -= take; remaining -= take; }
+            take = Math.min(remaining, sumInboundWebsocketMsgCount);
+            if (take > 0) { sumInboundWebsocketMsgCount -= take; remaining -= take; }
+            take = Math.min(remaining, sumSubrequests);
+            if (take > 0) { sumSubrequests -= take; remaining -= take; }
+        }
+        return { sumRequests, sumInboundWebsocketMsgCount, sumSubrequests };
+    })();
     const requestsCost = sumRequests / 1000000 * 0.15; // $0.15 per additional 1 million requests
     const websocketsCost = sumInboundWebsocketMsgCount / 1000000 * 0.15; // $0.15 per additional 1 million requests (inbound only per discord)
     const subrequestsCost = sumSubrequests / 1000000 * 0.15; // $0.15 per additional 1 million requests
