@@ -11,10 +11,13 @@ export class LocalDurableObjects {
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
     private readonly moduleWorkerEnv: Record<string, unknown>;
     private readonly durableObjects = new Map<string, Map<string, DurableObjectWithMutexAroundFetch>>(); // className -> hex id -> do
+    private readonly storageProvider: DurableObjectStorageProvider;
 
-    constructor(moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>, moduleWorkerEnv: Record<string, unknown>) {
+    constructor(opts: { moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>, moduleWorkerEnv?: Record<string, unknown>, storageProvider?: DurableObjectStorageProvider }) {
+        const { moduleWorkerExportedFunctions, moduleWorkerEnv, storageProvider } = opts;
         this.moduleWorkerExportedFunctions = moduleWorkerExportedFunctions;
-        this.moduleWorkerEnv = moduleWorkerEnv;
+        this.moduleWorkerEnv = moduleWorkerEnv || {};
+        this.storageProvider = storageProvider || localDurableObjectStorageProvider;
     }
 
     resolveDoNamespace(doNamespace: string): DurableObjectNamespace {
@@ -51,7 +54,7 @@ export class LocalDurableObjects {
             if (existing) return existing;
         }
         const ctor = this.findConstructorForClassName(className);
-        const storage = options.storage === 'webstorage' ? new WebStorageDurableObjectStorage(options.container || 'default') : new InMemoryDurableObjectStorage();
+        const storage = this.storageProvider(options);
         const mutex = new Mutex();
         const state: DurableObjectState = new LocalDurableObjectState(id, storage, mutex);
         const durableObject = new ctor(state, this.moduleWorkerEnv);
@@ -66,11 +69,18 @@ export class LocalDurableObjects {
 
 }
 
+export function localDurableObjectStorageProvider(options: Record<string, string>) {
+    return options.storage === 'webstorage' ? new WebStorageDurableObjectStorage(options.container || 'default')
+        : new InMemoryDurableObjectStorage();
+}
+
 export type DurableObjectConstructor = new (state: DurableObjectState, env: Record<string, unknown>) => DurableObject;
 
 export interface DurableObject {
     fetch(request: Request): Promise<Response>;
 }
+
+export type DurableObjectStorageProvider = (options: Record<string, string>) => DurableObjectStorage;
 
 //
 

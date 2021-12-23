@@ -99,7 +99,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             const callbacks: WorkerExecutionCallbacks = {
                 onModuleWorkerInfo: moduleWorkerInfo => { 
                     const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
-                    objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
+                    objects = new LocalDurableObjects({ moduleWorkerExportedFunctions, moduleWorkerEnv });
                 },
                 globalCachesProvider: () => new NoopCfGlobalCaches(),
                 webSocketPairProvider: () => localWebSockets.allocateNewWebSocketPair(),

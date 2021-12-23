@@ -17,6 +17,7 @@ import { ModuleWorkerExecution } from './module_worker_execution.ts';
 import { FetchUtil } from './fetch_util.ts';
 import { LocalWebSockets } from './local_web_sockets.ts';
 import { RpcStubWebSockets } from './rpc_stub_web_sockets.ts';
+import { makeRpcDurableObjectStorageProvider } from './rpc_durable_object_storage.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -33,10 +34,12 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
 
         let objects: LocalDurableObjects | undefined; 
         const rpcStubWebSockets = new RpcStubWebSockets(channel);
+        const rpcDurableObjectStorageProvider = makeRpcDurableObjectStorageProvider(channel);
         const exec = await WorkerExecution.start(u, scriptType, bindings, {
             onModuleWorkerInfo: moduleWorkerInfo => { 
                 const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
-                objects = new LocalDurableObjects(moduleWorkerExportedFunctions, moduleWorkerEnv);
+                const storageProvider = rpcDurableObjectStorageProvider;
+                objects = new LocalDurableObjects({ moduleWorkerExportedFunctions, moduleWorkerEnv, storageProvider });
             },
             globalCachesProvider: () => new NoopCfGlobalCaches(),
             webSocketPairProvider: () => rpcStubWebSockets.allocateNewWebSocketPair(),
@@ -44,7 +47,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
             doNamespaceProvider: doNamespace => {
                 // console.log(`doNamespaceProvider`, doNamespace, objects);
                 if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
-                return objects.resolveDoNamespace(doNamespace);
+                return objects.resolveDoNamespace(doNamespace)
             },
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });

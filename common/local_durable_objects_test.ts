@@ -3,13 +3,13 @@ import { LocalDurableObjects } from './local_durable_objects.ts';
 import { checkEqual, checkMatches } from './check.ts';
 
 Deno.test('blockConcurrencyWhile', async () => {
-    const objects = new LocalDurableObjects({ 'DurableObject1': DurableObject1 }, {});
+    const objects = new LocalDurableObjects({ moduleWorkerExportedFunctions: { 'DurableObject1': DurableObject1 } });
     const ns = objects.resolveDoNamespace('local:DurableObject1');
     await ns.get(ns.idFromName('name')).fetch('https://foo');
 });
 
 Deno.test('newUniqueId', async () => {
-    const objects = new LocalDurableObjects({ 'DurableObject2': DurableObject2 }, {});
+    const objects = new LocalDurableObjects({ moduleWorkerExportedFunctions: { 'DurableObject2': DurableObject2 } });
     const ns = objects.resolveDoNamespace('local:DurableObject2');
     const id = ns.newUniqueId();
     checkMatches('id', id.toString(), /^[0-9a-f]{64}$/);
@@ -19,7 +19,7 @@ Deno.test('newUniqueId', async () => {
 });
 
 Deno.test('idFromName', async () => {
-    const objects = new LocalDurableObjects({ 'DurableObject2': DurableObject2 }, {});
+    const objects = new LocalDurableObjects({ moduleWorkerExportedFunctions: { 'DurableObject2': DurableObject2 } });
     const ns = objects.resolveDoNamespace('local:DurableObject2');
     const id = ns.idFromName('foo');
     checkMatches('id', id.toString(), /^[0-9a-f]{64}$/);
