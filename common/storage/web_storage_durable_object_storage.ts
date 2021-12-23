@@ -4,10 +4,10 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
 
     // no semantic support for transactions, although they will work in simple cases
 
-    private readonly container: string;
+    private readonly prefix: string;
 
-    constructor(container: string) {
-        this.container = container;
+    constructor(prefix: string) {
+        this.prefix = prefix;
     }
 
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
@@ -16,12 +16,12 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     }
 
     deleteAll(): Promise<void> {
-        const { container } = this;
-        const index = readSortedIndex(container);
+        const { prefix } = this;
+        const index = readSortedIndex(prefix);
         for (const key of index) {
-            localStorage.removeItem(computeValueStorageKey(container, key));
+            localStorage.removeItem(computeValueStorageKey(prefix, key));
         }
-        localStorage.removeItem(computeIndexStorageKey(container));
+        localStorage.removeItem(computeIndexStorageKey(prefix));
         return Promise.resolve();
     }
 
@@ -34,7 +34,7 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     _get(keyOrKeys: string | readonly string[], opts: DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue> | DurableObjectStorageValue | undefined> {
         if (typeof keyOrKeys === 'string' && Object.keys(opts).length === 0) {
             const key = keyOrKeys;
-            const packed = localStorage.getItem(computeValueStorageKey(this.container, key));
+            const packed = localStorage.getItem(computeValueStorageKey(this.prefix, key));
             return Promise.resolve(packed ? unpackDurableObjectStorageValue(packed) : undefined);
         }
         throw new Error(`WebStorageDurableObjectStorage.get not implemented ${typeof keyOrKeys}, ${opts}`);
@@ -52,12 +52,12 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
             const value = arg2;
             const opts = arg3;
             if (!opts || typeof opts === 'object' && Object.keys(opts).length === 0) {
-                const { container } = this;
-                localStorage.setItem(computeValueStorageKey(container, key), packDurableObjectStorageValue(value));
-                const index = readSortedIndex(container);
+                const { prefix } = this;
+                localStorage.setItem(computeValueStorageKey(prefix, key), packDurableObjectStorageValue(value));
+                const index = readSortedIndex(prefix);
                 if (!index.includes(key)) {
                     index.push(key);
-                    writeSortedIndex(container, index);
+                    writeSortedIndex(prefix, index);
                 }
                 return Promise.resolve();
             }
@@ -76,13 +76,13 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
         if (typeof keyOrKeys === 'string') {
             const key = keyOrKeys;
             if (!opts || typeof opts === 'object' && Object.keys(opts).length === 0) {
-                const { container } = this;
-                localStorage.removeItem(computeValueStorageKey(container, key));
-                const index = readSortedIndex(container);
+                const { prefix } = this;
+                localStorage.removeItem(computeValueStorageKey(prefix, key));
+                const index = readSortedIndex(prefix);
                 const i = index.indexOf(key);
                 if (i > -1) {
                     index.splice(i, 1);
-                    writeSortedIndex(container, index);
+                    writeSortedIndex(prefix, index);
                 }
                 return Promise.resolve(i > -1);
             }
@@ -92,7 +92,7 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
    
     async list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
         if (Object.keys(options).length === 0) {
-            const index = readSortedIndex(this.container);
+            const index = readSortedIndex(this.prefix);
             const rt = new Map<string, DurableObjectStorageValue>();
             for (const key of index) {
                 const value = await this._get(key);
@@ -108,12 +108,12 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
 
 //
 
-function computeValueStorageKey(container: string, key: string): string {
-    return `${container}:v:${key}`;
+function computeValueStorageKey(prefix: string, key: string): string {
+    return `${prefix}:v:${key}`;
 }
 
-function computeIndexStorageKey(container: string) {
-    return `${container}:i`;
+function computeIndexStorageKey(prefix: string) {
+    return `${prefix}:i`;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -121,15 +121,15 @@ function isStringArray(obj: any): obj is string[] {
     return Array.isArray(obj) && obj.every(v => typeof v === 'string');
 }
 
-function readSortedIndex(container: string): string[] {
-    const index = localStorage.getItem(computeIndexStorageKey(container)) ||  '[]';
+function readSortedIndex(prefix: string): string[] {
+    const index = localStorage.getItem(computeIndexStorageKey(prefix)) ||  '[]';
     const obj = JSON.parse(index);
     if (!isStringArray(obj)) throw new Error(`Bad index value: ${obj}`);
     return obj.sort();
 }
 
-function writeSortedIndex(container: string, index: string[]) {
-    localStorage.setItem(computeIndexStorageKey(container), JSON.stringify(index));
+function writeSortedIndex(prefix: string, index: string[]) {
+    localStorage.setItem(computeIndexStorageKey(prefix), JSON.stringify(index));
 }
 
 function unpackDurableObjectStorageValue(packed: string): DurableObjectStorageValue {

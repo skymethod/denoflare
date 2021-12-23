@@ -1,24 +1,32 @@
-import { DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from './cloudflare_workers_types.d.ts';
+import { DurableObjectId, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from './cloudflare_workers_types.d.ts';
 import { DurableObjectStorageProvider } from './local_durable_objects.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
 export function makeRpcDurableObjectStorageProvider(channel: RpcChannel): DurableObjectStorageProvider {
-    return options => {
-        return new RpcDurableObjectStorage(channel, options);
+    return (className, id, options) => {
+        return new RpcDurableObjectStorage(channel, { className, id, options });
     }
+}
+
+export type Get1 = { method: 'get1', reference: DurableObjectStorageReference, key: string, opts?: DurableObjectStorageReadOptions };
+export type Put1 = { method: 'put1', reference: DurableObjectStorageReference, key: string, value: DurableObjectStorageValue, opts?: DurableObjectStorageWriteOptions };
+
+export interface DurableObjectStorageReference {
+    readonly className: string;
+    readonly id: DurableObjectId;
+    readonly options: Record<string, string>;
 }
 
 //
 
 class RpcDurableObjectStorage implements DurableObjectStorage {
     private readonly channel: RpcChannel;
-    private readonly options: Record<string, string>;
+    private readonly reference: DurableObjectStorageReference;
 
-    constructor(channel: RpcChannel, options: Record<string, string>) {
+    constructor(channel: RpcChannel, reference: DurableObjectStorageReference) {
         this.channel = channel;
-        this.options = options;
+        this.reference = reference;
     }
-
     
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
         const txn = new RpcDurableObjectStorageTransaction(this);
@@ -35,7 +43,17 @@ class RpcDurableObjectStorage implements DurableObjectStorage {
         return this._get(keyOrKeys, opts); 
     }
 
-    _get(keyOrKeys: string | readonly string[], opts: DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue> | DurableObjectStorageValue | undefined> {
+    async _get(keyOrKeys: string | readonly string[], opts: DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue> | DurableObjectStorageValue | undefined> {
+        if (typeof keyOrKeys === 'string') {
+            const key = keyOrKeys;
+            const { reference } = this;
+            const get1: Get1 = { method: 'get1', reference, key, opts };
+            return await this.channel.sendRequest('do-storage', get1, data => {
+                const { error, value } = data;
+                if (typeof error === 'string') throw new Error(error);
+                return value;
+            });
+        }
         throw new Error(`RpcDurableObjectStorage.get not implemented ${keyOrKeys} ${opts}`);
     }
    
@@ -45,7 +63,18 @@ class RpcDurableObjectStorage implements DurableObjectStorage {
         return this._put(arg1, arg2, arg3);
     }
 
-    _put(arg1: unknown, arg2?: unknown, arg3?: unknown): Promise<void> {
+    async _put(arg1: unknown, arg2?: unknown, arg3?: unknown): Promise<void> {
+        if (typeof arg1 === 'string') {
+            const key = arg1;
+            const value = arg2 as DurableObjectStorageValue;
+            const opts = arg3 as DurableObjectStorageWriteOptions | undefined;
+            const { reference } = this;
+            const put1: Put1 = { method: 'put1', reference, key, value, opts };
+            return await this.channel.sendRequest('do-storage', put1, data => {
+                const { error } = data;
+                if (typeof error === 'string') throw new Error(error);
+            });
+        }
         throw new Error(`RpcDurableObjectStorage.put not implemented ${arg1} ${arg2} ${arg3}`);
     }
    

@@ -8,6 +8,7 @@ import { runScript, WorkerFetch } from '../common/rpc_script.ts';
 import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
 import { RpcHostWebSockets } from './rpc_host_web_sockets.ts';
+import { makeRpcHostDurableObjectStorage } from './rpc_host_durable_object_storage.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -56,6 +57,8 @@ export class WorkerManager {
         };
         worker.onmessageerror = e => consoleError('host: onmessageerror', e);
 
+        // host side of the rpc do storage impl
+        makeRpcHostDurableObjectStorage(rpcChannel);
         // host side of the rpc websocket impl
         const rpcHostWebSockets = new RpcHostWebSockets(rpcChannel);
 

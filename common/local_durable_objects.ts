@@ -6,6 +6,7 @@ import { Mutex } from './mutex.ts';
 import { checkMatches } from './check.ts';
 import { InMemoryDurableObjectStorage } from './storage/in_memory_durable_object_storage.ts';
 import { WebStorageDurableObjectStorage } from './storage/web_storage_durable_object_storage.ts';
+import { Sha1 } from './sha1.ts';
 
 export class LocalDurableObjects {
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
@@ -54,7 +55,7 @@ export class LocalDurableObjects {
             if (existing) return existing;
         }
         const ctor = this.findConstructorForClassName(className);
-        const storage = this.storageProvider(options);
+        const storage = this.storageProvider(className, id, options);
         const mutex = new Mutex();
         const state: DurableObjectState = new LocalDurableObjectState(id, storage, mutex);
         const durableObject = new ctor(state, this.moduleWorkerEnv);
@@ -69,8 +70,8 @@ export class LocalDurableObjects {
 
 }
 
-export function localDurableObjectStorageProvider(options: Record<string, string>) {
-    return options.storage === 'webstorage' ? new WebStorageDurableObjectStorage(options.container || 'default')
+export function localDurableObjectStorageProvider(className: string, id: DurableObjectId, options: Record<string, string>) {
+    return options.storage === 'webstorage' ? new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':'))
         : new InMemoryDurableObjectStorage();
 }
 
@@ -80,7 +81,13 @@ export interface DurableObject {
     fetch(request: Request): Promise<Response>;
 }
 
-export type DurableObjectStorageProvider = (options: Record<string, string>) => DurableObjectStorage;
+export type DurableObjectStorageProvider = (className: string, id: DurableObjectId, options: Record<string, string>) => DurableObjectStorage;
+
+//
+
+function computeSha1HexForStringInput(input: string): string {
+    return new Sha1().update(Bytes.ofUtf8(input).array()).hex();
+}
 
 //
 
@@ -119,7 +126,9 @@ class LocalDurableObjectNamespace implements DurableObjectNamespace {
     idFromName(name: string): DurableObjectId {
         const existing = this.namesToIds.get(name);
         if (existing) return existing;
-        const rt = this.newUniqueId(); 
+        const sha1a = computeSha1HexForStringInput(this.className);
+        const sha1b = computeSha1HexForStringInput(name);
+        const rt = `${sha1a.substring(0, 24)}${sha1b}`;
         this.namesToIds.set(name, rt);
         return rt;
     }
