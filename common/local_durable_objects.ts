@@ -51,7 +51,7 @@ export class LocalDurableObjects {
             if (existing) return existing;
         }
         const ctor = this.findConstructorForClassName(className);
-        const storage = options.storage === 'webstorage' ? new WebStorageDurableObjectStorage() : new InMemoryDurableObjectStorage();
+        const storage = options.storage === 'webstorage' ? new WebStorageDurableObjectStorage(options.container || 'default') : new InMemoryDurableObjectStorage();
         const mutex = new Mutex();
         const state: DurableObjectState = new LocalDurableObjectState(id, storage, mutex);
         const durableObject = new ctor(state, this.moduleWorkerEnv);
