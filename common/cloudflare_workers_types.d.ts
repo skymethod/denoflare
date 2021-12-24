@@ -530,7 +530,7 @@ export interface DurableObjectId {
 //#region Durable Object implementation types
 
 // deno-lint-ignore ban-types
-export type DurableObjectStorageValue = number | string | object;  // add more as necessary
+export type DurableObjectStorageValue = number | string | object;  // add more as necessary ("The value can be any type supported by the structured clone algorithm, which is true of most types.")
 
 export interface DurableObjectStorageMethods {
     /** Retrieves the value associated with the given key. 

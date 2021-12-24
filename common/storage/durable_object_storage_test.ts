@@ -45,6 +45,12 @@ export async function runSimpleStorageTestScenario(storage: DurableObjectStorage
     assertEquals(await storage.delete('foo'), true);
     assertEquals((await storage.list()).size, 2);
     assertEquals(await storage.delete(['bad1', 'bad2']), 0);
+    await storage.put('number', 123);
+    assertEquals(await storage.get('number'), 123);
+    const o1 = { a: true };
+    await storage.put('object', o1);
+    o1.a = false;
+    assertEquals(await storage.get('object'), { a: true });
     await storage.deleteAll();
     assertEquals((await storage.list()).size, 0);
 }

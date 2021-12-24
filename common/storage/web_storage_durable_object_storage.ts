@@ -59,12 +59,12 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
 
     _put(arg1: unknown, arg2?: unknown, arg3?: unknown): Promise<void> {
         const { prefix } = this;
-        if (typeof arg1 === 'string' && typeof arg2 === 'string') {
+        if (typeof arg1 === 'string') {
             const key = arg1;
             const value = arg2;
             const opts = arg3;
             if (!opts || typeof opts === 'object' && Object.keys(opts).length === 0) {
-                localStorage.setItem(computeValueStorageKey(prefix, key), packDurableObjectStorageValue(value));
+                localStorage.setItem(computeValueStorageKey(prefix, key), packDurableObjectStorageValue(value as DurableObjectStorageValue));
                 const index = readSortedIndex(prefix);
                 if (!index.includes(key)) {
                     index.push(key);
@@ -167,25 +167,14 @@ function writeSortedIndex(prefix: string, index: string[]) {
 
 function unpackDurableObjectStorageValue(packed: string): DurableObjectStorageValue {
     const obj = JSON.parse(packed);
-    if (typeof obj === 'object' && typeof obj.k === 'string') {
-        if (obj.k === 's' && typeof obj.v === 'string') {
-            return obj.v;
-        }
-    }
-    throw new Error(`WebStorageDurableObjectStorage.unpackDurableObjectStorageValue: packed value not implemented: ${packed}`);
+    return obj.v as DurableObjectStorageValue;
 }
 
 function packDurableObjectStorageValue(value: DurableObjectStorageValue): string {
-    if (typeof value === 'string') {
-        return JSON.stringify({ k: 's', v: value } as PackedStringValue);
-    }
-    throw new Error(`WebStorageDurableObjectStorage.packDurableObjectStorageValue: value not implemented: ${value}`);
+    return JSON.stringify({ v: value }); // for now, we can only support types that json round-trip
 }
 
 //
-
-type PackedValue = PackedStringValue;
-type PackedStringValue = { k: 's', v: string };
 
 class WebStorageDurableObjectStorageTransaction implements DurableObjectStorageTransaction {
     private readonly storage: WebStorageDurableObjectStorage;
