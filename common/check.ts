@@ -32,3 +32,10 @@ export function checkMatches(name: string, value: string, pattern: RegExp): stri
     if (!pattern.test(value)) throw new Error(`Bad ${name}: ${value}`);
     return value;
 }
+
+//
+
+// deno-lint-ignore no-explicit-any
+export function isStringArray(obj: any): obj is string[] {
+    return Array.isArray(obj) && obj.every(v => typeof v === 'string');
+}

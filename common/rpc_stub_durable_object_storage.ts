@@ -1,3 +1,4 @@
+import { isStringArray } from './check.ts';
 import { DurableObjectId, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from './cloudflare_workers_types.d.ts';
 import { DurableObjectStorageProvider } from './local_durable_objects.ts';
 import { RpcChannel } from './rpc_channel.ts';
@@ -12,9 +13,12 @@ export function makeRpcStubDurableObjectStorageProvider(channel: RpcChannel): Du
 
 export type DeleteAll = { method: 'delete-all', reference: DurableObjectStorageReference };
 export type Get1 = { method: 'get1', reference: DurableObjectStorageReference, key: string, opts?: DurableObjectStorageReadOptions };
+export type Get2 = { method: 'get2', reference: DurableObjectStorageReference, keys: readonly string[], opts?: DurableObjectStorageReadOptions };
 export type Put1 = { method: 'put1', reference: DurableObjectStorageReference, key: string, value: DurableObjectStorageValue, opts?: DurableObjectStorageWriteOptions };
+export type Put2 = { method: 'put2', reference: DurableObjectStorageReference, entries: Record<string, unknown>, opts?: DurableObjectStorageWriteOptions };
 export type List = { method: 'list', reference: DurableObjectStorageReference, options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions };
 export type Delete1 = { method: 'delete1', reference: DurableObjectStorageReference, key: string, opts?: DurableObjectStorageWriteOptions };
+export type Delete2 = { method: 'delete2', reference: DurableObjectStorageReference, keys: readonly string[], opts?: DurableObjectStorageWriteOptions };
 
 export interface DurableObjectStorageReference {
     readonly className: string;
@@ -54,11 +58,19 @@ class RpcStubDurableObjectStorage implements DurableObjectStorage {
     }
 
     async _get(keyOrKeys: string | readonly string[], opts: DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue> | DurableObjectStorageValue | undefined> {
+        const { reference } = this;
         if (typeof keyOrKeys === 'string') {
             const key = keyOrKeys;
-            const { reference } = this;
             const get1: Get1 = { method: 'get1', reference, key, opts };
             return await this.channel.sendRequest('do-storage', get1, data => {
+                const { error, value } = data;
+                if (typeof error === 'string') throw new Error(error);
+                return value;
+            });
+        } else if (isStringArray(keyOrKeys)) {
+            const keys = keyOrKeys;
+            const get2: Get2 = { method: 'get2', reference, keys, opts };
+            return await this.channel.sendRequest('do-storage', get2, data => {
                 const { error, value } = data;
                 if (typeof error === 'string') throw new Error(error);
                 return value;
@@ -74,13 +86,21 @@ class RpcStubDurableObjectStorage implements DurableObjectStorage {
     }
 
     async _put(arg1: unknown, arg2?: unknown, arg3?: unknown): Promise<void> {
+        const { reference } = this;
         if (typeof arg1 === 'string') {
             const key = arg1;
             const value = arg2 as DurableObjectStorageValue;
             const opts = arg3 as DurableObjectStorageWriteOptions | undefined;
-            const { reference } = this;
             const put1: Put1 = { method: 'put1', reference, key, value, opts };
             return await this.channel.sendRequest('do-storage', put1, data => {
+                const { error } = data;
+                if (typeof error === 'string') throw new Error(error);
+            });
+        } else if (typeof arg1 === 'object' && !Array.isArray(arg1)) {
+            const entries = arg1 as Record<string, unknown>;
+            const opts = arg3 as DurableObjectStorageWriteOptions | undefined;
+            const put2: Put2 = { method: 'put2', reference, entries, opts };
+            return await this.channel.sendRequest('do-storage', put2, data => {
                 const { error } = data;
                 if (typeof error === 'string') throw new Error(error);
             });
@@ -95,11 +115,19 @@ class RpcStubDurableObjectStorage implements DurableObjectStorage {
     }
 
     async _delete(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
+        const { reference } = this;
         if (typeof keyOrKeys === 'string') {
-            const { reference } = this;
             const key = keyOrKeys;
             const delete1: Delete1 = { method: 'delete1', reference, key, opts };
             return await this.channel.sendRequest('do-storage', delete1, data => {
+                const { error, value } = data;
+                if (typeof error === 'string') throw new Error(error);
+                return value;
+            });
+        } else if (isStringArray(keyOrKeys)) {
+            const keys = keyOrKeys;
+            const delete2: Delete2 = { method: 'delete2', reference, keys, opts };
+            return await this.channel.sendRequest('do-storage', delete2, data => {
                 const { error, value } = data;
                 if (typeof error === 'string') throw new Error(error);
                 return value;

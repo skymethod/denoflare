@@ -1,3 +1,4 @@
+import { isStringArray } from '../check.ts';
 import { DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
 
 export class WebStorageDurableObjectStorage implements DurableObjectStorage {
@@ -36,6 +37,16 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
             const key = keyOrKeys;
             const packed = localStorage.getItem(computeValueStorageKey(this.prefix, key));
             return Promise.resolve(packed ? unpackDurableObjectStorageValue(packed) : undefined);
+        } else if (isStringArray(keyOrKeys) && Object.keys(opts).length === 0) {
+            const keys = keyOrKeys;
+            const rt = new Map<string, DurableObjectStorageValue>();
+            for (const key of keys) {
+                const packed = localStorage.getItem(computeValueStorageKey(this.prefix, key));
+                if (packed) {
+                    rt.set(key, unpackDurableObjectStorageValue(packed));
+                }
+            }
+            return Promise.resolve(rt);
         }
         throw new Error(`WebStorageDurableObjectStorage.get not implemented ${typeof keyOrKeys}, ${opts}`);
     }
@@ -47,12 +58,12 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     }
 
     _put(arg1: unknown, arg2?: unknown, arg3?: unknown): Promise<void> {
+        const { prefix } = this;
         if (typeof arg1 === 'string' && typeof arg2 === 'string') {
             const key = arg1;
             const value = arg2;
             const opts = arg3;
             if (!opts || typeof opts === 'object' && Object.keys(opts).length === 0) {
-                const { prefix } = this;
                 localStorage.setItem(computeValueStorageKey(prefix, key), packDurableObjectStorageValue(value));
                 const index = readSortedIndex(prefix);
                 if (!index.includes(key)) {
@@ -61,7 +72,22 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
                 }
                 return Promise.resolve();
             }
-           
+        } else if (typeof arg1 === 'object' && !Array.isArray(arg1)) {
+            const entries = arg1 as Record<string, unknown>;
+            const opts = arg2 as DurableObjectStorageWriteOptions | undefined;
+            if (Object.keys(opts || {}).length === 0) {
+                const index = readSortedIndex(prefix);
+                let indexChanged = false;
+                for (const [ key, value ] of Object.entries(entries)) {
+                    localStorage.setItem(computeValueStorageKey(prefix, key), packDurableObjectStorageValue(value as DurableObjectStorageValue));
+                    if (!index.includes(key)) {
+                        index.push(key);
+                        indexChanged = true;
+                    }
+                }
+                if (indexChanged) writeSortedIndex(prefix, index);
+                return Promise.resolve();
+            }
         }
         throw new Error(`WebStorageDurableObjectStorage.put not implemented: ${arg1} ${arg2} ${arg3}`);
     }
@@ -73,19 +99,31 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     }
 
     _delete(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
-        if (typeof keyOrKeys === 'string') {
+        const { prefix } = this;
+        if (typeof keyOrKeys === 'string' && Object.keys(opts || {}).length === 0) {
             const key = keyOrKeys;
-            if (!opts || typeof opts === 'object' && Object.keys(opts).length === 0) {
-                const { prefix } = this;
+            localStorage.removeItem(computeValueStorageKey(prefix, key));
+            const index = readSortedIndex(prefix);
+            const i = index.indexOf(key);
+            if (i > -1) {
+                index.splice(i, 1);
+                writeSortedIndex(prefix, index);
+            }
+            return Promise.resolve(i > -1);
+        } else if (isStringArray(keyOrKeys) && Object.keys(opts || {}).length === 0) {
+            const keys = keyOrKeys;
+            let rt = 0;
+            const index = readSortedIndex(prefix);
+            for (const key of keys) {
                 localStorage.removeItem(computeValueStorageKey(prefix, key));
-                const index = readSortedIndex(prefix);
                 const i = index.indexOf(key);
                 if (i > -1) {
                     index.splice(i, 1);
-                    writeSortedIndex(prefix, index);
+                    rt++;
                 }
-                return Promise.resolve(i > -1);
             }
+            if (rt > 0) writeSortedIndex(prefix, index);
+            return Promise.resolve(rt);
         }
         throw new Error(`WebStorageDurableObjectStorage.delete not implemented: ${keyOrKeys} ${opts}`);
     }
@@ -114,11 +152,6 @@ function computeValueStorageKey(prefix: string, key: string): string {
 
 function computeIndexStorageKey(prefix: string) {
     return `${prefix}:i`;
-}
-
-// deno-lint-ignore no-explicit-any
-function isStringArray(obj: any): obj is string[] {
-    return Array.isArray(obj) && obj.every(v => typeof v === 'string');
 }
 
 function readSortedIndex(prefix: string): string[] {

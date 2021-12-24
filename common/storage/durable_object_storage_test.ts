@@ -27,11 +27,24 @@ export async function runSimpleStorageTestScenario(storage: DurableObjectStorage
     assertEquals((await storage.list()).size, 1);
     assertEquals(await storage.get('foo'), 'baz');
     await storage.put('foo2', 'bar');
-    assertEquals((await storage.list()).size, 2);
+    let results = await storage.list();
+    assertEquals(results.size, 2);
+    assertEquals(results.get('foo'), 'baz');
+    assertEquals(results.get('foo2'), 'bar');
+    results = await storage.get([ 'foo', 'foo2' ]);
+    assertEquals(results.size, 2);
+    assertEquals(results.get('foo'), 'baz');
+    assertEquals(results.get('foo2'), 'bar');
+    await storage.put({ foo2: 'bar2', foo3: 'bar' });
+    results = await storage.list();
+    assertEquals(results.size, 3);
+    assertEquals(results.get('foo2'), 'bar2');
+    assertEquals(results.get('foo3'), 'bar');
     assertEquals(await storage.delete('bad'), false);
-    assertEquals((await storage.list()).size, 2);
+    assertEquals((await storage.list()).size, 3);
     assertEquals(await storage.delete('foo'), true);
-    assertEquals((await storage.list()).size, 1);
+    assertEquals((await storage.list()).size, 2);
+    assertEquals(await storage.delete(['bad1', 'bad2']), 0);
     await storage.deleteAll();
     assertEquals((await storage.list()).size, 0);
 }

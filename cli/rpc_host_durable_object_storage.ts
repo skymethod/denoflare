@@ -1,7 +1,7 @@
 import { DurableObjectStorage } from '../common/cloudflare_workers_types.d.ts';
 import { localDurableObjectStorageProvider } from '../common/local_durable_objects.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
-import { Delete1, DeleteAll, DurableObjectStorageReference, Get1, List, Put1 } from '../common/rpc_stub_durable_object_storage.ts';
+import { Delete1, Delete2, DeleteAll, DurableObjectStorageReference, Get1, Get2, List, Put1, Put2 } from '../common/rpc_stub_durable_object_storage.ts';
 
 export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
     const cache = new Map<string, DurableObjectStorage>();
@@ -18,11 +18,29 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                     } catch (e) {
                         return { error: `${e}`};
                     }
+                } else if (method === 'get2') {
+                    const { reference, keys, opts } = data as Get2;
+                    try {
+                        const storage = locateStorage(reference, cache);
+                        const value = await storage.get(keys, opts);
+                        return { value };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
                 } else if (method === 'put1') {
                     const { reference, key, value, opts } = data as Put1;
                     try {
                         const storage = locateStorage(reference, cache);
                         await storage.put(key, value, opts);
+                        return { };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
+                } else if (method === 'put2') {
+                    const { reference, entries, opts } = data as Put2;
+                    try {
+                        const storage = locateStorage(reference, cache);
+                        await storage.put(entries, opts);
                         return { };
                     } catch (e) {
                         return { error: `${e}`};
@@ -50,6 +68,15 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                     try {
                         const storage = locateStorage(reference, cache);
                         const value = await storage.delete(key, opts);
+                        return { value };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
+                } else if (method === 'delete2') {
+                    const { reference, keys, opts } = data as Delete2;
+                    try {
+                        const storage = locateStorage(reference, cache);
+                        const value = await storage.delete(keys, opts);
                         return { value };
                     } catch (e) {
                         return { error: `${e}`};

@@ -1,3 +1,4 @@
+import { isStringArray } from '../check.ts';
 import { DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
 
 export class InMemoryDurableObjectStorage implements DurableObjectStorage {
@@ -28,6 +29,17 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
         if (typeof keyOrKeys === 'string' && Object.keys(opts || {}).length === 0) {
             const key = keyOrKeys;
             return Promise.resolve(structuredClone(this.values.get(key)));
+        }
+        if (isStringArray(keyOrKeys) && Object.keys(opts || {}).length === 0) {
+            const keys = keyOrKeys;
+            const rt = new Map<string, DurableObjectStorageValue>();
+            for (const key of keys) {
+                const value = this.values.get(key);
+                if (value !== undefined) {
+                    rt.set(key, structuredClone(value));
+                }
+            }
+            return Promise.resolve(rt);
         }
         throw new Error(`InMemoryDurableObjectStorage.get not implemented`);
     }
@@ -79,21 +91,32 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     }
 
     _delete(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
-        if (opts && (typeof opts.allowUnconfirmed === 'boolean' || typeof opts.noCache === 'boolean' )) {
-            // not implemented yet
-        } else if (typeof keyOrKeys === 'string') {
+        if (typeof keyOrKeys === 'string' && Object.keys(opts || {}).length === 0) {
             const key = keyOrKeys;
             const i = this.sortedKeys.indexOf(key);
             if (i < 0) return Promise.resolve(false);
             this.sortedKeys.splice(i, 1);
             this.values.delete(key);
             return Promise.resolve(true);
+        } else if (isStringArray(keyOrKeys) && Object.keys(opts || {}).length === 0) {
+            const keys = keyOrKeys;
+            let rt = 0;
+            for (const key of keys) {
+                const i = this.sortedKeys.indexOf(key);
+                if (i > -1) {
+                    this.sortedKeys.splice(i, 1);
+                    this.values.delete(key);
+                    rt++;
+                }
+            }
+            return Promise.resolve(rt);
         }
+
         throw new Error(`InMemoryDurableObjectStorage.delete not implemented: ${typeof keyOrKeys}, ${opts}`);
     }
    
     list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
-        if (options.allowConcurrency === undefined && options.end === undefined && options.noCache === undefined && options.start === undefined) {
+        if (Object.keys(options).length === 0) {
             const { prefix, limit, reverse } = options;
             const { sortedKeys, values } = this;
             const rt = new Map<string, DurableObjectStorageValue>();
