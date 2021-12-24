@@ -17,7 +17,7 @@ import { ModuleWorkerExecution } from './module_worker_execution.ts';
 import { FetchUtil } from './fetch_util.ts';
 import { LocalWebSockets } from './local_web_sockets.ts';
 import { RpcStubWebSockets } from './rpc_stub_web_sockets.ts';
-import { makeRpcDurableObjectStorageProvider } from './rpc_durable_object_storage.ts';
+import { makeRpcStubDurableObjectStorageProvider } from './rpc_stub_durable_object_storage.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -34,7 +34,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
 
         let objects: LocalDurableObjects | undefined; 
         const rpcStubWebSockets = new RpcStubWebSockets(channel);
-        const rpcDurableObjectStorageProvider = makeRpcDurableObjectStorageProvider(channel);
+        const rpcDurableObjectStorageProvider = makeRpcStubDurableObjectStorageProvider(channel);
         const exec = await WorkerExecution.start(u, scriptType, bindings, {
             onModuleWorkerInfo: moduleWorkerInfo => { 
                 const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;

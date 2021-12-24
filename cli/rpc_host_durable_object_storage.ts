@@ -1,7 +1,7 @@
 import { DurableObjectStorage } from '../common/cloudflare_workers_types.d.ts';
 import { localDurableObjectStorageProvider } from '../common/local_durable_objects.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
-import { DurableObjectStorageReference, Get1, Put1 } from '../common/rpc_durable_object_storage.ts';
+import { Delete1, DeleteAll, DurableObjectStorageReference, Get1, List, Put1 } from '../common/rpc_stub_durable_object_storage.ts';
 
 export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
     const cache = new Map<string, DurableObjectStorage>();
@@ -24,6 +24,33 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                         const storage = locateStorage(reference, cache);
                         await storage.put(key, value, opts);
                         return { };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
+                } else if (method === 'delete-all') {
+                    const { reference } = data as DeleteAll;
+                    try {
+                        const storage = locateStorage(reference, cache);
+                        await storage.deleteAll();
+                        return { };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
+                } else if (method === 'list') {
+                    const { reference, options } = data as List;
+                    try {
+                        const storage = locateStorage(reference, cache);
+                        const value = await storage.list(options);
+                        return { value };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
+                } else if (method === 'delete1') {
+                    const { reference, key, opts } = data as Delete1;
+                    try {
+                        const storage = locateStorage(reference, cache);
+                        const value = await storage.delete(key, opts);
+                        return { value };
                     } catch (e) {
                         return { error: `${e}`};
                     }

@@ -71,8 +71,10 @@ export class LocalDurableObjects {
 }
 
 export function localDurableObjectStorageProvider(className: string, id: DurableObjectId, options: Record<string, string>) {
-    return options.storage === 'webstorage' ? new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':'))
-        : new InMemoryDurableObjectStorage();
+    const storage = options.storage || 'memory';
+    if (storage === 'webstorage') return new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':'));
+    if (storage === 'memory') return new InMemoryDurableObjectStorage();
+    throw new Error(`Bad storage: ${storage}`);
 }
 
 export type DurableObjectConstructor = new (state: DurableObjectState, env: Record<string, unknown>) => DurableObject;

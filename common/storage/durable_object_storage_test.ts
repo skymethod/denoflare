@@ -16,7 +16,7 @@ Deno.test('WebStorageDurableObjectStorage', async () => {
 
 //
 
-async function runSimpleStorageTestScenario(storage: DurableObjectStorage) {
+export async function runSimpleStorageTestScenario(storage: DurableObjectStorage) {
     await storage.deleteAll();
     assertEquals((await storage.list()).size, 0);
     assertEquals(await storage.get('foo'), undefined);

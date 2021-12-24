@@ -1,15 +1,20 @@
 import { DurableObjectId, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from './cloudflare_workers_types.d.ts';
 import { DurableObjectStorageProvider } from './local_durable_objects.ts';
 import { RpcChannel } from './rpc_channel.ts';
+import { InMemoryDurableObjectStorage } from './storage/in_memory_durable_object_storage.ts';
 
-export function makeRpcDurableObjectStorageProvider(channel: RpcChannel): DurableObjectStorageProvider {
+export function makeRpcStubDurableObjectStorageProvider(channel: RpcChannel): DurableObjectStorageProvider {
     return (className, id, options) => {
-        return new RpcDurableObjectStorage(channel, { className, id, options });
+        if ((options.storage || 'memory') === 'memory') return new InMemoryDurableObjectStorage(); // optimization, right now memory impl functions the same in either isolate
+        return new RpcStubDurableObjectStorage(channel, { className, id, options });
     }
 }
 
+export type DeleteAll = { method: 'delete-all', reference: DurableObjectStorageReference };
 export type Get1 = { method: 'get1', reference: DurableObjectStorageReference, key: string, opts?: DurableObjectStorageReadOptions };
 export type Put1 = { method: 'put1', reference: DurableObjectStorageReference, key: string, value: DurableObjectStorageValue, opts?: DurableObjectStorageWriteOptions };
+export type List = { method: 'list', reference: DurableObjectStorageReference, options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions };
+export type Delete1 = { method: 'delete1', reference: DurableObjectStorageReference, key: string, opts?: DurableObjectStorageWriteOptions };
 
 export interface DurableObjectStorageReference {
     readonly className: string;
@@ -19,7 +24,7 @@ export interface DurableObjectStorageReference {
 
 //
 
-class RpcDurableObjectStorage implements DurableObjectStorage {
+class RpcStubDurableObjectStorage implements DurableObjectStorage {
     private readonly channel: RpcChannel;
     private readonly reference: DurableObjectStorageReference;
 
@@ -29,12 +34,17 @@ class RpcDurableObjectStorage implements DurableObjectStorage {
     }
     
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
-        const txn = new RpcDurableObjectStorageTransaction(this);
+        const txn = new RpcStubDurableObjectStorageTransaction(this);
         return await Promise.resolve(closure(txn));
     }
 
-    deleteAll(): Promise<void> {
-        throw new Error(`RpcDurableObjectStorage.deleteAll not implemented`);
+    async deleteAll(): Promise<void> {
+        const { reference } = this;
+        const deleteAll: DeleteAll = { method: 'delete-all', reference };
+        return await this.channel.sendRequest('do-storage', deleteAll, data => {
+            const { error } = data;
+            if (typeof error === 'string') throw new Error(error);
+        });
     }
 
     get(key: string, opts?: DurableObjectStorageReadOptions): Promise<DurableObjectStorageValue | undefined>;
@@ -54,7 +64,7 @@ class RpcDurableObjectStorage implements DurableObjectStorage {
                 return value;
             });
         }
-        throw new Error(`RpcDurableObjectStorage.get not implemented ${keyOrKeys} ${opts}`);
+        throw new Error(`RpcStubDurableObjectStorage.get not implemented ${keyOrKeys} ${opts}`);
     }
    
     put(key: string, value: DurableObjectStorageValue, opts?: DurableObjectStorageWriteOptions): Promise<void>;
@@ -75,7 +85,7 @@ class RpcDurableObjectStorage implements DurableObjectStorage {
                 if (typeof error === 'string') throw new Error(error);
             });
         }
-        throw new Error(`RpcDurableObjectStorage.put not implemented ${arg1} ${arg2} ${arg3}`);
+        throw new Error(`RpcStubDurableObjectStorage.put not implemented ${arg1} ${arg2} ${arg3}`);
     }
    
     delete(key: string, opts?: DurableObjectStorageWriteOptions): Promise<boolean>;
@@ -84,24 +94,41 @@ class RpcDurableObjectStorage implements DurableObjectStorage {
         return this._delete(keyOrKeys, opts);
     }
 
-    _delete(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
-        throw new Error(`RpcDurableObjectStorage.delete not implemented ${keyOrKeys} ${opts}`);
+    async _delete(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
+        if (typeof keyOrKeys === 'string') {
+            const { reference } = this;
+            const key = keyOrKeys;
+            const delete1: Delete1 = { method: 'delete1', reference, key, opts };
+            return await this.channel.sendRequest('do-storage', delete1, data => {
+                const { error, value } = data;
+                if (typeof error === 'string') throw new Error(error);
+                return value;
+            });
+        }
+        throw new Error(`RpcStubDurableObjectStorage.delete not implemented ${keyOrKeys} ${opts}`);
     }
    
-    list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
-        throw new Error(`RpcDurableObjectStorage.list not implemented ${options}`);
+    async list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
+        const { reference } = this;
+        const list: List = { method: 'list', reference, options };
+        return await this.channel.sendRequest('do-storage', list, data => {
+            const { error, value } = data;
+            if (typeof error === 'string') throw new Error(error);
+            return value;
+        });
     }
+
 }
 
-class RpcDurableObjectStorageTransaction implements DurableObjectStorageTransaction {
-    private readonly storage: RpcDurableObjectStorage;
+class RpcStubDurableObjectStorageTransaction implements DurableObjectStorageTransaction {
+    private readonly storage: RpcStubDurableObjectStorage;
 
-    constructor(storage: RpcDurableObjectStorage) {
+    constructor(storage: RpcStubDurableObjectStorage) {
         this.storage = storage;
     }
 
     rollback() {
-        throw new Error(`RpcDurableObjectStorageTransaction.rollback not implemented`);
+        throw new Error(`RpcStubDurableObjectStorageTransaction.rollback not implemented`);
     }
 
     deleteAll(): Promise<void> {

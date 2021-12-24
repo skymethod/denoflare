@@ -25,7 +25,7 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     }
 
     _get(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageReadOptions): Promise<Map<string, DurableObjectStorageValue> | DurableObjectStorageValue | undefined> {
-        if (typeof keyOrKeys === 'string' && opts === undefined) {
+        if (typeof keyOrKeys === 'string' && Object.keys(opts || {}).length === 0) {
             const key = keyOrKeys;
             return Promise.resolve(structuredClone(this.values.get(key)));
         }
