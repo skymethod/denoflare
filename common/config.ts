@@ -63,7 +63,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -102,6 +102,13 @@ export interface DONamespaceBinding {
      * - `local:<DOClassName>`: Pointer to a Durable Object class name defined in the same worker script. e.g. `local:MyCounterDO`
      */
     readonly doNamespace: string;
+}
+
+/** Workers Wasm Module environment variable binding */
+export interface WasmModuleBinding {
+
+    // absolute path to wasm module
+    readonly wasmModule: string;
 }
 
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
@@ -146,4 +153,9 @@ export function isKVNamespaceBinding(binding: Binding): binding is KVNamespaceBi
 export function isDONamespaceBinding(binding: Binding): binding is DONamespaceBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).doNamespace === 'string';
+}
+
+export function isWasmModuleBinding(binding: Binding): binding is WasmModuleBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).wasmModule === 'string';
 }

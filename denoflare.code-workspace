@@ -22,6 +22,10 @@
 			"name": "examples/hello-worker"
 		},
 		{
+			"path": "examples/hello-wasm-worker",
+			"name": "examples/hello-wasm-worker"
+		},
+		{
 			"path": "examples/tiered-websockets-worker",
 			"name": "examples/tiered-websockets-worker"
 		},

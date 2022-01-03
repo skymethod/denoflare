@@ -1,11 +1,11 @@
 import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
-import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace } from '../common/cloudflare_api.ts';
+import { gzip, isAbsolute, resolve, fromFileUrl, relative } from './deps_cli.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { computeContentsForScriptReference } from './cli_common.ts';
-import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding } from '../common/config.ts';
+import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
@@ -27,7 +27,9 @@ export async function push(args: (string | number)[], options: Record<string, un
     const buildAndPutScript = async () => {
         console.log(`bundling ${scriptName} into bundle.js...`);
         let start = Date.now();
-        const result = await Deno.emit(rootSpecifier, { bundle: 'module' });
+        const result = await Deno.emit(rootSpecifier, { 
+            bundle: 'module', 
+        });
         console.log(`bundle finished in ${Date.now() - start}ms`);
 
         if (result.diagnostics.length > 0) {
@@ -39,17 +41,18 @@ export async function push(args: (string | number)[], options: Record<string, un
         const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
         const pushId = watch ? `${pushNumber++}` : undefined;
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
-        const bindings = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : [];
+        const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
         console.log(`computed bindings in ${Date.now() - start}ms`);
         
         const scriptContentsStr = result.files['deno:///bundle.js'];
         if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
-        const scriptContents = new TextEncoder().encode(scriptContentsStr);
+        const rewrittenScriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, parts);
+        const scriptContents = new TextEncoder().encode(rewrittenScriptContentsStr);
         const compressedScriptContents = gzip(scriptContents);
 
         console.log(`putting script ${scriptName}${pushIdSuffix}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
         start = Date.now();
-        await putScript(accountId, scriptName, scriptContents, bindings, apiToken);
+        await putScript(accountId, scriptName, scriptContents, bindings, parts, apiToken);
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
         if (doNamespaces.hasPendingUpdates()) {
             start = Date.now();
@@ -75,6 +78,44 @@ export async function push(args: (string | number)[], options: Record<string, un
         });
         return new Promise(() => {});
     }
+}
+
+//
+
+async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, parts: Part[]): Promise<string> {
+    const p = /const\s+([a-zA-Z0-9]+)\s*=\s*await\s+importWasm\(\s*(importMeta\d*)\.url\s*,\s*'([.\/[a-zA-Z0-9]+)'\s*\)\s*;?/g;
+    let m: RegExpExecArray | null;
+    let i = 0;
+    const pieces = [];
+    while((m = p.exec(scriptContents)) !== null) {
+        const { index } = m;
+        pieces.push(scriptContents.substring(i, index))
+        const line = m[0];
+        const variableName = m[1];
+        const importMetaVariableName = m[2];
+        const unquotedModuleSpecifier = m[3];
+
+        const importMetaUrl = findImportMetaUrl(importMetaVariableName, scriptContents);
+        const wasmPath = resolve(resolve(fromFileUrl(importMetaUrl), '..'), unquotedModuleSpecifier);
+       
+        const rootSpecifierDir = resolve(rootSpecifier, '..');
+        const relativeWasmPath = relative(rootSpecifierDir, wasmPath);
+        const value = new Blob([ await Deno.readFile(wasmPath) ], { type: 'application/wasm' });
+        parts.push({ name: relativeWasmPath, fileName: relativeWasmPath, value });
+
+        pieces.push(`import ${variableName} from "${relativeWasmPath}";`);
+        i = index + line.length;
+    }
+    if (pieces.length === 0) return scriptContents;
+
+    pieces.push(scriptContents.substring(i));
+    return pieces.join('');
+}
+
+function findImportMetaUrl(importMetaVariableName: string, scriptContents: string): string {
+    const m = new RegExp(`.*const ${importMetaVariableName} = {\\s*url: "(file:.*?)".*`, 's').exec(scriptContents);
+    if (!m) throw new Error(`findImportMetaUrl: Unable to find importMetaVariableName ${importMetaVariableName}`);
+    return m[1];
 }
 
 //
@@ -123,16 +164,17 @@ class DurableObjectNamespaces {
 
 //
 
-async function computeBindings(script: Script, scriptName: string, doNamespaces: DurableObjectNamespaces, pushId: string | undefined): Promise<ApiBinding[]> {
+async function computeBindings(script: Script, scriptName: string, doNamespaces: DurableObjectNamespaces, pushId: string | undefined): Promise<{ bindings: ApiBinding[], parts: Part[] }> {
     const resolvedBindings = await resolveBindings(script.bindings || {}, undefined, pushId);
-    const rt: ApiBinding[] = [];
+    const bindings: ApiBinding[] = [];
+    const partsMap: Record<string, Part> = {};
     for (const [name, binding] of Object.entries(resolvedBindings)) {
-        rt.push(await computeBinding(name, binding, doNamespaces, scriptName));
+        bindings.push(await computeBinding(name, binding, doNamespaces, scriptName, partsMap));
     }
-    return rt;
+    return { bindings, parts: Object.values(partsMap) };
 }
 
-async function computeBinding(name: string, binding: Binding, doNamespaces: DurableObjectNamespaces, scriptName: string): Promise<ApiBinding> {
+async function computeBinding(name: string, binding: Binding, doNamespaces: DurableObjectNamespaces, scriptName: string, parts: Record<string, Part>): Promise<ApiBinding> {
     if (isTextBinding(binding)) {
         return { type: 'plain_text', name, text: binding.value };
     } else if (isSecretBinding(binding)) {
@@ -141,9 +183,18 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         return { type: 'kv_namespace', name, namespace_id: binding.kvNamespace };
     } else if (isDONamespaceBinding(binding)) {
         return { type: 'durable_object_namespace', name, namespace_id: await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName) };
+    } else if (isWasmModuleBinding(binding)) {
+        return { type: 'wasm_module', name, part: await computeWasmModulePart(binding.wasmModule, parts) };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }
+}
+
+async function computeWasmModulePart(wasmModule: string, parts: Record<string, Part>): Promise<string> {
+    const bytes = await Deno.readFile(wasmModule);
+    const part = 'todo';
+    parts[part] = { name: part, value: new Blob([ bytes ], { type: 'application/wasm' }) };
+    return part;
 }
 
 function dumpHelp() {

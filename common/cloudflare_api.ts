@@ -29,7 +29,7 @@ export async function listScripts(accountId: string, apiToken: string): Promise<
     return (await execute('listScripts', 'GET', url, apiToken) as ListScriptsResponse).result;
 }
 
-export async function putScript(accountId: string, scriptName: string, scriptContents: Uint8Array, bindings: Binding[], apiToken: string): Promise<Script> {
+export async function putScript(accountId: string, scriptName: string, scriptContents: Uint8Array, bindings: Binding[], parts: Part[], apiToken: string): Promise<Script> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
     const metadata = { 'main_module': 'main', bindings, 'usage_model': 'bundled' };
@@ -37,6 +37,9 @@ export async function putScript(accountId: string, scriptName: string, scriptCon
     const scriptBlob = new Blob([ scriptContents.buffer ], { type: 'application/javascript+module' });
     formData.set('metadata', metadataBlob);
     formData.set('script', scriptBlob, 'main');
+    for (const { name, value, fileName } of parts) {
+        formData.set(name, value, fileName);
+    }
     return (await execute('putScript', 'PUT', url, apiToken, formData) as PutScriptResponse).result;
 }
 
@@ -179,7 +182,7 @@ export class CloudflareApiError extends Error {
     }
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -203,6 +206,18 @@ export interface DurableObjectNamespaceBinding {
     readonly type: 'durable_object_namespace';
     readonly name: string;
     readonly 'namespace_id': string;
+}
+
+export interface WasmModuleBinding {
+    readonly type: 'wasm_module';
+    readonly name: string;
+    readonly part: string;
+}
+
+export interface Part {
+    readonly name: string;
+    readonly value: string | Blob;
+    readonly fileName?: string;
 }
 
 export interface Message {

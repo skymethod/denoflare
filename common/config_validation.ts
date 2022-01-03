@@ -100,13 +100,14 @@ function checkScript(name: string, script: any): Script {
 // deno-lint-ignore no-explicit-any
 function checkBinding(name: string, binding: any) {
     checkObject(name, binding);
-    const { value, secret, kvNamespace, doNamespace } = binding;
-    const definedCount = [value, secret, kvNamespace, doNamespace].filter(v => v !== undefined).length;
+    const { value, secret, kvNamespace, doNamespace, wasmModule } = binding;
+    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule ].filter(v => v !== undefined).length;
     if (definedCount === 1) {
         if (value !== undefined && typeof value !== 'string') throw new Error(`Bad ${name}.value: expected string, found ${typeof value}`);
         else if (secret !== undefined && typeof secret !== 'string') throw new Error(`Bad ${name}.secret: expected string, found ${typeof secret}`);
         else if (kvNamespace !== undefined && typeof kvNamespace !== 'string') throw new Error(`Bad ${name}.kvNamespace: expected string, found ${typeof kvNamespace}`);
         else if (doNamespace !== undefined && typeof doNamespace !== 'string') throw new Error(`Bad ${name}.doNamespace: expected string, found ${typeof doNamespace}`);
+        else if (wasmModule !== undefined && typeof wasmModule !== 'string') throw new Error(`Bad ${name}.wasmModule: expected string, found ${typeof wasmModule}`);
     } else {
         throw new Error(`Bad ${name}: ${binding}`);
     }
