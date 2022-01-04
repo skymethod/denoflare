@@ -25,34 +25,43 @@ export async function push(args: (string | number)[], options: Record<string, un
     let pushNumber = 1;
 
     const buildAndPutScript = async () => {
-        console.log(`bundling ${scriptName} into bundle.js...`);
-        let start = Date.now();
-        const result = await Deno.emit(rootSpecifier, { 
-            bundle: 'module', 
-        });
-        console.log(`bundle finished in ${Date.now() - start}ms`);
+        const isModule = !rootSpecifier.endsWith('.js');
+        let scriptContentsStr = '';
+        if (isModule) {
+            console.log(`bundling ${scriptName} into bundle.js...`);
+            const start = Date.now();
+            const result = await Deno.emit(rootSpecifier, { 
+                bundle: 'module', 
+            });
+            console.log(`bundle finished in ${Date.now() - start}ms`);
 
-        if (result.diagnostics.length > 0) {
-            console.warn(Deno.formatDiagnostics(result.diagnostics));
-            throw new Error('bundle failed');
+            if (result.diagnostics.length > 0) {
+                console.warn(Deno.formatDiagnostics(result.diagnostics));
+                throw new Error('bundle failed');
+            }
+            scriptContentsStr = result.files['deno:///bundle.js'];
+            if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
+        } else {
+            scriptContentsStr = await Deno.readTextFile(rootSpecifier);
         }
 
-        start = Date.now();
+        let start = Date.now();
         const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
         const pushId = watch ? `${pushNumber++}` : undefined;
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
         console.log(`computed bindings in ${Date.now() - start}ms`);
         
-        const scriptContentsStr = result.files['deno:///bundle.js'];
-        if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
-        const rewrittenScriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, parts);
-        const scriptContents = new TextEncoder().encode(rewrittenScriptContentsStr);
+        if (isModule) {
+            scriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, parts);
+        }
+        const scriptContents = new TextEncoder().encode(scriptContentsStr);
         const compressedScriptContents = gzip(scriptContents);
 
-        console.log(`putting script ${scriptName}${pushIdSuffix}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
+        console.log(`putting ${isModule ? 'module' : 'script'}-based worker ${scriptName}${pushIdSuffix}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
         start = Date.now();
-        await putScript(accountId, scriptName, scriptContents, bindings, parts, apiToken);
+
+        await putScript(accountId, scriptName, scriptContents, bindings, parts, apiToken, isModule);
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
         if (doNamespaces.hasPendingUpdates()) {
             start = Date.now();

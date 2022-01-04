@@ -107,7 +107,7 @@ export interface DONamespaceBinding {
 /** Workers Wasm Module environment variable binding */
 export interface WasmModuleBinding {
 
-    // absolute path to wasm module
+    // Absolute file path to wasm module
     readonly wasmModule: string;
 }
 

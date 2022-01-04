@@ -73,6 +73,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Workers Wasm Module environment variable binding",
+                                            "required": [ "wasmModule" ],
+                                            "properties": {
+                                                "wasmModule": {
+                                                    "description": "Absolute file path to wasm module",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

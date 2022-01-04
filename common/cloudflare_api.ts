@@ -29,14 +29,25 @@ export async function listScripts(accountId: string, apiToken: string): Promise<
     return (await execute('listScripts', 'GET', url, apiToken) as ListScriptsResponse).result;
 }
 
-export async function putScript(accountId: string, scriptName: string, scriptContents: Uint8Array, bindings: Binding[], parts: Part[], apiToken: string): Promise<Script> {
+export async function putScript(accountId: string, scriptName: string, scriptContents: Uint8Array, bindings: Binding[], parts: Part[], apiToken: string, isModule: boolean): Promise<Script> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
-    const metadata = { 'main_module': 'main', bindings, 'usage_model': 'bundled' };
+    const metadata: Record<string, unknown> = { bindings, 'usage_model': 'bundled' };
+    if (isModule) {
+        metadata['main_module'] = 'main';
+    } else {
+        metadata['body_part'] = 'script';   
+    }
     const metadataBlob = new Blob([ JSON.stringify(metadata) ], { type: APPLICATION_JSON });
-    const scriptBlob = new Blob([ scriptContents.buffer ], { type: 'application/javascript+module' });
     formData.set('metadata', metadataBlob);
-    formData.set('script', scriptBlob, 'main');
+    if (isModule) {
+        const scriptBlob = new Blob([ scriptContents.buffer ], { type: 'application/javascript+module' });
+        formData.set('script', scriptBlob, 'main');
+    } else {
+        const scriptBlob = new Blob([ scriptContents.buffer ], { type: 'application/javascript' });
+        formData.set('script', scriptBlob);
+    }
+   
     for (const { name, value, fileName } of parts) {
         formData.set(name, value, fileName);
     }
