@@ -104,13 +104,13 @@ function computeSizeString(scriptContents: Uint8Array, compressedScriptContents:
 }
 
 async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, parts: Part[]): Promise<string> {
-    const p = /const\s+([a-zA-Z0-9]+)\s*=\s*await\s+importWasm\d*\(\s*(importMeta\d*)\.url\s*,\s*'([.\/[a-zA-Z0-9]+)'\s*\)\s*;?/g;
+    const p = /const\s+([a-zA-Z0-9]+)\s*=\s*await\s+importWasm\d*\(\s*(importMeta\d*)\.url\s*,\s*'((https:\/|\.)\/[\/.a-zA-Z0-9-]+)'\s*\)\s*;?/g;
     let m: RegExpExecArray | null;
     let i = 0;
     const pieces = [];
     while((m = p.exec(scriptContents)) !== null) {
         const { index } = m;
-        pieces.push(scriptContents.substring(i, index))
+        pieces.push(scriptContents.substring(i, index));
         const line = m[0];
         const variableName = m[1];
         const importMetaVariableName = m[2];
@@ -137,15 +137,8 @@ function findImportMetaUrl(importMetaVariableName: string, scriptContents: strin
 
 async function resolveWasm(opts: { importMetaUrl: string, unquotedModuleSpecifier: string, rootSpecifier: string }): Promise<{ relativeWasmPath: string, valueBytes: Uint8Array }> {
     const { importMetaUrl, unquotedModuleSpecifier, rootSpecifier } = opts;
-    if (importMetaUrl.startsWith('file://')) {
-        const wasmPath = resolve(resolve(fromFileUrl(importMetaUrl), '..'), unquotedModuleSpecifier);
-        const rootSpecifierDir = resolve(rootSpecifier, '..');
-        const relativeWasmPath = relative(rootSpecifierDir, wasmPath);
-        const valueBytes = await Deno.readFile(wasmPath);
-        return { relativeWasmPath, valueBytes };
-    } else if (importMetaUrl.startsWith('https://')) {
-        const { pathname, origin } = new URL(importMetaUrl);
-        const wasmUrl = origin + resolve(resolve(pathname, '..'), unquotedModuleSpecifier);
+    
+    const fetchWasm = async (wasmUrl: string) => {
         console.log(`resolveWasm: Fetching ${wasmUrl}`);
         const res = await fetch(wasmUrl);
         if (res.status !== 200) throw new Error(`Bad status ${res.status}, expected 200 for ${wasmUrl}`);
@@ -155,8 +148,22 @@ async function resolveWasm(opts: { importMetaUrl: string, unquotedModuleSpecifie
         const valueBytes = new Uint8Array(await res.arrayBuffer());
         const relativeWasmPath = 'https/' + wasmUrl.substring('https://'.length);
         return { relativeWasmPath, valueBytes };
+    }
+    if (unquotedModuleSpecifier.startsWith('https://')) {
+        return await fetchWasm(unquotedModuleSpecifier);
+    }
+    if (importMetaUrl.startsWith('file://')) {
+        const wasmPath = resolve(resolve(fromFileUrl(importMetaUrl), '..'), unquotedModuleSpecifier);
+        const rootSpecifierDir = resolve(rootSpecifier, '..');
+        const relativeWasmPath = relative(rootSpecifierDir, wasmPath);
+        const valueBytes = await Deno.readFile(wasmPath);
+        return { relativeWasmPath, valueBytes };
+    } else if (importMetaUrl.startsWith('https://')) {
+        const { pathname, origin } = new URL(importMetaUrl);
+        const wasmUrl = origin + resolve(resolve(pathname, '..'), unquotedModuleSpecifier);
+        return await fetchWasm(wasmUrl);
     } else {
-        throw new Error(`rewriteScriptContents: Unsupported importMetaUrl: ${importMetaUrl}`);
+        throw new Error(`resolveWasm: Unsupported importMetaUrl: ${importMetaUrl}`);
     }
 }
 
