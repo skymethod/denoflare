@@ -69,7 +69,15 @@ export class WorkerManager {
             const { method, url, headers, bodyId } = requestData as PackedRequest;
             const body = bodyId === undefined ? undefined : requestBodyResolver(bodyId);
             const res = await fetch(url, { method, headers, body });
-            const packed = await packResponse(res, bodies, v => rpcHostWebSockets.packWebSocket(v));
+            let overrideContentType: string | undefined;
+            if (url.startsWith('file://')) {
+                if (url.endsWith('.wasm')) {
+                    overrideContentType = 'application/wasm'; // required for WebAssembly.instantiate
+                } else {
+                    throw new Error(`Only wasm file fetches are allowed from a permissionless worker`);
+                }
+            }
+            const packed = await packResponse(res, bodies, v => rpcHostWebSockets.packWebSocket(v), overrideContentType);
             return { data: packed, transfer: packed.bodyBytes ? [ packed.bodyBytes.buffer ] : [] };
         });
         addRequestHandlerForReadBodyChunk(rpcChannel, bodies);

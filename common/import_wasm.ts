@@ -11,6 +11,6 @@ import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.119.0/p
  *   prior to Cloudflare upload, so that wasm works properly in Cloudflare as well.
  */
 export async function importWasm(importMetaUrl: string, moduleSpecifier: string): Promise<WebAssembly.Module> {
-    const { module } = await WebAssembly.instantiateStreaming(await fetch(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier))));
+    const { module } = await WebAssembly.instantiateStreaming(await fetch(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier)).toString()));
     return module;
 }

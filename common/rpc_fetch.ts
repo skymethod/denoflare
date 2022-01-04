@@ -42,9 +42,16 @@ export type BodyResolver = (bodyId: number) => ReadableStream<Uint8Array>;
 export type WebSocketResolver = (webSocketId: string) => WebSocket & CloudflareWebSocketExtensions;
 export type WebSocketPacker = (webSocket: WebSocket & CloudflareWebSocketExtensions) => string;
 
-export async function packResponse(response: Response, bodies: Bodies, webSocketPacker: WebSocketPacker): Promise<PackedResponse> {
+export async function packResponse(response: Response, bodies: Bodies, webSocketPacker: WebSocketPacker, overrideContentType?: string): Promise<PackedResponse> {
     const { status } = response;
     const headers = [...response.headers.entries()];
+    if (overrideContentType) {
+        const i = headers.findIndex(v => v[0].toLowerCase() === 'content-type');
+        if (i > -1) {
+            headers.splice(i, 1);
+        }
+        headers.push(['content-type', overrideContentType]);
+    }
     if (DenoflareResponse.is(response)) {
         const webSocketId = response.init?.webSocket ? webSocketPacker(response.init?.webSocket) : undefined;
         if (typeof response.bodyInit === 'string') {
@@ -92,6 +99,7 @@ export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolve
 }
 
 export function packRequest(info: RequestInfo, init: RequestInit | undefined, bodies: Bodies): PackedRequest {
+    if (info instanceof URL) throw new Error(`Calling fetch(URL) is against the spec`);
     if (typeof info === 'object' && init === undefined) {
         // Request
         const { method, url } = info;
