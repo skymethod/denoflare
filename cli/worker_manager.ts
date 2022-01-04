@@ -72,7 +72,10 @@ export class WorkerManager {
             let overrideContentType: string | undefined;
             if (url.startsWith('file://')) {
                 if (url.endsWith('.wasm')) {
-                    overrideContentType = 'application/wasm'; // required for WebAssembly.instantiate
+                    // application/wasm content-type required for WebAssembly.instantiate
+                    // but no content type is returned for any local file fetches
+                    // https://github.com/denoland/deno/issues/11925
+                    overrideContentType = 'application/wasm'; 
                 } else {
                     throw new Error(`Only wasm file fetches are allowed from a permissionless worker`);
                 }
