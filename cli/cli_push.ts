@@ -58,7 +58,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const scriptContents = new TextEncoder().encode(scriptContentsStr);
         const compressedScriptContents = gzip(scriptContents);
 
-        console.log(`putting ${isModule ? 'module' : 'script'}-based worker ${scriptName}${pushIdSuffix}... (${Bytes.formatSize(scriptContents.length)}) (${Bytes.formatSize(compressedScriptContents.length)} compressed)`);
+        console.log(`putting ${isModule ? 'module' : 'script'}-based worker ${scriptName}${pushIdSuffix}... ${computeSizeString(scriptContents, compressedScriptContents, parts)}`);
         start = Date.now();
 
         await putScript(accountId, scriptName, scriptContents, bindings, parts, apiToken, isModule);
@@ -91,6 +91,18 @@ export async function push(args: (string | number)[], options: Record<string, un
 
 //
 
+function computeSizeString(scriptContents: Uint8Array, compressedScriptContents: Uint8Array, parts: Part[]): string {
+    let uncompressedSize = scriptContents.length;
+    let compressedSize = compressedScriptContents.length;
+    for (const { name, valueBytes } of parts) {
+        if (!valueBytes) throw new Error(`Unable to compute size for part: ${name}`);
+        uncompressedSize += valueBytes.length;
+        const compressedValueBytes = gzip(valueBytes);
+        compressedSize += compressedValueBytes.length;
+    }
+    return `(${Bytes.formatSize(uncompressedSize)}) (${Bytes.formatSize(compressedSize)} compressed)`;
+}
+
 async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, parts: Part[]): Promise<string> {
     const p = /const\s+([a-zA-Z0-9]+)\s*=\s*await\s+importWasm\(\s*(importMeta\d*)\.url\s*,\s*'([.\/[a-zA-Z0-9]+)'\s*\)\s*;?/g;
     let m: RegExpExecArray | null;
@@ -109,8 +121,9 @@ async function rewriteScriptContents(scriptContents: string, rootSpecifier: stri
        
         const rootSpecifierDir = resolve(rootSpecifier, '..');
         const relativeWasmPath = relative(rootSpecifierDir, wasmPath);
-        const value = new Blob([ await Deno.readFile(wasmPath) ], { type: 'application/wasm' });
-        parts.push({ name: relativeWasmPath, fileName: relativeWasmPath, value });
+        const valueBytes = await Deno.readFile(wasmPath);
+        const value = new Blob([ valueBytes ], { type: 'application/wasm' });
+        parts.push({ name: relativeWasmPath, fileName: relativeWasmPath, value, valueBytes });
 
         pieces.push(`import ${variableName} from "${relativeWasmPath}";`);
         i = index + line.length;
@@ -193,16 +206,16 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
     } else if (isDONamespaceBinding(binding)) {
         return { type: 'durable_object_namespace', name, namespace_id: await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName) };
     } else if (isWasmModuleBinding(binding)) {
-        return { type: 'wasm_module', name, part: await computeWasmModulePart(binding.wasmModule, parts) };
+        return { type: 'wasm_module', name, part: await computeWasmModulePart(binding.wasmModule, parts, name) };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }
 }
 
-async function computeWasmModulePart(wasmModule: string, parts: Record<string, Part>): Promise<string> {
-    const bytes = await Deno.readFile(wasmModule);
-    const part = 'todo';
-    parts[part] = { name: part, value: new Blob([ bytes ], { type: 'application/wasm' }) };
+async function computeWasmModulePart(wasmModule: string, parts: Record<string, Part>, name: string): Promise<string> {
+    const valueBytes = await Deno.readFile(wasmModule);
+    const part = name;
+    parts[part] = { name, value: new Blob([ valueBytes ], { type: 'application/wasm' }), valueBytes };
     return part;
 }
 

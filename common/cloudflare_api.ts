@@ -229,6 +229,7 @@ export interface Part {
     readonly name: string;
     readonly value: string | Blob;
     readonly fileName?: string;
+    readonly valueBytes?: Uint8Array;
 }
 
 export interface Message {
