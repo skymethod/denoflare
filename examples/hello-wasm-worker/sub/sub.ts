@@ -1,4 +1,4 @@
-import { importWasm } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.4.0/common/import_wasm.ts';
+import { importWasm } from '../deps.ts';
 const module = await importWasm(import.meta.url, './hello2.wasm'); // rewritten to: import module from './sub/hello2.wasm';
 
 export function callSub(): number {
