@@ -1,6 +1,6 @@
 import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve, fromFileUrl, relative } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
@@ -47,11 +47,14 @@ export async function push(args: (string | number)[], options: Record<string, un
 
         let start = Date.now();
         const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
-        const pushId = watch ? `${pushNumber++}` : undefined;
+        const pushId = watch ? `${pushNumber}` : undefined;
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
         console.log(`computed bindings in ${Date.now() - start}ms`);
         
+        // only perform migrations on first upload, not on subsequent --watch uploads
+        const migrations = pushNumber === 1 ? computeMigrations(options) : undefined;
+
         if (isModule) {
             scriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, parts);
         }
@@ -59,10 +62,14 @@ export async function push(args: (string | number)[], options: Record<string, un
         const compressedScriptContents = gzip(scriptContents);
 
         console.log(`putting ${isModule ? 'module' : 'script'}-based worker ${scriptName}${pushIdSuffix}... ${computeSizeString(scriptContents, compressedScriptContents, parts)}`);
+        if (migrations && migrations.deleted_classes.length > 0) {
+            console.log(`  migration will delete durable object class(es): ${migrations.deleted_classes.join(', ')}`);
+        }
         start = Date.now();
 
-        await putScript(accountId, scriptName, scriptContents, bindings, parts, apiToken, isModule);
+        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel: 'bundled' });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
+        pushNumber++;
         if (doNamespaces.hasPendingUpdates()) {
             start = Date.now();
             await doNamespaces.flushPendingUpdates();
@@ -90,6 +97,12 @@ export async function push(args: (string | number)[], options: Record<string, un
 }
 
 //
+
+function computeMigrations(options: Record<string, unknown>): Migrations | undefined {
+    const option = options['delete-class'];
+    const deleted_classes = typeof option === 'string' ? [ option ] : Array.isArray(option) && option.every(v => typeof v === 'string') ? option as string[] : [];
+    return deleted_classes.length > 0 ? { tag: `delete-${deleted_classes.join('-')}`, deleted_classes } : undefined;
+}
 
 function computeSizeString(scriptContents: Uint8Array, compressedScriptContents: Uint8Array, parts: Part[]): string {
     let uncompressedSize = scriptContents.length;
@@ -260,9 +273,10 @@ function dumpHelp() {
         '        --watch       Re-upload the worker script when local changes are detected',
         '',
         'OPTIONS:',
-        '    -n, --name <name>        Name to use for Cloudflare Worker script [default: Name of script defined in .denoflare config, or https url basename sans extension]',
-        '        --profile <name>     Name of profile to load from config (default: only profile or default profile in config)',
-        '        --config <path>      Path to config file (default: .denoflare in cwd or parents)',
+        '    -n, --name <name>          Name to use for Cloudflare Worker script [default: Name of script defined in .denoflare config, or https url basename sans extension]',
+        '        --profile <name>       Name of profile to load from config (default: only profile or default profile in config)',
+        '        --config <path>        Path to config file (default: .denoflare in cwd or parents)',
+        '        --delete-class <name>  Delete an obsolete Durable Object (and all data!) by class name',
         '',
         'ARGS:',
         '    <script-spec>    Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',

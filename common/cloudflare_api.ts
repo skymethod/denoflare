@@ -29,10 +29,15 @@ export async function listScripts(accountId: string, apiToken: string): Promise<
     return (await execute('listScripts', 'GET', url, apiToken) as ListScriptsResponse).result;
 }
 
-export async function putScript(accountId: string, scriptName: string, scriptContents: Uint8Array, bindings: Binding[], parts: Part[], apiToken: string, isModule: boolean): Promise<Script> {
+export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound' }): Promise<Script> {
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
-    const metadata: Record<string, unknown> = { bindings, 'usage_model': 'bundled' };
+    const metadata: Record<string, unknown> = { 
+        bindings, 
+        usage_model: usageModel,
+        migrations
+    };
     if (isModule) {
         metadata['main_module'] = 'main';
     } else {
@@ -48,7 +53,7 @@ export async function putScript(accountId: string, scriptName: string, scriptCon
         formData.set('script', scriptBlob);
     }
    
-    for (const { name, value, fileName } of parts) {
+    for (const { name, value, fileName } of (parts || [])) {
         formData.set(name, value, fileName);
     }
     return (await execute('putScript', 'PUT', url, apiToken, formData) as PutScriptResponse).result;
@@ -223,6 +228,12 @@ export interface WasmModuleBinding {
     readonly type: 'wasm_module';
     readonly name: string;
     readonly part: string;
+}
+
+// this is likely not correct, but it works to delete obsolete DO classes at least
+export interface Migrations {
+    readonly tag: string;
+    readonly deleted_classes: string[];
 }
 
 export interface Part {
