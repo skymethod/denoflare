@@ -33,6 +33,12 @@ export function checkMatches(name: string, value: string, pattern: RegExp): stri
     return value;
 }
 
+export function checkMatchesReturnMatcher(name: string, value: string, pattern: RegExp): RegExpExecArray {
+    const m = pattern.exec(value);
+    if (!m) throw new Error(`Bad ${name}: ${value}`);
+    return m;
+}
+
 //
 
 // deno-lint-ignore no-explicit-any

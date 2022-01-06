@@ -198,7 +198,7 @@ export class CloudflareApiError extends Error {
     }
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -228,6 +228,13 @@ export interface WasmModuleBinding {
     readonly type: 'wasm_module';
     readonly name: string;
     readonly part: string;
+}
+
+export interface ServiceBinding {
+    readonly type: 'service';
+    readonly name: string;
+    readonly service: string;
+    readonly environment: string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least

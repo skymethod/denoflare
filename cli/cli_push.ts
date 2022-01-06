@@ -5,8 +5,9 @@ import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { computeContentsForScriptReference } from './cli_common.ts';
-import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding } from '../common/config.ts';
+import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
+import { checkMatchesReturnMatcher } from "../common/check.ts";
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
     const scriptSpec = args[0];
@@ -247,6 +248,9 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         return { type: 'durable_object_namespace', name, namespace_id: await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName) };
     } else if (isWasmModuleBinding(binding)) {
         return { type: 'wasm_module', name, part: await computeWasmModulePart(binding.wasmModule, parts, name) };
+    } else if (isServiceBinding(binding)) {
+        const [ _, service, environment ] = checkMatchesReturnMatcher('serviceEnvironment', binding.serviceEnvironment, /^(.*?):(.*?)$/);
+        return { type: 'service', name, service, environment };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

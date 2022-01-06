@@ -63,7 +63,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -109,6 +109,13 @@ export interface WasmModuleBinding {
 
     // Absolute file path to wasm module
     readonly wasmModule: string;
+}
+
+/** Service environment variable binding */
+export interface ServiceBinding {
+
+    // The service and environment, delimited by ':'.  e.g. my-service:production
+    readonly serviceEnvironment: string;
 }
 
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
@@ -158,4 +165,9 @@ export function isDONamespaceBinding(binding: Binding): binding is DONamespaceBi
 export function isWasmModuleBinding(binding: Binding): binding is WasmModuleBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).wasmModule === 'string';
+}
+
+export function isServiceBinding(binding: Binding): binding is ServiceBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).serviceEnvironment === 'string';
 }
