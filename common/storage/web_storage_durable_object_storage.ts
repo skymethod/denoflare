@@ -1,4 +1,5 @@
 import { isStringArray } from '../check.ts';
+import { Bytes } from '../bytes.ts';
 import { DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
 
 export class WebStorageDurableObjectStorage implements DurableObjectStorage {
@@ -167,10 +168,12 @@ function writeSortedIndex(prefix: string, index: string[]) {
 
 function unpackDurableObjectStorageValue(packed: string): DurableObjectStorageValue {
     const obj = JSON.parse(packed);
+    if (typeof obj.u8 === 'string') return Bytes.ofBase64(obj.u8).array();
     return obj.v as DurableObjectStorageValue;
 }
 
 function packDurableObjectStorageValue(value: DurableObjectStorageValue): string {
+    if (value instanceof Uint8Array) return JSON.stringify({ u8: new Bytes(value).base64() });
     return JSON.stringify({ v: value }); // for now, we can only support types that json round-trip
 }
 
