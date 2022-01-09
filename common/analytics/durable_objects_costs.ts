@@ -1,4 +1,4 @@
-import { DurableObjectsNamespace, listDurableObjectsNamespaces } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.4.0/common/cloudflare_api.ts';
+import { DurableObjectsNamespace, listDurableObjectsNamespaces } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.4.1/common/cloudflare_api.ts';
 import { Profile } from '../config.ts';
 import { CfGqlClient, CfGqlResultInfo } from './cfgql_client.ts';
 
