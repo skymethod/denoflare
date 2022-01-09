@@ -118,7 +118,7 @@ function computeSizeString(scriptContents: Uint8Array, compressedScriptContents:
 }
 
 async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, parts: Part[]): Promise<string> {
-    const p = /const\s+([a-zA-Z0-9]+)\s*=\s*await\s+importWasm\d*\(\s*(importMeta\d*)\.url\s*,\s*'((https:\/|\.)\/[\/.a-zA-Z0-9-]+)'\s*\)\s*;?/g;
+    const p = /const\s+([a-zA-Z0-9]+)\s*=\s*await\s+importWasm\d*\(\s*(importMeta\d*)\.url\s*,\s*'((https:\/|\.)\/[\/.a-zA-Z0-9_-]+)'\s*\)\s*;?/g;
     let m: RegExpExecArray | null;
     let i = 0;
     const pieces = [];

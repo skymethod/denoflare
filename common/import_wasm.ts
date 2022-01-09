@@ -16,8 +16,7 @@ export async function importWasm(importMetaUrl: string, moduleSpecifier: string)
     }
 
     if (importMetaUrl.startsWith('file://')) {
-        const { module } = await WebAssembly.instantiateStreaming(await fetch(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier)).toString()));
-        return module;
+        return await WebAssembly.compileStreaming(await fetch(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier)).toString()));
     } else if (importMetaUrl.startsWith('https://')) {
         const { pathname, origin } = new URL(importMetaUrl);
         const wasmUrl = origin + resolve(resolve(pathname, '..'), moduleSpecifier);
@@ -34,13 +33,11 @@ async function instantiateModuleFromHttps(url: string): Promise<WebAssembly.Modu
     if (res.status !== 200) throw new Error(`importWasm: Bad status ${res.status}, expected 200 for ${url}`);
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
     if (contentType === 'application/wasm') {
-        const { module } = await WebAssembly.instantiateStreaming(res);
-        return module;
+        return await WebAssembly.compileStreaming(res);
     } else if (contentType === 'application/octet-stream') {
         // currently served by https://raw.githubusercontent.com
         // allow it for now
-        const { module } = await WebAssembly.instantiate(await res.arrayBuffer());
-        return module;
+        return new WebAssembly.Module(await res.arrayBuffer());
     } else {
         throw new Error(`importWasm: Bad contentType ${contentType}, expected application/wasm or application/octet-stream for ${url}`);
     }
