@@ -16,7 +16,7 @@ export async function importWasm(importMetaUrl: string, moduleSpecifier: string)
     }
 
     if (importMetaUrl.startsWith('file://')) {
-        return await WebAssembly.compileStreaming(await fetch(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier)).toString()));
+        return await WebAssembly.compileStreaming(await fetch(appendQueryHint(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier))).toString()));
     } else if (importMetaUrl.startsWith('https://')) {
         const { pathname, origin } = new URL(importMetaUrl);
         const wasmUrl = origin + resolve(resolve(pathname, '..'), moduleSpecifier);
@@ -27,6 +27,11 @@ export async function importWasm(importMetaUrl: string, moduleSpecifier: string)
 }
 
 //
+
+function appendQueryHint(fileUrl: URL): URL {
+    fileUrl.searchParams.set('import', 'wasm');
+    return fileUrl;
+}
 
 async function instantiateModuleFromHttps(url: string): Promise<WebAssembly.Module> {
     const res = await fetch(url);

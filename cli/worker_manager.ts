@@ -71,13 +71,18 @@ export class WorkerManager {
             const res = await fetch(url, { method, headers, body });
             let overrideContentType: string | undefined;
             if (url.startsWith('file://')) {
-                if (url.endsWith('.wasm')) {
+                const importType = new URL(url).searchParams.get('import');
+                if (importType === 'wasm') {
                     // application/wasm content-type required for WebAssembly.instantiate
                     // but no content type is returned for any local file fetches
                     // https://github.com/denoland/deno/issues/11925
                     overrideContentType = 'application/wasm'; 
+                } else if (importType === 'text') {
+                    overrideContentType = 'text/plain';
+                } else if (importType === 'binary') {
+                    overrideContentType = 'application/octet-stream';
                 } else {
-                    throw new Error(`Only wasm file fetches are allowed from a permissionless worker`);
+                    throw new Error(`Only wasm, text & binary import file fetches are allowed from a permissionless worker`);
                 }
             }
             const packed = await packResponse(res, bodies, v => rpcHostWebSockets.packWebSocket(v), overrideContentType);
