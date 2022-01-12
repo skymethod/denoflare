@@ -120,7 +120,7 @@ function findProfile(config: Config, options: Record<string, unknown>): Profile 
     const defaultProfiles = profilesArr.filter(v => v.default);
     if (defaultProfiles.length === 1) return defaultProfiles[0];
     if (profilesArr.length === 1) return profilesArr[0];
-    throw new Error(`Unable to find profile, ${profilesArr.length} profiles in config`);
+    throw new Error(`Unable to find profile, ${profilesArr.length} profiles in config, and ${defaultProfiles.length} marked as default`);
 }
 
 async function resolveProfileComponents(profile: Profile): Promise<Profile> {
@@ -140,6 +140,8 @@ async function resolveString(string: string): Promise<string> {
             const m = txt.match(new RegExp(pattern));
             if (m) {
                 return m[1];
+            } else {
+                throw new Error(`resolveString: Failed to resolve ${string}`);
             }
         }
     }

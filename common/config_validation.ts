@@ -76,7 +76,7 @@ function isValidApiToken(apiToken: string): boolean {
 // deno-lint-ignore no-explicit-any
 function checkScript(name: string, script: any): Script {
     checkObject(name, script);
-    const { path, bindings, localPort, localHostname, localIsolation, profile } = script;
+    const { path, bindings, localPort, localHostname, localIsolation, profile, usageModel} = script;
     if (path !== undefined && typeof path !== 'string') throw new Error(`Bad ${name}.path: expected string, found ${typeof path}`);
     if (bindings !== undefined) {
         checkObject(`${name}.bindings`, bindings);
@@ -94,6 +94,8 @@ function checkScript(name: string, script: any): Script {
     if (profile !== undefined) {
         if (typeof profile !== 'string' || !isValidProfileName(profile)) throw new Error(`Bad ${name}.profile: ${profile}`);
     }
+    if (usageModel !== undefined && usageModel !== 'bundled' && usageModel !== 'unbound') throw new Error(`Bad ${name}.usageModel: expected bundled | unbound, found ${usageModel}`);
+
     return script as Script;
 }
 

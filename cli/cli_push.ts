@@ -50,6 +50,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
         const pushId = watch ? `${pushNumber}` : undefined;
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
+        const usageModel = script?.usageModel;
         const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
         console.log(`computed bindings in ${Date.now() - start}ms`);
         
@@ -62,13 +63,13 @@ export async function push(args: (string | number)[], options: Record<string, un
         const scriptContents = new TextEncoder().encode(scriptContentsStr);
         const compressedScriptContents = gzip(scriptContents);
 
-        console.log(`putting ${isModule ? 'module' : 'script'}-based worker ${scriptName}${pushIdSuffix}... ${computeSizeString(scriptContents, compressedScriptContents, parts)}`);
+        console.log(`putting ${isModule ? 'module' : 'script'}-based ${usageModel} worker ${scriptName}${pushIdSuffix}... ${computeSizeString(scriptContents, compressedScriptContents, parts)}`);
         if (migrations && migrations.deleted_classes.length > 0) {
             console.log(`  migration will delete durable object class(es): ${migrations.deleted_classes.join(', ')}`);
         }
         start = Date.now();
 
-        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel: 'bundled' });
+        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
         pushNumber++;
         if (doNamespaces.hasPendingUpdates()) {

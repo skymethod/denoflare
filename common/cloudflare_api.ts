@@ -66,6 +66,20 @@ export async function deleteScript(accountId: string, scriptName: string, apiTok
 
 //#endregion
 
+//#region Worker Account Settings
+
+export async function getWorkerAccountSettings(accountId: string, apiToken: string): Promise<WorkerAccountSettings> {
+    const url = `${computeAccountBaseUrl(accountId)}/workers/account-settings`;
+    return (await execute('getWorkerAccountSettings', 'GET', url, apiToken) as WorkerAccountSettingsResponse).result;
+}
+
+export async function putWorkerAccountSettings(accountId: string, apiToken: string, opts: { defaultUsageModel: 'bundled' | 'unbound' }): Promise<WorkerAccountSettings> {
+    const { defaultUsageModel: default_usage_model } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/account-settings`;
+    return (await execute('putWorkerAccountSettings', 'PUT', url, apiToken, JSON.stringify({ default_usage_model })) as WorkerAccountSettingsResponse).result;
+}
+
+//#endregion
 
 //#region Workers KV
 
@@ -162,6 +176,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType: 'json' | 'bytes' | 'bytes?' = 'json'): Promise<CloudflareApiResponse | Uint8Array | undefined> {
+    if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     if (typeof body === 'string') {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
@@ -313,4 +328,13 @@ export interface ListScriptsResponse extends CloudflareApiResponse {
 
 export interface GetKeyMetadataResponse extends CloudflareApiResponse {
     readonly result: Record<string, string>;
+}
+
+export interface WorkerAccountSettings {
+    readonly 'default_usage_model': string,
+    readonly 'green_compute': boolean,
+}
+
+export interface WorkerAccountSettingsResponse extends CloudflareApiResponse {
+    readonly result: WorkerAccountSettings;
 }

@@ -106,6 +106,12 @@
                         "profile": {
                             "description": "If specified, use a specific, named Profile defined in `config.profiles`.\n\n(Default: the Profile marked as `default`, or the only Profile defined)",
                             "type": "string"
+                        },
+                        "usageModel": {
+                            "description": "Worker usage model when deploying to Cloudflare: 'bundled' or 'unbound'.\n\n(Default: 'bundled')",
+                            "type": "string",
+                            "enum": ["bundled", "unbound"],
+                            "default": "bundled"
                         }
                     }
                 }
@@ -133,8 +139,7 @@
                         },
                         "default": {
                             "description": "If there are multiple profiles defined, choose this one as the default (when no `--profile` is explicitly specified or configured).\n\nThere can only be one default profile.",
-                            "type": "string",
-                            "pattern": "^[a-z][a-z0-9_-]{0,36}$"
+                            "type": "boolean"
                         }
                     }
                 }

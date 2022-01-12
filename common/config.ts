@@ -34,6 +34,12 @@ export interface Config {
  */
 export type Isolation = 'none' | 'isolate';
 
+/** Cloudflare Worker usage model used when `push`ing a script to Cloudflare. 
+ * 
+ * See https://developers.cloudflare.com/workers/platform/pricing#usage-models
+*/
+export type UsageModel = 'bundled' | 'unbound';
+
 /** Script-level configuration */
 export interface Script {
 
@@ -60,6 +66,12 @@ export interface Script {
      * 
      * (Default: the Profile marked as `default`, or the only Profile defined) */
     readonly profile?: string;
+
+    /** Cloudflare Worker usage model: bundled or unbound.
+     * 
+     * See https://developers.cloudflare.com/workers/platform/pricing#usage-models
+     */
+    readonly usageModel?: UsageModel;
 }
 
 /** Binding definition for a worker script environment variable */
