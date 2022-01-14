@@ -1,0 +1,654 @@
+[
+  {
+    "name": "adjust_contrast",
+    "parameters": [
+      {
+        "name": "contrast",
+        "type": {
+          "kind": "float",
+          "min": -255,
+          "max": 255,
+          "default": 100
+        }
+      }
+    ]
+  },
+  {
+    "name": "alter_blue_channel",
+    "parameters": [
+      {
+        "name": "amt",
+        "type": {
+          "kind": "int",
+          "min": -255,
+          "max": 255,
+          "default": 100
+        }
+      }
+    ]
+  },
+  {
+    "name": "alter_green_channel",
+    "parameters": [
+      {
+        "name": "amt",
+        "type": {
+          "kind": "int",
+          "min": -255,
+          "max": 255,
+          "default": 100
+        }
+      }
+    ]
+  },
+  {
+    "name": "alter_red_channel",
+    "parameters": [
+      {
+        "name": "amt",
+        "type": {
+          "kind": "int",
+          "min": -255,
+          "max": 255,
+          "default": 100
+        }
+      }
+    ]
+  },
+  {
+    "name": "apply_gradient",
+    "parameters": []
+  },
+  {
+    "name": "b_grayscale",
+    "parameters": []
+  },
+  {
+    "name": "box_blur",
+    "parameters": []
+  },
+  {
+    "name": "cali",
+    "parameters": []
+  },
+  {
+    "name": "colorize",
+    "parameters": []
+  },
+  {
+    "name": "darken_hsl",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "darken_hsv",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "darken_lch",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "decompose_max",
+    "parameters": []
+  },
+  {
+    "name": "decompose_min",
+    "parameters": []
+  },
+  {
+    "name": "desaturate",
+    "parameters": []
+  },
+  {
+    "name": "desaturate_hsl",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "desaturate_hsv",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "desaturate_lch",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "detect_135_deg_lines",
+    "parameters": []
+  },
+  {
+    "name": "detect_45_deg_lines",
+    "parameters": []
+  },
+  {
+    "name": "detect_horizontal_lines",
+    "parameters": []
+  },
+  {
+    "name": "detect_vertical_lines",
+    "parameters": []
+  },
+  {
+    "name": "dramatic",
+    "parameters": []
+  },
+  {
+    "name": "edge_detection",
+    "parameters": []
+  },
+  {
+    "name": "edge_one",
+    "parameters": []
+  },
+  {
+    "name": "emboss",
+    "parameters": []
+  },
+  {
+    "name": "filter",
+    "parameters": [
+      {
+        "name": "filter_name",
+        "type": {
+          "kind": "enum",
+          "values": [
+            "oceanic",
+            "islands",
+            "marine",
+            "seagreen",
+            "flagblue",
+            "liquid",
+            "diamante",
+            "radio",
+            "twenties",
+            "rosetint",
+            "mauve",
+            "bluechrome",
+            "vintage",
+            "perfume",
+            "serenity"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "firenze",
+    "parameters": []
+  },
+  {
+    "name": "fliph",
+    "parameters": []
+  },
+  {
+    "name": "flipv",
+    "parameters": []
+  },
+  {
+    "name": "frosted_glass",
+    "parameters": []
+  },
+  {
+    "name": "g_grayscale",
+    "parameters": []
+  },
+  {
+    "name": "gaussian_blur",
+    "parameters": [
+      {
+        "name": "radius",
+        "type": {
+          "kind": "int",
+          "min": -150,
+          "max": 150,
+          "default": 2
+        }
+      }
+    ]
+  },
+  {
+    "name": "golden",
+    "parameters": []
+  },
+  {
+    "name": "grayscale",
+    "parameters": []
+  },
+  {
+    "name": "grayscale_human_corrected",
+    "parameters": []
+  },
+  {
+    "name": "grayscale_shades",
+    "parameters": [
+      {
+        "name": "num_shades",
+        "type": {
+          "kind": "int",
+          "min": 2,
+          "max": 255,
+          "default": 2
+        }
+      }
+    ]
+  },
+  {
+    "name": "horizontal_strips",
+    "parameters": [
+      {
+        "name": "num_strips",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 128,
+          "default": 8
+        }
+      }
+    ]
+  },
+  {
+    "name": "hue_rotate_hsl",
+    "parameters": [
+      {
+        "name": "degrees",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "hue_rotate_hsv",
+    "parameters": [
+      {
+        "name": "degrees",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "hue_rotate_lch",
+    "parameters": [
+      {
+        "name": "degrees",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "identity",
+    "parameters": []
+  },
+  {
+    "name": "inc_brightness",
+    "parameters": [
+      {
+        "name": "brightness",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 32
+        }
+      }
+    ]
+  },
+  {
+    "name": "invert",
+    "parameters": []
+  },
+  {
+    "name": "laplace",
+    "parameters": []
+  },
+  {
+    "name": "lighten_hsl",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "lighten_hsv",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "lighten_lch",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "lix",
+    "parameters": []
+  },
+  {
+    "name": "lofi",
+    "parameters": []
+  },
+  {
+    "name": "neue",
+    "parameters": []
+  },
+  {
+    "name": "noise_reduction",
+    "parameters": []
+  },
+  {
+    "name": "obsidian",
+    "parameters": []
+  },
+  {
+    "name": "offset_blue",
+    "parameters": [
+      {
+        "name": "offset_amt",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 10
+        }
+      }
+    ]
+  },
+  {
+    "name": "offset_green",
+    "parameters": [
+      {
+        "name": "offset_amt",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 10
+        }
+      }
+    ]
+  },
+  {
+    "name": "offset_red",
+    "parameters": [
+      {
+        "name": "offset_amt",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 10
+        }
+      }
+    ]
+  },
+  {
+    "name": "pastel_pink",
+    "parameters": []
+  },
+  {
+    "name": "prewitt_horizontal",
+    "parameters": []
+  },
+  {
+    "name": "primary",
+    "parameters": []
+  },
+  {
+    "name": "r_grayscale",
+    "parameters": []
+  },
+  {
+    "name": "remove_blue_channel",
+    "parameters": [
+      {
+        "name": "min_filter",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 100
+        }
+      }
+    ]
+  },
+  {
+    "name": "remove_green_channel",
+    "parameters": [
+      {
+        "name": "min_filter",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 100
+        }
+      }
+    ]
+  },
+  {
+    "name": "remove_red_channel",
+    "parameters": [
+      {
+        "name": "min_filter",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 100
+        }
+      }
+    ]
+  },
+  {
+    "name": "ryo",
+    "parameters": []
+  },
+  {
+    "name": "saturate_hsl",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "saturate_hsv",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "saturate_lch",
+    "parameters": [
+      {
+        "name": "level",
+        "type": {
+          "kind": "float",
+          "min": 0,
+          "max": 1,
+          "default": 0.2
+        }
+      }
+    ]
+  },
+  {
+    "name": "selective_greyscale",
+    "parameters": [
+      {
+        "name": "ref_color",
+        "type": {
+          "kind": "rgb"
+        }
+      }
+    ]
+  },
+  {
+    "name": "sepia",
+    "parameters": []
+  },
+  {
+    "name": "sharpen",
+    "parameters": []
+  },
+  {
+    "name": "single_channel_grayscale",
+    "parameters": [
+      {
+        "name": "channel",
+        "type": {
+          "kind": "channel"
+        }
+      }
+    ]
+  },
+  {
+    "name": "sobel_horizontal",
+    "parameters": []
+  },
+  {
+    "name": "sobel_vertical",
+    "parameters": []
+  },
+  {
+    "name": "solarize",
+    "parameters": []
+  },
+  {
+    "name": "threshold",
+    "parameters": [
+      {
+        "name": "threshold",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 255,
+          "default": 60
+        }
+      }
+    ]
+  },
+  {
+    "name": "vertical_strips",
+    "parameters": [
+      {
+        "name": "num_strips",
+        "type": {
+          "kind": "int",
+          "min": 0,
+          "max": 128,
+          "default": 8
+        }
+      }
+    ]
+  }
+]
