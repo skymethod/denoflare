@@ -1,7 +1,7 @@
 import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.119.0/path/mod.ts'; // intended to be self-contained, don't use shared deps
 
 /**
- * Meant to work properly in a standard Deno environemnt.
+ * Meant to work properly in a standard Deno environment.
  * Call in the global scope like a standard esm import.
  * 
  * However, when using `denoflare push`, calls to: 
