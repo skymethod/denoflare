@@ -37,7 +37,7 @@ export default {
             return new Response(new Uint8Array(structuredClone(TWITTER_IMAGE_PNG)), { headers });
         } else if (pathname === '/robots.txt') {
             const headers = computeHeaders('text/plain; charset=utf-8');
-            return new Response('User-agent: *\nDisallow:\n', { headers });
+            return new Response('User-agent: *\nDisallow: /img\n', { headers });
         } else if (pathname === '/img') {
             return await computeImg(searchParams, { colo });
         }
