@@ -356,5 +356,8 @@ return html
 }
 
 function computeDocsearchScript(designHtml: string, search: SiteSearchConfig): string {
-    return designHtml.replace('${apiKey}', search.apiKey).replace('${indexName}', search.indexName);
+    return designHtml
+        .replace('${appId}', search.appId)
+        .replace('${apiKey}', search.apiKey)
+        .replace('${indexName}', search.indexName);
 }

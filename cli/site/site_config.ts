@@ -36,4 +36,5 @@ export interface SiteMetadata {
 export interface SiteSearchConfig {
     readonly indexName: string; // (required) Name of the Algolia DocSearch index name for this site
     readonly apiKey: string; // (required) Api key provided by Algolia for this site
+    readonly appId: string; // (required) Application ID provided by Algolia for this site
 }

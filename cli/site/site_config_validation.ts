@@ -72,8 +72,9 @@ function checkTwitterUsername(name: string, value: any): value is string | undef
 
 // deno-lint-ignore no-explicit-any
 function checkSearch(search: any): SiteSearchConfig {
-    const { indexName, apiKey } = search;
+    const { indexName, apiKey, appId } = search;
     checkNotBlankString('indexName', indexName);
     checkNotBlankString('apiKey', apiKey);
-    return { indexName, apiKey };
+    checkNotBlankString('appId', appId);
+    return { indexName, apiKey, appId };
 }

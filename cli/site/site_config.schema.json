@@ -64,6 +64,10 @@
                 "apiKey": {
                     "description": "Api key provided by Algolia for this site",
                     "type": "string"
+                },
+                "appId": {
+                    "description": "Application ID provided by Algolia for this site",
+                    "type": "string"
                 }
             }
         },
