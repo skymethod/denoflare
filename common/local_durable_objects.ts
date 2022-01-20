@@ -11,7 +11,7 @@ import { Sha1 } from './sha1.ts';
 export class LocalDurableObjects {
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
     private readonly moduleWorkerEnv: Record<string, unknown>;
-    private readonly durableObjects = new Map<string, Map<string, DurableObjectWithMutexAroundFetch>>(); // className -> hex id -> do
+    private readonly durableObjects = new Map<string, Map<string, DurableObject>>(); // className -> hex id -> do
     private readonly storageProvider: DurableObjectStorageProvider;
 
     constructor(opts: { moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>, moduleWorkerEnv?: Record<string, unknown>, storageProvider?: DurableObjectStorageProvider }) {
@@ -47,7 +47,7 @@ export class LocalDurableObjects {
         return ctor;
     }
 
-    private resolveDurableObject(className: string, id: DurableObjectId, options: Record<string, string>): DurableObjectWithMutexAroundFetch {
+    private resolveDurableObject(className: string, id: DurableObjectId, options: Record<string, string>): DurableObject {
         const idStr = id.toString();
         let classObjects = this.durableObjects.get(className);
         if (classObjects !== undefined) {
@@ -63,7 +63,12 @@ export class LocalDurableObjects {
             classObjects = new Map();
             this.durableObjects.set(className, classObjects);
         }
-        const rt = new DurableObjectWithMutexAroundFetch(durableObject, mutex);
+        // disable for now
+        // putting a mutex around the entire fetch call is problematic if DO awaits a fetch that calls us back
+        // it is too coarse anyway
+        // TODO implement something like "gates"
+        // const rt = new DurableObjectWithMutexAroundFetch(durableObject, mutex);
+        const rt = durableObject;
         classObjects.set(idStr, rt);
         return rt;
     }
@@ -93,6 +98,7 @@ function computeSha1HexForStringInput(input: string): string {
 
 //
 
+// deno-lint-ignore no-unused-vars
 class DurableObjectWithMutexAroundFetch implements DurableObject {
     private readonly durableObject: DurableObject;
     private readonly mutex: Mutex;
