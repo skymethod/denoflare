@@ -31,13 +31,14 @@ export async function push(args: (string | number)[], options: Record<string, un
         if (isModule) {
             console.log(`bundling ${scriptName} into bundle.js...`);
             const start = Date.now();
-            const result = await Deno.emit(rootSpecifier, { 
-                bundle: 'module', 
+            const result = await Deno.emit(rootSpecifier, {
+                bundle: 'module',
             });
             console.log(`bundle finished in ${Date.now() - start}ms`);
 
-            if (result.diagnostics.length > 0) {
-                console.warn(Deno.formatDiagnostics(result.diagnostics));
+            const blockingDiagnostics = result.diagnostics.filter(v => !isModuleJsonImportWarning(v))
+            if (blockingDiagnostics.length > 0) {
+                console.warn(Deno.formatDiagnostics(blockingDiagnostics));
                 throw new Error('bundle failed');
             }
             scriptContentsStr = result.files['deno:///bundle.js'];
@@ -53,7 +54,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const usageModel = script?.usageModel;
         const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
         console.log(`computed bindings in ${Date.now() - start}ms`);
-        
+
         // only perform migrations on first upload, not on subsequent --watch uploads
         const migrations = pushNumber === 1 ? computeMigrations(options) : undefined;
 
@@ -99,6 +100,25 @@ export async function push(args: (string | number)[], options: Record<string, un
 }
 
 //
+
+function isModuleJsonImportWarning(diag: Deno.Diagnostic): boolean {
+    /*
+    these seem to be non-fatal
+    {
+      category: 1,
+      code: 7042,
+      start: { line: 3, character: 21 },
+      end: { line: 3, character: 38 },
+      messageText: "Module './whatever.json' was resolved to 'file:///file/to/whatever.json', but '--resolveJsonModule' is not used.",
+      messageChain: null,
+      source: null,
+      sourceLine: "import whatever from './whatever.json' assert { type: 'json' };",
+      fileName: "file:///path/to/whatever.ts",
+      relatedInformation: null
+    },
+    */
+    return diag.category === 1 && diag.code === 7042
+}
 
 function computeMigrations(options: Record<string, unknown>): Migrations | undefined {
     const option = options['delete-class'];
@@ -154,10 +174,10 @@ function findImportMetaUrl(importMetaVariableName: string, scriptContents: strin
 async function resolveImport(opts: { importType: string, importMetaUrl: string, unquotedModuleSpecifier: string, rootSpecifier: string }): Promise<{ relativePath: string, valueBytes: Uint8Array, valueType: string }> {
     const { importType, importMetaUrl, unquotedModuleSpecifier, rootSpecifier } = opts;
     const tag = `resolveImport${importType}`;
-    const valueType = importType === 'Wasm' ? 'application/wasm' 
+    const valueType = importType === 'Wasm' ? 'application/wasm'
         : importType === 'Text' ? 'text/plain'
         : 'application/octet-stream';
-    const isExpectedContentType: (contentType: string) => boolean = 
+    const isExpectedContentType: (contentType: string) => boolean =
         importType === 'Wasm' ? (v => ['application/wasm', 'application/octet-stream'].includes(v))
         : importType === 'Text' ? (v => v.startsWith('text/'))
         : (_ => true);
