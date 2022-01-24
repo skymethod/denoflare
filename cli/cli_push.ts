@@ -8,6 +8,7 @@ import { computeContentsForScriptReference } from './cli_common.ts';
 import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { emit } from './emit.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
     const scriptSpec = args[0];
@@ -31,18 +32,10 @@ export async function push(args: (string | number)[], options: Record<string, un
         if (isModule) {
             console.log(`bundling ${scriptName} into bundle.js...`);
             const start = Date.now();
-            const result = await Deno.emit(rootSpecifier, {
-                bundle: 'module',
-            });
+            scriptContentsStr = await emit(rootSpecifier);
             console.log(`bundle finished in ${Date.now() - start}ms`);
 
-            const blockingDiagnostics = result.diagnostics.filter(v => !isModuleJsonImportWarning(v))
-            if (blockingDiagnostics.length > 0) {
-                console.warn(Deno.formatDiagnostics(blockingDiagnostics));
-                throw new Error('bundle failed');
-            }
-            scriptContentsStr = result.files['deno:///bundle.js'];
-            if (typeof scriptContentsStr !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
+            
         } else {
             scriptContentsStr = await Deno.readTextFile(rootSpecifier);
         }
@@ -101,24 +94,6 @@ export async function push(args: (string | number)[], options: Record<string, un
 
 //
 
-function isModuleJsonImportWarning(diag: Deno.Diagnostic): boolean {
-    /*
-    these seem to be non-fatal
-    {
-      category: 1,
-      code: 7042,
-      start: { line: 3, character: 21 },
-      end: { line: 3, character: 38 },
-      messageText: "Module './whatever.json' was resolved to 'file:///file/to/whatever.json', but '--resolveJsonModule' is not used.",
-      messageChain: null,
-      source: null,
-      sourceLine: "import whatever from './whatever.json' assert { type: 'json' };",
-      fileName: "file:///path/to/whatever.ts",
-      relatedInformation: null
-    },
-    */
-    return diag.category === 1 && diag.code === 7042
-}
 
 function computeMigrations(options: Record<string, unknown>): Migrations | undefined {
     const option = options['delete-class'];

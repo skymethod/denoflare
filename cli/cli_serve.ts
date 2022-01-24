@@ -19,6 +19,7 @@ import { redefineGlobalFetchToWorkaroundBareIpAddresses } from '../common/deno_w
 import { FetchUtil } from '../common/fetch_util.ts';
 import { LocalWebSockets } from '../common/local_web_sockets.ts';
 import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_types.d.ts';
+import { emit } from './emit.ts';
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
     const scriptSpec = args[0];
@@ -81,11 +82,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
             return await Deno.readFile(scriptPathOrModuleWorkerUrl);
         }
         const start = Date.now();
-        const result = await Deno.emit(scriptPathOrModuleWorkerUrl, {
-            bundle: 'module',
-        });
-        if (verbose) consoleLog('computeScriptContents: result', result);
-        const workerJs = result.files['deno:///bundle.js'];
+        const workerJs = await emit(scriptPathOrModuleWorkerUrl);
+        if (verbose) consoleLog('computeScriptContents: workerJs', workerJs);
         const rt = new TextEncoder().encode(workerJs);
         console.log(`Compiled ${scriptPathOrModuleWorkerUrl} into module contents in ${Date.now() - start}ms`);
         return rt;

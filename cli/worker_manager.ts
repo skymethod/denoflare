@@ -9,6 +9,7 @@ import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
 import { RpcHostWebSockets } from './rpc_host_web_sockets.ts';
 import { makeRpcHostDurableObjectStorage } from './rpc_host_durable_object_storage.ts';
+import { emit } from './emit.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -26,11 +27,8 @@ export class WorkerManager {
         const webworkerRootSpecifier = computeWebworkerRootSpecifier();
         consoleLog(`Compiling ${webworkerRootSpecifier} into worker contents...`);
         const start = Date.now();
-        const result = await Deno.emit(webworkerRootSpecifier, {
-            bundle: 'module',
-        });
-        if (WorkerManager.VERBOSE) consoleLog(result);
-        const workerJs = result.files['deno:///bundle.js'];
+        const workerJs = await emit(webworkerRootSpecifier);
+        if (WorkerManager.VERBOSE) consoleLog(workerJs);
         const contents = new TextEncoder().encode(workerJs);
         const blob = new Blob([contents]);
         const workerUrl = URL.createObjectURL(blob);
