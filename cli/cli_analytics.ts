@@ -14,7 +14,12 @@ export async function analytics(args: (string | number)[], options: Record<strin
         const config = await loadConfig(options);
         const profile = await resolveProfile(config, options);
         const namespaceId = typeof args[1] === 'string' ? args[1] : undefined;
-        await dumpDurableObjects(profile, namespaceId, !!options.budget);
+        const start = typeof options.start === 'string' ? options.start : undefined;
+        const end = typeof options.end === 'string' ? options.end : undefined;
+        const range = start && end ? { start, end } : undefined;
+        const dumpBudget = !!options.budget; 
+        const dumpTotals = !!options.totals; 
+        await dumpDurableObjects(profile, namespaceId, { dumpBudget, dumpTotals, range });
     } else {
         dumpHelp();
     }
@@ -46,11 +51,12 @@ function dumpHelp() {
     }
 }
 
-async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined, dumpBudget: boolean) {
+async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined, opts: { dumpBudget?: boolean, dumpTotals?: boolean, range?: { start: string, end: string } }) {
+    const { dumpBudget, dumpTotals, range } = opts;
     const client = new CfGqlClient(profile);
     // CfGqlClient.DEBUG = true;
 
-    const tableResult = await computeDurableObjectsCostsTable(client, { lookbackDays: 28 });
+    const tableResult = await computeDurableObjectsCostsTable(client, range || { lookbackDays: 28 });
     const tableRows: (string | number)[][] = [];
     tableRows.push([
         'date',
@@ -76,7 +82,15 @@ async function dumpDurableObjects(profile: Profile, namespaceId: string | undefi
     ]);
 
     const table = namespaceId ? tableResult.namespaceTables[namespaceId] : tableResult.accountTable;
+    let sumStorageReadUnits = 0;
+    let sumStorageWriteUnits = 0;
+    let sumRequests = 0;
+    let sumSubrequests = 0;
     for (const row of table.rows) {
+        sumStorageReadUnits += row.sumStorageReadUnits;
+        sumStorageWriteUnits += row.sumStorageWriteUnits;
+        sumRequests += row.sumRequests;
+        sumSubrequests += row.sumSubrequests;
         const tableRow = [
             row.date,
             row.sumRequests,
@@ -170,6 +184,15 @@ async function dumpDurableObjects(profile: Profile, namespaceId: string | undefi
         for (const [ name, { fetchMillis, cost, budget } ] of Object.entries(tableResult.gqlResultInfos)) {
             console.log(`${name}: fetchTime: ${fetchMillis}ms, cost: ${cost}, budget: ${budget} (${Math.round(budget / cost)} left of those)`);
         }
+    }
+
+    if (dumpTotals) {
+        const width = Math.max(...[sumStorageReadUnits, sumStorageWriteUnits, sumRequests, sumSubrequests].map(v => v.toString().length));
+        console.log('\ntotals:');
+        console.log(`  storage read units:  ${sumStorageReadUnits.toString().padStart(width)}`);
+        console.log(`  storage write units: ${sumStorageWriteUnits.toString().padStart(width)}`);
+        console.log(`  requests:            ${sumRequests.toString().padStart(width)}`);
+        console.log(`  subrequests:         ${sumSubrequests.toString().padStart(width)}`);
     }
 }
 

@@ -2,11 +2,18 @@ import { DurableObjectsNamespace, listDurableObjectsNamespaces } from 'https://r
 import { Profile } from '../config.ts';
 import { CfGqlClient, CfGqlResultInfo } from './cfgql_client.ts';
 
-export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts: { lookbackDays: number; }): Promise<DurableObjectsCostsTable> {
-    const { lookbackDays } = opts;
-    const end = utcCurrentDate();
-    const start = addDaysToDate(end, -lookbackDays);
-
+export async function computeDurableObjectsCostsTable(client: CfGqlClient, opts: { lookbackDays: number } | { start: string, end: string }): Promise<DurableObjectsCostsTable> {
+    const { start, end } = (() => {
+        if ('lookbackDays' in opts) {
+            const end = utcCurrentDate();
+            const start = addDaysToDate(end, -opts.lookbackDays);
+            return { start, end };
+        } else {
+            const { start, end } = opts;
+            return { start, end };
+        }
+    })();
+   
     const [ storage, periodic, invocations, namespaces ] = await Promise.all([ 
         client.getDurableObjectStorageByDate(start, end),
         client.getDurableObjectPeriodicMetricsByDate(start, end),
