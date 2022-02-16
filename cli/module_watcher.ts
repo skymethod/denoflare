@@ -4,12 +4,14 @@ export class ModuleWatcher {
     static VERBOSE = false;
 
     private readonly entryPointPath: string;
+    private readonly includes: string[];
     private readonly modificationCallback: () => void;
 
     private watcher: Deno.FsWatcher | undefined;
 
-    constructor(entryPointPath: string, modificationCallback: () => void) {
+    constructor(entryPointPath: string, modificationCallback: () => void, includes?: string[]) {
         this.entryPointPath = entryPointPath;
+        this.includes = includes || [];
         this.modificationCallback = modificationCallback;
         this.initWatcher().catch(e => console.error('Error in initWatcher', e.stack || e));
     }
@@ -29,6 +31,7 @@ export class ModuleWatcher {
 
     private async initWatcher() {
         const paths = await computeDenoGraphLocalPaths(this.entryPointPath);
+        paths.push(...this.includes);
         if (ModuleWatcher.VERBOSE) console.log('watching', paths);
         const watcher = Deno.watchFs(paths);
         this.watcher = watcher;

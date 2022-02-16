@@ -16,6 +16,12 @@ export async function push(args: (string | number)[], options: Record<string, un
         dumpHelp();
         return;
     }
+    const verbose = !!options.verbose;
+    if (verbose) {
+        // in cli
+        ModuleWatcher.VERBOSE = verbose;
+    }
+
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
 
     const config = await loadConfig(options);
@@ -23,6 +29,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
     const watch = !!options.watch;
+    const watchIncludes = typeof options.watch === 'string' ? options.watch.split(',').map(v => v.trim()) : [];
 
     let pushNumber = 1;
 
@@ -87,7 +94,7 @@ export async function push(args: (string | number)[], options: Record<string, un
             } finally {
                 console.log('Watching for changes...');
             }
-        });
+        }, watchIncludes);
         return new Promise(() => {});
     }
 }
