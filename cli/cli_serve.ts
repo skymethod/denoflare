@@ -42,6 +42,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
         LocalWebSockets.VERBOSE = verbose;
     }
 
+    const watchIncludes = typeof options.watch === 'string' ? options.watch.split(',').map(v => v.trim()) : [];
+
     const start = Date.now();
     const config = await loadConfig(options);
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
@@ -133,7 +135,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         
             // when a file-based script changes, recreate the deno worker
             if (!rootSpecifier.startsWith('https://')) {
-                const _moduleWatcher = new ModuleWatcher(rootSpecifier, runScript);
+                const _moduleWatcher = new ModuleWatcher(rootSpecifier, runScript, watchIncludes);
             }
             return workerManager;
         }
