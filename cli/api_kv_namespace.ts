@@ -1,6 +1,7 @@
 import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVPutOptions, KVValueAndMetadata } from '../common/cloudflare_workers_types.d.ts';
 import { getKeyMetadata, getKeyValue } from '../common/cloudflare_api.ts';
 import { Profile } from '../common/config.ts';
+import { Bytes } from '../common/bytes.ts';
 
 export class ApiKVNamespace implements KVNamespace {
 
@@ -29,7 +30,12 @@ export class ApiKVNamespace implements KVNamespace {
         if (bytes === undefined) return null;
         const metadata = await getKeyMetadata(this.accountId, this.namespaceId, key, this.apiToken);
         if (opts.type === 'arrayBuffer') {
-            const rt: KVValueAndMetadata<ArrayBuffer> = { value: bytes.buffer, metadata };
+            const rt: KVValueAndMetadata<ArrayBuffer> = { value: bytes.buffer, metadata: metadata || null };
+            return rt;
+        }
+        if (opts.type === 'json') {
+            const value = JSON.parse(new Bytes(bytes).utf8());
+            const rt: KVValueAndMetadata<Record<string, unknown>> = { value, metadata: metadata || null };
             return rt;
         }
         throw new Error(`ApiKVNamespace.getWithMetadata not implemented. key=${key} opts=${JSON.stringify(opts)}`);

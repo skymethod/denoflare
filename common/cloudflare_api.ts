@@ -7,12 +7,12 @@ export async function listDurableObjectsNamespaces(accountId: string, apiToken: 
 
 export async function createDurableObjectsNamespace(accountId: string, apiToken: string, payload: { name: string, script?: string, class?: string}): Promise<DurableObjectsNamespace> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
-    return (await execute('createDurableObjectsNamespace', 'POST', url, apiToken, JSON.stringify(payload)) as CreateDurableObjectsNamespaceResponse).result;
+    return (await execute('createDurableObjectsNamespace', 'POST', url, apiToken, payload) as CreateDurableObjectsNamespaceResponse).result;
 }
 
 export async function updateDurableObjectsNamespace(accountId: string, apiToken: string, payload: { id: string, name?: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${payload.id}`;
-    return (await execute('updateDurableObjectsNamespace', 'PUT', url, apiToken, JSON.stringify(payload)) as UpdateDurableObjectsNamespaceResponse).result;
+    return (await execute('updateDurableObjectsNamespace', 'PUT', url, apiToken, payload) as UpdateDurableObjectsNamespaceResponse).result;
 }
 
 export async function deleteDurableObjectsNamespace(accountId: string, apiToken: string, namespaceId: string): Promise<void> {
@@ -76,7 +76,7 @@ export async function getWorkerAccountSettings(accountId: string, apiToken: stri
 export async function putWorkerAccountSettings(accountId: string, apiToken: string, opts: { defaultUsageModel: 'bundled' | 'unbound' }): Promise<WorkerAccountSettings> {
     const { defaultUsageModel: default_usage_model } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/account-settings`;
-    return (await execute('putWorkerAccountSettings', 'PUT', url, apiToken, JSON.stringify({ default_usage_model })) as WorkerAccountSettingsResponse).result;
+    return (await execute('putWorkerAccountSettings', 'PUT', url, apiToken, { default_usage_model }) as WorkerAccountSettingsResponse).result;
 }
 
 //#endregion
@@ -88,9 +88,33 @@ export async function getKeyValue(accountId: string, namespaceId: string, key: s
     return await execute('getKeyValue', 'GET', url, apiToken, undefined, 'bytes?');
 }
 
-export async function getKeyMetadata(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Record<string, string>> {
+export async function getKeyMetadata(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Record<string, string> | undefined> {
     const url = `${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/metadata/${key}`;
-    return (await execute('getKeyMetadata', 'GET', url, apiToken, undefined) as GetKeyMetadataResponse).result;
+    const res = await execute('getKeyMetadata', 'GET', url, apiToken, undefined, 'json?');
+    return res ? (res as GetKeyMetadataResponse).result : undefined;
+}
+
+/**
+ * Write key-value pair
+ * https://api.cloudflare.com/#workers-kv-namespace-write-key-value-pair
+ * 
+ * Write key-value pair with metadata
+ * https://api.cloudflare.com/#workers-kv-namespace-write-key-value-pair-with-metadata
+ */
+export async function putKeyValue(accountId: string, namespaceId: string, key: string, value: string, apiToken: string, opts: { expiration?: number, expirationTtl?: number, metadata?: Record<string, unknown> } = {}) {
+    const { expiration, expirationTtl, metadata } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/values/${key}`);
+    if (typeof expiration === 'number') url.searchParams.set('expiration', expiration.toString());
+    if (typeof expirationTtl === 'number') url.searchParams.set('expirationTtl', expirationTtl.toString());
+
+    if (isStringRecord(metadata) && Object.keys(metadata).length > 0) {
+        const form = new FormData();
+        form.set('value', value);
+        form.set('metadata', JSON.stringify(metadata));
+        await execute('putKeyValueWithMetadata', 'PUT', url.toString(), apiToken, form);
+    } else {
+        await execute('putKeyValue', 'PUT', url.toString(), apiToken, value);
+    }
 }
 
 //#endregion
@@ -167,34 +191,50 @@ export class CloudflareApi {
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=UTF-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
+const TEXT_PLAIN_UTF8 = 'text/plain; charset=UTF-8';
 
 function computeAccountBaseUrl(accountId: string): string {
     return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4/accounts/${accountId}`);
 }
 
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string /*json*/ | FormData, responseType: 'json' | 'bytes' | 'bytes?' = 'json'): Promise<CloudflareApiResponse | Uint8Array | undefined> {
+// deno-lint-ignore no-explicit-any
+function isStringRecord(obj: any): obj is Record<string, unknown> {
+    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
+}
+
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'text?'): Promise<string | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text?' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     if (typeof body === 'string') {
+        headers.set('Content-Type', TEXT_PLAIN_UTF8);
+    } else if (isStringRecord(body)) {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
+        body = JSON.stringify(body);
         if (CloudflareApi.DEBUG) console.log(body);
     }
     const fetchResponse = await fetch(url, { method, headers, body });
+    if (CloudflareApi.DEBUG) console.log(`${fetchResponse.status} ${fetchResponse.url}`);
+    if (CloudflareApi.DEBUG) console.log([...fetchResponse.headers].map(v => v.join(': ')).join('\n'));
     const contentType = fetchResponse.headers.get('Content-Type') || '';
     if ((responseType === 'bytes' || responseType === 'bytes?') && contentType === APPLICATION_OCTET_STREAM) {
         const buffer = await fetchResponse.arrayBuffer();
         return new Uint8Array(buffer);
     }
+    if (responseType === 'text?' && contentType.startsWith('text/')) {
+        return await fetchResponse.text();
+    }
     if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType)) {
-        throw new Error(`Unexpected content-type: ${contentType},  fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+        throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json() as CloudflareApiResponse;
     if (CloudflareApi.DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
-        if (fetchResponse.status === 404 && responseType === 'bytes?') return undefined;
+        if (fetchResponse.status === 404 && ['bytes?', 'json?'].includes(responseType)) return undefined;
         throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
     }
     return apiResponse;

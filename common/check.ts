@@ -39,6 +39,11 @@ export function checkMatchesReturnMatcher(name: string, value: string, pattern: 
     return m;
 }
 
+export function check<T>(name: string, value: T, isValid: boolean | ((value: T) => boolean)): asserts isValid {
+    const valid = typeof isValid === 'boolean' && isValid || typeof isValid === 'function' && isValid(value);
+    if (!valid) throw new Error(`Bad ${name}: ${value}`);
+}
+
 //
 
 // deno-lint-ignore no-explicit-any

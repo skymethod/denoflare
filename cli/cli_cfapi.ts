@@ -1,6 +1,8 @@
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { CloudflareApi, getWorkerAccountSettings, putWorkerAccountSettings } from '../common/cloudflare_api.ts';
+import { CloudflareApi, getKeyMetadata, getKeyValue, getWorkerAccountSettings, putKeyValue, putWorkerAccountSettings } from '../common/cloudflare_api.ts';
+import { check } from '../common/check.ts';
+import { Bytes } from '../common/bytes.ts';
 
 export async function cfapi(args: (string | number)[], options: Record<string, unknown>) {
     const apiCommand = args[0];
@@ -20,6 +22,32 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
         if (defaultUsageModel !== 'bundled' && defaultUsageModel !== 'unbound') throw new Error(`Bad --default-usage-model: ${defaultUsageModel}, expected bundled or unbound`);
         const success = await putWorkerAccountSettings(accountId, apiToken, { defaultUsageModel });
         console.log(success);
+    } else if (apiCommand === 'put-key-value') {
+        const [ _, namespaceId, key ] = args;
+        check('namespaceId', namespaceId, typeof namespaceId === 'string');
+        check('key', key, typeof key === 'string');
+        const value = await (async () => {
+            const { value, file } = options;
+            if (typeof value === 'string') return value;
+            if (typeof file === 'string') return await Deno.readTextFile(file);
+            throw new Error(`Provide 'value' or 'file' options for the key value.`);
+        })();
+        check('value', value, typeof value === 'string');
+        const { expiration, 'expiration-ttl': expirationTtl, metadata } = options;
+        check('expiration', expiration, expiration === undefined || typeof expiration === 'number');
+        check('expirationTtl', expirationTtl, expirationTtl === undefined || typeof expirationTtl === 'number');
+        check('metadata', metadata, metadata === undefined || typeof metadata === 'string');
+        await putKeyValue(accountId, namespaceId, key, value, apiToken, { expiration, expirationTtl, metadata: metadata ? JSON.parse(metadata) : undefined });
+    } else if (apiCommand === 'get-key-value') {
+        const [ _, namespaceId, key ] = args;
+        check('namespaceId', namespaceId, typeof namespaceId === 'string');
+        check('key', key, typeof key === 'string');
+        const value = await getKeyValue(accountId, namespaceId, key, apiToken);
+        console.log(value ? new Bytes(value).utf8() : value);
+        if (options.metadata) {
+            const metadata = await getKeyMetadata(accountId, namespaceId, key, apiToken);
+            console.log(JSON.stringify(metadata, undefined, 2));
+        }
     } else {
         dumpHelp();
     }

@@ -138,7 +138,7 @@ async function rewriteScriptContents(scriptContents: string, rootSpecifier: stri
         const { relativePath, valueBytes, valueType } = await resolveImport({ importType, importMetaUrl, unquotedModuleSpecifier, rootSpecifier });
         const value = new Blob([ valueBytes ], { type: valueType });
         parts.push({ name: relativePath, fileName: relativePath, value, valueBytes });
-        pieces.push(`import ${variableName} from "${relativePath}";`);
+        pieces.push(`import ${variableName} from ${'"'}${relativePath}";`);
         i = index + line.length;
     }
     if (pieces.length === 0) return scriptContents;
