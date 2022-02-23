@@ -45,6 +45,14 @@ export class RpcKVNamespace implements KVNamespace {
                     if (res.type === 'arrayBuffer') return res.buffer;
                     throw new Error(`Bad res.type ${res.type}, expected arrayBuffer`);
                 });
+            } else if (opts.type === 'json' || opts === 'json') {
+                const { kvNamespace } = this;
+                const req: KVNamespaceGetJsonRequest = { type: 'json', key, kvNamespace };
+                return await this.channel.sendRequest('kv-namespace-get', req, responseData => {
+                    const res = responseData as KVNamespaceGetResponse;
+                    if (res.type === 'json') return res.record;
+                    throw new Error(`Bad res.type ${res.type}, expected json`);
+                });
             }
         }
         throw new Error(`RpcKVNamespace.get not implemented. key=${typeof key} ${key}, opts=${JSON.stringify(opts)}`);

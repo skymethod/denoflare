@@ -16,6 +16,8 @@ export class ApiKVNamespace implements KVNamespace {
         if (bytes === undefined) return null;
         if (opts.type === 'arrayBuffer') {
             return bytes.buffer;
+        } else if (opts.type === 'json') {
+            return JSON.parse(new Bytes(bytes).utf8());
         }
         throw new Error(`ApiKVNamespace.get not implemented. key=${typeof key} ${key}, opts=${JSON.stringify(opts)}`);
     } 
