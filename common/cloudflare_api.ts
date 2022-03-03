@@ -5,7 +5,7 @@ export async function listDurableObjectsNamespaces(accountId: string, apiToken: 
     return (await execute('listDurableObjectsNamespaces', 'GET', url, apiToken) as ListDurableObjectsNamespacesResponse).result;
 }
 
-export async function createDurableObjectsNamespace(accountId: string, apiToken: string, payload: { name: string, script?: string, class?: string}): Promise<DurableObjectsNamespace> {
+export async function createDurableObjectsNamespace(accountId: string, apiToken: string, payload: { name: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
     return (await execute('createDurableObjectsNamespace', 'POST', url, apiToken, payload) as CreateDurableObjectsNamespaceResponse).result;
 }
