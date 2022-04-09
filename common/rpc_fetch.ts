@@ -43,7 +43,7 @@ export type WebSocketResolver = (webSocketId: string) => WebSocket & CloudflareW
 export type WebSocketPacker = (webSocket: WebSocket & CloudflareWebSocketExtensions) => string;
 
 export async function packResponse(response: Response, bodies: Bodies, webSocketPacker: WebSocketPacker, overrideContentType?: string): Promise<PackedResponse> {
-    const { status } = response;
+    const { status, url, redirected } = response;
     const headers = [...response.headers.entries()];
     if (overrideContentType) {
         const i = headers.findIndex(v => v[0].toLowerCase() === 'content-type');
@@ -56,18 +56,18 @@ export async function packResponse(response: Response, bodies: Bodies, webSocket
         const webSocketId = response.init?.webSocket ? webSocketPacker(response.init?.webSocket) : undefined;
         if (typeof response.bodyInit === 'string') {
             const bodyText = response.bodyInit;
-            return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined, bodyNull: false, webSocketId };
+            return { status, headers, bodyId: undefined, bodyText, bodyBytes: undefined, bodyNull: false, webSocketId, url, redirected };
         } else if (response.bodyInit instanceof Uint8Array) {
             const bodyBytes = response.bodyInit;
-            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId };
+            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId, url, redirected };
         } else if (response.bodyInit instanceof ReadableStream) {
             const bodyId = bodies.computeBodyId(response.bodyInit);
-            return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, webSocketId };
+            return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, webSocketId, url, redirected };
         } else if (response.bodyInit instanceof ArrayBuffer) {
             const bodyBytes = new Uint8Array(new Uint8Array(response.bodyInit)); // fast way to copy an arraybuffer
-            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId };
+            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId, url, redirected };
         } else if (response.bodyInit === null) {
-            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes: undefined, bodyNull: true, webSocketId };
+            return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes: undefined, bodyNull: true, webSocketId, url, redirected };
         } else {
             throw new Error(`packResponse: DenoflareResponse bodyInit=${response.bodyInit}`);
         }
@@ -77,16 +77,16 @@ export async function packResponse(response: Response, bodies: Bodies, webSocket
     if (contentLength > -1 && contentLength <= Constants.MAX_CONTENT_LENGTH_TO_PACK_OVER_RPC) {
         const bodyBytes = new Uint8Array(await response.arrayBuffer());
         // consoleLog(`packResponse: contentLength=${contentLength} bodyBytes.byteLength=${bodyBytes.byteLength} url=${response.url}`);
-        return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId };
+        return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId, url, redirected };
     }
     const bodyId = bodies.computeBodyId(response.body);
-    return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, webSocketId };
+    return { status, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, webSocketId, url, redirected };
 }
 
 const _Response = Response;
 
 export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolver, webSocketResolver: WebSocketResolver): Response | DenoflareResponse {
-    const { status, bodyId, bodyText, bodyBytes, bodyNull, webSocketId } = packed;
+    const { status, bodyId, bodyText, bodyBytes, bodyNull, webSocketId, url, redirected } = packed;
     const headers = new Headers(packed.headers);
     const body = bodyNull ? null 
         : bodyText !== undefined ? bodyText
@@ -96,9 +96,12 @@ export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolve
     if (status === 101) {
         if (!webSocketId) throw new Error(`unpackResponse: 101 responses must have a webSocketId`);
         const webSocket = webSocketResolver(webSocketId);
-        return new DenoflareResponse(body, { status, headers, webSocket });
+        return new DenoflareResponse(body, { status, headers, webSocket, url, redirected });
     }
-    return new _Response(body, { status, headers });
+    const rt = new _Response(body, { status, headers });
+    Object.defineProperty(rt, 'url', { value: url });
+    Object.defineProperty(rt, 'redirected', { value: redirected });
+    return rt;
 }
 
 export function packRequest(info: RequestInfo, init: RequestInit | undefined, bodies: Bodies): PackedRequest {
@@ -158,6 +161,8 @@ export interface PackedResponse {
     readonly bodyBytes: Uint8Array | undefined;
     readonly bodyNull: boolean;
     readonly webSocketId: string | undefined;
+    readonly url: string;
+    readonly redirected: boolean;
 }
 
 export class Bodies {

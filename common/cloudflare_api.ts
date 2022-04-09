@@ -180,6 +180,27 @@ export interface SendTailHeartbeatResponse extends CloudflareApiResponse {
 
 //#endregion
 
+//#region R2
+
+/**
+ * List R2 Buckets
+ */
+ export async function listR2Buckets(accountId: string, apiToken: string): Promise<readonly Bucket[]> {
+    const url = `${computeAccountBaseUrl(accountId)}/r2/buckets`;
+    return (await execute('listR2Buckets', 'GET', url, apiToken) as ListR2BucketsResponse).result;
+}
+
+export interface ListR2BucketsResponse extends CloudflareApiResponse {
+    readonly result: readonly Bucket[];
+}
+
+export interface Bucket {
+    readonly name: string;
+    readonly creation_date: string;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;

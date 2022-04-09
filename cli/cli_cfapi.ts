@@ -1,6 +1,6 @@
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { CloudflareApi, getKeyMetadata, getKeyValue, getWorkerAccountSettings, putKeyValue, putWorkerAccountSettings } from '../common/cloudflare_api.ts';
+import { CloudflareApi, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listR2Buckets, putKeyValue, putWorkerAccountSettings } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 
@@ -48,7 +48,10 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
             const metadata = await getKeyMetadata(accountId, namespaceId, key, apiToken);
             console.log(JSON.stringify(metadata, undefined, 2));
         }
-    } else {
+    } else if (apiCommand === 'list-buckets') {
+        const value = await listR2Buckets(accountId, apiToken);
+        console.log(value);
+    }else {
         dumpHelp();
     }
 }
