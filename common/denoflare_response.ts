@@ -14,7 +14,7 @@ export class DenoflareResponse {
     readonly redirected: boolean;
 
     constructor(bodyInit?: BodyInit | null, init?: DenoflareResponseInit) {
-        console.log(`DenoflareResponse()`, arguments);
+        // console.log(`DenoflareResponse()`, arguments);
         this.bodyInit = bodyInit;
         this.init = init;
         this.headers = init && init.headers ? new Headers(init.headers) : new Headers();
