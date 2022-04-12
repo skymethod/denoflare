@@ -76,7 +76,7 @@ function isValidApiToken(apiToken: string): boolean {
 // deno-lint-ignore no-explicit-any
 function checkScript(name: string, script: any): Script {
     checkObject(name, script);
-    const { path, bindings, localPort, localHostname, localIsolation, profile, usageModel} = script;
+    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel} = script;
     if (path !== undefined && typeof path !== 'string') throw new Error(`Bad ${name}.path: expected string, found ${typeof path}`);
     if (bindings !== undefined) {
         checkObject(`${name}.bindings`, bindings);
@@ -91,6 +91,8 @@ function checkScript(name: string, script: any): Script {
     }
     if (localHostname !== undefined && typeof localHostname !== 'string') throw new Error(`Bad ${name}.localHostname: expected string, found ${typeof localHostname}`);
     if (localIsolation !== undefined && localIsolation !== 'none' && localIsolation !== 'isolate') throw new Error(`Bad ${name}.localIsolation: expected none | isolate, found ${localIsolation}`);
+    if (localCertPem !== undefined && typeof localCertPem !== 'string') throw new Error(`Bad ${name}.localCertPem: expected string, found ${typeof localCertPem}`);
+    if (localKeyPem !== undefined && typeof localKeyPem !== 'string') throw new Error(`Bad ${name}.localKeyPem: expected string, found ${typeof localKeyPem}`);
     if (profile !== undefined) {
         if (typeof profile !== 'string' || !isValidProfileName(profile)) throw new Error(`Bad ${name}.profile: ${profile}`);
     }

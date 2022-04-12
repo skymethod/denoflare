@@ -53,6 +53,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
     if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
     
     // read the script-based cloudflare worker contents
+    let certPem = typeof options['cert-pem'] === 'string' ? options['cert-pem'] : undefined;
+    let keyPem = typeof options['key-pem'] === 'string' ? options['key-pem'] : undefined;
     let port = DEFAULT_PORT;
     let bindingsProvider: () => Promise<Record<string, Binding>> = () => Promise.resolve({});
     let isolation: Isolation = 'isolate';
@@ -69,6 +71,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
         }
         isolation = script.localIsolation || isolation;
         localHostname = script.localHostname;
+        certPem = certPem || script.localCertPem;
+        keyPem = keyPem || script.localKeyPem;
     } else {
         if (typeof options.port === 'number') {
             port = options.port;
@@ -208,8 +212,17 @@ export async function serve(args: (string | number)[], options: Record<string, u
     }
     consoleLog(`Started in ${Date.now() - start}ms (isolation=${isolation})`);
 
-    const server = Deno.listen({ port });
-    consoleLog(`Local server running on http://localhost:${port}`);
+    const protocol = certPem && keyPem ? 'https' : 'http';
+    const server = await (async () => {
+        if (certPem && keyPem) {
+            const cert = await Deno.readTextFile(certPem);
+            const key = await Deno.readTextFile(keyPem);
+            return Deno.listenTls({ port, cert, key })
+        } else {
+            return Deno.listen({ port });
+        }
+    })();
+    consoleLog(`Local server running on ${protocol}://localhost:${port}`);
 
     for await (const conn of server) {
         handle(conn).catch(e => consoleError('Error in handle', e.stack || e));
@@ -289,9 +302,11 @@ function dumpHelp() {
         '        --verbose     Toggle verbose output (when applicable)',
         '',
         'OPTIONS:',
-        `        --port <number>     Local port to use for the http server (default: ${DEFAULT_PORT})`,
-        '        --profile <name>    Name of profile to load from config (default: only profile or default profile in config)',
-        '        --config <path>     Path to config file (default: .denoflare in cwd or parents)',
+        `        --port <number>      Local port to use for the http(s) server (default: ${DEFAULT_PORT})`,
+        `        --cert-pem <path>    (required for https) Path to certificate file in pem format (contents start with -----BEGIN CERTIFICATE-----)`,
+        `        --key-pem <path>     (required for https) Path to private key file in pem format (contents start with -----BEGIN PRIVATE KEY-----)`,
+        '        --profile <name>     Name of profile to load from config (default: only profile or default profile in config)',
+        '        --config <path>      Path to config file (default: .denoflare in cwd or parents)',
         '',
         'ARGS:',
         '    <script-spec>    Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',

@@ -103,6 +103,14 @@
                             "enum": ["none", "isolate"],
                             "default": "isolate"
                         },
+                        "localCertPem": {
+                            "description": "If specified, use this certificate file when running `serve`, the local dev server, with https.",
+                            "type": "string"
+                        },
+                        "localKeyPem": {
+                            "description": "If specified, use this private key file when running `serve`, the local dev server, with https.",
+                            "type": "string"
+                        },
                         "profile": {
                             "description": "If specified, use a specific, named Profile defined in `config.profiles`.\n\n(Default: the Profile marked as `default`, or the only Profile defined)",
                             "type": "string"

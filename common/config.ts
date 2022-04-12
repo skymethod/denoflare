@@ -62,6 +62,12 @@ export interface Script {
      * (Default: 'isolate') */
     readonly localIsolation?: Isolation;
 
+    /** If specified, use this certificate file when running `serve`, the local dev server, with https. */
+    readonly localCertPem?: string;
+
+    /** If specified, use this private key file when running `serve`, the local dev server, with https. */
+    readonly localKeyPem?: string;
+
     /** If specified, use a specific, named Profile defined in `config.profiles`.
      * 
      * (Default: the Profile marked as `default`, or the only Profile defined) */
