@@ -1,11 +1,11 @@
 import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve, fromFileUrl, relative } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { computeContentsForScriptReference } from './cli_common.ts';
-import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding } from '../common/config.ts';
+import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2Binding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { emit } from './emit.ts';
@@ -20,6 +20,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (verbose) {
         // in cli
         ModuleWatcher.VERBOSE = verbose;
+        CloudflareApi.DEBUG = true;
     }
 
     const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
@@ -53,6 +54,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const usageModel = script?.usageModel;
         const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
+        const enableR2 = bindings.some(v => v.type === 'r2_bucket');
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
         // only perform migrations on first upload, not on subsequent --watch uploads
@@ -70,7 +72,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel });
+        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2 });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
         pushNumber++;
         if (doNamespaces.hasPendingUpdates()) {
@@ -261,6 +263,8 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
     } else if (isServiceBinding(binding)) {
         const [ _, service, environment ] = checkMatchesReturnMatcher('serviceEnvironment', binding.serviceEnvironment, /^(.*?):(.*?)$/);
         return { type: 'service', name, service, environment };
+    } else if (isR2Binding(binding)) {
+        return { type: 'r2_bucket', name, bucket_name: binding.bucketName };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

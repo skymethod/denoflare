@@ -29,8 +29,8 @@ export async function listScripts(accountId: string, apiToken: string): Promise<
     return (await execute('listScripts', 'GET', url, apiToken) as ListScriptsResponse).result;
 }
 
-export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound' }): Promise<Script> {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel } = opts;
+export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', enableR2?: boolean }): Promise<Script> {
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2 } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -38,11 +38,17 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
         usage_model: usageModel,
         migrations
     };
+    if (enableR2) {
+        metadata['compatibility_flags'] = [ 'r2_public_beta_bindings' ];
+        metadata['compatibility_date'] = '2022-04-14';
+    }
+
     if (isModule) {
         metadata['main_module'] = 'main';
     } else {
         metadata['body_part'] = 'script';   
     }
+    if (CloudflareApi.DEBUG) console.log('metadata', JSON.stringify(metadata, undefined, 2));
     const metadataBlob = new Blob([ JSON.stringify(metadata) ], { type: APPLICATION_JSON });
     formData.set('metadata', metadataBlob);
     if (isModule) {
@@ -185,7 +191,7 @@ export interface SendTailHeartbeatResponse extends CloudflareApiResponse {
 /**
  * List R2 Buckets
  */
- export async function listR2Buckets(accountId: string, apiToken: string): Promise<readonly Bucket[]> {
+export async function listR2Buckets(accountId: string, apiToken: string): Promise<readonly Bucket[]> {
     const url = `${computeAccountBaseUrl(accountId)}/r2/buckets`;
     return (await execute('listR2Buckets', 'GET', url, apiToken) as ListR2BucketsResponse).result;
 }
@@ -197,6 +203,28 @@ export interface ListR2BucketsResponse extends CloudflareApiResponse {
 export interface Bucket {
     readonly name: string;
     readonly creation_date: string;
+}
+
+/**
+ * Create R2 Bucket
+ * 
+ * @throws if exists and owned: 409 10004 The bucket you tried to create already exists, and you own it.
+ */
+export async function createR2Bucket(accountId: string, bucketName: string, apiToken: string): Promise<void> {
+    const url = `${computeAccountBaseUrl(accountId)}/r2/buckets/${bucketName}`;
+    await execute('createR2Bucket', 'PUT', url, apiToken);
+    // result is: {}
+}
+
+/**
+ * Delete R2 Bucket
+ * 
+ * @throws if not exists: 404 10006 The specified bucket does not exist.
+ */
+ export async function deleteR2Bucket(accountId: string, bucketName: string, apiToken: string): Promise<void> {
+    const url = `${computeAccountBaseUrl(accountId)}/r2/buckets/${bucketName}`;
+    await execute('deleteR2Bucket', 'DELETE', url, apiToken);
+    // result is: {}
 }
 
 //#endregion
@@ -274,7 +302,7 @@ export class CloudflareApiError extends Error {
     }
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2Binding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -311,6 +339,12 @@ export interface ServiceBinding {
     readonly name: string;
     readonly service: string;
     readonly environment: string;
+}
+
+export interface R2Binding {
+    readonly type: 'r2_bucket';
+    readonly name: string;
+    readonly 'bucket_name': string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least

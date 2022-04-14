@@ -81,7 +81,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2Binding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -136,6 +136,14 @@ export interface ServiceBinding {
     readonly serviceEnvironment: string;
 }
 
+/** R2 environment variable binding */
+export interface R2Binding {
+
+    // The R2 bucket name
+    readonly bucketName: string;
+}
+
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -188,4 +196,9 @@ export function isWasmModuleBinding(binding: Binding): binding is WasmModuleBind
 export function isServiceBinding(binding: Binding): binding is ServiceBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).serviceEnvironment === 'string';
+}
+
+export function isR2Binding(binding: Binding): binding is R2Binding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).bucketName === 'string';
 }

@@ -84,6 +84,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "R2 Bucket Name environment variable binding",
+                                            "required": [ "bucketName" ],
+                                            "properties": {
+                                                "bucketName": {
+                                                    "description": "The R2 bucket name.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }
