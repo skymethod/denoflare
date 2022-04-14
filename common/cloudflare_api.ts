@@ -221,10 +221,28 @@ export async function createR2Bucket(accountId: string, bucketName: string, apiT
  * 
  * @throws if not exists: 404 10006 The specified bucket does not exist.
  */
- export async function deleteR2Bucket(accountId: string, bucketName: string, apiToken: string): Promise<void> {
+export async function deleteR2Bucket(accountId: string, bucketName: string, apiToken: string): Promise<void> {
     const url = `${computeAccountBaseUrl(accountId)}/r2/buckets/${bucketName}`;
     await execute('deleteR2Bucket', 'DELETE', url, apiToken);
     // result is: {}
+}
+
+//#endregion
+
+//#region Flags
+
+/**
+ * List Account Flags
+ */
+export async function listFlags(accountId: string, apiToken: string): Promise<FlagsResult> {
+    const url = `${computeAccountBaseUrl(accountId)}/flags`;
+    return (await execute('listFlags', 'GET', url, apiToken) as ListFlagsResponse).result;
+}
+
+export type FlagsResult = Record<string, Record<string, unknown>>;
+
+export interface ListFlagsResponse extends CloudflareApiResponse {
+    readonly result: FlagsResult;
 }
 
 //#endregion

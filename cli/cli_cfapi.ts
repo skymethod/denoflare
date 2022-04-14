@@ -1,6 +1,6 @@
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { CloudflareApi, createR2Bucket, deleteR2Bucket, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listR2Buckets, putKeyValue, putWorkerAccountSettings } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createR2Bucket, deleteR2Bucket, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listFlags, listR2Buckets, putKeyValue, putWorkerAccountSettings } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 
@@ -59,6 +59,9 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
         const [ _, bucketName ] = args;
         check('bucketName', bucketName, typeof bucketName === 'string' && bucketName.length > 0);
         await deleteR2Bucket(accountId, bucketName, apiToken);
+    } else if (apiCommand === 'list-flags') {
+        const value = await listFlags(accountId, apiToken);
+        console.log(value);
     } else {
         dumpHelp();
     }
