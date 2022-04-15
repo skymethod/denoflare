@@ -32,8 +32,8 @@ export async function push(args: (string | number)[], options: Record<string, un
     const watch = !!options.watch;
     const watchIncludes = typeof options.watch === 'string' ? options.watch.split(',').map(v => v.trim()) : [];
 
+    const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
-
     const buildAndPutScript = async () => {
         const isModule = !rootSpecifier.endsWith('.js');
         let scriptContentsStr = '';
@@ -42,15 +42,13 @@ export async function push(args: (string | number)[], options: Record<string, un
             const start = Date.now();
             scriptContentsStr = await emit(rootSpecifier);
             console.log(`bundle finished in ${Date.now() - start}ms`);
-
-            
         } else {
             scriptContentsStr = await Deno.readTextFile(rootSpecifier);
         }
 
         let start = Date.now();
         const doNamespaces = new DurableObjectNamespaces(accountId, apiToken);
-        const pushId = watch ? `${pushNumber}` : undefined;
+        const pushId = watch ? `${pushStart}.${pushNumber}` : undefined;
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const usageModel = script?.usageModel;
         const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
