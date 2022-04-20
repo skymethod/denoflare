@@ -108,15 +108,16 @@ export function packRequest(info: RequestInfo, init: RequestInit | undefined, bo
     if (info instanceof URL) throw new Error(`Calling fetch(URL) is against the spec`);
     if (typeof info === 'object' && init === undefined) {
         // Request
-        const { method, url } = info;
+        const { method, url, redirect } = info;
         const headers = [...info.headers.entries()];
         const bodyId = (method === 'GET' || method === 'HEAD') ? undefined : bodies.computeBodyId(info.body);
-        return { method, url, headers, bodyId };
+        return { method, url, headers, bodyId, redirect };
     } else if (typeof info === 'string') {
         // url String
         const url = info;
         let method = 'GET';
         let headers: [string, string][] = [];
+        let redirect: RequestRedirect | undefined;
         if (init !== undefined) {
             if (init.method !== undefined) method = init.method;
             if (init.headers !== undefined) headers = [...new Headers(init.headers).entries()];
@@ -126,22 +127,22 @@ export function packRequest(info: RequestInfo, init: RequestInit | undefined, bo
             if (init.integrity !== undefined) throw new Error(`packRequest: init.integrity`);
             if (init.keepalive !== undefined) throw new Error(`packRequest: init.keepalive`);
             if (init.mode !== undefined) throw new Error(`packRequest: init.mode`);
-            if (init.redirect !== undefined && init.redirect !== 'follow') throw new Error(`packRequest: init.redirect ${init.redirect}`);
             if (init.referrer !== undefined) throw new Error(`packRequest: init.referrer`);
             if (init.referrerPolicy !== undefined) throw new Error(`packRequest: init.referrerPolicy`);
             if (init.signal !== undefined) throw new Error(`packRequest: init.signal`);
             if (init.window !== undefined) throw new Error(`packRequest: init.window`);
+            redirect = init.redirect;
         }
-        return { method, url, headers, bodyId: undefined };
+        return { method, url, headers, bodyId: undefined, redirect };
     }
     throw new Error(`packRequest: implement info=${info} ${typeof info} init=${init}`);
 }
 
 export function unpackRequest(packedRequest: PackedRequest, bodyResolver: BodyResolver): Request {
-    const { url, method, bodyId } = packedRequest;
+    const { url, method, bodyId, redirect } = packedRequest;
     const headers = new Headers(packedRequest.headers);
     const body = bodyId === undefined ? undefined : bodyResolver(bodyId);
-    return new Request(url, { method, headers, body });
+    return new Request(url, { method, headers, body, redirect });
 }
 
 //
@@ -151,6 +152,7 @@ export interface PackedRequest {
     readonly url: string;
     readonly headers: [string, string][];
     readonly bodyId: number | undefined;
+    readonly redirect: RequestRedirect | undefined;
 }
 
 export interface PackedResponse {
