@@ -139,7 +139,14 @@ export async function serve(args: (string | number)[], options: Record<string, u
         
             // when a file-based script changes, recreate the deno worker
             if (!rootSpecifier.startsWith('https://')) {
-                const _moduleWatcher = new ModuleWatcher(rootSpecifier, runScript, watchIncludes);
+                const tryRunScript = async () => {
+                    try {
+                        await runScript();
+                    } catch (e) {
+                        consoleError('Error recompiling script', e.stack || e);
+                    }
+                };
+                const _moduleWatcher = new ModuleWatcher(rootSpecifier, tryRunScript, watchIncludes);
             }
             return workerManager;
         }
