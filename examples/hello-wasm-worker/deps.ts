@@ -1,1 +1,1 @@
-export { importWasm } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.4.4/common/import_wasm.ts';
+export { importWasm } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.4.5/common/import_wasm.ts';
