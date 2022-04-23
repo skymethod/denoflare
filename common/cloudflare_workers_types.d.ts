@@ -719,3 +719,88 @@ export interface WebSocketPair {
 }
 
 //#endregion
+
+//#region R2
+
+export interface R2Bucket {
+    head(key: string, options?: R2HeadOptions): Promise<R2Object | null>;
+    get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | null>;
+    put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object>;
+    delete(key: string): Promise<void>;
+    list(options?: R2ListOptions): Promise<R2Objects>;
+}
+
+export interface R2Conditional {
+    readonly etagMatches?: string;
+    readonly etagDoesNotMatch?: string;
+    readonly uploadedBefore?: Date;
+    readonly uploadedAfter?: Date;
+}
+
+export interface R2GetOptions {
+    readonly onlyIf?: R2Conditional | Headers;
+    readonly range?: R2Range;
+}
+
+export interface R2HTTPMetadata {
+    readonly contentType?: string;
+    readonly contentLanguage?: string;
+    readonly contentDisposition?: string;
+    readonly contentEncoding?: string;
+    readonly cacheControl?: string;
+    readonly cacheExpiry?: Date;
+}
+
+export interface R2HeadOptions {
+    readonly onlyIf?: R2Conditional | Headers;
+}
+
+export interface R2ListOptions {
+    readonly limit?: number;
+    readonly prefix?: string;
+    readonly cursor?: string;
+    readonly delimiter?: string;
+    readonly include?: ('httpMetadata' | 'customMetadata')[];
+}
+
+export interface R2Object {
+    readonly key: string;
+    readonly version: string;
+    readonly size: number;
+    readonly etag: string;
+    readonly httpEtag: string;
+    readonly uploaded: Date;
+    readonly httpMetadata: R2HTTPMetadata;
+    readonly customMetadata: Record<string, string>;
+    writeHttpMetadata(headers: Headers): void;
+}
+
+export interface R2ObjectBody extends R2Object {
+    readonly body: ReadableStream;
+    readonly bodyUsed: boolean;
+    arrayBuffer(): Promise<ArrayBuffer>;
+    text(): Promise<string>;
+    json<T>(): Promise<T>;
+    blob(): Promise<Blob>;
+}
+
+export interface R2Objects {
+    readonly objects: R2Object[];
+    readonly truncated: boolean;
+    readonly cursor?: string;
+    readonly delimitedPrefixes: string[];
+}
+
+export interface R2PutOptions {
+    readonly httpMetadata?: R2HTTPMetadata | Headers;
+    readonly customMetadata?: Record<string, string>;
+    readonly md5?: ArrayBuffer | string;
+    readonly sha1?: ArrayBuffer | string;
+}
+
+export interface R2Range {
+    readonly offset: number;
+    readonly length: number;
+}
+
+//#endregion
