@@ -5,6 +5,7 @@ import { KnownElement } from './known_element.ts';
 
 export async function listObjectsV2(opts: { bucket: string, origin: string, region: string, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string }, context: AwsCallContext): Promise<ListBucketResult> {
     const { bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter } = opts;
+    const method = 'GET';
     const url = new URL(`${origin}/${bucket}/?list-type=2`);
     if (typeof maxKeys === 'number') url.searchParams.set('max-keys', String(maxKeys));
     if (typeof continuationToken === 'string') url.searchParams.set('continuation-token', continuationToken);
@@ -12,7 +13,7 @@ export async function listObjectsV2(opts: { bucket: string, origin: string, regi
     if (typeof prefix === 'string') url.searchParams.set('prefix', prefix);
     if (typeof startAfter === 'string') url.searchParams.set('start-after', startAfter);
 
-    const res = await s3Fetch({ url, region, context });
+    const res = await s3Fetch({ method, url, region, context });
     const contentType = res.headers.get('content-type') || undefined;
     const txt = await res.text();
     if (R2.DEBUG) console.log(txt);

@@ -1,6 +1,6 @@
 import { CLI_VERSION } from './cli_version.ts';
 import { listObjects } from './cli_r2_list_objects.ts';
-import { getObject } from './cli_r2_get_object.ts';
+import { getObject, headObject } from './cli_r2_get_head_object.ts';
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
@@ -12,7 +12,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         return;
     }
 
-    const fn = { 'list-objects': listObjects, 'get-object': getObject }[subcommand];
+    const fn = { 'list-objects': listObjects, 'get-object': getObject, 'head-object': headObject }[subcommand];
     if (fn) {
         await fn(args.slice(1), options);
     } else {

@@ -1,9 +1,19 @@
-import { computeHeadersString, getObject as getObjectR2, R2 } from '../common/r2/r2.ts';
+import { computeHeadersString, getOrHeadObject as getOrHeadObjectR2, R2 } from '../common/r2/r2.ts';
 import { parseOptionalStringOption } from './cli_common.ts';
 import { loadR2Options } from './cli_r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
 
+export async function headObject(args: (string | number)[], options: Record<string, unknown>) {
+    return await getOrHeadObject('HEAD', args, options);
+}
+
 export async function getObject(args: (string | number)[], options: Record<string, unknown>) {
+    return await getOrHeadObject('GET', args, options);
+}
+
+//
+
+async function getOrHeadObject(method: 'GET' | 'HEAD', args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length < 2) {
         dumpHelp();
         return;
@@ -29,7 +39,7 @@ export async function getObject(args: (string | number)[], options: Record<strin
     
     const { origin, region, context } = await loadR2Options(options);
 
-    const response = await getObjectR2({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
+    const response = await getOrHeadObjectR2({ method, bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
     console.log(`${response.status} ${computeHeadersString(response.headers)}`);
     const contentType = response.headers.get('content-type') || '';
     if (contentType.toLowerCase().includes('text')) {
@@ -39,8 +49,6 @@ export async function getObject(args: (string | number)[], options: Record<strin
         console.log(`(${body.byteLength} bytes)`);
     }
 }
-
-//
 
 function surroundWithDoubleQuotesIfNecessary(value: string | undefined): string | undefined {
     if (value === undefined) return value;

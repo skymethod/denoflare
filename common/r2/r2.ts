@@ -1,6 +1,6 @@
 import { Bytes } from '../bytes.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
-export { getObject } from './get_object.ts';
+export { getOrHeadObject } from './get_head_object.ts';
 
 export class R2 {
     static DEBUG = false;
@@ -24,9 +24,8 @@ export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Pro
     return headers;
 }
 
-export async function s3Fetch(opts: { url: URL, headers?: Headers, region: string, context: AwsCallContext }): Promise<Response> {
-    const { url, region, context } = opts;
-    const method = 'GET';
+export async function s3Fetch(opts: { method: 'GET' | 'HEAD', url: URL, headers?: Headers, region: string, context: AwsCallContext }): Promise<Response> {
+    const { url, region, context, method } = opts;
     const headers = opts.headers || new Headers();
     const body = Bytes.EMPTY;
     headers.set('x-amz-content-sha256', (await body.sha256()).hex()); // required for all v4 requests
