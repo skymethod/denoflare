@@ -25,6 +25,13 @@ export async function computeContentsForScriptReference(scriptSpec: string, conf
     }
 }
 
+export function parseOptionalStringOption(name: string, options: Record<string, unknown>): string | undefined {
+    const value = options[name];
+    if (value === undefined || typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    throw new Error(`Bad ${name}: ${value}`);
+}
+
 //
 
 function computeScriptNameFromPath(path: string) {

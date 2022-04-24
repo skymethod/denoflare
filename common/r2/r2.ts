@@ -1,5 +1,6 @@
 import { Bytes } from '../bytes.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
+export { getObject } from './get_object.ts';
 
 export class R2 {
     static DEBUG = false;
@@ -21,6 +22,22 @@ export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Pro
         signature);
     headers.set('Authorization', theAuthHeader);
     return headers;
+}
+
+export async function s3Fetch(opts: { url: URL, headers?: Headers, region: string, context: AwsCallContext }): Promise<Response> {
+    const { url, region, context } = opts;
+    const method = 'GET';
+    const headers = opts.headers || new Headers();
+    const body = Bytes.EMPTY;
+    headers.set('x-amz-content-sha256', (await body.sha256()).hex()); // required for all v4 requests
+    const service = 's3';
+    const signedHeaders = await signAwsCallV4({ method, url, headers, body, region, service }, context);
+    const urlStr = url.toString();
+    if (R2.DEBUG) console.log(method + ' ' + urlStr);
+    if (R2.DEBUG) console.log(`signedHeaders: ${computeHeadersString(signedHeaders)}`);
+    const res = await fetch(urlStr, { method, headers: signedHeaders, body: body.length === 0 ? undefined : body.array() });
+    if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
+    return res;
 }
 
 //
