@@ -1,6 +1,6 @@
 import { checkMatches } from '../check.ts';
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, computeHeadersString, R2, s3Fetch } from './r2.ts';
+import { AwsCallContext, BucketResultOwner, computeHeadersString, parseBucketResultOwner, R2, s3Fetch } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
 export async function listObjectsV2(opts: { bucket: string, origin: string, region: string, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string }, context: AwsCallContext): Promise<ListBucketResult> {
@@ -47,13 +47,8 @@ export interface ListBucketResultItem {
     readonly key: string;
     readonly size: number;
     readonly lastModified: string;
-    readonly owner: ListBucketResultOwner;
+    readonly owner: BucketResultOwner;
     readonly etag: string;
-}
-
-export interface ListBucketResultOwner {
-    readonly id: string;
-    readonly displayName: string;
 }
 
 //
@@ -77,7 +72,7 @@ function parseListBucketResult(element: KnownElement): ListBucketResult {
     const prefix = element.getOptionalElementText('Prefix');
     const commonPrefixes = parseCommonPrefixes(element.getOptionalKnownElement('CommonPrefixes'));
     element.check();
-    return { name: name, isTruncated, maxKeys, keyCount, contents, nextContinuationToken, delimiter, commonPrefixes, startAfter, prefix };
+    return { name, isTruncated, maxKeys, keyCount, contents, nextContinuationToken, delimiter, commonPrefixes, startAfter, prefix };
 }
 
 function checkInteger(text: string, name: string): number {
@@ -95,17 +90,10 @@ function parseListBucketResultItem(element: KnownElement): ListBucketResultItem 
     const key = element.getElementText('Key');
     const size = element.getCheckedElementText('Size', checkInteger);
     const lastModified = element.getElementText('LastModified');
-    const owner = parseListBucketResultOwner(element.getKnownElement('Owner'));
+    const owner = parseBucketResultOwner(element.getKnownElement('Owner'));
     const etag = element.getElementText('ETag');
     element.check();
     return { key, size, lastModified, owner, etag };
-}
-
-function parseListBucketResultOwner(element: KnownElement): ListBucketResultOwner {
-    const id = element.getElementText('ID')
-    const displayName = element.getElementText('DisplayName');
-    element.check();
-    return { id, displayName };
 }
 
 function parseCommonPrefixes(element: KnownElement | undefined): string[] | undefined {

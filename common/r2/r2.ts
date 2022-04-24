@@ -1,6 +1,8 @@
 import { Bytes } from '../bytes.ts';
+import { KnownElement } from './known_element.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
 export { getOrHeadObject } from './get_head_object.ts';
+export { listBuckets } from './list_buckets.ts';
 
 export class R2 {
     static DEBUG = false;
@@ -39,6 +41,13 @@ export async function s3Fetch(opts: { method: 'GET' | 'HEAD', url: URL, headers?
     return res;
 }
 
+export function parseBucketResultOwner(element: KnownElement): BucketResultOwner {
+    const id = element.getElementText('ID')
+    const displayName = element.getElementText('DisplayName');
+    element.check();
+    return { id, displayName };
+}
+
 //
 
 export interface AwsCallContext {
@@ -61,6 +70,11 @@ export function checkIso8601(name: string, value: string): RegExpExecArray {
         throw new Error(`Bad ${name}: ${value}`);
     }
     return rt;
+}
+
+export interface BucketResultOwner {
+    readonly id: string;
+    readonly displayName: string;
 }
 
 //

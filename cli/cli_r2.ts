@@ -4,6 +4,7 @@ import { getObject, headObject } from './cli_r2_get_head_object.ts';
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
+import { listBuckets } from './cli_r2_list_buckets.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -12,7 +13,12 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         return;
     }
 
-    const fn = { 'list-objects': listObjects, 'get-object': getObject, 'head-object': headObject }[subcommand];
+    const fn = { 
+        'list-buckets': listBuckets, 
+        'list-objects': listObjects, 
+        'get-object': getObject, 
+        'head-object': headObject,
+     }[subcommand];
     if (fn) {
         await fn(args.slice(1), options);
     } else {
