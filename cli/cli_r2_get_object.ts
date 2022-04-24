@@ -22,10 +22,14 @@ export async function getObject(args: (string | number)[], options: Record<strin
     const ifNoneMatch = surroundWithDoubleQuotesIfNecessary(parseOptionalStringOption('if-none-match', options));
     const ifModifiedSince = parseOptionalStringOption('if-modified-since', options);
     const ifUnmodifiedSince = parseOptionalStringOption('if-unmodified-since', options);
+    const range = parseOptionalStringOption('range', options);
+
+    const { 'part-number': partNumber } = options;
+    if (partNumber !== undefined && typeof partNumber !== 'number') throw new Error(`Bad part-number: ${partNumber}`);
     
     const { origin, region, context } = await loadR2Options(options);
 
-    const response = await getObjectR2({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince }, context);
+    const response = await getObjectR2({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
     console.log(`${response.status} ${computeHeadersString(response.headers)}`);
     const contentType = response.headers.get('content-type') || '';
     if (contentType.toLowerCase().includes('text')) {
