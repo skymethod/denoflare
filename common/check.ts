@@ -24,7 +24,7 @@ export function checkOrigin(name: string, value: any): string {
     return value;
 }
 
-export function checkEqual(name: string, value: string, expected: string) {
+export function checkEqual<T>(name: string, value: T, expected: T) {
     if (value !== expected) throw new Error(`Bad ${name}: expected ${expected}, found ${value}`);
 }
 

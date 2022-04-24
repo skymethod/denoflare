@@ -159,6 +159,14 @@ export interface Profile {
      */
     readonly apiToken: string;
 
+    /** Cloudflare API token ID: Underlying object id obtained from the Cloudflare dashboard (My Profile -> [API Tokens](https://dash.cloudflare.com/profile/api-tokens)) when creating the token under this account. 
+     * 
+     * Not normally needed, only required when calling R2 over the S3 compatible API.
+     * 
+     * This value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.
+     */
+    readonly apiTokenId?: string;
+
     /** If there are multiple profiles defined, choose this one as the default (when no `--profile` is explicitly specified or configured). 
      * 
      * There can only be one default profile.

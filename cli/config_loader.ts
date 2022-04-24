@@ -126,7 +126,8 @@ function findProfile(config: Config, options: Record<string, unknown>): Profile 
 async function resolveProfileComponents(profile: Profile): Promise<Profile> {
     const accountId = await resolveString(profile.accountId);
     const apiToken = await resolveString(profile.apiToken);
-    return { accountId, apiToken };
+    const apiTokenId = profile.apiTokenId ? await resolveString(profile.apiTokenId) : undefined;
+    return { accountId, apiToken, apiTokenId };
 }
 
 async function resolveString(string: string): Promise<string> {
@@ -136,8 +137,13 @@ async function resolveString(string: string): Promise<string> {
         if (i > -1) {
             const path = str.substring(0, i);
             const txt = await Deno.readTextFile(path);
-            const pattern = str.substring(i + 1);
-            const m = txt.match(new RegExp(pattern));
+            let pattern = str.substring(i + 1);
+            let flags: string | undefined;
+            if (pattern.startsWith('(?s)')) {
+                pattern = pattern.substring(4);
+                flags = 's';
+            }
+            const m = txt.match(new RegExp(pattern, flags));
             if (m) {
                 return m[1];
             } else {
