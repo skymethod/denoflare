@@ -17,12 +17,12 @@ export async function listObjects(args: (string | number)[], options: Record<str
     const bucket = args[0];
     if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
 
-    const { 'max-keys': maxKeys, 'continuation-token': continuationToken, delimiter, prefix, 'start-after': startAfter } = options;
+    const { 'max-keys': maxKeys, 'continuation-token': continuationToken } = options;
     if (maxKeys !== undefined && typeof maxKeys !== 'number') throw new Error(`Bad max-keys: ${maxKeys}`);
     if (continuationToken !== undefined && typeof continuationToken !== 'string') throw new Error(`Bad continuation-token: ${continuationToken}`);
-    if (delimiter !== undefined && typeof delimiter !== 'string') throw new Error(`Bad delimiter: ${delimiter}`);
-    if (prefix !== undefined && typeof prefix !== 'string') throw new Error(`Bad prefix: ${prefix}`);
-    if (startAfter !== undefined && typeof startAfter !== 'string') throw new Error(`Bad start-after: ${startAfter}`);
+    const startAfter = parseOptionalStringOption('start-after', options);
+    const prefix = parseOptionalStringOption('prefix', options);
+    const delimiter = parseOptionalStringOption('delimiter', options);
 
     const config = await loadConfig(options);
     const { accountId, apiToken, apiTokenId } = await resolveProfile(config, options);
@@ -39,6 +39,13 @@ export async function listObjects(args: (string | number)[], options: Record<str
 }
 
 //
+
+function parseOptionalStringOption(name: string, options: Record<string, unknown>): string | undefined {
+    const value = options[name];
+    if (value === undefined || typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    throw new Error(`Bad ${name}: ${value}`);
+}
 
 function dumpHelp() {
     const lines = [

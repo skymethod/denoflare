@@ -1,7 +1,8 @@
 import { Bytes } from '../bytes.ts';
-import { checkEqual } from '../check.ts';
+import { checkMatches } from '../check.ts';
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, checkIso8601, computeHeadersString, parseBoolean, parseNonNegativeInteger, R2, readText, signAwsCallV4 } from './r2.ts';
+import { AwsCallContext, computeHeadersString, R2, signAwsCallV4 } from './r2.ts';
+import { KnownElement } from './known_element.ts';
 
 export async function listObjectsV2(opts: { bucket: string, origin: string, region: string, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string }, context: AwsCallContext): Promise<ListBucketResult> {
     const { bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter } = opts;
@@ -48,6 +49,7 @@ export interface ListBucketResult {
     readonly keyCount: number;
     readonly continuationToken?: string;
     readonly nextContinuationToken?: string;
+    readonly delimiter?: string;
     readonly startAfter?: string;
 }
 
@@ -67,89 +69,58 @@ export interface ListBucketResultOwner {
 //
 
 function parseListBucketResultXml(xml: ExtendedXmlNode): ListBucketResult {
-    checkEqual('xml.tagName', xml.tagname, '!xml');
-    // TODO recursively check for no atts
-    for (const [ name, value ] of Object.entries(xml.child)) {
-        if (name === 'ListBucketResult') {
-            checkEqual('ListBucketResult.length', value.length, 1);
-            return parseListBucketResult(value[0] as ExtendedXmlNode);
-        } else {
-            throw new Error(`parseListBucketResultXml: unknown child ${name}`);
-        }
-    }
-    throw new Error();
+    const doc = new KnownElement(xml).checkTagName('!xml');
+    const rt = parseListBucketResult(doc.getKnownElement('ListBucketResult'));
+    doc.check();
+    return rt;
 }
 
-function parseListBucketResult(xml: ExtendedXmlNode): ListBucketResult {
-    checkEqual('ListBucketResult.attrs.size', xml.atts.size, 0);
-    let name_: string | undefined;
-    let isTruncated: boolean | undefined;
-    let maxKeys: number | undefined;
-    let keyCount: number | undefined;
-    const contents: ListBucketResultItem[] = [];
-    for (const [ name, value ] of Object.entries(xml.child)) {
-        if (name === 'Name') {
-            name_ = readText(value);
-        } else if (name === 'Contents') {
-            for (const node of value) {
-                contents.push(parseListBucketResultItem(node as ExtendedXmlNode));
-            }
-        } else if (name === 'IsTruncated') {
-            isTruncated = parseBoolean('IsTruncated', readText(value));
-        } else if (name === 'MaxKeys') {
-            maxKeys = parseNonNegativeInteger('MaxKeys', readText(value));
-        } else if (name === 'KeyCount') {
-            keyCount = parseNonNegativeInteger('KeyCount', readText(value));
-        } else {
-            console.log(xml);
-            throw new Error(`parseListBucketResult: unknown child ${name}`);
-        }
-    }
-    if (name_ === undefined || isTruncated === undefined || maxKeys === undefined || keyCount === undefined) throw new Error(`parseListBucketResult: incomplete: ${JSON.stringify({ name: name_, isTruncated, maxKeys, keyCount, contents })}`);
-    return { name: name_, isTruncated, maxKeys, keyCount, contents };
+function parseListBucketResult(element: KnownElement): ListBucketResult {
+    const name = element.getElementText('Name');
+    const contents = element.getKnownElements('Contents').map(parseListBucketResultItem);
+    const isTruncated = element.getCheckedElementText('IsTruncated', checkBoolean);
+    const maxKeys = element.getCheckedElementText('MaxKeys', checkInteger);
+    const keyCount = element.getCheckedElementText('KeyCount', checkInteger);
+    const nextContinuationToken = element.getOptionalElementText('NextContinuationToken');
+    const delimiter = element.getOptionalElementText('Delimiter');
+    const startAfter = element.getOptionalElementText('StartAfter');
+    const prefix = element.getOptionalElementText('Prefix');
+    const commonPrefixes = parseCommonPrefixes(element.getOptionalKnownElement('CommonPrefixes'));
+    element.check();
+    return { name: name, isTruncated, maxKeys, keyCount, contents, nextContinuationToken, delimiter, commonPrefixes, startAfter, prefix };
 }
 
-function parseListBucketResultItem(xml: ExtendedXmlNode): ListBucketResultItem {
-    let key: string | undefined;
-    let size: number | undefined;
-    let lastModified: string | undefined;
-    let owner: ListBucketResultOwner | undefined;
-    let etag: string | undefined;
-    for (const [ name, value ] of Object.entries(xml.child)) {
-        if (name === 'Key') {
-            key = readText(value);
-        } else if (name === 'Size') {
-            size = parseNonNegativeInteger('Size', readText(value));
-        } else if (name === 'LastModified') {
-            lastModified = readText(value);
-            checkIso8601('LastModified', lastModified);
-        } else if (name === 'Owner') {
-            checkEqual('Owner.length', value.length, 1);
-            owner = parseListBucketResultOwner(value[0] as ExtendedXmlNode);
-        } else if (name === 'ETag') {
-            etag = readText(value);
-        }else {
-            console.log(xml);
-            throw new Error(`parseListBucketResultItem: unknown child ${name}`);
-        }
-    }
-    if (key === undefined || size === undefined || lastModified === undefined || owner === undefined || etag === undefined) throw new Error(`parseListBucketResultItem: incomplete: ${JSON.stringify({ key, size, lastModified, owner, etag })}`);
+function checkInteger(text: string, name: string): number {
+    const rt = parseInt(text);
+    if (String(rt) !== text) throw new Error(`${name}: Expected integer text`);
+    return rt;
+}
+
+function checkBoolean(text: string, name: string): boolean {
+    checkMatches(name, text, /^(true|false)$/);
+    return text === 'true';
+}
+
+function parseListBucketResultItem(element: KnownElement): ListBucketResultItem {
+    const key = element.getElementText('Key');
+    const size = element.getCheckedElementText('Size', checkInteger);
+    const lastModified = element.getElementText('LastModified');
+    const owner = parseListBucketResultOwner(element.getKnownElement('Owner'));
+    const etag = element.getElementText('ETag');
+    element.check();
     return { key, size, lastModified, owner, etag };
 }
 
-function parseListBucketResultOwner(xml: ExtendedXmlNode): ListBucketResultOwner {
-    let id: string | undefined;
-    let displayName: string | undefined;
-    for (const [ name, value ] of Object.entries(xml.child)) {
-        if (name === 'ID') {
-            id = readText(value);
-        } else if (name === 'DisplayName') {
-            displayName = readText(value);
-        } else {
-            console.log(xml);
-            throw new Error(`parseListBucketResultOwner: unknown child ${name}`);
-        }
-    }
-    if (!id || !displayName) throw new Error(`parseListBucketResultOwner: incomplete: ${({ id, displayName })}`);
+function parseListBucketResultOwner(element: KnownElement): ListBucketResultOwner {
+    const id = element.getElementText('ID')
+    const displayName = element.getElementText('DisplayName');
+    element.check();
     return { id, displayName };
+}
+
+function parseCommonPrefixes(element: KnownElement | undefined): string[] | undefined {
+    if (element === undefined) return undefined;
+    const rt = element.getElementTexts('Prefix');
+    element.check();
+    return rt;
 }

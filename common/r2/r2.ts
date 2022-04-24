@@ -1,28 +1,8 @@
 import { Bytes } from '../bytes.ts';
-import { checkEqual, checkMatches } from '../check.ts';
-import { XmlNode } from '../xml_parser.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
 
 export class R2 {
     static DEBUG = false;
-}
-
-export function readText(value: XmlNode[]): string {
-    checkEqual('textNodes.length', value.length, 1);
-    const val = value[0].val;
-    if (!val) throw new Error(`readText: No text found`);
-    return val;
-}
-
-export function parseNonNegativeInteger(name: string, value: string): number {
-    const rt = parseInt(value);
-    if (String(rt) !== value || rt < 0) throw new Error(`Bad ${name}: ${value}, expected non-negative integer`);
-    return rt;
-}
-
-export function parseBoolean(name: string, value: string): boolean {
-    const rt = checkMatches(name, value, /^(true|false)$/)
-    return rt === 'true';
 }
 
 export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Promise<Headers> {
