@@ -6,6 +6,7 @@ export { getOrHeadObject } from './get_head_object.ts';
 export { listBuckets } from './list_buckets.ts';
 export { headBucket } from './head_bucket.ts';
 export { createBucket } from './create_bucket.ts';
+export { deleteBucket } from './delete_bucket.ts';
 
 export class R2 {
     static DEBUG = false;
@@ -29,7 +30,7 @@ export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Pro
     return headers;
 }
 
-export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT', url: URL, headers?: Headers, body?: Bytes, region: string, context: AwsCallContext }): Promise<Response> {
+export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT' | 'DELETE', url: URL, headers?: Headers, body?: Bytes, region: string, context: AwsCallContext }): Promise<Response> {
     const { url, region, context, method } = opts;
     const headers = opts.headers || new Headers();
     const body = opts.body || Bytes.EMPTY;

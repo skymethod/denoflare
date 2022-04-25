@@ -1,8 +1,8 @@
-import { createBucket as createBucketR2, R2 } from '../common/r2/r2.ts';
+import { deleteBucket as deleteBucketR2, R2 } from '../common/r2/r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { loadR2Options } from './cli_r2.ts';
 
-export async function createBucket(args: (string | number)[], options: Record<string, unknown>) {
+export async function deleteBucket(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length < 1) {
         dumpHelp();
         return;
@@ -18,18 +18,18 @@ export async function createBucket(args: (string | number)[], options: Record<st
     
     const { origin, region, context } = await loadR2Options(options);
 
-    await createBucketR2({ bucket, origin, region }, context);
+    await deleteBucketR2({ bucket, origin, region }, context);
 }
 
 //
 
 function dumpHelp() {
     const lines = [
-        `denoflare-r2-create-bucket ${CLI_VERSION}`,
-        'Create a new R2 bucket',
+        `denoflare-r2-delete-bucket ${CLI_VERSION}`,
+        'Delete an R2 bucket',
         '',
         'USAGE:',
-        '    denoflare r2 create-bucket [FLAGS] [OPTIONS]',
+        '    denoflare r2 delete-bucket [FLAGS] [OPTIONS]',
         '',
         'FLAGS:',
         '    -h, --help        Prints help information',
