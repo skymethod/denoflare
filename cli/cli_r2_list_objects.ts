@@ -1,6 +1,6 @@
 import { listObjectsV2, R2 } from '../common/r2/r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { parseOptionalStringOption } from './cli_common.ts';
+import { parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { loadR2Options } from './cli_r2.ts';
 
 export async function listObjects(args: (string | number)[], options: Record<string, unknown>) {
@@ -24,10 +24,11 @@ export async function listObjects(args: (string | number)[], options: Record<str
     const prefix = parseOptionalStringOption('prefix', options);
     const delimiter = parseOptionalStringOption('delimiter', options);
     const encodingType = parseOptionalStringOption('encoding-type', options);
+    const fetchOwner = parseOptionalBooleanOption('fetch-owner', options);
 
     const { origin, region, context } = await loadR2Options(options);
 
-    const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType }, context);
+    const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType, fetchOwner }, context);
     console.log(JSON.stringify(result, undefined, 2));
 }
 

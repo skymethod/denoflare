@@ -3,8 +3,8 @@ import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { AwsCallContext, BucketResultOwner, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
-export async function listObjectsV2(opts: { bucket: string, origin: string, region: string, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string, encodingType?: string }, context: AwsCallContext): Promise<ListBucketResult> {
-    const { bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType } = opts;
+export async function listObjectsV2(opts: { bucket: string, origin: string, region: string, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string, encodingType?: string, fetchOwner?: boolean }, context: AwsCallContext): Promise<ListBucketResult> {
+    const { bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType, fetchOwner } = opts;
     const method = 'GET';
     const url = new URL(`${origin}/${bucket}/?list-type=2`);
     if (typeof maxKeys === 'number') url.searchParams.set('max-keys', String(maxKeys));
@@ -13,6 +13,7 @@ export async function listObjectsV2(opts: { bucket: string, origin: string, regi
     if (typeof prefix === 'string') url.searchParams.set('prefix', prefix);
     if (typeof startAfter === 'string') url.searchParams.set('start-after', startAfter);
     if (typeof encodingType === 'string') url.searchParams.set('encoding-type', encodingType);
+    if (typeof fetchOwner === 'boolean') url.searchParams.set('fetch-owner', String(fetchOwner));
 
     const res = await s3Fetch({ method, url, region, context });
     await throwIfUnexpectedStatus(res, 200);

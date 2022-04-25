@@ -32,6 +32,14 @@ export function parseOptionalStringOption(name: string, options: Record<string, 
     throw new Error(`Bad ${name}: ${value}`);
 }
 
+export function parseOptionalBooleanOption(name: string, options: Record<string, unknown>): boolean | undefined {
+    const value = options[name];
+    if (value === undefined || typeof value === 'boolean') return value;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    throw new Error(`Bad ${name}: ${value}`);
+}
+
 //
 
 function computeScriptNameFromPath(path: string) {
