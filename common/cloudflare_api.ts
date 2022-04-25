@@ -39,8 +39,7 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
         migrations
     };
     if (enableR2) {
-        metadata['compatibility_flags'] = [ 'r2_public_beta_bindings' ];
-        metadata['compatibility_date'] = '2022-04-14';
+        metadata['compatibility_date'] = '2022-04-18';
     }
 
     if (isModule) {

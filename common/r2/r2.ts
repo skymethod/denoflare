@@ -61,9 +61,13 @@ export async function throwIfUnexpectedStatus(res: Response, ...expectedStatus: 
     if (contentTypeLower.startsWith('text')) {
         const text = await res.text();
         if (text.startsWith('<')) {
-            const xml = parseXml(text);
-            const result = parseErrorResultXml(xml);
-            errorMessage += `, code=${result.code}, message=${result.message}`;
+            try {
+                const xml = parseXml(text);
+                const result = parseErrorResultXml(xml);
+                errorMessage += `, code=${result.code}, message=${result.message}`;
+            } catch (e) {
+                errorMessage += ` parseError=${e.stack || e} body=${text}`;
+            }
         }
     }
     throw new Error(errorMessage);
@@ -86,6 +90,12 @@ export function checkIso8601(name: string, value: string): RegExpExecArray {
     return rt;
 }
 
+export function computeAwsCallBodyLength(body: AwsCallBody): number {
+    return typeof body === 'string' ? Bytes.ofUtf8(body).length
+        : body instanceof Bytes ? body.length
+        : body.length;
+}
+
 //
 
 export interface AwsCallContext {
@@ -98,7 +108,7 @@ export interface AwsCredentials {
     readonly secretKey: string;
 }
 
-export type AwsCallBody = Bytes | string | { stream: ReadableStream, length: number, sha256Hex: string };
+export type AwsCallBody = Bytes | string | { stream: ReadableStream, length: number, sha256Hex: string, md5Base64?: string };
 
 export interface AwsCall {
     readonly method: 'GET' | 'HEAD' | 'POST' | 'DELETE' | 'PUT';
