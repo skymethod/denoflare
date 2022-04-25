@@ -2,7 +2,7 @@ import { listBuckets as listBucketsR2, R2 } from '../common/r2/r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { loadR2Options } from './cli_r2.ts';
 
-export async function listBuckets(args: (string | number)[], options: Record<string, unknown>) {
+export async function listBuckets(_args: (string | number)[], options: Record<string, unknown>) {
     if (options.help) {
         dumpHelp();
         return;

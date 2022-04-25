@@ -5,6 +5,7 @@ import { loadConfig, resolveProfile } from './config_loader.ts';
 import { AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
 import { listBuckets } from './cli_r2_list_buckets.ts';
+import { headBucket } from './cli_r2_head_bucket.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -15,6 +16,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
 
     const fn = { 
         'list-buckets': listBuckets, 
+        'head-bucket': headBucket, 
         'list-objects': listObjects, 
         'get-object': getObject, 
         'head-object': headObject,

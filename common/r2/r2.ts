@@ -3,6 +3,7 @@ import { KnownElement } from './known_element.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
 export { getOrHeadObject } from './get_head_object.ts';
 export { listBuckets } from './list_buckets.ts';
+export { headBucket } from './head_bucket.ts';
 
 export class R2 {
     static DEBUG = false;
