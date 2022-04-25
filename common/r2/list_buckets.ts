@@ -1,5 +1,5 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, BucketResultOwner, computeHeadersString, parseBucketResultOwner, R2, s3Fetch } from './r2.ts';
+import { AwsCallContext, BucketResultOwner, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
 export async function listBuckets(opts: { origin: string, region: string }, context: AwsCallContext): Promise<ListBucketsResult> {
@@ -8,15 +8,13 @@ export async function listBuckets(opts: { origin: string, region: string }, cont
     const url = new URL(`${origin}/`);
 
     const res = await s3Fetch({ method, url, region, context });
-    const contentType = res.headers.get('content-type') || undefined;
+    await throwIfUnexpectedStatus(res, 200);
+
     const txt = await res.text();
     if (R2.DEBUG) console.log(txt);
-    const expectedStatus = res.status === 200;
-    if (!expectedStatus || contentType !== 'application/xml') {
-        const { status, headers, url } = res;
-        const value = !expectedStatus ? `status ${status}` : `content type ${contentType}`;
-        throw new Error(`Unexpected ${value} for ${url}, headers=${computeHeadersString(headers)} body=${txt}`);
-    }
+
+    throwIfUnexpectedContentType(res, 'application/xml', txt);
+    
     const xml = parseXml(txt);
     return parseListBucketsResultXml(xml);
 }

@@ -1,9 +1,11 @@
 import { Bytes } from '../bytes.ts';
+import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
 export { getOrHeadObject } from './get_head_object.ts';
 export { listBuckets } from './list_buckets.ts';
 export { headBucket } from './head_bucket.ts';
+export { createBucket } from './create_bucket.ts';
 
 export class R2 {
     static DEBUG = false;
@@ -27,10 +29,10 @@ export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Pro
     return headers;
 }
 
-export async function s3Fetch(opts: { method: 'GET' | 'HEAD', url: URL, headers?: Headers, region: string, context: AwsCallContext }): Promise<Response> {
+export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT', url: URL, headers?: Headers, body?: Bytes, region: string, context: AwsCallContext }): Promise<Response> {
     const { url, region, context, method } = opts;
     const headers = opts.headers || new Headers();
-    const body = Bytes.EMPTY;
+    const body = opts.body || Bytes.EMPTY;
     headers.set('x-amz-content-sha256', (await body.sha256()).hex()); // required for all v4 requests
     const service = 's3';
     const signedHeaders = await signAwsCallV4({ method, url, headers, body, region, service }, context);
@@ -47,6 +49,26 @@ export function parseBucketResultOwner(element: KnownElement): BucketResultOwner
     const displayName = element.getElementText('DisplayName');
     element.check();
     return { id, displayName };
+}
+
+export async function throwIfUnexpectedStatus(res: Response, ...expectedStatus: number[]) {
+    if (expectedStatus.includes(res.status)) return;
+    let errorMessage = `Unexpected status ${res.status}`;
+    const contentTypeLower = (res.headers.get('content-type') || '').toLowerCase();
+    if (contentTypeLower.startsWith('text')) {
+        const text = await res.text();
+        if (text.startsWith('<')) {
+            const xml = parseXml(text);
+            const result = parseErrorResultXml(xml);
+            errorMessage += `, code=${result.code}, message=${result.message}`;
+        }
+    }
+    throw new Error(errorMessage);
+}
+
+export function throwIfUnexpectedContentType(res: Response, expectedContentType: string, bodyTxt: string) {
+    const contentType = res.headers.get('content-type') || undefined;
+    if (contentType !== expectedContentType) throw new Error(`Unexpected content-type ${contentType}, headers=${computeHeadersString(res.headers)} body=${bodyTxt}`);
 }
 
 //
@@ -192,6 +214,20 @@ async function stringToSignFinal(amazonDate: string, region: string, service: st
     return stringToSign;
 }
 
+function parseErrorResultXml(xml: ExtendedXmlNode): ErrorResult {
+    const doc = new KnownElement(xml).checkTagName('!xml');
+    const rt = parseErrorResult(doc.getKnownElement('Error'));
+    doc.check();
+    return rt;
+}
+
+function parseErrorResult(element: KnownElement): ErrorResult {
+    const code = element.getElementText('Code');
+    const message = element.getElementText('Message');
+    element.check();
+    return { code, message };
+}
+
 //
 
 interface CanonicalRequest {
@@ -206,4 +242,9 @@ interface AwsCall {
     readonly body: Bytes;
     readonly region: string;
     readonly service: string;
+}
+
+interface ErrorResult {
+    readonly code: string;
+    readonly message: string;
 }
