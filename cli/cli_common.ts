@@ -40,10 +40,37 @@ export function parseOptionalBooleanOption(name: string, options: Record<string,
     throw new Error(`Bad ${name}: ${value}`);
 }
 
+export function parseNameValuePairsOption(option: string, options: Record<string, unknown>): Record<string, string> | undefined {
+    const optionValue = options[option];
+    if (optionValue === undefined) return undefined;
+    const rt: Record<string, string> = {};
+    if (typeof optionValue === 'string')  {
+        const { name, value } = parseNameValue(optionValue);
+        rt[name] = value;
+        return rt;
+    } else if (Array.isArray(optionValue) && optionValue.every(v => typeof v === 'string')) {
+        for (const item of optionValue) {
+            const { name, value } = parseNameValue(item);
+            rt[name] = value;
+        }
+        return rt;
+    } else {
+        throw new Error(`Bad ${option}: ${optionValue}`);
+    }
+}
+
 //
 
 function computeScriptNameFromPath(path: string) {
     const base = basename(path);
     const ext = extname(path);
     return base.endsWith(ext) ? base.substring(0, base.length - ext.length) : base;
+}
+
+function parseNameValue(str: string): { name: string, value: string} {
+    const i = str.indexOf('=');
+    if (i < 0) throw new Error(`Bad name value: ${str}`);
+    const name = str.substring(0, i);
+    const value = str.substring(i + 1);
+    return { name, value };
 }

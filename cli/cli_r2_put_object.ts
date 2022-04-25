@@ -1,6 +1,6 @@
 import { Bytes } from '../common/bytes.ts';
 import { computeHeadersString, putObject as putObjectR2, R2 } from '../common/r2/r2.ts';
-import { parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
+import { parseNameValuePairsOption, parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { loadR2Options } from './cli_r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { computeMd5 } from "./md5.ts";
@@ -29,6 +29,7 @@ export async function putObject(args: (string | number)[], options: Record<strin
     const shouldComputeContentMd5 = parseOptionalBooleanOption('compute-content-md5', options);
 
     const expires = parseOptionalStringOption('expires', options);
+    const customMetadata = parseNameValuePairsOption('custom', options);
 
     const computeBody = async () => {
         const { file } = options;
@@ -45,7 +46,7 @@ export async function putObject(args: (string | number)[], options: Record<strin
     
     const { origin, region, context } = await loadR2Options(options);
 
-    const response = await putObjectR2({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType }, context);
+    const response = await putObjectR2({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata }, context);
     console.log(`${response.status} ${computeHeadersString(response.headers)}`);
     if ((response.headers.get('content-type') || '').toLowerCase().includes('text')) {
         console.log(await response.text());
