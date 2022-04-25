@@ -8,6 +8,7 @@ export { headBucket } from './head_bucket.ts';
 export { createBucket } from './create_bucket.ts';
 export { deleteBucket } from './delete_bucket.ts';
 export { putObject } from './put_object.ts';
+export { deleteObject } from './delete_object.ts';
 
 export class R2 {
     static DEBUG = false;

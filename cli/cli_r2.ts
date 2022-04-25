@@ -10,6 +10,7 @@ import { createBucket } from './cli_r2_create_bucket.ts';
 import { deleteBucket } from './cli_r2_delete_bucket.ts';
 import { generic } from './cli_r2_generic.ts';
 import { putObject } from './cli_r2_put_object.ts';
+import { deleteObject } from './cli_r2_delete_object.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -28,6 +29,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'get-object': getObject, 
         'head-object': headObject,
         'put-object': putObject,
+        'delete-object': deleteObject,
 
         generic,
      }[subcommand];
