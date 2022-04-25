@@ -7,40 +7,42 @@ export { listBuckets } from './list_buckets.ts';
 export { headBucket } from './head_bucket.ts';
 export { createBucket } from './create_bucket.ts';
 export { deleteBucket } from './delete_bucket.ts';
+export { putObject } from './put_object.ts';
 
 export class R2 {
     static DEBUG = false;
 }
 
-export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Promise<Headers> {
+export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Promise<{ signedHeaders: Headers, bodyInfo: BodyInfo }> {
+    const { method, url, body, region, service } = call;
+    const { userAgent, credentials } = context;
     const headers = new Headers(call.headers);
-    headers.set('User-Agent', context.userAgent);
+    headers.set('User-Agent', userAgent);
     const amazonDate = computeAmazonDate();
     headers.set('x-amz-date', amazonDate);
-    const theCanonicalRequest = await canonicalRequest(call.method, call.url, headers, call.body);
-    if (R2.DEBUG) console.log(`theCanonicalRequest=<<<${theCanonicalRequest.text}>>>`);
-    const stringToSign = await stringToSignFinal(amazonDate, call.region, call.service, theCanonicalRequest.text);
+
+    const bodyInfo = await computeBodyInfo(body);
+    headers.set('x-amz-content-sha256', bodyInfo.bodySha256Hex); // required for all v4 requests
+    const canonicalRequest = computeCanonicalRequest(method, url, headers, bodyInfo.bodySha256Hex);
+    if (R2.DEBUG) console.log(`canonicalRequest=<<<${canonicalRequest.text}>>>`);
+    const stringToSign = await stringToSignFinal(amazonDate, region, service, canonicalRequest.text);
     if (R2.DEBUG) console.log(`stringToSign=<<<${stringToSign}>>>`);
-    const signature = await sig(context.credentials.secretKey, amazonDate, call.region, call.service, stringToSign);
-    const theAuthHeader = authHeader(context.credentials.accessKey,
-        credentialScope(amazonDate, call.region, call.service),
-        theCanonicalRequest.signedHeaders,
-        signature);
-    headers.set('Authorization', theAuthHeader);
-    return headers;
+    const signature = await sig(credentials.secretKey, amazonDate, region, service, stringToSign);
+    const authHeader = computeAuthHeader(credentials.accessKey, credentialScope(amazonDate, region, service), canonicalRequest.signedHeaders, signature);
+    headers.set('Authorization', authHeader);
+    return { signedHeaders: headers, bodyInfo };
 }
 
-export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT' | 'DELETE', url: URL, headers?: Headers, body?: Bytes, region: string, context: AwsCallContext }): Promise<Response> {
+export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT' | 'DELETE', url: URL, headers?: Headers, body?: AwsCallBody, region: string, context: AwsCallContext }): Promise<Response> {
     const { url, region, context, method } = opts;
     const headers = opts.headers || new Headers();
     const body = opts.body || Bytes.EMPTY;
-    headers.set('x-amz-content-sha256', (await body.sha256()).hex()); // required for all v4 requests
     const service = 's3';
-    const signedHeaders = await signAwsCallV4({ method, url, headers, body, region, service }, context);
+    const { signedHeaders, bodyInfo } = await signAwsCallV4({ method, url, headers, body, region, service }, context);
     const urlStr = url.toString();
     if (R2.DEBUG) console.log(method + ' ' + urlStr);
     if (R2.DEBUG) console.log(`signedHeaders: ${computeHeadersString(signedHeaders)}`);
-    const res = await fetch(urlStr, { method, headers: signedHeaders, body: body.length === 0 ? undefined : body.array() });
+    const res = await fetch(urlStr, { method, headers: signedHeaders, body: bodyInfo.bodyLength === 0 ? undefined : bodyInfo.body });
     if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
     return res;
 }
@@ -72,6 +74,18 @@ export function throwIfUnexpectedContentType(res: Response, expectedContentType:
     if (contentType !== expectedContentType) throw new Error(`Unexpected content-type ${contentType}, headers=${computeHeadersString(res.headers)} body=${bodyTxt}`);
 }
 
+export function computeHeadersString(headers: Headers): string {
+    return [...headers].map(v => v.join(': ')).join(', ');
+}
+
+export function checkIso8601(name: string, value: string): RegExpExecArray {
+    const rt = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{3})?Z$/.exec(value);
+    if (!rt) {
+        throw new Error(`Bad ${name}: ${value}`);
+    }
+    return rt;
+}
+
 //
 
 export interface AwsCallContext {
@@ -84,16 +98,20 @@ export interface AwsCredentials {
     readonly secretKey: string;
 }
 
-export function computeHeadersString(headers: Headers): string {
-    return [...headers].map(v => v.join(': ')).join(', ');
+export type AwsCallBody = Bytes | string | { stream: ReadableStream, length: number, sha256Hex: string };
+
+export interface AwsCall {
+    readonly method: 'GET' | 'HEAD' | 'POST' | 'DELETE' | 'PUT';
+    readonly url: URL;
+    readonly headers: Headers;
+    readonly body: AwsCallBody;
+    readonly region: string;
+    readonly service: string;
 }
 
-export function checkIso8601(name: string, value: string): RegExpExecArray {
-    const rt = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{3})?Z$/.exec(value);
-    if (!rt) {
-        throw new Error(`Bad ${name}: ${value}`);
-    }
-    return rt;
+export interface ErrorResult {
+    readonly code: string;
+    readonly message: string;
 }
 
 export interface BucketResultOwner {
@@ -163,7 +181,7 @@ function credentialScope(amazonDate: string, region: string, service: string): s
     return `${amazonDate.substring(0, 8)}/${region}/${service}/aws4_request`;
 }
 
-function authHeader(accessKey: string, credentialScope: string, signedHeaders: string, signature: string): string {
+function computeAuthHeader(accessKey: string, credentialScope: string, signedHeaders: string, signature: string): string {
     return `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 }
 
@@ -181,7 +199,7 @@ async function sig(secretKey: string, amazonDate: string, region: string, servic
     return sig.hex();
 }
 
-async function canonicalRequest(method: string, url: URL, headers: Headers, body: Bytes): Promise<CanonicalRequest> {
+function computeCanonicalRequest(method: string, url: URL, headers: Headers, bodySha256Hex: string): CanonicalRequest {
     let canonicalRequest = stringToSign(method, url, false);
     canonicalRequest += '\n';
 
@@ -199,8 +217,7 @@ async function canonicalRequest(method: string, url: URL, headers: Headers, body
     canonicalRequest += `${canonicalHeaders}\n`;
     canonicalRequest += `${signedHeaders}\n`;
 
-    const bodySha256 = (await body.sha256()).hex();
-    canonicalRequest += bodySha256;
+    canonicalRequest += bodySha256Hex;
     return {
         text: canonicalRequest,
         signedHeaders
@@ -229,23 +246,23 @@ function parseErrorResult(element: KnownElement): ErrorResult {
     return { code, message };
 }
 
+async function computeBodyInfo(body: AwsCallBody): Promise<BodyInfo> {
+    if (typeof body === 'string') {
+        const bytes = Bytes.ofUtf8(body);
+        const bodySha256Hex = (await bytes.sha256()).hex();
+        const bodyLength = bytes.length;
+        return { body, bodySha256Hex, bodyLength };
+    } else if (body instanceof Bytes) {
+        const bodySha256Hex = (await body.sha256()).hex();
+        const bodyLength = body.length;
+        return { body: body.array(), bodySha256Hex, bodyLength };
+    } else {
+        return { body: body.stream, bodySha256Hex: body.sha256Hex, bodyLength: body.length };
+    }
+}
+
 //
 
-interface CanonicalRequest {
-    readonly text: string;
-    readonly signedHeaders: string;
-}
+type CanonicalRequest = { text: string, signedHeaders: string };
 
-interface AwsCall {
-    readonly method: 'GET' | 'HEAD' | 'POST' | 'DELETE' | 'PUT';
-    readonly url: URL;
-    readonly headers: Headers;
-    readonly body: Bytes;
-    readonly region: string;
-    readonly service: string;
-}
-
-interface ErrorResult {
-    readonly code: string;
-    readonly message: string;
-}
+type BodyInfo = { body: BodyInit; bodySha256Hex: string; bodyLength: number; };

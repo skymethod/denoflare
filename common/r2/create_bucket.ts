@@ -1,4 +1,3 @@
-import { Bytes } from '../bytes.ts';
 import { AwsCallContext, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
 
 export async function createBucket(opts: { bucket: string, origin: string, region: string }, context: AwsCallContext): Promise<void> {
@@ -6,7 +5,7 @@ export async function createBucket(opts: { bucket: string, origin: string, regio
     const method = 'PUT';
     const url = new URL(`${origin}/${bucket}`);
 
-    const body = Bytes.ofUtf8(payload);
+    const body = payload;
     const res = await s3Fetch({ method, url, region, context, body });
     await throwIfUnexpectedStatus(res, 200);
 
