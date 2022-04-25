@@ -23,10 +23,11 @@ export async function listObjects(args: (string | number)[], options: Record<str
     const startAfter = parseOptionalStringOption('start-after', options);
     const prefix = parseOptionalStringOption('prefix', options);
     const delimiter = parseOptionalStringOption('delimiter', options);
+    const encodingType = parseOptionalStringOption('encoding-type', options);
 
     const { origin, region, context } = await loadR2Options(options);
 
-    const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter }, context);
+    const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType }, context);
     console.log(JSON.stringify(result, undefined, 2));
 }
 

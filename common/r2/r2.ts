@@ -160,9 +160,7 @@ function stringToSign(method: string, url: URL, includeHost: boolean): string {
     if (includeHost) {
         rt += `${url.hostname}\n`; // hostname does not include port
     }
-    rt += url.pathname.split('/').map((token, i) => {
-        return `${i > 0 ? '/' : ''}${uriEncode(token)}`;
-    }).join('');
+    rt += url.pathname; // URL handles the encoding for us
     rt += '\n';
 
     let qs = '';
