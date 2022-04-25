@@ -1,9 +1,9 @@
 import { AwsCallBody, AwsCallContext, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
 
-export type PutObjectOpts = { bucket: string, key: string, body: AwsCallBody, origin: string, region: string, cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentMd5?: string };
+export type PutObjectOpts = { bucket: string, key: string, body: AwsCallBody, origin: string, region: string, cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentMd5?: string, contentType?: string };
 
 export async function putObject(opts: PutObjectOpts, context: AwsCallContext): Promise<Response> {
-    const { bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5 } = opts;
+    const { bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType } = opts;
     const method = 'PUT';
     const url = new URL(`${origin}/${bucket}/${key}`);
     const headers = new Headers();
@@ -13,6 +13,7 @@ export async function putObject(opts: PutObjectOpts, context: AwsCallContext): P
     if (typeof contentLanguage === 'string') headers.set('content-language', contentLanguage);
     if (typeof expires === 'string') headers.set('expires', expires);
     if (typeof contentMd5 === 'string') headers.set('content-md5', contentMd5);
+    if (typeof contentType === 'string') headers.set('content-type', contentType);
 
     const res = await s3Fetch({ method, url, headers, body, region, context });
     await throwIfUnexpectedStatus(res, 200);  // r2 returns 200 with content-length: 0

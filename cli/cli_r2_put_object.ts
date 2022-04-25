@@ -24,6 +24,7 @@ export async function putObject(args: (string | number)[], options: Record<strin
     const contentDisposition = parseOptionalStringOption('content-disposition', options);
     const contentEncoding = parseOptionalStringOption('content-encoding', options);
     const contentLanguage = parseOptionalStringOption('content-language', options);
+    const contentType = parseOptionalStringOption('content-type', options);
     let contentMd5 = parseOptionalStringOption('content-md5', options);
     const shouldComputeContentMd5 = parseOptionalBooleanOption('compute-content-md5', options);
 
@@ -44,10 +45,9 @@ export async function putObject(args: (string | number)[], options: Record<strin
     
     const { origin, region, context } = await loadR2Options(options);
 
-    const response = await putObjectR2({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires }, context);
+    const response = await putObjectR2({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType }, context);
     console.log(`${response.status} ${computeHeadersString(response.headers)}`);
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.toLowerCase().includes('text')) {
+    if ((response.headers.get('content-type') || '').toLowerCase().includes('text')) {
         console.log(await response.text());
     } else {
         const body = await response.arrayBuffer();
