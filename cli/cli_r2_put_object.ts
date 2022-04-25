@@ -1,8 +1,9 @@
 import { Bytes } from '../common/bytes.ts';
 import { computeHeadersString, putObject as putObjectR2, R2 } from '../common/r2/r2.ts';
-import { parseOptionalStringOption } from './cli_common.ts';
+import { parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { loadR2Options } from './cli_r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
+import { computeMd5 } from "./md5.ts";
 
 export async function putObject(args: (string | number)[], options: Record<string, unknown>) {
     if (options.help || args.length < 2) {
@@ -23,7 +24,9 @@ export async function putObject(args: (string | number)[], options: Record<strin
     const contentDisposition = parseOptionalStringOption('content-disposition', options);
     const contentEncoding = parseOptionalStringOption('content-encoding', options);
     const contentLanguage = parseOptionalStringOption('content-language', options);
-    const contentMd5 = parseOptionalStringOption('content-md5', options);
+    let contentMd5 = parseOptionalStringOption('content-md5', options);
+    const shouldComputeContentMd5 = parseOptionalBooleanOption('compute-content-md5', options);
+
     const expires = parseOptionalStringOption('expires', options);
 
     const computeBody = async () => {
@@ -33,6 +36,11 @@ export async function putObject(args: (string | number)[], options: Record<strin
     };
 
     const body = await computeBody();
+    
+    if (shouldComputeContentMd5) {
+        if (contentMd5) throw new Error(`Cannot compute content-md5 if it's already provided`);
+        contentMd5 = computeMd5(body, 'base64');
+    }
     
     const { origin, region, context } = await loadR2Options(options);
 

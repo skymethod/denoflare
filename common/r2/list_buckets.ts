@@ -2,7 +2,9 @@ import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { AwsCallContext, BucketResultOwner, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
-export async function listBuckets(opts: { origin: string, region: string }, context: AwsCallContext): Promise<ListBucketsResult> {
+export type ListBucketsOpts = { origin: string, region: string };
+
+export async function listBuckets(opts: ListBucketsOpts, context: AwsCallContext): Promise<ListBucketsResult> {
     const { origin, region } = opts;
     const method = 'GET';
     const url = new URL(`${origin}/`);

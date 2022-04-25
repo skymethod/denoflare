@@ -1,6 +1,8 @@
 import { AwsCallContext, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
 
-export async function createBucket(opts: { bucket: string, origin: string, region: string }, context: AwsCallContext): Promise<void> {
+export type CreateBucketOpts = { bucket: string, origin: string, region: string };
+
+export async function createBucket(opts: CreateBucketOpts, context: AwsCallContext): Promise<void> {
     const { bucket, origin, region } = opts;
     const method = 'PUT';
     const url = new URL(`${origin}/${bucket}`);

@@ -1,4 +1,4 @@
-import { computeHeadersString, getOrHeadObject as getOrHeadObjectR2, R2 } from '../common/r2/r2.ts';
+import { computeHeadersString, getObject as getObjectR2, headObject as headObjectR2, R2 } from '../common/r2/r2.ts';
 import { parseOptionalStringOption } from './cli_common.ts';
 import { loadR2Options } from './cli_r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
@@ -38,8 +38,8 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', args: (string | number)[]
     if (partNumber !== undefined && typeof partNumber !== 'number') throw new Error(`Bad part-number: ${partNumber}`);
     
     const { origin, region, context } = await loadR2Options(options);
-
-    const response = await getOrHeadObjectR2({ method, bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
+    const fn = method === 'GET' ? getObjectR2 : headObjectR2;
+    const response = await fn({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
     console.log(`${response.status} ${computeHeadersString(response.headers)}`);
     const contentType = response.headers.get('content-type') || '';
     if (contentType.toLowerCase().includes('text')) {
