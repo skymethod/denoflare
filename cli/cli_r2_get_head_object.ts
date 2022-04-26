@@ -1,6 +1,6 @@
 import { computeHeadersString, getObject as getObjectR2, headObject as headObjectR2, R2 } from '../common/r2/r2.ts';
 import { parseOptionalStringOption } from './cli_common.ts';
-import { loadR2Options } from './cli_r2.ts';
+import { loadR2Options, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
 import { CLI_VERSION } from './cli_version.ts';
 
 export async function headObject(args: (string | number)[], options: Record<string, unknown>) {
@@ -48,13 +48,6 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', args: (string | number)[]
         const body = await response.arrayBuffer();
         console.log(`(${body.byteLength} bytes)`);
     }
-}
-
-function surroundWithDoubleQuotesIfNecessary(value: string | undefined): string | undefined {
-    if (value === undefined) return value;
-    if (!value.startsWith('"')) value = '"' + value;
-    if (!value.endsWith('"')) value += '"';
-    return value;
 }
 
 function dumpHelp() {

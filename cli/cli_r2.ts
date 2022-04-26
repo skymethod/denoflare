@@ -15,6 +15,7 @@ import { deleteObjects } from './cli_r2_delete_objects.ts';
 import { copyObject } from './cli_r2_copy_object.ts';
 import { createMultipartUpload } from './cli_r2_create_multipart_upload.ts';
 import { abortMultipartUpload } from './cli_r2_abort_multipart_upload.ts';
+import { completeMultipartUpload } from './cli_r2_complete_multipart_upload.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -39,6 +40,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
 
         'create-multipart-upload': createMultipartUpload,
         'abort-multipart-upload': abortMultipartUpload,
+        'complete-multipart-upload': completeMultipartUpload,
 
         generic,
      }[subcommand];
@@ -62,6 +64,13 @@ export async function loadR2Options(options: Record<string, unknown>): Promise<{
     const region = 'world'
     const context = { credentials, userAgent: `denoflare-cli/${CLI_VERSION}` };
     return { origin, region, context };
+}
+
+export function surroundWithDoubleQuotesIfNecessary(value: string | undefined): string | undefined {
+    if (value === undefined) return value;
+    if (!value.startsWith('"')) value = '"' + value;
+    if (!value.endsWith('"')) value += '"';
+    return value;
 }
 
 //
