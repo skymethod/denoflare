@@ -11,6 +11,7 @@ import { deleteBucket } from './cli_r2_delete_bucket.ts';
 import { generic } from './cli_r2_generic.ts';
 import { putObject } from './cli_r2_put_object.ts';
 import { deleteObject } from './cli_r2_delete_object.ts';
+import { deleteObjects } from './cli_r2_delete_objects.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -21,7 +22,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
 
     const fn = { 
         'list-buckets': listBuckets, 
-        'head-bucket': headBucket, 
+        'head-bucket': headBucket,
         'create-bucket': createBucket, 
         'delete-bucket': deleteBucket, 
 
@@ -30,6 +31,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'head-object': headObject,
         'put-object': putObject,
         'delete-object': deleteObject,
+        'delete-objects': deleteObjects,
 
         generic,
      }[subcommand];

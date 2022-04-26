@@ -1,6 +1,5 @@
-import { checkMatches } from '../check.ts';
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, BucketResultOwner, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, BucketResultOwner, checkBoolean, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
 export type ListObjectsOpts = { bucket: string, origin: string, region: string, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string, encodingType?: string, fetchOwner?: boolean };
@@ -82,11 +81,6 @@ function checkInteger(text: string, name: string): number {
     const rt = parseInt(text);
     if (String(rt) !== text) throw new Error(`${name}: Expected integer text`);
     return rt;
-}
-
-function checkBoolean(text: string, name: string): boolean {
-    checkMatches(name, text, /^(true|false)$/);
-    return text === 'true';
 }
 
 function parseListBucketResultItem(element: KnownElement): ListBucketResultItem {

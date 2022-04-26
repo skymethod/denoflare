@@ -1,4 +1,5 @@
 import { Bytes } from '../bytes.ts';
+import { checkMatches } from '../check.ts';
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
@@ -9,6 +10,7 @@ export { createBucket } from './create_bucket.ts';
 export { deleteBucket } from './delete_bucket.ts';
 export { putObject } from './put_object.ts';
 export { deleteObject } from './delete_object.ts';
+export { deleteObjects } from './delete_objects.ts';
 
 export class R2 {
     static DEBUG = false;
@@ -34,7 +36,7 @@ export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Pro
     return { signedHeaders: headers, bodyInfo };
 }
 
-export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT' | 'DELETE', url: URL, headers?: Headers, body?: AwsCallBody, region: string, context: AwsCallContext }): Promise<Response> {
+export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT' | 'DELETE' | 'POST', url: URL, headers?: Headers, body?: AwsCallBody, region: string, context: AwsCallContext }): Promise<Response> {
     const { url, region, context, method } = opts;
     const headers = opts.headers || new Headers();
     const body = opts.body || Bytes.EMPTY;
@@ -95,6 +97,11 @@ export function computeAwsCallBodyLength(body: AwsCallBody): number {
     return typeof body === 'string' ? Bytes.ofUtf8(body).length
         : body instanceof Bytes ? body.length
         : body.length;
+}
+
+export function checkBoolean(text: string, name: string): boolean {
+    checkMatches(name, text, /^(true|false)$/);
+    return text === 'true';
 }
 
 //

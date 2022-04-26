@@ -56,6 +56,11 @@ export class KnownElement {
         return checkFn(this.getElementText(childName), childName);
     }
 
+    getOptionalCheckedElementText<T>(childName: string, checkFn: (text: string, name: string) => T): T | undefined {
+        const text = this.getOptionalElementText(childName);
+        return text === undefined ? undefined : checkFn(text, childName);
+    }
+
     check() {
         if (this.unprocessedChildNames.size > 0) {
             throw new Error(`${this.node.tagname}: Unprocessed children: ${[...this.unprocessedChildNames].sort()}`);
