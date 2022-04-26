@@ -12,6 +12,7 @@ import { generic } from './cli_r2_generic.ts';
 import { putObject } from './cli_r2_put_object.ts';
 import { deleteObject } from './cli_r2_delete_object.ts';
 import { deleteObjects } from './cli_r2_delete_objects.ts';
+import { copyObject } from './cli_r2_copy_object.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -32,6 +33,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'put-object': putObject,
         'delete-object': deleteObject,
         'delete-objects': deleteObjects,
+        'copy-object': copyObject,
 
         generic,
      }[subcommand];
