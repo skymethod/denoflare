@@ -2,7 +2,7 @@ import { CLI_VERSION } from './cli_version.ts';
 import { listObjects } from './cli_r2_list_objects.ts';
 import { getObject, headObject } from './cli_r2_get_head_object.ts';
 import { loadConfig, resolveProfile } from './config_loader.ts';
-import { AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
 import { listBuckets } from './cli_r2_list_buckets.ts';
 import { headBucket } from './cli_r2_head_bucket.ts';
@@ -16,6 +16,10 @@ import { copyObject } from './cli_r2_copy_object.ts';
 import { createMultipartUpload } from './cli_r2_create_multipart_upload.ts';
 import { abortMultipartUpload } from './cli_r2_abort_multipart_upload.ts';
 import { completeMultipartUpload } from './cli_r2_complete_multipart_upload.ts';
+import { uploadPart } from './cli_r2_upload_part.ts';
+import { parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
+import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_crypto.ts';
+import { checkMatchesReturnMatcher } from '../common/check.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -41,6 +45,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'create-multipart-upload': createMultipartUpload,
         'abort-multipart-upload': abortMultipartUpload,
         'complete-multipart-upload': completeMultipartUpload,
+        'upload-part': uploadPart,
 
         generic,
      }[subcommand];
@@ -71,6 +76,74 @@ export function surroundWithDoubleQuotesIfNecessary(value: string | undefined): 
     if (!value.startsWith('"')) value = '"' + value;
     if (!value.endsWith('"')) value += '"';
     return value;
+}
+
+export async function loadBodyFromOptions(options: Record<string, unknown>): Promise<{ body: AwsCallBody, contentMd5?: string }> {
+    let contentMd5 = parseOptionalStringOption('content-md5', options);
+    const shouldComputeContentMd5 = parseOptionalBooleanOption('compute-content-md5', options);
+
+    const start = Date.now();
+    let prepMillis = 0;
+    const computeBody: () => Promise<AwsCallBody> = async () => {
+        const { file, filestream } = options;
+        try {
+            if (typeof file === 'string') {
+                const bytes = parseOptionalStringOption('bytes', options);
+                let startByte: number | undefined;
+                let endByte: number | undefined;
+                if (typeof bytes === 'string') {
+                    const m = checkMatchesReturnMatcher('bytes', bytes, /^(\d+)-(\d*)$/);
+                    if (!m) throw new Error(`Bad bytes: ${bytes}`);
+                    startByte = parseInt(m[1]);
+                    if (m[2] !== '') endByte = parseInt(m[2]);
+                    if (typeof endByte === 'number' && startByte > endByte) throw new Error(`Bad bytes: ${bytes}`);
+                }
+                let rt = new Bytes(await Deno.readFile(file));
+                if (typeof startByte === 'number') {
+                    rt = new Bytes(rt.array().slice(startByte, typeof endByte === 'number' ? (endByte + 1) : undefined));
+                    console.log(rt.length);
+                }
+                return rt;
+            }
+            if (typeof filestream === 'string') {
+                
+                const stat = await Deno.stat(filestream);
+                if (!stat.isFile) throw new Error(`--file must point to a file`);
+                const length = stat.size;
+
+                const f1 = await Deno.open(filestream);
+                const sha256Hex = (await computeStreamingSha256(f1.readable)).hex();
+
+                let md5Base64: string | undefined;
+                if (shouldComputeContentMd5) {
+                    const f2 = await Deno.open(filestream);
+                    md5Base64 = (await computeStreamingMd5(f2.readable)).base64();
+                }
+
+                const f3 = await Deno.open(filestream);
+                return { stream: f3.readable, sha256Hex, length, md5Base64 };
+            }
+            throw new Error(`Must provide the --file or --filestream option`);
+        } finally {
+            prepMillis = Date.now() - start;
+        }
+    };
+
+    const body = await computeBody();
+    
+    if (shouldComputeContentMd5) {
+        if (contentMd5) throw new Error(`Cannot compute content-md5 if it's already provided`);
+        const start = Date.now();
+        if (typeof body === 'string' || body instanceof Bytes) {
+            contentMd5 = (await computeMd5(body)).base64();
+        } else {
+            if (!body.md5Base64) throw new Error(`Cannot compute content-md5 if the stream source does not provide it`);
+            contentMd5 = body.md5Base64;
+        }
+        prepMillis += Date.now() - start;
+    }
+    console.log(`prep took ${prepMillis}ms`);
+    return { body, contentMd5 };
 }
 
 //

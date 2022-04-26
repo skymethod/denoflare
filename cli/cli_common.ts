@@ -40,6 +40,13 @@ export function parseOptionalBooleanOption(name: string, options: Record<string,
     throw new Error(`Bad ${name}: ${value}`);
 }
 
+export function parseOptionalIntegerOption(name: string, options: Record<string, unknown>): number | undefined {
+    const value = options[name];
+    if (value === undefined) return undefined;
+    if (typeof value === 'number' && value === Math.round(value)) return value;
+    throw new Error(`Bad ${name}: ${value}`);
+}
+
 export function parseNameValuePairsOption(option: string, options: Record<string, unknown>): Record<string, string> | undefined {
     const optionValue = options[option];
     if (optionValue === undefined) return undefined;

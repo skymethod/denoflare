@@ -16,6 +16,7 @@ export { createMultipartUpload } from './create_multipart_upload.ts';
 export { abortMultipartUpload } from './abort_multipart_upload.ts';
 export { completeMultipartUpload } from './complete_multipart_upload.ts';
 export type { CompletedPart } from './complete_multipart_upload.ts';
+export { uploadPart } from './upload_part.ts';
 
 export class R2 {
     static DEBUG = false;
