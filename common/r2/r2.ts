@@ -12,6 +12,8 @@ export { putObject } from './put_object.ts';
 export { deleteObject } from './delete_object.ts';
 export { deleteObjects } from './delete_objects.ts';
 export { copyObject } from './copy_object.ts';
+export { createMultipartUpload } from './create_multipart_upload.ts';
+export { abortMultipartUpload } from './abort_multipart_upload.ts';
 
 export class R2 {
     static DEBUG = false;

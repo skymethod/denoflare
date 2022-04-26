@@ -11,6 +11,7 @@ export async function deleteObjects(opts: DeleteObjectsOpts, context: AwsCallCon
     const url = new URL(`${origin}/${bucket}/?delete`);
 
     const body = computePayload(items, quiet);
+    if (R2.DEBUG) console.log(body);
     const res = await s3Fetch({ method, url, body, region, context });
     await throwIfUnexpectedStatus(res, 200);
 
@@ -45,7 +46,7 @@ export interface ErrorItem {
 
 const computePayload = (items: (string | ObjectIdentifier)[], quiet?: boolean) => `<?xml version="1.0" encoding="UTF-8"?>
 <Delete xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-${items.map(computeObjectElement)}
+${items.map(computeObjectElement).join('')}
 ${typeof quiet === 'boolean' ? `  <Quiet>${quiet}</Quiet>` : ''}
 </Delete>`;
 

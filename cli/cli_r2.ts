@@ -13,6 +13,8 @@ import { putObject } from './cli_r2_put_object.ts';
 import { deleteObject } from './cli_r2_delete_object.ts';
 import { deleteObjects } from './cli_r2_delete_objects.ts';
 import { copyObject } from './cli_r2_copy_object.ts';
+import { createMultipartUpload } from './cli_r2_create_multipart_upload.ts';
+import { abortMultipartUpload } from './cli_r2_abort_multipart_upload.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -34,6 +36,9 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'delete-object': deleteObject,
         'delete-objects': deleteObjects,
         'copy-object': copyObject,
+
+        'create-multipart-upload': createMultipartUpload,
+        'abort-multipart-upload': abortMultipartUpload,
 
         generic,
      }[subcommand];
