@@ -9,7 +9,7 @@ export async function getObject(opts: GetObjectOpts, context: AwsCallContext): P
 export type HeadObjectOpts = GetObjectOpts;
 
 export async function headObject(opts: HeadObjectOpts, context: AwsCallContext): Promise<Response> {
-    return await getOrHeadObject('GET', opts, context);
+    return await getOrHeadObject('HEAD', opts, context);
 }
 
 //

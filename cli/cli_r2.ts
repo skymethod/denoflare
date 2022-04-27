@@ -18,6 +18,7 @@ import { abortMultipartUpload } from './cli_r2_abort_multipart_upload.ts';
 import { completeMultipartUpload } from './cli_r2_complete_multipart_upload.ts';
 import { uploadPart } from './cli_r2_upload_part.ts';
 import { uploadPartCopy } from './cli_r2_upload_part_copy.ts';
+import { putLargeObject } from './cli_r2_put_large_object.ts';
 import { parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_crypto.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
@@ -50,6 +51,8 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'upload-part-copy': uploadPartCopy,
 
         generic,
+        'put-large-object': putLargeObject,
+
      }[subcommand];
     if (fn) {
         await fn(args.slice(1), options);
