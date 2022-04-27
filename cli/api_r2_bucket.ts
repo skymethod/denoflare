@@ -1,8 +1,9 @@
 import { R2Bucket, R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
-import { AwsCredentials, computeHeadersString, getObject, headObject, R2 } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, putObject, R2 } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { readerFromIterable, readAll } from './deps_cli.ts';
 
 export class ApiR2Bucket implements R2Bucket {
 
@@ -49,12 +50,72 @@ export class ApiR2Bucket implements R2Bucket {
         return new ResponseBasedR2ObjectBody(res, key);
     }
 
-    put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object> {
-        throw new Error(`ApiR2Bucket.put not implemented key=${key} value=${value} options=${JSON.stringify(options)}`);
+    async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object> {
+        const { origin, credentials, bucket, region, userAgent } = this;
+
+        let cacheControl: string | undefined;
+        let contentDisposition: string | undefined;
+        let contentEncoding: string | undefined;
+        let contentLanguage: string | undefined;
+        let expires: string | undefined;
+        let contentMd5: string | undefined;
+        let contentType: string | undefined;
+        let customMetadata: Record<string, string> | undefined;
+        if (options?.httpMetadata instanceof Headers) {
+            const headers = options.httpMetadata;
+            cacheControl = headers.get('cache-control') || undefined;
+            contentDisposition = headers.get('content-disposition') || undefined;
+            contentEncoding = headers.get('content-encoding') || undefined;
+            contentLanguage = headers.get('content-language') || undefined;
+            expires = headers.get('expires') || undefined;
+            contentMd5 = headers.get('content-md5') || undefined;
+            contentType = headers.get('content-type') || undefined;
+            customMetadata = computeCustomMetadataFromHeaders(headers);
+            if (Object.keys(customMetadata).length === 0) customMetadata = undefined;
+        } else if (options?.httpMetadata) {
+            const metadata = options.httpMetadata;
+            cacheControl = metadata.cacheControl;
+            contentDisposition = metadata.contentDisposition;
+            contentEncoding = metadata.contentEncoding;
+            contentLanguage = metadata.contentLanguage;
+            expires = metadata.cacheExpiry?.toISOString();
+            contentType = metadata.contentType;
+        }
+        if (options?.customMetadata) {
+            customMetadata = options.customMetadata;
+        }
+        if (options?.md5) {
+            if (typeof options.md5 === 'string') {
+                contentMd5 = Bytes.ofHex(options.md5).base64();
+            } else {
+                contentMd5 = new Bytes(new Uint8Array(options.md5)).base64();
+            }
+        }
+        if (options?.sha1) {
+            throw new Error(`ApiR2Bucket: put: sha1 not suppported`);
+        }
+
+        const computeBody: () => Promise<AwsCallBody> = async () => {
+            if (value === null) return Bytes.EMPTY;
+            if (typeof value === 'string') return value;
+            if (value instanceof ArrayBuffer) return new Bytes(new Uint8Array(value));
+            if (typeof value === 'object' && 'locked' in value) { // ReadableStream
+                const arr = await readAll(readerFromIterable(value));
+                return new Bytes(arr);
+            }
+            return new Bytes(new Uint8Array(value.buffer)); // ArrayBufferView
+        };
+
+        const body = await computeBody();
+        await putObject({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata }, { credentials, userAgent });
+        const rt = await this.head(key);
+        if (!rt) throw new Error(`ApiR2Bucket: put: subsequent HEAD did not return the object`);
+        return rt;
     }
 
-    delete(key: string): Promise<void> {
-        throw new Error(`ApiR2Bucket.delete not implemented key=${key}`);
+    async delete(key: string): Promise<void> {
+        const { origin, credentials, bucket, region, userAgent } = this;
+        await deleteObject({ bucket, key, origin, region }, { credentials, userAgent });
     }
 
     list(options?: R2ListOptions): Promise<R2Objects> {
@@ -95,6 +156,10 @@ function getExpectedHeader(name: string, headers: Headers): string {
     throw new Error(`Expected ${name} header`);
 }
 
+function computeCustomMetadataFromHeaders(headers: Headers): Record<string, string> {
+    return Object.fromEntries([...headers.keys()].filter(v => v.startsWith('x-amz-meta-')).map(v => [v.substring(11), headers.get(v)!]));
+}
+
 //
 
 class HeadersBasedR2Object implements R2Object {
@@ -124,7 +189,7 @@ class HeadersBasedR2Object implements R2Object {
             cacheControl: headers.get('cache-control') || undefined,
             cacheExpiry: cacheExpiryStr ? new Date(cacheExpiryStr) : undefined,
         }
-        this.customMetadata = Object.fromEntries([...headers.keys()].filter(v => v.startsWith('x-amz-meta-')).map(v => [v.substring(11), headers.get(v)!]));
+        this.customMetadata = computeCustomMetadataFromHeaders(headers);
     }
 
     writeHttpMetadata(_headers: Headers): void { throw new Error(`writeHttpMetadata not supported`); }
