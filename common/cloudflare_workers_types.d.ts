@@ -794,8 +794,8 @@ export interface R2Objects {
 export interface R2PutOptions {
     readonly httpMetadata?: R2HTTPMetadata | Headers;
     readonly customMetadata?: Record<string, string>;
-    readonly md5?: ArrayBuffer | string;
-    readonly sha1?: ArrayBuffer | string;
+    readonly md5?: ArrayBuffer | string; // hex if string
+    readonly sha1?: ArrayBuffer | string; // hex if string
 }
 
 export interface R2Range {

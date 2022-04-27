@@ -21,14 +21,23 @@ export class ApiR2Bucket implements R2Bucket {
     }
 
     static async ofProfile(profile: Profile | undefined, bucketName: string, userAgent: string): Promise<ApiR2Bucket> {
+        const { accountId, credentials } = await ApiR2Bucket.parseAccountAndCredentials(profile);
+        return ApiR2Bucket.ofAccountAndCredentials(accountId, credentials, bucketName, userAgent);
+    }
+
+    static async parseAccountAndCredentials(profile: Profile | undefined): Promise<{ accountId: string, credentials: AwsCredentials }> {
         if (!profile) throw new Error('Cannot use a bucketName binding without configuring a profile to use for its credentials');
         const { accountId, apiToken, apiTokenId } = profile;
         if (!apiTokenId) throw new Error('Cannot use a bucketName binding without configuring a profile with an apiTokenId to use for its credentials');
 
-        const origin = `https://${accountId}.r2.cloudflarestorage.com`;
         const accessKey = apiTokenId;
         const secretKey = (await Bytes.ofUtf8(apiToken).sha256()).hex();
-        return new ApiR2Bucket(origin, { accessKey, secretKey }, bucketName, userAgent);
+        return { accountId, credentials: { accessKey, secretKey } };
+    }
+
+    static ofAccountAndCredentials(accountId: string, credentials: AwsCredentials, bucketName: string, userAgent: string): ApiR2Bucket {
+        const origin = `https://${accountId}.r2.cloudflarestorage.com`;
+        return new ApiR2Bucket(origin, credentials, bucketName, userAgent);
     }
 
     async head(key: string, options?: R2HeadOptions): Promise<R2Object | null> {
@@ -178,12 +187,12 @@ function computeCustomMetadataFromHeaders(headers: Headers): Record<string, stri
 class ListBucketResultItemBasedR2Object implements R2Object {
     readonly key: string;
     readonly size: number;
-    get version(): string { throw new Error(`version not supported`); }
+    readonly version: string;
     readonly etag: string;
     readonly httpEtag: string;
     readonly uploaded: Date;
-    get httpMetadata(): R2HTTPMetadata { throw new Error(`httpMetadata not supported`); }
-    get customMetadata(): Record<string, string> { throw new Error(`customMetadata not supported`); }
+    readonly httpMetadata: R2HTTPMetadata;
+    readonly customMetadata: Record<string, string>;
 
     constructor(item: ListBucketResultItem) {
         this.key = item.key;
@@ -191,6 +200,11 @@ class ListBucketResultItemBasedR2Object implements R2Object {
         this.httpEtag = item.etag;
         this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^"([0-9a-f]{32})"$/)[1];
         this.uploaded = new Date(item.lastModified);
+
+        // placeholder values, don't throw on prop access
+        this.version = this.etag;
+        this.httpMetadata = {};
+        this.customMetadata = {};
     }
 
     writeHttpMetadata(_headers: Headers): void { throw new Error(`writeHttpMetadata not supported`); }

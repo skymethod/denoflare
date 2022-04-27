@@ -1,10 +1,11 @@
-import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isSecretBinding, isTextBinding } from './config.ts';
-import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair } from './cloudflare_workers_types.d.ts';
+import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isR2Binding, isSecretBinding, isTextBinding } from './config.ts';
+import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair, R2Bucket } from './cloudflare_workers_types.d.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 
 export type GlobalCachesProvider = () => CfGlobalCaches;
 export type KVNamespaceProvider = (kvNamespace: string) => KVNamespace;
 export type DONamespaceProvider = (doNamespace: string) => DurableObjectNamespace;
+export type R2BucketProvider = (bucketName: string) => R2Bucket;
 export type WebSocketPairProvider = () => { server: WebSocket & CloudflareWebSocketExtensions, client: WebSocket };
 
 export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider, webSocketPairProvider: WebSocketPairProvider) {
@@ -14,14 +15,14 @@ export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider, 
     patchGlobalRequest();
 }
 
-export function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider) {
+export function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider) {
     for (const [ name, binding ] of Object.entries(bindings)) {
-        target[name] = computeBindingValue(binding, kvNamespaceProvider, doNamespaceProvider);
+        target[name] = computeBindingValue(binding, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider);
     }
 }
 
-export function defineScriptGlobals(bindings: Record<string, Binding>, globalCachesProvider: GlobalCachesProvider, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider) {
-    applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceProvider, doNamespaceProvider);
+export function defineScriptGlobals(bindings: Record<string, Binding>, globalCachesProvider: GlobalCachesProvider, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider) {
+    applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider);
     defineGlobalCaches(globalCachesProvider);
     redefineGlobalResponse();
     patchGlobalRequest();
@@ -59,11 +60,12 @@ function globalThisAsAny(): any {
     return globalThis;
 }
 
-function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider): string | KVNamespace | DurableObjectNamespace {
+function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider): string | KVNamespace | DurableObjectNamespace | R2Bucket {
     if (isTextBinding(binding)) return binding.value;
     if (isSecretBinding(binding)) return binding.secret;
     if (isKVNamespaceBinding(binding)) return kvNamespaceProvider(binding.kvNamespace);
     if (isDONamespaceBinding(binding)) return doNamespaceProvider(binding.doNamespace);
+    if (isR2Binding(binding)) return r2BucketProvider(binding.bucketName);
     throw new Error(`TODO implement binding ${JSON.stringify(binding)}`);
 }
 

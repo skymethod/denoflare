@@ -5,13 +5,14 @@ import { LocalDurableObjects } from '../common/local_durable_objects.ts';
 import { NoopCfGlobalCaches } from '../common/noop_cf_global_caches.ts';
 import { WorkerManager } from './worker_manager.ts';
 import { ApiKVNamespace } from './api_kv_namespace.ts';
+import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { WorkerExecution, WorkerExecutionCallbacks } from '../common/worker_execution.ts';
 import { makeIncomingRequestCfProperties } from '../common/incoming_request_cf_properties.ts';
 import { UnimplementedDurableObjectNamespace } from '../common/unimplemented_cloudflare_stubs.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { Binding, Isolation, Script } from '../common/config.ts';
-import { computeContentsForScriptReference } from './cli_common.ts';
+import { Binding, Isolation, isR2Binding, Script } from '../common/config.ts';
+import { CLI_USER_AGENT, computeContentsForScriptReference } from './cli_common.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { ModuleWorkerExecution } from '../common/module_worker_execution.ts';
@@ -95,11 +96,20 @@ export async function serve(args: (string | number)[], options: Record<string, u
         return rt;
     }
 
+    const computeR2AccountAndCredentials = async (bindings: Record<string, Binding>) => {
+        if (Object.values(bindings).some(isR2Binding)) {
+            return await ApiR2Bucket.parseAccountAndCredentials(profile);
+        }
+    }
+
     const createLocalRequestServer = async (): Promise<LocalRequestServer> => {
         const scriptType = /^.*\.(ts|mjs)$/.test(rootSpecifier) ? 'module' : 'script';
         if (isolation === 'none') {
             let objects: LocalDurableObjects | undefined; 
             const localWebSockets = new LocalWebSockets();
+            const bindings = await bindingsProvider();
+            const r2AccountAndCredentials = await computeR2AccountAndCredentials(bindings);
+            
             const callbacks: WorkerExecutionCallbacks = {
                 onModuleWorkerInfo: moduleWorkerInfo => { 
                     const { moduleWorkerExportedFunctions, moduleWorkerEnv } = moduleWorkerInfo;
@@ -113,9 +123,10 @@ export async function serve(args: (string | number)[], options: Record<string, u
                     if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
                     return objects.resolveDoNamespace(doNamespace);
                 },
+                r2BucketProvider: bucketName => ApiR2Bucket.ofAccountAndCredentials(r2AccountAndCredentials!.accountId, r2AccountAndCredentials!.credentials, bucketName, CLI_USER_AGENT),
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
-            const bindings = await bindingsProvider();
+           
             return await WorkerExecution.start(rootSpecifier, scriptType, bindings, callbacks);
         } else {
             // start the host for the permissionless deno workers

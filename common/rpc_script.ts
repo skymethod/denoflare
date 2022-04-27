@@ -65,6 +65,9 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
                 if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
                 return objects.resolveDoNamespace(doNamespace)
             },
+            r2BucketProvider: _bucketName => {
+                throw new Error(`TODO implement r2 bucket provider over rpc`);
+            },
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });
     });
