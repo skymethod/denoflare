@@ -168,8 +168,7 @@ async function tmp(args: (string | number)[], options: Record<string, unknown>) 
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
     const bucket = await ApiR2Bucket.ofProfile(profile, bucketName, CLI_USER_AGENT);
-    const response = await fetch('https://google.com');
-    const res = await bucket.put(key, response.body);
+    const res = await bucket.list({ prefix: 'a' });
     console.log(res);
     // if (res) console.log(await res.text());
 }

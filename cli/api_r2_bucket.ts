@@ -1,7 +1,7 @@
 import { R2Bucket, R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
-import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, putObject, R2 } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2 } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { readerFromIterable, readAll } from './deps_cli.ts';
 
@@ -118,8 +118,21 @@ export class ApiR2Bucket implements R2Bucket {
         await deleteObject({ bucket, key, origin, region }, { credentials, userAgent });
     }
 
-    list(options?: R2ListOptions): Promise<R2Objects> {
-        throw new Error(`ApiR2Bucket.list not implemented options=${JSON.stringify(options)}`);
+    async list(options?: R2ListOptions): Promise<R2Objects> {
+        const { origin, credentials, bucket, region, userAgent } = this;
+        const maxKeys = options?.limit;
+        const continuationToken = options?.cursor;
+        const delimiter = options?.delimiter;
+        const prefix = options?.prefix;
+        if ((options?.include || []).length > 0) {
+            throw new Error(`ApiR2Bucket: list: include not supported`);
+        }
+        const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix }, { credentials, userAgent });
+        const truncated = result.isTruncated;
+        const cursor = result.nextContinuationToken;
+        const delimitedPrefixes = [...(result.commonPrefixes || [])];
+        const objects = result.contents.map(v => new ListBucketResultItemBasedR2Object(v));
+        return { truncated, cursor, delimitedPrefixes, objects };
     }
 
 }
@@ -161,6 +174,27 @@ function computeCustomMetadataFromHeaders(headers: Headers): Record<string, stri
 }
 
 //
+
+class ListBucketResultItemBasedR2Object implements R2Object {
+    readonly key: string;
+    readonly size: number;
+    get version(): string { throw new Error(`version not supported`); }
+    readonly etag: string;
+    readonly httpEtag: string;
+    readonly uploaded: Date;
+    get httpMetadata(): R2HTTPMetadata { throw new Error(`httpMetadata not supported`); }
+    get customMetadata(): Record<string, string> { throw new Error(`customMetadata not supported`); }
+
+    constructor(item: ListBucketResultItem) {
+        this.key = item.key;
+        this.size = item.size;
+        this.httpEtag = item.etag;
+        this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^"([0-9a-f]{32})"$/)[1];
+        this.uploaded = new Date(item.lastModified);
+    }
+
+    writeHttpMetadata(_headers: Headers): void { throw new Error(`writeHttpMetadata not supported`); }
+}
 
 class HeadersBasedR2Object implements R2Object {
     readonly key: string;
