@@ -2,7 +2,7 @@ import { CLI_VERSION } from './cli_version.ts';
 import { listObjects } from './cli_r2_list_objects.ts';
 import { getObject, headObject } from './cli_r2_get_head_object.ts';
 import { loadConfig, resolveProfile } from './config_loader.ts';
-import { AwsCallBody, AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCallContext, AwsCredentials, R2 } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
 import { listBuckets } from './cli_r2_list_buckets.ts';
 import { headBucket } from './cli_r2_head_bucket.ts';
@@ -160,11 +160,17 @@ async function tmp(args: (string | number)[], options: Record<string, unknown>) 
     if (typeof bucketName !== 'string') throw new Error();
     if (typeof key !== 'string') throw new Error();
 
+    const verbose = !!options.verbose;
+    if (verbose) {
+        R2.DEBUG = true;
+    }
+    
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
     const bucket = await ApiR2Bucket.ofProfile(profile, bucketName, CLI_USER_AGENT);
-    const obj = await bucket.head(key);
-    console.log(obj);
+    const res = await bucket.get(key);
+    console.log(res);
+    if (res) console.log(await res.text());
 }
 
 function dumpHelp() {

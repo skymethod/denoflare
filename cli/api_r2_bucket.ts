@@ -1,7 +1,7 @@
-import { R2Bucket, R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions } from '../common/cloudflare_workers_types.d.ts';
+import { R2Bucket, R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
-import { AwsCredentials, computeHeadersString, headObject } from '../common/r2/r2.ts';
+import { AwsCredentials, computeHeadersString, getObject, headObject, R2 } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 
 export class ApiR2Bucket implements R2Bucket {
@@ -33,14 +33,20 @@ export class ApiR2Bucket implements R2Bucket {
     async head(key: string, options?: R2HeadOptions): Promise<R2Object | null> {
         const { origin, credentials, bucket, region, userAgent } = this;
         const { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = parseOnlyIf(options?.onlyIf);
-        const { status, headers } = await headObject({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince }, { credentials, userAgent });
-        console.log(`${status} ${computeHeadersString(headers)}`);
-        if (status === 404) return null;
-        return new HeadersBasedR2Object(headers, key);
+        const res = await headObject({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince }, { credentials, userAgent });
+        if (!res) return null;
+        if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
+        return new HeadersBasedR2Object(res.headers, key);
     }
 
-    get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | null> {
-        throw new Error(`ApiR2Bucket.get not implemented key=${key} options=${JSON.stringify(options)}`);
+    async get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | null> {
+        const { origin, credentials, bucket, region, userAgent } = this;
+        const { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = parseOnlyIf(options?.onlyIf);
+        const range = parseRange(options?.range);
+        const res = await getObject({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range }, { credentials, userAgent });
+        if (!res) return null;
+        if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
+        return new ResponseBasedR2ObjectBody(res, key);
     }
 
     put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object> {
@@ -77,6 +83,10 @@ function parseOnlyIf(onlyIf?: R2Conditional | Headers): { ifMatch?: string, ifNo
         ifUnmodifiedSince = onlyIf.uploadedBefore?.toISOString();
     }
     return { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince };
+}
+
+function parseRange(range?: R2Range): string | undefined {
+    return range === undefined ? undefined : `bytes=${range.offset}-${range.offset + range.length - 1}`;    
 }
 
 function getExpectedHeader(name: string, headers: Headers): string {
@@ -118,4 +128,33 @@ class HeadersBasedR2Object implements R2Object {
     }
 
     writeHttpMetadata(_headers: Headers): void { throw new Error(`writeHttpMetadata not supported`); }
+}
+
+class ResponseBasedR2ObjectBody extends HeadersBasedR2Object implements R2ObjectBody {
+    get body(): ReadableStream { if (this.response.body === null) throw new Error('Unexpected null response body'); return this.response.body; }
+    get bodyUsed(): boolean { return this.response.bodyUsed; }
+
+    private readonly response: Response;
+
+    constructor(response: Response, key: string) {
+        super(response.headers, key);
+        this.response = response;
+    }
+
+    arrayBuffer(): Promise<ArrayBuffer> {
+        return this.response.arrayBuffer();
+    }
+
+    text(): Promise<string> {
+        return this.response.text();
+    }
+
+    json<T>(): Promise<T> {
+        return this.response.json();
+    }
+
+    blob(): Promise<Blob> {
+        return this.response.blob();
+    }
+
 }

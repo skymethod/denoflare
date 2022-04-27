@@ -40,6 +40,10 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', args: (string | number)[]
     const { origin, region, context } = await loadR2Options(options);
     const fn = method === 'GET' ? getObjectR2 : headObjectR2;
     const response = await fn({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
+    if (!response) {
+        console.log('(not found)');
+        return;
+    }
     console.log(`${response.status} ${computeHeadersString(response.headers)}`);
     const contentType = response.headers.get('content-type') || '';
     if (contentType.toLowerCase().includes('text')) {
