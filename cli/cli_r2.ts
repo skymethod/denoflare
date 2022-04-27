@@ -19,9 +19,10 @@ import { completeMultipartUpload } from './cli_r2_complete_multipart_upload.ts';
 import { uploadPart } from './cli_r2_upload_part.ts';
 import { uploadPartCopy } from './cli_r2_upload_part_copy.ts';
 import { putLargeObject } from './cli_r2_put_large_object.ts';
-import { parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
+import { CLI_USER_AGENT, parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_crypto.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { ApiR2Bucket } from './api_r2_bucket.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -52,6 +53,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
 
         generic,
         'put-large-object': putLargeObject,
+        tmp,
 
      }[subcommand];
     if (fn) {
@@ -72,7 +74,7 @@ export async function loadR2Options(options: Record<string, unknown>): Promise<{
     };
     const origin = `https://${accountId}.r2.cloudflarestorage.com`;
     const region = 'world'
-    const context = { credentials, userAgent: `denoflare-cli/${CLI_VERSION}` };
+    const context = { credentials, userAgent: CLI_USER_AGENT };
     return { origin, region, context };
 }
 
@@ -153,6 +155,18 @@ export async function loadBodyFromOptions(options: Record<string, unknown>): Pro
 
 //
 
+async function tmp(args: (string | number)[], options: Record<string, unknown>) {
+    const [ bucketName, key ] = args;
+    if (typeof bucketName !== 'string') throw new Error();
+    if (typeof key !== 'string') throw new Error();
+
+    const config = await loadConfig(options);
+    const profile = await resolveProfile(config, options);
+    const bucket = await ApiR2Bucket.ofProfile(profile, bucketName, CLI_USER_AGENT);
+    const obj = await bucket.head(key);
+    console.log(obj);
+}
+
 function dumpHelp() {
     const lines = [
         `denoflare-r2 ${CLI_VERSION}`,
@@ -171,3 +185,4 @@ function dumpHelp() {
         console.log(line);
     }
 }
+

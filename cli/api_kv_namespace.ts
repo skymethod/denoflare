@@ -5,6 +5,22 @@ import { Bytes } from '../common/bytes.ts';
 
 export class ApiKVNamespace implements KVNamespace {
 
+    readonly accountId: string;
+    readonly apiToken: string;
+    readonly namespaceId: string;
+
+    constructor(accountId: string, apiToken: string, namespaceId: string) {
+        this.accountId = accountId;
+        this.apiToken = apiToken;
+        this.namespaceId = namespaceId;
+    }
+
+    static ofProfile(profile: Profile | undefined, kvNamespace: string) {
+        if (!profile) throw new Error('Cannot use a kvNamespace binding without configuring a profile to use for its credentials');
+        const { accountId, apiToken } = profile;
+        return new ApiKVNamespace(accountId, apiToken, kvNamespace);
+    }
+    
     get(key: string, opts: { type: 'text' }): Promise<string|null>;
     get(key: string, opts: { type: 'json' }): Promise<Record<string,unknown>|null>;
     get(key: string, opts: { type: 'arrayBuffer' }): Promise<ArrayBuffer|null>;
@@ -53,22 +69,6 @@ export class ApiKVNamespace implements KVNamespace {
 
     list(_opts?: KVListOptions): Promise<KVListCompleteResult | KVListIncompleteResult> {
         throw new Error(`ApiKVNamespace.list not implemented.`);
-    }
-
-    readonly accountId: string;
-    readonly apiToken: string;
-    readonly namespaceId: string;
-
-    constructor(accountId: string, apiToken: string, namespaceId: string) {
-        this.accountId = accountId;
-        this.apiToken = apiToken;
-        this.namespaceId = namespaceId;
-    }
-
-    static ofProfile(profile: Profile | undefined, kvNamespace: string) {
-        if (!profile) throw new Error('Cannot use a kvNamespace binding without configuring a profile to use for its credentials');
-        const { accountId, apiToken } = profile;
-        return new ApiKVNamespace(accountId, apiToken, kvNamespace);
     }
     
 }

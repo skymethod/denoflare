@@ -26,6 +26,6 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', opts: GetObjectOpts | Hea
     if (typeof partNumber === 'number') url.searchParams.set('partNumber', String(partNumber));
 
     const res = await s3Fetch({ method, url, headers, region, context });
-    await throwIfUnexpectedStatus(res, 200, 304);
+    await throwIfUnexpectedStatus(res, 200, 304, 404);
     return res;
 }
