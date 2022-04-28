@@ -3,7 +3,6 @@ import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
 import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2 } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
-import { readerFromIterable, readAll } from './deps_cli.ts';
 
 export class ApiR2Bucket implements R2Bucket {
 
@@ -109,8 +108,7 @@ export class ApiR2Bucket implements R2Bucket {
             if (typeof value === 'string') return value;
             if (value instanceof ArrayBuffer) return new Bytes(new Uint8Array(value));
             if (typeof value === 'object' && 'locked' in value) { // ReadableStream
-                const arr = await readAll(readerFromIterable(value));
-                return new Bytes(arr);
+                return await Bytes.ofStream(value);
             }
             return new Bytes(new Uint8Array(value.buffer)); // ArrayBufferView
         };

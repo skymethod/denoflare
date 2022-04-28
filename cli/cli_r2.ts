@@ -168,7 +168,8 @@ async function tmp(args: (string | number)[], options: Record<string, unknown>) 
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
     const bucket = await ApiR2Bucket.ofProfile(profile, bucketName, CLI_USER_AGENT);
-    const res = await bucket.list({ prefix: 'a' });
+    const { body } = await fetch('https://yahoo.com');
+    const res = await bucket.put(key, body);
     console.log(res);
     // if (res) console.log(await res.text());
 }

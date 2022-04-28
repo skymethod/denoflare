@@ -64,6 +64,10 @@ export class Bytes {
         return new Bytes(base64Decode(base64));
     }
 
+    public static async ofStream(stream: ReadableStream): Promise<Bytes> {
+        return new Bytes(new Uint8Array(await (new Response(stream)).arrayBuffer()));
+    }
+
     public static formatSize(sizeInBytes: number): string {
         const sign = sizeInBytes < 0 ? '-' : '';
         let size = Math.abs(sizeInBytes);

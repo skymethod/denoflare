@@ -1,17 +1,15 @@
 import { R2Bucket, R2GetOptions, R2HeadOptions, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions } from './cloudflare_workers_types.d.ts';
 import { RpcChannel } from './rpc_channel.ts';
+import { PackedR2Objects, packR2Objects, unpackR2Objects } from './rpc_r2_model.ts';
 
 export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, r2BucketResolver: (bucketName: string) => R2Bucket) {
     channel.addRequestHandler('r2-bucket-list', async requestData => {
-        const req = requestData as R2BucketListRequest;
-        const target = r2BucketResolver(req.bucketName);
+        const { bucketName, options } = requestData as R2BucketListRequest;
+        const target = r2BucketResolver(bucketName);
 
-        const options = {}; // TODO unpack options
-        const _objects = await target.list(options);
+        const objects = packR2Objects(await target.list(options));
 
-        const res: R2BucketListResponse = {
-            objects: {} // TODO pack objects
-        }
+        const res: R2BucketListResponse = { objects };
         return res;
     });
 }
@@ -26,13 +24,12 @@ export class RpcR2Bucket implements R2Bucket {
         this.channel = channel;
     }
 
-    async list(_options?: R2ListOptions): Promise<R2Objects> {
+    async list(options?: R2ListOptions): Promise<R2Objects> {
         const { bucketName } = this;
-        const req: R2BucketListRequest = { bucketName, options: {} }; // TODO pack options
+        const req: R2BucketListRequest = { bucketName, options };
         return await this.channel.sendRequest('r2-bucket-list', req, responseData => {
-            const _res = responseData as R2BucketListResponse;
-            const rt = {} as R2Objects; // TODO unpack objects
-            return rt;
+            const { objects: packedObjects } = responseData as R2BucketListResponse;
+            return unpackR2Objects(packedObjects);
         });
     }
 
@@ -58,9 +55,9 @@ export class RpcR2Bucket implements R2Bucket {
 
 interface R2BucketListRequest {
     readonly bucketName: string;
-    readonly options: Record<string, string>;
+    readonly options?: R2ListOptions;
 }
 
 interface R2BucketListResponse {
-    readonly objects?: Record<string, unknown>;
+    readonly objects: PackedR2Objects;
 }
