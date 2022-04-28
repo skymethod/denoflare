@@ -2,9 +2,9 @@ import { R2Bucket, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R
 import { RpcChannel } from './rpc_channel.ts';
 import { Bodies, BodyResolver } from './rpc_fetch.ts';
 import { Bytes } from './bytes.ts';
-import { PackedR2GetOptions, PackedR2HeadOptions, PackedR2Object, PackedR2Objects, packR2GetOptions, packR2HeadOptions, packR2Object, packR2Objects, unpackR2GetOptions, unpackR2HeadOptions, unpackR2Object, unpackR2Objects } from './rpc_r2_model.ts';
+import { PackedR2GetOptions, PackedR2HeadOptions, PackedR2Object, PackedR2Objects, PackedR2PutOptions, packR2GetOptions, packR2HeadOptions, packR2Object, packR2Objects, packR2PutOptions, unpackR2GetOptions, unpackR2HeadOptions, unpackR2Object, unpackR2Objects, unpackR2PutOptions } from './rpc_r2_model.ts';
 
-export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, bodies: Bodies, r2BucketResolver: (bucketName: string) => R2Bucket) {
+export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, bodies: Bodies, bodyResolver: BodyResolver, r2BucketResolver: (bucketName: string) => R2Bucket) {
     channel.addRequestHandler('r2-bucket-list', async requestData => {
         const { bucketName, options } = requestData as R2BucketListRequest;
         const target = r2BucketResolver(bucketName);
@@ -49,6 +49,24 @@ export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, bodies: Bod
         const res: R2BucketGetResponse = { result };
         return res;
     });
+    channel.addRequestHandler('r2-bucket-put', async requestData => {
+        const { bucketName, key, options: packedOptions, bodyId, bodyText, bodyBytes, bodyNull } = requestData as R2BucketPutRequest;
+        const target = r2BucketResolver(bucketName);
+
+        const options = packedOptions === undefined ? undefined : unpackR2PutOptions(packedOptions);
+
+        const body = bodyNull ? null
+            : bodyText ? bodyText
+            : bodyBytes ? bodyBytes
+            : bodyId ? bodyResolver(bodyId)
+            : undefined;
+        if (body === undefined) throw new Error(`RpcR2Bucket: Unable to compute body!`);
+
+        const object = await target.put(key, body, options);
+
+        const res: R2BucketPutResponse = { object: packR2Object(object) };
+        return res;
+    });
 }
 
 export class RpcR2Bucket implements R2Bucket {
@@ -56,11 +74,13 @@ export class RpcR2Bucket implements R2Bucket {
     private readonly bucketName: string;
     private readonly channel: RpcChannel;
     private readonly bodyResolver: BodyResolver;
+    private readonly bodies: Bodies;
 
-    constructor(bucketName: string, channel: RpcChannel, bodyResolver: BodyResolver) {
+    constructor(bucketName: string, channel: RpcChannel, bodyResolver: BodyResolver, bodies: Bodies) {
         this.bucketName = bucketName;
         this.channel = channel;
         this.bodyResolver = bodyResolver;
+        this.bodies = bodies;
     }
 
     async list(options?: R2ListOptions): Promise<R2Objects> {
@@ -93,8 +113,30 @@ export class RpcR2Bucket implements R2Bucket {
         });
     }
     
-    put(_key: string, _value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, _options?: R2PutOptions): Promise<R2Object> {
-        throw new Error(`RpcR2Bucket.put not implemented`);
+    async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object> {
+        const { bucketName } = this;
+
+        let bodyId: number | undefined;
+        let bodyText: string | undefined;
+        let bodyBytes: Uint8Array | undefined;
+        let bodyNull = false;
+        if (value === null) {
+            bodyNull = true;
+        } else if (typeof value === 'string') {
+            bodyText = value;
+        } else if (value instanceof ArrayBuffer) {
+            bodyBytes = new Uint8Array(value);
+        } else if (value instanceof ReadableStream) {
+            bodyId = this.bodies.computeBodyId(value);
+        } else {
+            bodyBytes = new Uint8Array(value.buffer);
+        }
+
+        const req: R2BucketPutRequest = { bucketName, key, options: options === undefined ? undefined : packR2PutOptions(options), bodyId, bodyText, bodyBytes, bodyNull };
+        return await this.channel.sendRequest('r2-bucket-put', req, responseData => {
+            const { object: packedObject } = responseData as R2BucketPutResponse;
+            return unpackR2Object(packedObject);
+        });
     }
 
     async delete(key: string): Promise<void> {
@@ -139,6 +181,20 @@ interface R2BucketGetRequest {
 
 interface R2BucketGetResponse {
     readonly result?: { object: PackedR2Object, bodyId: number };
+}
+
+interface R2BucketPutRequest {
+    readonly bucketName: string;
+    readonly key: string;
+    readonly options?: PackedR2PutOptions;
+    readonly bodyId: number | undefined;
+    readonly bodyText: string | undefined;
+    readonly bodyBytes: Uint8Array | undefined;
+    readonly bodyNull: boolean;
+}
+
+interface R2BucketPutResponse {
+    readonly object: PackedR2Object;
 }
 
 class RpcR2ObjectBody implements R2ObjectBody {

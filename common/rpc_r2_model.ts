@@ -1,3 +1,4 @@
+import { Bytes } from './bytes.ts';
 import { R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
 
 // R2Objects
@@ -209,8 +210,24 @@ export function unpackR2PutOptions(packed: PackedR2PutOptions): R2PutOptions {
     };
 }
 
+export function packR2PutOptions(unpacked: R2PutOptions): PackedR2PutOptions {
+    return { 
+        httpMetadata: unpacked.httpMetadata === undefined ? undefined
+            : unpacked.httpMetadata instanceof Headers ? packHeaders(unpacked.httpMetadata)
+            : packR2HTTPMetadata(unpacked.httpMetadata),
+        customMetadata: unpacked.customMetadata,
+        md5: packHash(unpacked.md5),
+        sha1: packHash(unpacked.sha1),
+    };
+}
+
 //
 
 function unpackOptionalDate(packed: string | undefined): Date | undefined {
     return typeof packed === 'string' ? new Date(packed) : undefined;
+}
+
+function packHash(hash: string | ArrayBuffer | undefined): string | undefined {
+    if (hash === undefined || typeof hash === 'string') return hash;
+    return new Bytes(new Uint8Array(hash)).hex();
 }

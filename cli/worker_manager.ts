@@ -97,7 +97,7 @@ export class WorkerManager {
 
         // handle rpc r2 requests, forward to cloudflare api
         const r2BucketProvider = await computeR2BucketProvider(profile, bindings, CLI_USER_AGENT);
-        addRequestHandlerForRpcR2Bucket(rpcChannel, bodies, r2BucketProvider);
+        addRequestHandlerForRpcR2Bucket(rpcChannel, bodies, requestBodyResolver, r2BucketProvider);
 
         // run the script in the deno worker
         await runScript({ scriptContents, scriptType, bindings, verbose: WorkerManager.VERBOSE }, rpcChannel);
