@@ -211,7 +211,7 @@ class ListBucketResultItemBasedR2Object implements R2Object {
 class HeadersBasedR2Object implements R2Object {
     readonly key: string;
     readonly size: number;
-    get version(): string { throw new Error(`version not supported`); }
+    readonly version: string;
     readonly etag: string;
     readonly httpEtag: string;
     readonly uploaded: Date;
@@ -236,6 +236,9 @@ class HeadersBasedR2Object implements R2Object {
             cacheExpiry: cacheExpiryStr ? new Date(cacheExpiryStr) : undefined,
         }
         this.customMetadata = computeCustomMetadataFromHeaders(headers);
+
+        // placeholder values, don't throw on prop access
+        this.version = this.etag;
     }
 
     writeHttpMetadata(_headers: Headers): void { throw new Error(`writeHttpMetadata not supported`); }

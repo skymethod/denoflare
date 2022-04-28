@@ -1,5 +1,5 @@
 import { isOptionalString, isStringRecord } from './check.ts';
-import { R2Conditional, R2GetOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
+import { R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
 
 // R2Objects
 
@@ -71,7 +71,6 @@ export function unpackR2Object(packed: PackedR2Object): R2Object {
 // R2HTTPMetadata
 
 export interface PackedR2HTTPMetadata {
-    readonly kind: 'packed-r2-http-metadata'; // in case none are specified, to distinguish from PackedHeaders
     readonly contentType?: string;
     readonly contentLanguage?: string;
     readonly contentDisposition?: string;
@@ -82,7 +81,6 @@ export interface PackedR2HTTPMetadata {
 
 export function isPackedR2HTTPMetadata(obj: unknown): obj is PackedR2HTTPMetadata {
     return isStringRecord(obj)
-        && obj.kind === 'packed-r2-http-metadata'
         && isOptionalString(obj.contentType)
         && isOptionalString(obj.contentLanguage)
         && isOptionalString(obj.contentDisposition)
@@ -94,7 +92,6 @@ export function isPackedR2HTTPMetadata(obj: unknown): obj is PackedR2HTTPMetadat
 
 export function packR2HTTPMetadata(unpacked: R2HTTPMetadata): PackedR2HTTPMetadata {
     return {
-        kind: 'packed-r2-http-metadata',
         contentType: unpacked.contentType,
         contentLanguage: unpacked.contentLanguage,
         contentDisposition: unpacked.contentDisposition,
@@ -119,6 +116,24 @@ export function unpackR2HTTPMetadata(packed: PackedR2HTTPMetadata): R2HTTPMetada
 
 export interface PackedR2HeadOptions {
     readonly onlyIf?: PackedR2Conditional | PackedHeaders;
+}
+
+export function packR2HeadOptions(unpacked: R2HeadOptions): PackedR2HeadOptions {
+    const { onlyIf } = unpacked;
+    return {
+        onlyIf: onlyIf === undefined ? undefined 
+            : onlyIf instanceof Headers ? packHeaders(onlyIf) 
+            : packR2Conditional(onlyIf)
+    };
+}
+
+export function unpackR2HeadOptions(packed: PackedR2HeadOptions): R2HeadOptions {
+    const { onlyIf } = packed;
+    return {
+        onlyIf: onlyIf === undefined ? undefined
+            : Array.isArray(onlyIf) ? unpackHeaders(onlyIf)
+            : unpackR2Conditional(onlyIf)
+    };
 }
 
 // R2GetOptions
@@ -164,12 +179,25 @@ export function unpackR2Conditional(packed: PackedR2Conditional): R2Conditional 
     };
 }
 
+export function packR2Conditional(unpacked: R2Conditional): PackedR2Conditional {
+    return { 
+        etagMatches: unpacked.etagMatches, 
+        etagDoesNotMatch: unpacked.etagDoesNotMatch, 
+        uploadedBefore: unpacked.uploadedBefore?.toISOString(),
+        uploadedAfter: unpacked.uploadedAfter?.toISOString(),
+    };
+}
+
 // Headers
 
-export type PackedHeaders = Record<string, string>;
+export type PackedHeaders = [string, string][];
 
 export function unpackHeaders(packed: PackedHeaders): Headers {
     return new Headers(packed);
+}
+
+export function packHeaders(headers: Headers): PackedHeaders {
+    return [...headers];
 }
 
 // R2PutOptions
