@@ -1,3 +1,4 @@
+import { Bytes } from './bytes.ts';
 import { CloudflareResponseInitExtensions } from './cloudflare_workers_types.d.ts';
 
 type DenoflareResponseInit = ResponseInit & CloudflareResponseInitExtensions & { url?: string, redirected?: boolean };
@@ -46,6 +47,13 @@ export class DenoflareResponse {
         throw new Error(`DenoflareResponse.text() bodyInit=${this.bodyInit}`);
     }
 
+    async arrayBuffer(): Promise<ArrayBuffer> {
+        if (this.bodyInit instanceof ReadableStream) {
+            return (await Bytes.ofStream(this.bodyInit)).array().buffer;
+        }
+        throw new Error(`DenoflareResponse.arrayBuffer() bodyInit=${this.bodyInit}`);
+    }
+
     get body(): ReadableStream<Uint8Array> | null {
         if (this.bodyInit === undefined || this.bodyInit === null) return null;
         if (this.bodyInit instanceof ArrayBuffer) {
@@ -63,7 +71,6 @@ export class DenoflareResponse {
     get trailer(): Promise<Headers> { throw new Error(`DenoflareResponse.trailer not implemented`); }
     get type(): ResponseType { throw new Error(`DenoflareResponse.type not implemented`); }
     get bodyUsed(): boolean { throw new Error(`DenoflareResponse.bodyUsed not implemented`); }
-    get arrayBuffer(): Promise<ArrayBuffer> { throw new Error(`DenoflareResponse.arrayBuffer() not implemented`); }
     get blob(): Promise<Blob> { throw new Error(`DenoflareResponse.blob() not implemented`); }
     get formData(): Promise<FormData> { throw new Error(`DenoflareResponse.formData() not implemented`); }
 

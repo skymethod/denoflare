@@ -1,4 +1,3 @@
-import { isOptionalString, isStringRecord } from './check.ts';
 import { R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
 
 // R2Objects
@@ -79,17 +78,6 @@ export interface PackedR2HTTPMetadata {
     readonly cacheExpiry?: string; // instant
 }
 
-export function isPackedR2HTTPMetadata(obj: unknown): obj is PackedR2HTTPMetadata {
-    return isStringRecord(obj)
-        && isOptionalString(obj.contentType)
-        && isOptionalString(obj.contentLanguage)
-        && isOptionalString(obj.contentDisposition)
-        && isOptionalString(obj.contentEncoding)
-        && isOptionalString(obj.cacheControl)
-        && isOptionalString(obj.cacheExpiry)
-        ;
-}
-
 export function packR2HTTPMetadata(unpacked: R2HTTPMetadata): PackedR2HTTPMetadata {
     return {
         contentType: unpacked.contentType,
@@ -143,11 +131,21 @@ export interface PackedR2GetOptions {
     readonly range?: R2Range;
 }
 
+export function packR2GetOptions(unpacked: R2GetOptions): PackedR2GetOptions {
+    const { onlyIf, range } = unpacked;
+    return {
+        onlyIf: onlyIf === undefined ? undefined 
+            : onlyIf instanceof Headers ? packHeaders(onlyIf) 
+            : packR2Conditional(onlyIf),
+        range,
+    };
+}
+
 export function unpackR2GetOptions(packed: PackedR2GetOptions): R2GetOptions {
     return { 
-        onlyIf: packed.onlyIf === undefined ? undefined 
-            : isPackedR2Conditional(packed.onlyIf) ? unpackR2Conditional(packed.onlyIf)
-            : unpackHeaders(packed.onlyIf),
+        onlyIf: packed.onlyIf === undefined ? undefined
+            : Array.isArray(packed.onlyIf) ? unpackHeaders(packed.onlyIf)
+            : unpackR2Conditional(packed.onlyIf),
         range: packed.range,
      };
 }
@@ -159,15 +157,6 @@ export interface PackedR2Conditional {
     readonly etagDoesNotMatch?: string;
     readonly uploadedBefore?: string; // instant
     readonly uploadedAfter?: string; // instant
-}
-
-export function isPackedR2Conditional(obj: unknown): obj is PackedR2Conditional {
-    return isStringRecord(obj)
-        && isOptionalString(obj.etagMatches)
-        && isOptionalString(obj.etagDoesNotMatch)
-        && isOptionalString(obj.uploadedBefore)
-        && isOptionalString(obj.uploadedAfter)
-        ;
 }
 
 export function unpackR2Conditional(packed: PackedR2Conditional): R2Conditional {
@@ -212,8 +201,8 @@ export interface PackedR2PutOptions {
 export function unpackR2PutOptions(packed: PackedR2PutOptions): R2PutOptions {
     return { 
         httpMetadata: packed.httpMetadata === undefined ? undefined
-            : isPackedR2HTTPMetadata(packed.httpMetadata) ? unpackR2HTTPMetadata(packed.httpMetadata) 
-            : new Headers(packed.httpMetadata),
+            : Array.isArray(packed.httpMetadata) ? unpackHeaders(packed.httpMetadata)
+            : unpackR2HTTPMetadata(packed.httpMetadata),
         customMetadata: packed.customMetadata,
         md5: packed.md5,
         sha1: packed.sha1,

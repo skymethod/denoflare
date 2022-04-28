@@ -65,7 +65,21 @@ export class Bytes {
     }
 
     public static async ofStream(stream: ReadableStream): Promise<Bytes> {
-        return new Bytes(new Uint8Array(await (new Response(stream)).arrayBuffer()));
+        // works, but not great when Response is redefined
+        // return new Bytes(new Uint8Array(await (new Response(stream)).arrayBuffer()));
+
+        const chunks: Uint8Array[] = [];
+        for await (const chunk of stream) {
+            chunks.push(chunk);
+        }
+        const len = chunks.reduce((prev, current) => prev + current.length, 0);
+        const rt = new Uint8Array(len);
+        let offset = 0;
+        for (const chunk of chunks) {
+            rt.set(chunk, offset);
+            offset += chunk.length;
+        }
+        return new Bytes(rt);
     }
 
     public static formatSize(sizeInBytes: number): string {

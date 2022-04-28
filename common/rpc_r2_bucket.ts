@@ -1,8 +1,10 @@
-import { R2Bucket, R2GetOptions, R2HeadOptions, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions } from './cloudflare_workers_types.d.ts';
+import { R2Bucket, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions } from './cloudflare_workers_types.d.ts';
 import { RpcChannel } from './rpc_channel.ts';
-import { PackedR2HeadOptions, PackedR2Object, PackedR2Objects, packR2HeadOptions, packR2Object, packR2Objects, unpackR2HeadOptions, unpackR2Object, unpackR2Objects } from './rpc_r2_model.ts';
+import { Bodies, BodyResolver } from './rpc_fetch.ts';
+import { Bytes } from './bytes.ts';
+import { PackedR2GetOptions, PackedR2HeadOptions, PackedR2Object, PackedR2Objects, packR2GetOptions, packR2HeadOptions, packR2Object, packR2Objects, unpackR2GetOptions, unpackR2HeadOptions, unpackR2Object, unpackR2Objects } from './rpc_r2_model.ts';
 
-export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, r2BucketResolver: (bucketName: string) => R2Bucket) {
+export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, bodies: Bodies, r2BucketResolver: (bucketName: string) => R2Bucket) {
     channel.addRequestHandler('r2-bucket-list', async requestData => {
         const { bucketName, options } = requestData as R2BucketListRequest;
         const target = r2BucketResolver(bucketName);
@@ -30,16 +32,35 @@ export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, r2BucketRes
         const res: R2BucketHeadResponse = { object: packedObject };
         return res;
     });
+    channel.addRequestHandler('r2-bucket-get', async requestData => {
+        const { bucketName, key, options: packedOptions } = requestData as R2BucketGetRequest;
+        const target = r2BucketResolver(bucketName);
+
+        const options = packedOptions === undefined ? undefined : unpackR2GetOptions(packedOptions);
+        const object = await target.get(key, options);
+
+        let result: { object: PackedR2Object, bodyId: number } | undefined;
+        if (object) {
+            result = {
+                object: packR2Object(object),
+                bodyId: bodies.computeBodyId(object.body)!,
+            }
+        }
+        const res: R2BucketGetResponse = { result };
+        return res;
+    });
 }
 
 export class RpcR2Bucket implements R2Bucket {
 
-    readonly bucketName: string;
-    readonly channel: RpcChannel;
+    private readonly bucketName: string;
+    private readonly channel: RpcChannel;
+    private readonly bodyResolver: BodyResolver;
 
-    constructor(bucketName: string, channel: RpcChannel) {
+    constructor(bucketName: string, channel: RpcChannel, bodyResolver: BodyResolver) {
         this.bucketName = bucketName;
         this.channel = channel;
+        this.bodyResolver = bodyResolver;
     }
 
     async list(options?: R2ListOptions): Promise<R2Objects> {
@@ -60,8 +81,16 @@ export class RpcR2Bucket implements R2Bucket {
         });
     }
 
-    get(_key: string, _options?: R2GetOptions): Promise<R2ObjectBody | null> {
-        throw new Error(`RpcR2Bucket.get not implemented`);
+    async get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | null> {
+        const { bucketName } = this;
+        const req: R2BucketGetRequest = { bucketName, key, options: options === undefined ? undefined : packR2GetOptions(options) };
+        return await this.channel.sendRequest('r2-bucket-get', req, responseData => {
+            const { result } = responseData as R2BucketGetResponse;
+            if (result === undefined) return null;
+            const { object, bodyId } = result;
+            const stream = this.bodyResolver(bodyId);
+            return new RpcR2ObjectBody(unpackR2Object(object), stream);
+        });
     }
     
     put(_key: string, _value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, _options?: R2PutOptions): Promise<R2Object> {
@@ -100,4 +129,60 @@ interface R2BucketHeadRequest {
 
 interface R2BucketHeadResponse {
     readonly object?: PackedR2Object;
+}
+
+interface R2BucketGetRequest {
+    readonly bucketName: string;
+    readonly key: string;
+    readonly options?: PackedR2GetOptions;
+}
+
+interface R2BucketGetResponse {
+    readonly result?: { object: PackedR2Object, bodyId: number };
+}
+
+class RpcR2ObjectBody implements R2ObjectBody {
+    readonly key: string;
+    readonly version: string;
+    readonly size: number;
+    readonly etag: string;
+    readonly httpEtag: string;
+    readonly uploaded: Date;
+    readonly httpMetadata: R2HTTPMetadata;
+    readonly customMetadata: Record<string, string>;
+
+    writeHttpMetadata(_headers: Headers) { throw new Error(`writeHttpMetadata not supported`); }
+
+    readonly body: ReadableStream;
+    get bodyUsed(): boolean { throw new Error(`bodyUsed not supported`); }
+
+    constructor(object: R2Object, stream: ReadableStream<Uint8Array>) {
+        this.key = object.key;
+        this.version = object.version;
+        this.size = object.size;
+        this.etag = object.etag;
+        this.httpEtag = object.httpEtag;
+        this.uploaded = object.uploaded;
+        this.httpMetadata = object.httpMetadata;
+        this.customMetadata = object.customMetadata;
+
+        this.body = stream;
+    }
+
+    async arrayBuffer(): Promise<ArrayBuffer> {
+        return (await Bytes.ofStream(this.body)).array().buffer;
+    }
+
+    async text(): Promise<string> {
+        return (await Bytes.ofStream(this.body)).utf8();
+    }
+
+    async json<T>(): Promise<T> {
+        return JSON.parse(await this.text());
+    }
+
+    async blob(): Promise<Blob> {
+        return new Blob([ await this.arrayBuffer() ]);
+    }
+
 }
