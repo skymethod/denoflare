@@ -18,6 +18,7 @@ import { FetchUtil } from './fetch_util.ts';
 import { LocalWebSockets } from './local_web_sockets.ts';
 import { RpcStubWebSockets } from './rpc_stub_web_sockets.ts';
 import { makeRpcStubDurableObjectStorageProvider } from './rpc_stub_durable_object_storage.ts';
+import { RpcR2Bucket } from './rpc_r2_bucket.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -65,9 +66,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
                 if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
                 return objects.resolveDoNamespace(doNamespace)
             },
-            r2BucketProvider: _bucketName => {
-                throw new Error(`TODO implement r2 bucket provider over rpc`);
-            },
+            r2BucketProvider: bucketName => new RpcR2Bucket(bucketName, channel),
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });
     });

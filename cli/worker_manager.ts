@@ -1,5 +1,5 @@
 import { ApiKVNamespace } from './api_kv_namespace.ts';
-import { Profile, Binding } from '../common/config.ts';
+import { Profile, Binding, isR2Binding } from '../common/config.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from '../common/rpc_fetch.ts';
@@ -10,6 +10,10 @@ import { DenoflareResponse } from '../common/denoflare_response.ts';
 import { RpcHostWebSockets } from './rpc_host_web_sockets.ts';
 import { makeRpcHostDurableObjectStorage } from './rpc_host_durable_object_storage.ts';
 import { emit } from './emit.ts';
+import { addRequestHandlerForRpcR2Bucket } from '../common/rpc_r2_bucket.ts';
+import { R2BucketProvider } from '../common/cloudflare_workers_runtime.ts';
+import { ApiR2Bucket } from './api_r2_bucket.ts';
+import { CLI_USER_AGENT } from './cli_common.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -91,6 +95,10 @@ export class WorkerManager {
         // handle rpc kv requests, forward to cloudflare api
         addRequestHandlerForRpcKvNamespace(rpcChannel, kvNamespace => ApiKVNamespace.ofProfile(profile, kvNamespace));
 
+        // handle rpc r2 requests, forward to cloudflare api
+        const r2BucketProvider = await computeR2BucketProvider(profile, bindings, CLI_USER_AGENT);
+        addRequestHandlerForRpcR2Bucket(rpcChannel, r2BucketProvider);
+
         // run the script in the deno worker
         await runScript({ scriptContents, scriptType, bindings, verbose: WorkerManager.VERBOSE }, rpcChannel);
 
@@ -112,6 +120,14 @@ export class WorkerManager {
         return res;
     }
 
+}
+
+export async function computeR2BucketProvider(profile: Profile | undefined, bindings: Record<string, Binding>, userAgent: string): Promise<R2BucketProvider> {
+    if (Object.values(bindings).some(isR2Binding)) {
+        const { accountId, credentials } = await ApiR2Bucket.parseAccountAndCredentials(profile);
+        return bucketName => ApiR2Bucket.ofAccountAndCredentials(accountId, credentials, bucketName, userAgent);
+    }
+    return _ => { throw new Error('computeR2BucketProvider: No R2 bindings found'); }
 }
 
 //
