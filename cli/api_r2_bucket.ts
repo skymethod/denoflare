@@ -58,7 +58,7 @@ export class ApiR2Bucket implements R2Bucket {
         return new ResponseBasedR2ObjectBody(res, key);
     }
 
-    async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object> {
+    async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions): Promise<R2Object> {
         const { origin, credentials, bucket, region, userAgent } = this;
 
         let cacheControl: string | undefined;
@@ -107,6 +107,7 @@ export class ApiR2Bucket implements R2Bucket {
             if (value === null) return Bytes.EMPTY;
             if (typeof value === 'string') return value;
             if (value instanceof ArrayBuffer) return new Bytes(new Uint8Array(value));
+            if (value instanceof Blob) return new Bytes(new Uint8Array(await value.arrayBuffer()));
             if (typeof value === 'object' && 'locked' in value) { // ReadableStream
                 return await Bytes.ofStream(value);
             }

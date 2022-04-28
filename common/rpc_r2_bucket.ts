@@ -113,7 +113,7 @@ export class RpcR2Bucket implements R2Bucket {
         });
     }
     
-    async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object> {
+    async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions): Promise<R2Object> {
         const { bucketName } = this;
 
         let bodyId: number | undefined;
@@ -126,6 +126,8 @@ export class RpcR2Bucket implements R2Bucket {
             bodyText = value;
         } else if (value instanceof ArrayBuffer) {
             bodyBytes = new Uint8Array(value);
+        } else if (value instanceof Blob) {
+            bodyBytes = new Uint8Array(await value.arrayBuffer());
         } else if (value instanceof ReadableStream) {
             bodyId = this.bodies.computeBodyId(value);
         } else {

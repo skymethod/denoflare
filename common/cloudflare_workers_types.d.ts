@@ -725,7 +725,7 @@ export interface WebSocketPair {
 export interface R2Bucket {
     head(key: string, options?: R2HeadOptions): Promise<R2Object | null>;
     get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | null>;
-    put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null, options?: R2PutOptions): Promise<R2Object>;
+    put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions): Promise<R2Object>;
     delete(key: string): Promise<void>;
     list(options?: R2ListOptions): Promise<R2Objects>;
 }
