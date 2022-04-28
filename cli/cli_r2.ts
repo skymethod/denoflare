@@ -74,8 +74,10 @@ export async function loadR2Options(options: Record<string, unknown>): Promise<{
     };
     const origin = `https://${accountId}.r2.cloudflarestorage.com`;
     const region = 'world'
-    const context = { credentials, userAgent: CLI_USER_AGENT };
-    return { origin, region, context };
+    const unsignedPayload = parseOptionalBooleanOption('unsigned-payload', options);
+    const context = { credentials, userAgent: CLI_USER_AGENT, unsignedPayload };
+
+    return { origin, region, context,  };
 }
 
 export function surroundWithDoubleQuotesIfNecessary(value: string | undefined): string | undefined {
@@ -85,7 +87,7 @@ export function surroundWithDoubleQuotesIfNecessary(value: string | undefined): 
     return value;
 }
 
-export async function loadBodyFromOptions(options: Record<string, unknown>): Promise<{ body: AwsCallBody, contentMd5?: string }> {
+export async function loadBodyFromOptions(options: Record<string, unknown>, unsignedPayload: boolean | undefined): Promise<{ body: AwsCallBody, contentMd5?: string }> {
     let contentMd5 = parseOptionalStringOption('content-md5', options);
     const shouldComputeContentMd5 = parseOptionalBooleanOption('compute-content-md5', options);
 
@@ -119,7 +121,7 @@ export async function loadBodyFromOptions(options: Record<string, unknown>): Pro
                 const length = stat.size;
 
                 const f1 = await Deno.open(filestream);
-                const sha256Hex = (await computeStreamingSha256(f1.readable)).hex();
+                const sha256Hex = unsignedPayload ? 'UNSIGNED-PAYLOAD' : (await computeStreamingSha256(f1.readable)).hex();
 
                 let md5Base64: string | undefined;
                 if (shouldComputeContentMd5) {

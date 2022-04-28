@@ -21,9 +21,9 @@ export async function uploadPart(args: (string | number)[], options: Record<stri
     const uploadId = parseOptionalStringOption('upload-id', options); if (!uploadId) throw new Error(`Must provide --upload-id`);
     const partNumber = parseOptionalIntegerOption('part-number', options); if (partNumber === undefined) throw new Error(`Must provide --part-number`);
 
-    const { body, contentMd5 } = await loadBodyFromOptions(options);
-
     const { origin, region, context } = await loadR2Options(options);
+
+    const { body, contentMd5 } = await loadBodyFromOptions(options, context.unsignedPayload);
 
     const result = await uploadPartR2({ bucket, key, uploadId, partNumber, body, origin, region, contentMd5 }, context);
     const millis = Date.now() - CliStats.launchTime;

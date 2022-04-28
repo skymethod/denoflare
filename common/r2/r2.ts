@@ -32,8 +32,8 @@ export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Pro
     const amazonDate = computeAmazonDate();
     headers.set('x-amz-date', amazonDate);
 
-    const bodyInfo = await computeBodyInfo(body);
-    headers.set('x-amz-content-sha256', bodyInfo.bodySha256Hex); // required for all v4 requests
+    const bodyInfo = await computeBodyInfo(body, context.unsignedPayload);
+    headers.set('x-amz-content-sha256', bodyInfo.bodySha256Hex || 'UNSIGNED-PAYLOAD'); // required for all v4 requests
     const canonicalRequest = computeCanonicalRequest(method, url, headers, bodyInfo.bodySha256Hex);
     if (R2.DEBUG) console.log(`canonicalRequest=<<<${canonicalRequest.text}>>>`);
     const stringToSign = await stringToSignFinal(amazonDate, region, service, canonicalRequest.text);
@@ -117,6 +117,7 @@ export function checkBoolean(text: string, name: string): boolean {
 export interface AwsCallContext {
     readonly credentials: AwsCredentials;
     readonly userAgent: string;
+    readonly unsignedPayload?: boolean;
 }
 
 export interface AwsCredentials {
@@ -270,18 +271,20 @@ function parseErrorResult(element: KnownElement): ErrorResult {
     return { code, message };
 }
 
-async function computeBodyInfo(body: AwsCallBody): Promise<BodyInfo> {
+async function computeBodyInfo(body: AwsCallBody, unsignedPayload: boolean | undefined): Promise<BodyInfo> {
+    let bodySha256Hex = 'UNSIGNED-PAYLOAD';
     if (typeof body === 'string') {
         const bytes = Bytes.ofUtf8(body);
-        const bodySha256Hex = (await bytes.sha256()).hex();
+        if (!unsignedPayload) bodySha256Hex = (await bytes.sha256()).hex();
         const bodyLength = bytes.length;
         return { body, bodySha256Hex, bodyLength };
     } else if (body instanceof Bytes) {
-        const bodySha256Hex = (await body.sha256()).hex();
+        if (!unsignedPayload) bodySha256Hex =(await body.sha256()).hex();
         const bodyLength = body.length;
         return { body: body.array(), bodySha256Hex, bodyLength };
     } else {
-        return { body: body.stream, bodySha256Hex: body.sha256Hex, bodyLength: body.length };
+        if (!unsignedPayload) bodySha256Hex = body.sha256Hex;
+        return { body: body.stream, bodySha256Hex: bodySha256Hex, bodyLength: body.length };
     }
 }
 

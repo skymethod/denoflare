@@ -27,9 +27,9 @@ export async function putObject(args: (string | number)[], options: Record<strin
     const expires = parseOptionalStringOption('expires', options);
     const customMetadata = parseNameValuePairsOption('custom', options);
 
-    const { body, contentMd5 } = await loadBodyFromOptions(options);
-
     const { origin, region, context } = await loadR2Options(options);
+
+    const { body, contentMd5 } = await loadBodyFromOptions(options, context.unsignedPayload);
 
     await putObjectR2({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata }, context);
     const millis = Date.now() - CliStats.launchTime;
