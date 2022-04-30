@@ -20,6 +20,8 @@ export type { CompletedPart } from './complete_multipart_upload.ts';
 export { uploadPart } from './upload_part.ts';
 export { uploadPartCopy } from './upload_part_copy.ts';
 
+export const R2_REGION_EARTH = 'earth';
+
 export class R2 {
     static DEBUG = false;
 }

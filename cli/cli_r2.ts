@@ -2,7 +2,7 @@ import { CLI_VERSION } from './cli_version.ts';
 import { listObjects } from './cli_r2_list_objects.ts';
 import { getObject, headObject } from './cli_r2_get_head_object.ts';
 import { loadConfig, resolveProfile } from './config_loader.ts';
-import { AwsCallBody, AwsCallContext, AwsCredentials, R2 } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCallContext, AwsCredentials, R2, R2_REGION_EARTH } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
 import { listBuckets } from './cli_r2_list_buckets.ts';
 import { headBucket } from './cli_r2_head_bucket.ts';
@@ -73,7 +73,7 @@ export async function loadR2Options(options: Record<string, unknown>): Promise<{
         secretKey: (await Bytes.ofUtf8(apiToken).sha256()).hex(),
     };
     const origin = `https://${accountId}.r2.cloudflarestorage.com`;
-    const region = 'world'
+    const region = R2_REGION_EARTH;
     const unsignedPayload = parseOptionalBooleanOption('unsigned-payload', options);
     const context = { credentials, userAgent: CLI_USER_AGENT, unsignedPayload };
 
