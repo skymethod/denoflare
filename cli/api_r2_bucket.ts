@@ -1,7 +1,7 @@
 import { R2Bucket, R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
-import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_EARTH } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 
 export class ApiR2Bucket implements R2Bucket {
@@ -9,7 +9,7 @@ export class ApiR2Bucket implements R2Bucket {
     private readonly origin: string;
     private readonly credentials: AwsCredentials;
     private readonly bucket;
-    private readonly region = R2_REGION_EARTH;
+    private readonly region = R2_REGION_AUTO;
     private readonly userAgent;
 
     constructor(origin: string, credentials: AwsCredentials, bucket: string, userAgent: string) {
