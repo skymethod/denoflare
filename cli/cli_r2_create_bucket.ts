@@ -18,7 +18,8 @@ export async function createBucket(args: (string | number)[], options: Record<st
     
     const { origin, region, context } = await loadR2Options(options);
 
-    await createBucketR2({ bucket, origin, region }, context);
+    const { location } = await createBucketR2({ bucket, origin, region }, context);
+    console.log(location);
 }
 
 //

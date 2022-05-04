@@ -23,7 +23,7 @@ export async function copyObject(opts: CopyObjectOpts, context: AwsCallContext):
     }
 
     const sourceUrl = new URL(`https://ignored/${sourceBucket}/${sourceKey}`);
-    const source = sourceUrl.toString().substring('https://ignored/'.length); // r2 bug! should include leading slash
+    const source = sourceUrl.toString().substring('https://ignored'.length);
 
     headers.set('x-amz-copy-source', source);
     if (typeof ifMatch === 'string') headers.set('x-amz-copy-source-if-match', ifMatch);

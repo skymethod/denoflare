@@ -39,7 +39,7 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
         migrations
     };
     if (enableR2) {
-        metadata['compatibility_date'] = '2022-04-18';
+        // compatibility dates or flags no longer needed
     }
 
     if (isModule) {
