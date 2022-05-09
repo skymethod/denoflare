@@ -1,5 +1,6 @@
 import { CLI_VERSION } from './cli_version.ts';
 import { listObjects } from './cli_r2_list_objects.ts';
+import { listObjectsV1 } from './cli_r2_list_objects_v1.ts';
 import { getObject, headObject } from './cli_r2_get_head_object.ts';
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { AwsCallBody, AwsCallContext, AwsCredentials, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
@@ -38,6 +39,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'delete-bucket': deleteBucket, 
 
         'list-objects': listObjects, 
+        'list-objects-v1': listObjectsV1,
         'get-object': getObject, 
         'head-object': headObject,
         'put-object': putObject,

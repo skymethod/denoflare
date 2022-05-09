@@ -2,6 +2,7 @@ import { Bytes } from '../bytes.ts';
 import { checkMatches } from '../check.ts';
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
+export { listObjects } from './list_objects.ts';
 export { listObjectsV2 } from './list_objects_v2.ts';
 export type { ListBucketResultItem } from './list_objects_v2.ts';
 export { getObject, headObject } from './get_head_object.ts';
