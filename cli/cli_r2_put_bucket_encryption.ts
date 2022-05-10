@@ -22,8 +22,7 @@ export async function putBucketEncryption(args: (string | number)[], options: Re
 
     const { origin, region, context } = await loadR2Options(options);
 
-    const result = await putBucketEncryptionR2({ bucket, sseAlgorithm, bucketKeyEnabled, origin, region }, context);
-    console.log(JSON.stringify(result, undefined, 2));
+    await putBucketEncryptionR2({ bucket, sseAlgorithm, bucketKeyEnabled, origin, region }, context);
 }
 
 function dumpHelp() {

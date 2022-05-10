@@ -18,8 +18,8 @@ export async function putBucketEncryption(opts: PutBucketEncryptionOpts, context
 
 //
 
-const computePayload = (sseAlgorithm: string, bucketKeyEnabled: boolean) => `<?xml version="1.0" encoding="UTF-8"?>
-<ServerSideEncryptionConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
+const computePayload = (sseAlgorithm: string, bucketKeyEnabled: boolean) => // `<?xml version="1.0" encoding="UTF-8"?> // R2 bug: this endpoint does not support an xml declaration!
+`<ServerSideEncryptionConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
   <Rule>
     <ApplyServerSideEncryptionByDefault>
       <SSEAlgorithm>${sseAlgorithm}</SSEAlgorithm>
