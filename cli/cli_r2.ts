@@ -8,6 +8,7 @@ import { Bytes } from '../common/bytes.ts';
 import { listBuckets } from './cli_r2_list_buckets.ts';
 import { headBucket } from './cli_r2_head_bucket.ts';
 import { getBucketEncryption } from './cli_r2_get_bucket_encryption.ts';
+import { deleteBucketEncryption } from './cli_r2_delete_bucket_encryption.ts';
 import { createBucket } from './cli_r2_create_bucket.ts';
 import { deleteBucket } from './cli_r2_delete_bucket.ts';
 import { generic } from './cli_r2_generic.ts';
@@ -39,6 +40,7 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
         'create-bucket': createBucket, 
         'delete-bucket': deleteBucket, 
         'get-bucket-encryption': getBucketEncryption, 
+        'delete-bucket-encryption': deleteBucketEncryption, 
 
         'list-objects': listObjects, 
         'list-objects-v1': listObjectsV1,

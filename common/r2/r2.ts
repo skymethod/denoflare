@@ -21,6 +21,7 @@ export type { CompletedPart } from './complete_multipart_upload.ts';
 export { uploadPart } from './upload_part.ts';
 export { uploadPartCopy } from './upload_part_copy.ts';
 export { getBucketEncryption } from './get_bucket_encryption.ts';
+export { deleteBucketEncryption } from './delete_bucket_encryption.ts';
 
 export const R2_REGION_AUTO = 'auto';
 
