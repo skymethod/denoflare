@@ -17,7 +17,7 @@ export async function uploadPartCopy(opts: UploadPartCopyOpts, context: AwsCallC
     const headers = new Headers();
 
     const sourceUrl = new URL(`https://ignored/${sourceBucket}/${sourceKey}`);
-    const source = sourceUrl.toString().substring('https://ignored/'.length); // r2 bug! should include leading slash
+    const source = sourceUrl.toString().substring('https://ignored'.length);
     headers.set('x-amz-copy-source', source);
     if (typeof ifMatch === 'string') headers.set('x-amz-copy-source-if-match', ifMatch);
     if (typeof ifModifiedSince === 'string') headers.set('x-amz-copy-source-if-modified-since', ifModifiedSince);
@@ -30,7 +30,7 @@ export async function uploadPartCopy(opts: UploadPartCopyOpts, context: AwsCallC
 
     const txt = await res.text();
     if (R2.DEBUG) console.log(txt);
-    throwIfUnexpectedContentType(res, 'text/plain;charset=UTF-8', txt);
+    throwIfUnexpectedContentType(res, 'application/xml', txt);
 
     const xml = parseXml(txt);
     return parseCopyPartResultXml(xml);

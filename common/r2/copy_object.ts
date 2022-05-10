@@ -36,7 +36,7 @@ export async function copyObject(opts: CopyObjectOpts, context: AwsCallContext):
 
     const txt = await res.text();
     if (R2.DEBUG) console.log(txt);
-    throwIfUnexpectedContentType(res, 'text/plain;charset=UTF-8', txt);
+    throwIfUnexpectedContentType(res, 'application/xml', txt);
 
     const xml = parseXml(txt);
     return parseCopyObjectResultXml(xml);

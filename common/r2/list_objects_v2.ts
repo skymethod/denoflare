@@ -48,7 +48,7 @@ export interface ListBucketResultItem {
     readonly key: string;
     readonly size: number;
     readonly lastModified: string;
-    readonly owner: BucketResultOwner;
+    readonly owner?: BucketResultOwner;
     readonly etag: string;
 }
 
@@ -87,7 +87,7 @@ function parseListBucketResultItem(element: KnownElement): ListBucketResultItem 
     const key = element.getElementText('Key');
     const size = element.getCheckedElementText('Size', checkInteger);
     const lastModified = element.getElementText('LastModified');
-    const owner = parseBucketResultOwner(element.getKnownElement('Owner'));
+    const owner = parseBucketResultOwner(element.getOptionalKnownElement('Owner'));
     const etag = element.getElementText('ETag');
     element.check();
     return { key, size, lastModified, owner, etag };

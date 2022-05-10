@@ -61,7 +61,10 @@ export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT' | 'DELETE' 
     return res;
 }
 
-export function parseBucketResultOwner(element: KnownElement): BucketResultOwner {
+export function parseBucketResultOwner(element: KnownElement): BucketResultOwner;
+export function parseBucketResultOwner(element: KnownElement | undefined): BucketResultOwner | undefined;
+export function parseBucketResultOwner(element: KnownElement | undefined): BucketResultOwner | undefined {
+    if (element === undefined) return undefined;
     const id = element.getElementText('ID')
     const displayName = element.getElementText('DisplayName');
     element.check();
@@ -72,7 +75,7 @@ export async function throwIfUnexpectedStatus(res: Response, ...expectedStatus: 
     if (expectedStatus.includes(res.status)) return;
     let errorMessage = `Unexpected status ${res.status}`;
     const contentTypeLower = (res.headers.get('content-type') || '').toLowerCase();
-    if (contentTypeLower.startsWith('text')) {
+    if (contentTypeLower.startsWith('text') || contentTypeLower.includes('xml')) {
         const text = await res.text();
         if (text.startsWith('<')) {
             try {

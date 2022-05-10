@@ -27,6 +27,6 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', opts: GetObjectOpts | Hea
 
     const res = await s3Fetch({ method, url, headers, region, context });
     if (res.status === 404) return undefined;
-    await throwIfUnexpectedStatus(res, 200, 304);
+    await throwIfUnexpectedStatus(res, 200, 304, 206);
     return res;
 }

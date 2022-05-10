@@ -20,7 +20,7 @@ export async function completeMultipartUpload(opts: CompleteMultipartUploadOpts,
     
     const txt = await res.text();
     if (R2.DEBUG) console.log(txt);
-    throwIfUnexpectedContentType(res, 'text/plain;charset=UTF-8', txt); // r2 bug in content-type!
+    throwIfUnexpectedContentType(res, 'application/xml', txt);
 
     const xml = parseXml(txt);
     return parseCompleteMultipartUploadResultXml(xml);
