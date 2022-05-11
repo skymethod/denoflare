@@ -1,4 +1,4 @@
-import { IncomingRequestCf, R2Bucket, R2Object } from './deps.ts';
+import { IncomingRequestCf, R2Bucket, R2Object, R2ObjectBody } from './deps.ts';
 import { WorkerEnv } from './worker_env.d.ts';
 
 export default {
@@ -19,17 +19,12 @@ export default {
             }
             const obj = await bucket.get(key);
             if (obj) {
-                const headers = computeHeaders(obj);
-                let body = obj.body;
-                if (headers.get('content-encoding') === 'gzip' && headers.get('cache-control') === 'no-transform') {
-                    // r2 bug: cf will double gzip in this case!
-                    // for now, decompress it in the worker and let cf autocompress take over
-                    const ds = new DecompressionStream('gzip');
-                    body = obj.body.pipeThrough(ds);
-                    headers.delete('content-encoding');
-                    headers.delete('cache-control');
-                }
-                return new Response(body, { headers });
+                return computeGetResponse(obj, 200);
+            }
+            key = key + '/index.html';
+            const obj2 = await bucket.get(key);
+            if (obj2) {
+                return computeGetResponse(obj2, 200);
             }
             return await computeNotFound(bucket, 'GET');
         } else if (method === 'HEAD') {
@@ -47,12 +42,26 @@ export default {
 
 //
 
+function computeGetResponse(obj: R2ObjectBody, status: number): Response {
+    const headers = computeHeaders(obj);
+    let body = obj.body;
+    if (headers.get('content-encoding') === 'gzip' && headers.get('cache-control') === 'no-transform') {
+        // r2 bug: cf will double gzip in this case!
+        // for now, decompress it in the worker and let cf autocompress take over
+        const ds = new DecompressionStream('gzip');
+        body = obj.body.pipeThrough(ds);
+        headers.delete('content-encoding');
+        headers.delete('cache-control');
+    }
+    return new Response(body, { status, headers });
+}
+
 async function computeNotFound(bucket: R2Bucket, method: 'GET' | 'HEAD'): Promise<Response> {
     const key = '404.html';
     if (method === 'GET') {
         const obj = await bucket.get(key);
         if (obj) {
-            return new Response(obj.body, { status: 404, headers: computeHeaders(obj) });
+            return computeGetResponse(obj, 404)
         }
     } else if (method === 'HEAD') {
         const obj = await bucket.head(key);
