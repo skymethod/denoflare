@@ -36,6 +36,10 @@
 		{
 			"path": "examples/isolate-hotel-app",
 			"name": "examples/isolate-hotel-app"
+		},
+		{
+			"path": "examples/r2-public-read-worker",
+			"name": "examples/r2-public-read-worker"
 		}
 	],
 	"settings": {

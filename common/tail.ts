@@ -168,17 +168,22 @@ function parseTailMessageCronEvent(obj: unknown): TailMessageCronEvent {
 
 export interface TailMessageRequestEvent {
     readonly request: TailMessageEventRequest;
+    readonly response?: TailMessageEventResponse;
 }
 
 const REQUIRED_TAIL_MESSAGE_REQUEST_EVENT_KEYS = new Set(['request']);
+const OPTIONAL_TAIL_MESSAGE_REQUEST_EVENT_KEYS = new Set(['response']);
+const ALL_TAIL_MESSAGE_REQUEST_EVENT_KEYS = setUnion(REQUIRED_TAIL_MESSAGE_REQUEST_EVENT_KEYS, OPTIONAL_TAIL_MESSAGE_REQUEST_EVENT_KEYS);
+
 
 function parseTailMessageRequestEvent(obj: unknown): TailMessageRequestEvent {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageRequestEvent: Expected object, found ${JSON.stringify(obj)}`);
-    checkKeys(obj, REQUIRED_TAIL_MESSAGE_REQUEST_EVENT_KEYS);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_REQUEST_EVENT_KEYS, ALL_TAIL_MESSAGE_REQUEST_EVENT_KEYS);
     // deno-lint-ignore no-explicit-any
     const objAsAny = obj as any;
     const request = parseTailMessageEventRequest(objAsAny.request);
-    return { request };
+    const response = parseTailMessageEventResponse(objAsAny.response);
+    return { request, response };
 }
 
 //
@@ -205,6 +210,25 @@ function parseTailMessageEventRequest(obj: unknown): TailMessageEventRequest {
     const headers = parseStringRecord(objAsAny.headers, 'headers');
     const cf = objAsAny.cf === undefined ? undefined : parseIncomingRequestCfProperties(objAsAny.cf);
     return { url, method, headers, cf };
+}
+
+//
+
+export interface TailMessageEventResponse {
+    readonly status: number;
+}
+
+const REQUIRED_TAIL_MESSAGE_EVENT_RESPONSE_KEYS = new Set(['status']);
+
+function parseTailMessageEventResponse(obj: unknown): TailMessageEventResponse | undefined {
+    if (obj === undefined) return undefined;
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageEventResponse: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_EVENT_RESPONSE_KEYS);
+    // deno-lint-ignore no-explicit-any
+    const objAsAny = obj as any;
+    const { status } = objAsAny;
+    if (!(typeof status === 'number')) throw new Error(`Bad status: expected number, found ${JSON.stringify(status)}`);
+    return { status };
 }
 
 //

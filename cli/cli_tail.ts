@@ -104,6 +104,10 @@ function dumpMessageCompact(message: TailMessage) {
         if (userAgent) {
             console.log(`                                ${userAgent}`);
         }
+        const response = message.event.response;
+        if (response) {
+            console.log(`                                ${response.status}`);
+        }
     }
     for (const log of message.logs) {
         const timestamp = new Date(log.timestamp).toISOString();

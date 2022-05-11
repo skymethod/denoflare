@@ -57,6 +57,12 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
     for (const { name, message: exceptionMessage } of message.exceptions) {
         logger(` %c|%c [%c${name}%c] %c${exceptionMessage}`, 'color: gray', '', `color: red; font-style: bold`, '', 'color: red');
     }
+    if (!isTailMessageCronEvent(message.event)) {
+        const response = message.event.response;
+        if (response) {
+            logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        }
+    }
 }
 
 export function formatLocalYyyyMmDdHhMmSs(date: Date): string {
