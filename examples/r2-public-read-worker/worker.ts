@@ -51,13 +51,13 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         if (range || onlyIf) console.log(`range=${JSON.stringify(range)} onlyIf=${JSON.stringify(onlyIf)}`);
         obj = key === '' ? null : await getOrHead(key, { range, onlyIf });
         if (!obj) {
-            if (await computeIfMatchReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
+            if (await computeIfMatchOrIfUnmodifiedSinceReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
                 return preconditionFailed();
             }
             if (key === '' || key.endsWith('/')) { // object not found, append index.html and try again (like pages)
                 key += 'index.html';
                 obj = await getOrHead(key, { range, onlyIf });
-                if (!obj && await computeIfMatchReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
+                if (!obj && await computeIfMatchOrIfUnmodifiedSinceReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
                     return preconditionFailed();
                 }
             } else { // object not found, redirect non-trailing slash to trailing slash (like pages) if index.html exists
@@ -93,11 +93,11 @@ function preconditionFailed(): Response {
     return new Response('precondition failed', { status: 412 });
 }
 
-async function computeIfMatchReturningNullMeansPreconditionFailed(bucket: R2Bucket, key: string, options: R2GetOptions): Promise<boolean> {
+async function computeIfMatchOrIfUnmodifiedSinceReturningNullMeansPreconditionFailed(bucket: R2Bucket, key: string, options: R2GetOptions): Promise<boolean> {
     // r2 bug: null is returned if the object exists but the if-match precondition fails (it should throw like if-none-match)
     // the only way to really know the difference is to do a subsequent head
     if (!options.onlyIf || options.onlyIf instanceof Headers) return false;
-    if (!options.onlyIf.etagMatches) return false;
+    if (!options.onlyIf.etagMatches && !options.onlyIf.uploadedBefore) return false;
     const obj = await bucket.head(key);
     return !!obj;
 }
@@ -128,6 +128,7 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
     // exactly what we want
     headers.set('content-length', String(obj.size));
     headers.set('etag', obj.httpEtag);
+    headers.set('last-modified', obj.uploaded.toUTCString()); // toUTCString is the http date format (rfc 1123)
 
     if (range) headers.set('content-range', `bytes ${range.offset}-${Math.min(range.offset + range.length - 1, obj.size)}/${obj.size}`);
 
@@ -165,18 +166,29 @@ function tryParseRange(headers: Headers): R2Range | undefined {
 }
 
 function tryParseR2Conditional(headers: Headers): R2Conditional | undefined {
-    // r2 bug: onlyIf takes Headers, but processes them incorrectly (such as not allowing double quotes on etags), so we need to do them by hand for now
-    let etagDoesNotMatch: string | undefined;
-    const ifNoneMatch = headers.get('if-none-match') || undefined;
-    if (ifNoneMatch) etagDoesNotMatch = stripEtagQuoting(ifNoneMatch);
+    // r2 bug: onlyIf takes Headers, but processes them incorrectly (such as not allowing double quotes on etags)
+    // so we need to do them by hand for now
 
-    let etagMatches: string | undefined;
+    const ifNoneMatch = headers.get('if-none-match') || undefined;
+    const etagDoesNotMatch = ifNoneMatch ? stripEtagQuoting(ifNoneMatch) : undefined;
+
     const ifMatch = headers.get('if-match') || undefined;
-    if (ifMatch) etagMatches = stripEtagQuoting(ifMatch);
-    return { etagDoesNotMatch, etagMatches };
+    const etagMatches = ifMatch ? stripEtagQuoting(ifMatch) : undefined;
+
+    const ifModifiedSince = headers.get('if-modified-since') || undefined;
+    const uploadedAfter = ifModifiedSince ? addingOneSecond(new Date(ifModifiedSince)) : undefined; // if-modified-since date format (rfc 1123) is at second resolution, uploaded is at millis resolution
+
+    const ifUnmodifiedSince = headers.get('if-unmodified-since') || undefined;
+    const uploadedBefore = ifUnmodifiedSince ? new Date(ifUnmodifiedSince) : undefined;
+
+    return { etagDoesNotMatch, etagMatches, uploadedAfter, uploadedBefore };
 }
 
 function stripEtagQuoting(str: string): string {
     const m = /^(W\/)?"(.*)"$/.exec(str);
     return m ? m[2] : str;
+}
+
+function addingOneSecond(time: Date): Date {
+    return new Date(time.getTime() + 1000);
 }
