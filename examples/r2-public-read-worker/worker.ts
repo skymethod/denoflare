@@ -1,4 +1,4 @@
-import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions } from './deps.ts';
+import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions, R2Conditional, R2Bucket } from './deps.ts';
 import { WorkerEnv } from './worker_env.d.ts';
 
 export default {
@@ -9,6 +9,9 @@ export default {
         } catch (e) {
             if (typeof e === 'object' && e.message === 'The requested range is not satisfiable') {
                 return new Response(e.message, { status: 416 });
+            }
+            if (typeof e === 'object' && e.message === 'The requested resource has not been modified.') {
+                return new Response(undefined, { status: 304 });
             }
             return new Response(`${e.stack || e}`, { status: 500 });
         }
@@ -44,11 +47,19 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     if (key !== '_headers') { // special handling for _headers, we'll process this later
         // first, try to request the object at the given key
         let range = method === 'GET' ? tryParseRange(headers) : undefined;
-        obj = key === '' ? null : await getOrHead(key, { range });
+        const onlyIf = method === 'GET' ? tryParseR2Conditional(headers) : undefined;
+        if (range || onlyIf) console.log(`range=${JSON.stringify(range)} onlyIf=${JSON.stringify(onlyIf)}`);
+        obj = key === '' ? null : await getOrHead(key, { range, onlyIf });
         if (!obj) {
+            if (await computeIfMatchReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
+                return preconditionFailed();
+            }
             if (key === '' || key.endsWith('/')) { // object not found, append index.html and try again (like pages)
                 key += 'index.html';
-                obj = await getOrHead(key, { range });
+                obj = await getOrHead(key, { range, onlyIf });
+                if (!obj && await computeIfMatchReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
+                    return preconditionFailed();
+                }
             } else { // object not found, redirect non-trailing slash to trailing slash (like pages) if index.html exists
                 key += '/index.html';
                 obj = await bucket.head(key);
@@ -78,6 +89,19 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
 
 }
 
+function preconditionFailed(): Response {
+    return new Response('precondition failed', { status: 412 });
+}
+
+async function computeIfMatchReturningNullMeansPreconditionFailed(bucket: R2Bucket, key: string, options: R2GetOptions): Promise<boolean> {
+    // r2 bug: null is returned if the object exists but the if-match precondition fails (it should throw like if-none-match)
+    // the only way to really know the difference is to do a subsequent head
+    if (!options.onlyIf || options.onlyIf instanceof Headers) return false;
+    if (!options.onlyIf.etagMatches) return false;
+    const obj = await bucket.head(key);
+    return !!obj;
+}
+
 function isR2ObjectBody(obj: R2Object): obj is R2ObjectBody {
     return 'body' in obj;
 }
@@ -103,6 +127,8 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
     // obj.size represents the full size, but seems to be clamped by the cf frontend down to the actual number of bytes in the partial response
     // exactly what we want
     headers.set('content-length', String(obj.size));
+    headers.set('etag', obj.httpEtag);
+
     if (range) headers.set('content-range', `bytes ${range.offset}-${Math.min(range.offset + range.length - 1, obj.size)}/${obj.size}`);
 
     // obj.writeHttpMetadata(headers); // r2 bug: currently returns content-encoding and cache-control in content-disposition!
@@ -136,4 +162,21 @@ function tryParseRange(headers: Headers): R2Range | undefined {
     const length = parseInt(m[2]) - offset + 1;
     if (length < 1) return undefined;
     return { offset, length };
+}
+
+function tryParseR2Conditional(headers: Headers): R2Conditional | undefined {
+    // r2 bug: onlyIf takes Headers, but processes them incorrectly (such as not allowing double quotes on etags), so we need to do them by hand for now
+    let etagDoesNotMatch: string | undefined;
+    const ifNoneMatch = headers.get('if-none-match') || undefined;
+    if (ifNoneMatch) etagDoesNotMatch = stripEtagQuoting(ifNoneMatch);
+
+    let etagMatches: string | undefined;
+    const ifMatch = headers.get('if-match') || undefined;
+    if (ifMatch) etagMatches = stripEtagQuoting(ifMatch);
+    return { etagDoesNotMatch, etagMatches };
+}
+
+function stripEtagQuoting(str: string): string {
+    const m = /^(W\/)?"(.*)"$/.exec(str);
+    return m ? m[2] : str;
 }
