@@ -1,4 +1,4 @@
-import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions, R2Conditional, R2Bucket } from './deps.ts';
+import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions, R2Conditional } from './deps.ts';
 import { WorkerEnv } from './worker_env.d.ts';
 
 export default {
@@ -9,9 +9,6 @@ export default {
         } catch (e) {
             if (typeof e === 'object' && e.message === 'The requested range is not satisfiable') {
                 return new Response(e.message, { status: 416 });
-            }
-            if (typeof e === 'object' && e.message === 'The requested resource has not been modified.') {
-                return new Response(undefined, { status: 304 });
             }
             return new Response(`${e.stack || e}`, { status: 500 });
         }
@@ -51,15 +48,9 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         if (range || onlyIf) console.log(`range=${JSON.stringify(range)} onlyIf=${JSON.stringify(onlyIf)}`);
         obj = key === '' ? null : await getOrHead(key, { range, onlyIf });
         if (!obj) {
-            if (await computeIfMatchOrIfUnmodifiedSinceReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
-                return preconditionFailed();
-            }
             if (key === '' || key.endsWith('/')) { // object not found, append index.html and try again (like pages)
                 key += 'index.html';
                 obj = await getOrHead(key, { range, onlyIf });
-                if (!obj && await computeIfMatchOrIfUnmodifiedSinceReturningNullMeansPreconditionFailed(bucket, key, { range, onlyIf })) {
-                    return preconditionFailed();
-                }
             } else { // object not found, redirect non-trailing slash to trailing slash (like pages) if index.html exists
                 key += '/index.html';
                 obj = await bucket.head(key);
@@ -76,7 +67,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
                 obj = await bucket.get(key);
                 if (obj === null) throw new Error(`Object ${key} existed for .get with range, but not without`);
             }
-            return computeObjResponse(obj, range ? 206 : 200, range);
+            return computeObjResponse(obj, range ? 206 : 200, range, onlyIf);
         }
     }
 
@@ -89,26 +80,31 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
 
 }
 
-function preconditionFailed(): Response {
-    return new Response('precondition failed', { status: 412 });
+function unmodified() {
+    return new Response(undefined, { status: 304 });
 }
 
-async function computeIfMatchOrIfUnmodifiedSinceReturningNullMeansPreconditionFailed(bucket: R2Bucket, key: string, options: R2GetOptions): Promise<boolean> {
-    // r2 bug: null is returned if the object exists but the if-match precondition fails (it should throw like if-none-match)
-    // the only way to really know the difference is to do a subsequent head
-    if (!options.onlyIf || options.onlyIf instanceof Headers) return false;
-    if (!options.onlyIf.etagMatches && !options.onlyIf.uploadedBefore) return false;
-    const obj = await bucket.head(key);
-    return !!obj;
+function preconditionFailed(): Response {
+    return new Response('precondition failed', { status: 412 });
 }
 
 function isR2ObjectBody(obj: R2Object): obj is R2ObjectBody {
     return 'body' in obj;
 }
 
-function computeObjResponse(obj: R2Object, status: number, range?: R2Range): Response {
+function computeObjResponse(obj: R2Object, status: number, range?: R2Range, onlyIf?: R2Conditional): Response {
+    let body: ReadableStream | undefined;
+    if (isR2ObjectBody(obj)) {
+        body = obj.body;
+    } else if (onlyIf) {
+        if (onlyIf.etagDoesNotMatch) return unmodified();
+        if (onlyIf.uploadedAfter) return unmodified();
+        if (onlyIf.etagMatches) return preconditionFailed();
+        if (onlyIf.uploadedBefore) return preconditionFailed();
+    }
+    
     const headers = computeHeaders(obj, range);
-    let body = isR2ObjectBody(obj) ? obj.body : undefined;
+
     if (headers.get('content-encoding') === 'gzip' && headers.get('cache-control') === 'no-transform') {
         // r2 bug: cf will double gzip in this case!
         // for now, decompress it in the worker and let cf autocompress take over
