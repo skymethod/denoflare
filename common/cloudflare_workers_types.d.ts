@@ -723,8 +723,9 @@ export interface WebSocketPair {
 //#region R2
 
 export interface R2Bucket {
-    head(key: string, options?: R2HeadOptions): Promise<R2Object | null>;
-    get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | null>;
+    head(key: string): Promise<R2Object | null>;
+    get(key: string): Promise<R2ObjectBody | null>;
+    get(key: string, options: R2GetOptions): Promise<R2ObjectBody | R2Object | null>;
     put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions): Promise<R2Object>;
     delete(key: string): Promise<void>;
     list(options?: R2ListOptions): Promise<R2Objects>;
@@ -749,10 +750,6 @@ export interface R2HTTPMetadata {
     readonly contentEncoding?: string;
     readonly cacheControl?: string;
     readonly cacheExpiry?: Date;
-}
-
-export interface R2HeadOptions {
-    readonly onlyIf?: R2Conditional | Headers;
 }
 
 export interface R2ListOptions {
@@ -795,7 +792,6 @@ export interface R2PutOptions {
     readonly httpMetadata?: R2HTTPMetadata | Headers;
     readonly customMetadata?: Record<string, string>;
     readonly md5?: ArrayBuffer | string; // hex if string
-    readonly sha1?: ArrayBuffer | string; // hex if string
 }
 
 export interface R2Range {

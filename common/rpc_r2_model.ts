@@ -1,5 +1,5 @@
 import { Bytes } from './bytes.ts';
-import { R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
+import { R2Conditional, R2GetOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
 
 // R2Objects
 
@@ -101,30 +101,6 @@ export function unpackR2HTTPMetadata(packed: PackedR2HTTPMetadata): R2HTTPMetada
     };
 }
 
-// R2HeadOptions
-
-export interface PackedR2HeadOptions {
-    readonly onlyIf?: PackedR2Conditional | PackedHeaders;
-}
-
-export function packR2HeadOptions(unpacked: R2HeadOptions): PackedR2HeadOptions {
-    const { onlyIf } = unpacked;
-    return {
-        onlyIf: onlyIf === undefined ? undefined 
-            : onlyIf instanceof Headers ? packHeaders(onlyIf) 
-            : packR2Conditional(onlyIf)
-    };
-}
-
-export function unpackR2HeadOptions(packed: PackedR2HeadOptions): R2HeadOptions {
-    const { onlyIf } = packed;
-    return {
-        onlyIf: onlyIf === undefined ? undefined
-            : Array.isArray(onlyIf) ? unpackHeaders(onlyIf)
-            : unpackR2Conditional(onlyIf)
-    };
-}
-
 // R2GetOptions
 
 export interface PackedR2GetOptions {
@@ -196,7 +172,6 @@ export interface PackedR2PutOptions {
     readonly httpMetadata?: PackedR2HTTPMetadata | PackedHeaders;
     readonly customMetadata?: Record<string, string>;
     readonly md5?: string;
-    readonly sha1?: string;
 }
 
 export function unpackR2PutOptions(packed: PackedR2PutOptions): R2PutOptions {
@@ -206,7 +181,6 @@ export function unpackR2PutOptions(packed: PackedR2PutOptions): R2PutOptions {
             : unpackR2HTTPMetadata(packed.httpMetadata),
         customMetadata: packed.customMetadata,
         md5: packed.md5,
-        sha1: packed.sha1,
     };
 }
 
@@ -217,7 +191,6 @@ export function packR2PutOptions(unpacked: R2PutOptions): PackedR2PutOptions {
             : packR2HTTPMetadata(unpacked.httpMetadata),
         customMetadata: unpacked.customMetadata,
         md5: packHash(unpacked.md5),
-        sha1: packHash(unpacked.sha1),
     };
 }
 

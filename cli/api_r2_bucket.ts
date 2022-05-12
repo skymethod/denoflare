@@ -1,4 +1,4 @@
-import { R2Bucket, R2Conditional, R2GetOptions, R2HeadOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
+import { R2Bucket, R2Conditional, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
 import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
@@ -39,22 +39,24 @@ export class ApiR2Bucket implements R2Bucket {
         return new ApiR2Bucket(origin, credentials, bucketName, userAgent);
     }
 
-    async head(key: string, options?: R2HeadOptions): Promise<R2Object | null> {
+    async head(key: string): Promise<R2Object | null> {
         const { origin, credentials, bucket, region, userAgent } = this;
-        const { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = parseOnlyIf(options?.onlyIf);
-        const res = await headObject({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince }, { credentials, userAgent });
+        const res = await headObject({ bucket, key, origin, region }, { credentials, userAgent });
         if (!res) return null;
         if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
         return new HeadersBasedR2Object(res.headers, key);
     }
 
-    async get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | null> {
+    get(key: string): Promise<R2ObjectBody | null>;
+    get(key: string, options: R2GetOptions): Promise<R2ObjectBody | R2Object | null>;
+    async get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | R2Object | null> {
         const { origin, credentials, bucket, region, userAgent } = this;
         const { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = parseOnlyIf(options?.onlyIf);
         const range = parseRange(options?.range);
         const res = await getObject({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range }, { credentials, userAgent });
         if (!res) return null;
         if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
+        if (res.status === 304 || res.status === 412) return new HeadersBasedR2Object(res.headers, key);
         return new ResponseBasedR2ObjectBody(res, key);
     }
 
@@ -98,9 +100,6 @@ export class ApiR2Bucket implements R2Bucket {
             } else {
                 contentMd5 = new Bytes(new Uint8Array(options.md5)).base64();
             }
-        }
-        if (options?.sha1) {
-            throw new Error(`ApiR2Bucket: put: sha1 not suppported`);
         }
 
         const computeBody: () => Promise<AwsCallBody> = async () => {
