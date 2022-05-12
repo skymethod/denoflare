@@ -1,4 +1,5 @@
-import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions, R2Conditional } from './deps.ts';
+import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions, R2Conditional, R2ListOptions } from './deps.ts';
+import { computeDirectoryListingHtml } from './listing.ts';
 import { WorkerEnv } from './worker_env.d.ts';
 
 export default {
@@ -18,11 +19,30 @@ export default {
 
 //
 
+declare global {
+
+    interface ResponseInit {
+        // non-standard cloudflare property, defaults to 'auto'
+        encodeBody?: 'auto' | 'manual';
+    }
+
+}
+
+//
+
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
+const TEXT_HTML_UTF8 = 'text/html; charset=utf-8';
+
+const INTERNAL_KEYS = new Set();
+const INTERNAL_KEYS_PAGES = new Set([ '_headers' ]); // special handling for _headers, we'll process this later
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
     const { bucket, pushId } = env;
     const flags = new Set((env.flags || '').split(',').map(v => v.trim()));
+    const disallowRobots = flags.has('disallowRobots');
+    const emulatePages = flags.has('emulatePages');
+    const listDirectories = flags.has('listDirectories');
+
     const { method, url, headers } = request;
     console.log(`${method} ${url}`);
     if (pushId) console.log(`pushId: ${pushId}`);
@@ -34,22 +54,27 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     const { pathname } = new URL(request.url);
     let key = pathname.substring(1); // strip leading slash
 
-    // special handling for robots.txt
-    if (flags.has('disallowRobots') && key === 'robots.txt') {
+    // special handling for robots.txt, if configured
+    if (disallowRobots && key === 'robots.txt') {
         return new Response(method === 'GET' ? 'User-agent: *\nDisallow: /' : undefined, { headers: { 'content-type': TEXT_PLAIN_UTF8 }});
     }
 
     let obj: R2Object | null = null;
     const getOrHead: (key: string, options?: R2GetOptions) => Promise<R2Object | null> = (key, options) => {
         console.log(`${method} ${key} ${JSON.stringify(options)}`);
-        return method === 'GET' ? bucket.get(key, options) : bucket.head(key, options);
+        return method === 'GET' ? (options ? bucket.get(key, options) : bucket.get(key)) : bucket.head(key);
     };
-    if (key !== '_headers') { // special handling for _headers, we'll process this later
-        // first, try to request the object at the given key
+
+    // hide keys considered "internal", like _headers if in pages mode
+    const internalKeys = emulatePages ? INTERNAL_KEYS_PAGES : INTERNAL_KEYS;
+    if (!internalKeys.has(key)) {
+        // parse any conditional request options from the request headers
         let range = method === 'GET' ? tryParseRange(headers) : undefined;
         const onlyIf = method === 'GET' ? tryParseR2Conditional(headers) : undefined;
+
+        // first, try to request the object at the given key
         obj = key === '' ? null : await getOrHead(key, { range, onlyIf });
-        if (!obj) {
+        if (!obj && emulatePages) {
             if (key === '' || key.endsWith('/')) { // object not found, append index.html and try again (like pages)
                 key += 'index.html';
                 obj = await getOrHead(key, { range, onlyIf });
@@ -57,15 +82,15 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
                 key += '/index.html';
                 obj = await bucket.head(key);
                 if (obj) {
-                    return new Response(undefined, { status: 308, headers: { 'location': pathname + '/' } });
+                    return permanentRedirect({ location: pathname + '/' });
                 }
             }
         }
         if (obj) {
             // choose not to satisfy range requests for encoded content
+            // unfortunately we don't know it's encoded until after the first request
             if (range && computeHeaders(obj, range).has('content-encoding')) {
-                console.log('re-request without range');
-                // re-request without range
+                console.log(`re-request without range`);
                 range = undefined;
                 obj = await bucket.get(key);
                 if (obj === null) throw new Error(`Object ${key} existed for .get with range, but not without`);
@@ -74,21 +99,49 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         }
     }
 
-    // R2 object not found, respond with 404
-    obj = await getOrHead('404.html'); // like pages
-    if (obj) {
-        return computeObjResponse(obj, 404);
+    // R2 object not found, try listing a directory, if configured
+    if (listDirectories) {
+        let prefix = pathname.substring(1);
+        let redirect = false;
+        if (prefix !== '' && !prefix.endsWith('/')) {
+            prefix += '/';
+            redirect = true;
+        }
+        const options: R2ListOptions = { delimiter: '/', limit: 1000, prefix };  // r2 bugs: max limit due to the delimitedPrefixes and truncated bugs
+        console.log(`list: ${JSON.stringify(options)}`);
+        const objects = await bucket.list(options);
+        if (objects.delimitedPrefixes.length > 0 || objects.objects.length > 0) {
+            console.log({ numPrefixes: objects.delimitedPrefixes.length, numObjects: objects.objects.length, truncated: objects.truncated });
+            return redirect ? temporaryRedirect({ location: '/' + prefix }) : new Response(computeDirectoryListingHtml(objects, prefix), { headers: { 'content-type': TEXT_HTML_UTF8 } });
+        }
+    }
+
+    // R2 response still not found, respond with 404
+    if (emulatePages) {
+        obj = await getOrHead('404.html');
+        if (obj) {
+            return computeObjResponse(obj, 404);
+        }
     }
     return new Response(method === 'GET' ? 'not found' : undefined, { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
-
 }
 
-function unmodified() {
+function unmodified(): Response {
     return new Response(undefined, { status: 304 });
 }
 
 function preconditionFailed(): Response {
     return new Response('precondition failed', { status: 412 });
+}
+
+function permanentRedirect(opts: { location: string }): Response {
+    const { location } = opts;
+    return new Response(undefined, { status: 308, headers: { 'location': location } });
+}
+
+function temporaryRedirect(opts: { location: string }): Response {
+    const { location } = opts;
+    return new Response(undefined, { status: 307, headers: { 'location': location } });
 }
 
 function isR2ObjectBody(obj: R2Object): obj is R2ObjectBody {
@@ -109,6 +162,7 @@ function computeObjResponse(obj: R2Object, status: number, range?: R2Range, only
     const headers = computeHeaders(obj, range);
 
     // non-standard cloudflare ResponseInit property indicating the response is already encoded
+    // required to prevent the cf frontend from double-encoding it, or serving it encoded without a content-encoding header
     const encodeBody = headers.has('content-encoding') ? 'manual' : undefined;
 
     return new Response(body, { status, headers, encodeBody });
@@ -116,10 +170,12 @@ function computeObjResponse(obj: R2Object, status: number, range?: R2Range, only
 
 function computeHeaders(obj: R2Object, range?: R2Range): Headers {
     const headers = new Headers();
+
     // obj.size represents the full size, but seems to be clamped by the cf frontend down to the actual number of bytes in the partial response
     // exactly what we want
     headers.set('content-length', String(obj.size));
-    headers.set('etag', obj.httpEtag);
+
+    headers.set('etag', obj.httpEtag); // the version with double quotes, e.g. "96f20d7dc0d24de9c154d822967dcae1"
     headers.set('last-modified', obj.uploaded.toUTCString()); // toUTCString is the http date format (rfc 1123)
 
     if (range) headers.set('content-range', `bytes ${range.offset}-${Math.min(range.offset + range.length - 1, obj.size)}/${obj.size}`);
@@ -136,7 +192,7 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
         if (contentDisposition === 'gzip') {
             headers.set('content-encoding', contentDisposition);
         }
-        if (contentDisposition.includes('max-age') || contentDisposition.includes('no-transform') || contentDisposition.includes('public') || contentDisposition.includes('immutable')) {
+        if (/(private|public|maxage|max-age|no-transform|immutable)/.test(contentDisposition)) {
             headers.set('cache-control', contentDisposition);
         }
     }
@@ -184,15 +240,4 @@ function stripEtagQuoting(str: string): string {
 
 function addingOneSecond(time: Date): Date {
     return new Date(time.getTime() + 1000);
-}
-
-//
-
-declare global {
-
-    interface ResponseInit {
-        // non-standard cloudflare property, defaults to 'auto'
-        encodeBody?: 'auto' | 'manual';
-    }
-
 }
