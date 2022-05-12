@@ -40,12 +40,14 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     }
 
     let obj: R2Object | null = null;
-    const getOrHead: (key: string, options?: R2GetOptions) => Promise<R2Object | null> = (key, options) => method === 'GET' ? bucket.get(key, options) : bucket.head(key, options);
+    const getOrHead: (key: string, options?: R2GetOptions) => Promise<R2Object | null> = (key, options) => {
+        console.log(`${method} ${key} ${JSON.stringify(options)}`);
+        return method === 'GET' ? bucket.get(key, options) : bucket.head(key, options);
+    };
     if (key !== '_headers') { // special handling for _headers, we'll process this later
         // first, try to request the object at the given key
         let range = method === 'GET' ? tryParseRange(headers) : undefined;
         const onlyIf = method === 'GET' ? tryParseR2Conditional(headers) : undefined;
-        if (range || onlyIf) console.log(`range=${JSON.stringify(range)} onlyIf=${JSON.stringify(onlyIf)}`);
         obj = key === '' ? null : await getOrHead(key, { range, onlyIf });
         if (!obj) {
             if (key === '' || key.endsWith('/')) { // object not found, append index.html and try again (like pages)
@@ -61,7 +63,8 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         }
         if (obj) {
             // choose not to satisfy range requests for encoded content
-            if (range && computeHeaders(obj, range).get('content-encoding') === 'gzip') {
+            if (range && computeHeaders(obj, range).has('content-encoding')) {
+                console.log('re-request without range');
                 // re-request without range
                 range = undefined;
                 obj = await bucket.get(key);
@@ -105,17 +108,10 @@ function computeObjResponse(obj: R2Object, status: number, range?: R2Range, only
     
     const headers = computeHeaders(obj, range);
 
-    if (headers.get('content-encoding') === 'gzip' && headers.get('cache-control') === 'no-transform') {
-        // r2 bug: cf will double gzip in this case!
-        // for now, decompress it in the worker and let cf autocompress take over
-        if (body) {
-            const ds = new DecompressionStream('gzip');
-            body = body.pipeThrough(ds);
-        }
-        headers.delete('content-encoding');
-        headers.delete('cache-control');
-    }
-    return new Response(body, { status, headers });
+    // non-standard cloudflare ResponseInit property indicating the response is already encoded
+    const encodeBody = headers.has('content-encoding') ? 'manual' : undefined;
+
+    return new Response(body, { status, headers, encodeBody });
 }
 
 function computeHeaders(obj: R2Object, range?: R2Range): Headers {
@@ -139,9 +135,8 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
         // max-age=31536000, no-transform, public
         if (contentDisposition === 'gzip') {
             headers.set('content-encoding', contentDisposition);
-            headers.set('cache-control', 'no-transform'); // try to disable cf transparent compression
         }
-        if (contentDisposition.includes('max-age') || contentDisposition.includes('no-transform') || contentDisposition.includes('public')) {
+        if (contentDisposition.includes('max-age') || contentDisposition.includes('no-transform') || contentDisposition.includes('public') || contentDisposition.includes('immutable')) {
             headers.set('cache-control', contentDisposition);
         }
     }
@@ -172,12 +167,14 @@ function tryParseR2Conditional(headers: Headers): R2Conditional | undefined {
     const etagMatches = ifMatch ? stripEtagQuoting(ifMatch) : undefined;
 
     const ifModifiedSince = headers.get('if-modified-since') || undefined;
-    const uploadedAfter = ifModifiedSince ? addingOneSecond(new Date(ifModifiedSince)) : undefined; // if-modified-since date format (rfc 1123) is at second resolution, uploaded is at millis resolution
+    // if-modified-since date format (rfc 1123) is at second resolution, uploaded is at millis resolution
+    // workaround for now is to add a second to the provided value
+    const uploadedAfter = ifModifiedSince ? addingOneSecond(new Date(ifModifiedSince)) : undefined; 
 
     const ifUnmodifiedSince = headers.get('if-unmodified-since') || undefined;
     const uploadedBefore = ifUnmodifiedSince ? new Date(ifUnmodifiedSince) : undefined;
 
-    return { etagDoesNotMatch, etagMatches, uploadedAfter, uploadedBefore };
+    return etagDoesNotMatch || etagMatches || uploadedAfter || uploadedBefore ? { etagDoesNotMatch, etagMatches, uploadedAfter, uploadedBefore } : undefined;
 }
 
 function stripEtagQuoting(str: string): string {
@@ -187,4 +184,15 @@ function stripEtagQuoting(str: string): string {
 
 function addingOneSecond(time: Date): Date {
     return new Date(time.getTime() + 1000);
+}
+
+//
+
+declare global {
+
+    interface ResponseInit {
+        // non-standard cloudflare property, defaults to 'auto'
+        encodeBody?: 'auto' | 'manual';
+    }
+
 }
