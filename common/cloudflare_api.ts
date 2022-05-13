@@ -367,6 +367,176 @@ export interface ListFlagsResponse extends CloudflareApiResponse {
 
 //#endregion
 
+//#region Workers Domains
+
+export async function listWorkersDomains(accountId: string, apiToken: string, opts: { hostname?: string } = {}): Promise<readonly WorkersDomain[]> {
+    const { hostname } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/domains`);
+    if (hostname) url.searchParams.set('hostname', hostname);
+    return (await execute('listWorkersDomains', 'GET', url.toString(), apiToken) as ListWorkersDomainsResponse).result;
+}
+
+export interface ListWorkersDomainsResponse extends CloudflareApiResponse {
+    readonly result: readonly WorkersDomain[];
+}
+
+export async function putWorkersDomain(accountId: string, apiToken: string, opts: { hostname: string, zoneId: string, service: string, environment: string }): Promise<WorkersDomain> {
+    const { hostname, zoneId, service, environment } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/domains`);
+
+    return (await execute('putWorkersDomain', 'PUT', url.toString(), apiToken, { hostname, zone_id: zoneId, service, environment }) as PutWorkersDomainResponse).result;
+}
+
+export interface PutWorkersDomainResponse extends CloudflareApiResponse {
+    readonly result: WorkersDomain;
+}
+
+export async function deleteWorkersDomain(accountId: string, apiToken: string, opts: { workersDomainId: string }): Promise<void> {
+    const { workersDomainId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/domains/${workersDomainId}`;
+
+    await execute('deleteWorkersDomain', 'DELETE', url, apiToken);
+}
+
+export interface WorkersDomain {
+    readonly id: string;
+    readonly zone_id: string;
+    readonly zone_name: string;
+    readonly hostname: string;
+    readonly service: string;
+    readonly environment: string;
+}
+
+//#endregion
+
+//#region Zones
+
+// https://dash.cloudflare.com/api/v4/accounts/f544440e9a7208f0a57109af843824ac/workers/domains
+
+export interface ListZonesOpts {
+
+    /**
+     * Whether to match all search requirements or at least one (any)
+     * 
+     * default: all
+     */
+    readonly match?: 'any' | 'all';
+
+    /**
+     * A domain name
+     * 
+     * max length: 253
+     */
+    readonly name?: string;
+
+    /**
+     * Field to order zones by
+     * 
+     * valid values: name, status, account.id, account.name
+     */
+    readonly order?: 'name' | 'status' | 'account.id' | 'account.name';
+
+    /**
+     * Page number of paginated results
+     * 
+     * default value: 1
+     * min value:1
+     */
+    readonly page?: number;
+
+    /**
+     * Number of zones per page
+     * 
+     * default value: 20
+     * min value:5
+     * max value:50 (found max value:1000)
+     */
+    readonly perPage?: number;
+
+    /** Status of the zone */
+    readonly status?: ZoneStatus;
+
+    /** Direction to order zones */
+    readonly direction?: 'asc' | 'desc';
+}
+
+export async function listZones(accountId: string, apiToken: string, opts: ListZonesOpts = {}) {
+    const { match, name, order, page, perPage, status, direction } = opts;
+    const url = new URL(`${computeBaseUrl()}/zones`);
+    url.searchParams.set('account.id', accountId);
+    if (match) url.searchParams.set('match', match);
+    if (name) url.searchParams.set('name', name);
+    if (order) url.searchParams.set('order', order);
+    if (page) url.searchParams.set('page', String(page));
+    if (perPage) url.searchParams.set('per_page', String(perPage));
+    if (status) url.searchParams.set('status', status);
+    if (direction) url.searchParams.set('direction', direction);
+    return (await execute('listZones', 'GET', url.toString(), apiToken) as ListZonesResponse).result;
+}
+
+export interface ListZonesResponse extends CloudflareApiResponse {
+    readonly result: readonly Zone[];
+    readonly result_info: ResultInfo;
+}
+
+export interface ResultInfo {
+    readonly page: number;
+    readonly per_page: number;
+    readonly total_pages: number;
+    readonly count: number;
+    readonly total_count: number;
+}
+
+export type ZoneStatus = 'active' | 'pending' | 'initializing' | 'moved' | 'deleted' | 'deactivated' | 'read only';
+
+export interface Zone {
+    /**
+     * Zone identifier tag
+     * 
+     * max length: 32
+     * read only
+     */
+    readonly id: string;
+
+    /**
+     * The domain name
+     * 
+     * max length: 253
+     * read only
+     * pattern: ^([a-zA-Z0-9][\-a-zA-Z0-9]*\.)+[\-a-zA-Z0-9]{2,20}$
+     */
+    readonly name: string;
+
+    /**
+     * Status of the zone
+     */
+    readonly status: ZoneStatus;
+
+    /**
+     * Indicates if the zone is only using Cloudflare DNS services. A true value means the zone will not receive security or performance benefits.
+     * 
+     * default value: false
+     * read only
+     */
+    readonly paused: boolean;
+
+    /**
+     * A full zone implies that DNS is hosted with Cloudflare. A partial zone is typically a partner-hosted zone or a CNAME setup.
+     */
+    readonly type: 'full' | 'partial';
+
+    /**
+     * The interval (in seconds) from when development mode expires (positive integer) or last expired (negative integer) for the domain. If development mode has never been enabled, this value is 0.
+     * 
+     * read only
+     */
+    readonly development_mode: number;
+
+    // TODO others as needed
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
@@ -378,6 +548,10 @@ const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=UTF-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=UTF-8';
+
+function computeBaseUrl(): string {
+    return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4`);
+}
 
 function computeAccountBaseUrl(accountId: string): string {
     return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4/accounts/${accountId}`);
@@ -396,13 +570,16 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text?' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
+    let bodyObj: Record<string, unknown> | undefined;
     if (typeof body === 'string') {
         headers.set('Content-Type', TEXT_PLAIN_UTF8);
     } else if (isStringRecord(body)) {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
+        bodyObj = body;
         body = JSON.stringify(body);
-        if (CloudflareApi.DEBUG) console.log(body);
     }
+    if (CloudflareApi.DEBUG) console.log([...headers].map(v => v.join(': ')).join('\n'));
+    if (CloudflareApi.DEBUG && bodyObj) console.log(bodyObj);
     const fetchResponse = await fetch(url, { method, headers, body });
     if (CloudflareApi.DEBUG) console.log(`${fetchResponse.status} ${fetchResponse.url}`);
     if (CloudflareApi.DEBUG) console.log([...fetchResponse.headers].map(v => v.join(': ')).join('\n'));

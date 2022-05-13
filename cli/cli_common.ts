@@ -27,6 +27,12 @@ export async function computeContentsForScriptReference(scriptSpec: string, conf
     }
 }
 
+export function parseRequiredStringOption(name: string, options: Record<string, unknown>): string {
+    const rt = parseOptionalStringOption(name, options);
+    if (rt === undefined) throw Error(`Missing required option: ${name}`);
+    return rt;
+}
+
 export function parseOptionalStringOption(name: string, options: Record<string, unknown>): string | undefined {
     const value = options[name];
     if (value === undefined || typeof value === 'string') return value;

@@ -1,8 +1,9 @@
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { CloudflareApi, createR2Bucket, deleteR2Bucket, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listFlags, listR2Buckets, putKeyValue, putWorkerAccountSettings } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listFlags, listR2Buckets, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
+import { parseOptionalIntegerOption, parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
 
 export async function cfapi(args: (string | number)[], options: Record<string, unknown>) {
     const apiCommand = args[0];
@@ -62,6 +63,31 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
     } else if (apiCommand === 'list-flags') {
         const value = await listFlags(accountId, apiToken);
         console.log(value);
+    } else if (apiCommand === 'list-workers-domains') {
+        const hostname = parseOptionalStringOption('hostname', options);
+        const value = await listWorkersDomains(accountId, apiToken, { hostname });
+        console.log(value);
+    } else if (apiCommand === 'list-zones') {
+        const match = parseOptionalStringOption('match', options); if (typeof match === 'string' && match !== 'any' && match !== 'all') throw new Error(`Bad match: ${match}`);
+        const name = parseOptionalStringOption('name', options);
+        const order = parseOptionalStringOption('order', options); if (typeof order === 'string' && order !== 'name' && order !== 'status' && order !== 'account.id' && order !== 'account.name') throw new Error(`Bad order: ${order}`);
+        const page = parseOptionalIntegerOption('page', options);
+        const perPage = parseOptionalIntegerOption('per-page', options);
+        const status = parseOptionalStringOption('status', options); if (typeof status === 'string' && status !== 'active' && status !== 'pending' && status !== 'initializing' && status !== 'moved' && status !== 'deleted' && status !== 'deactivated' && status !== 'read only') throw new Error(`Bad status: ${status}`);
+        const direction = parseOptionalStringOption('direction', options); if (typeof direction === 'string' && direction !== 'asc' && direction !== 'desc') throw new Error(`Bad direction: ${direction}`);
+        const value = await listZones(accountId, apiToken, { match, name, order, page, perPage, status, direction });
+        console.log(value);
+    } else if (apiCommand === 'put-workers-domain') {
+        const hostname = parseRequiredStringOption('hostname', options);
+        const zoneId = parseRequiredStringOption('zone-id', options);
+        const service = parseRequiredStringOption('service', options);
+        const environment = parseOptionalStringOption('environment', options) || 'production';
+        const value = await putWorkersDomain(accountId, apiToken, { hostname, zoneId, service, environment });
+        console.log(value);
+    } else if (apiCommand === 'delete-workers-domain') {
+        const [ _, workersDomainId ] = args;
+        check('workersDomainId', workersDomainId, typeof workersDomainId === 'string');
+        await deleteWorkersDomain(accountId, apiToken, { workersDomainId });
     } else {
         dumpHelp();
     }
