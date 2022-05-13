@@ -64,7 +64,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const scriptContents = new TextEncoder().encode(scriptContentsStr);
         const compressedScriptContents = gzip(scriptContents);
 
-        console.log(`putting ${isModule ? 'module' : 'script'}-based ${usageModel} worker ${scriptName}${pushIdSuffix}... ${computeSizeString(scriptContents, compressedScriptContents, parts)}`);
+        console.log(`putting ${isModule ? 'module' : 'script'}-based ${usageModel ? `${usageModel} worker` : 'worker' } ${scriptName}${pushIdSuffix}... ${computeSizeString(scriptContents, compressedScriptContents, parts)}`);
         if (migrations && migrations.deleted_classes.length > 0) {
             console.log(`  migration will delete durable object class(es): ${migrations.deleted_classes.join(', ')}`);
         }
@@ -97,7 +97,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     await buildAndPutScript();
 
     if (watch) {
-        console.log('Watching for changes...');
+        console.log('watching for changes...');
         const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
         if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
         const scriptPathOrUrl = scriptUrl ? scriptUrl.toString() : script ? script.path : isAbsolute(rootSpecifier) ? rootSpecifier : resolve(Deno.cwd(), rootSpecifier);
@@ -107,7 +107,7 @@ export async function push(args: (string | number)[], options: Record<string, un
             } catch (e) {
                 console.error(e);
             } finally {
-                console.log('Watching for changes...');
+                console.log('watching for changes...');
             }
         }, watchIncludes);
         return new Promise(() => {});
