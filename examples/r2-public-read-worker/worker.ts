@@ -188,10 +188,10 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
     if (contentLanguage) headers.set('x-r2-content-language', contentLanguage);
     if (contentDisposition) {
         headers.set('x-r2-content-disposition', contentDisposition);
-        // max-age=31536000, no-transform, public
         if (contentDisposition === 'gzip') {
             headers.set('content-encoding', contentDisposition);
         }
+        // max-age=31536000, no-transform, public
         if (/(private|public|maxage|max-age|no-transform|immutable)/.test(contentDisposition)) {
             headers.set('cache-control', contentDisposition);
         }

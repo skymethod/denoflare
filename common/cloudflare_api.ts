@@ -5,9 +5,17 @@ export async function listDurableObjectsNamespaces(accountId: string, apiToken: 
     return (await execute('listDurableObjectsNamespaces', 'GET', url, apiToken) as ListDurableObjectsNamespacesResponse).result;
 }
 
+export interface ListDurableObjectsNamespacesResponse extends CloudflareApiResponse {
+    readonly result: readonly DurableObjectsNamespace[];
+}
+
 export async function createDurableObjectsNamespace(accountId: string, apiToken: string, payload: { name: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
     return (await execute('createDurableObjectsNamespace', 'POST', url, apiToken, payload) as CreateDurableObjectsNamespaceResponse).result;
+}
+
+export interface CreateDurableObjectsNamespaceResponse extends CloudflareApiResponse {
+    readonly result: DurableObjectsNamespace;
 }
 
 export async function updateDurableObjectsNamespace(accountId: string, apiToken: string, payload: { id: string, name?: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
@@ -15,9 +23,20 @@ export async function updateDurableObjectsNamespace(accountId: string, apiToken:
     return (await execute('updateDurableObjectsNamespace', 'PUT', url, apiToken, payload) as UpdateDurableObjectsNamespaceResponse).result;
 }
 
+export interface UpdateDurableObjectsNamespaceResponse extends CloudflareApiResponse {
+    readonly result: DurableObjectsNamespace;
+}
+
 export async function deleteDurableObjectsNamespace(accountId: string, apiToken: string, namespaceId: string): Promise<void> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${namespaceId}`;
     await execute('deleteDurableObjectsNamespace', 'DELETE', url, apiToken) as CloudflareApiResponse;
+}
+
+export interface DurableObjectsNamespace {
+    readonly id: string;
+    readonly name: string;
+    readonly script: string | null;
+    readonly class: string | undefined;
 }
 
 //#endregion
@@ -27,6 +46,10 @@ export async function deleteDurableObjectsNamespace(accountId: string, apiToken:
 export async function listScripts(accountId: string, apiToken: string): Promise<readonly Script[]> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts`;
     return (await execute('listScripts', 'GET', url, apiToken) as ListScriptsResponse).result;
+}
+
+export interface ListScriptsResponse extends CloudflareApiResponse {
+    readonly result: readonly Script[];
 }
 
 export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', enableR2?: boolean }): Promise<Script> {
@@ -64,9 +87,94 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
     return (await execute('putScript', 'PUT', url, apiToken, formData) as PutScriptResponse).result;
 }
 
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2Binding;
+
+export interface PlainTextBinding {
+    readonly type: 'plain_text';
+    readonly name: string;
+    readonly text: string;
+}
+
+export interface SecretTextBinding {
+    readonly type: 'secret_text';
+    readonly name: string;
+    readonly text: string;
+}
+
+export interface KvNamespaceBinding {
+    readonly type: 'kv_namespace';
+    readonly name: string;
+    readonly 'namespace_id': string;
+}
+
+export interface DurableObjectNamespaceBinding {
+    readonly type: 'durable_object_namespace';
+    readonly name: string;
+    readonly 'namespace_id': string;
+}
+
+export interface WasmModuleBinding {
+    readonly type: 'wasm_module';
+    readonly name: string;
+    readonly part: string;
+}
+
+export interface ServiceBinding {
+    readonly type: 'service';
+    readonly name: string;
+    readonly service: string;
+    readonly environment: string;
+}
+
+export interface R2Binding {
+    readonly type: 'r2_bucket';
+    readonly name: string;
+    readonly 'bucket_name': string;
+}
+
+// this is likely not correct, but it works to delete obsolete DO classes at least
+export interface Migrations {
+    readonly tag: string;
+    readonly deleted_classes: string[];
+}
+
+export interface Part {
+    readonly name: string;
+    readonly value: string | Blob;
+    readonly fileName?: string;
+    readonly valueBytes?: Uint8Array;
+}
+
+export interface PutScriptResponse extends CloudflareApiResponse {
+    readonly result: Script;
+}
+
 export async function deleteScript(accountId: string, scriptName: string, apiToken: string): Promise<DeleteScriptResult> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     return (await execute('deleteScript', 'DELETE', url, apiToken) as DeleteScriptResponse).result;
+}
+
+export interface DeleteScriptResponse extends CloudflareApiResponse {
+    readonly result: DeleteScriptResult;
+}
+
+export interface DeleteScriptResult {
+    readonly id: string;
+}
+
+export interface Script {
+    readonly id: string;
+    readonly etag: string;
+    readonly handlers: readonly string[];
+    readonly 'named_handlers'?: readonly NamedHandler[];
+    readonly 'modified_on': string;
+    readonly 'created_on': string;
+    readonly 'usage_model': string;
+}
+
+export interface NamedHandler {
+    readonly name: string;
+    readonly handlers: readonly string[];
 }
 
 //#endregion
@@ -84,6 +192,15 @@ export async function putWorkerAccountSettings(accountId: string, apiToken: stri
     return (await execute('putWorkerAccountSettings', 'PUT', url, apiToken, { default_usage_model }) as WorkerAccountSettingsResponse).result;
 }
 
+export interface WorkerAccountSettings {
+    readonly 'default_usage_model': string,
+    readonly 'green_compute': boolean,
+}
+
+export interface WorkerAccountSettingsResponse extends CloudflareApiResponse {
+    readonly result: WorkerAccountSettings;
+}
+
 //#endregion
 
 //#region Workers KV
@@ -97,6 +214,10 @@ export async function getKeyMetadata(accountId: string, namespaceId: string, key
     const url = `${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/metadata/${key}`;
     const res = await execute('getKeyMetadata', 'GET', url, apiToken, undefined, 'json?');
     return res ? (res as GetKeyMetadataResponse).result : undefined;
+}
+
+export interface GetKeyMetadataResponse extends CloudflareApiResponse {
+    readonly result: Record<string, string>;
 }
 
 /**
@@ -253,7 +374,6 @@ export class CloudflareApi {
 
 //
 
-
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=UTF-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
@@ -319,64 +439,6 @@ export class CloudflareApiError extends Error {
     }
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2Binding;
-
-export interface PlainTextBinding {
-    readonly type: 'plain_text';
-    readonly name: string;
-    readonly text: string;
-}
-
-export interface SecretTextBinding {
-    readonly type: 'secret_text';
-    readonly name: string;
-    readonly text: string;
-}
-
-export interface KvNamespaceBinding {
-    readonly type: 'kv_namespace';
-    readonly name: string;
-    readonly 'namespace_id': string;
-}
-
-export interface DurableObjectNamespaceBinding {
-    readonly type: 'durable_object_namespace';
-    readonly name: string;
-    readonly 'namespace_id': string;
-}
-
-export interface WasmModuleBinding {
-    readonly type: 'wasm_module';
-    readonly name: string;
-    readonly part: string;
-}
-
-export interface ServiceBinding {
-    readonly type: 'service';
-    readonly name: string;
-    readonly service: string;
-    readonly environment: string;
-}
-
-export interface R2Binding {
-    readonly type: 'r2_bucket';
-    readonly name: string;
-    readonly 'bucket_name': string;
-}
-
-// this is likely not correct, but it works to delete obsolete DO classes at least
-export interface Migrations {
-    readonly tag: string;
-    readonly deleted_classes: string[];
-}
-
-export interface Part {
-    readonly name: string;
-    readonly value: string | Blob;
-    readonly fileName?: string;
-    readonly valueBytes?: Uint8Array;
-}
-
 export interface Message {
     readonly code: number;
     readonly message: string;
@@ -386,67 +448,4 @@ export interface CloudflareApiResponse {
     readonly success: boolean;
     readonly errors: readonly Message[];
     readonly messages?: readonly Message[];
-}
-
-export interface ListDurableObjectsNamespacesResponse extends CloudflareApiResponse {
-    readonly result: readonly DurableObjectsNamespace[];
-}
-
-export interface CreateDurableObjectsNamespaceResponse extends CloudflareApiResponse {
-    readonly result: DurableObjectsNamespace;
-}
-
-export interface UpdateDurableObjectsNamespaceResponse extends CloudflareApiResponse {
-    readonly result: DurableObjectsNamespace;
-}
-
-export interface DurableObjectsNamespace {
-    readonly id: string;
-    readonly name: string;
-    readonly script: string | null;
-    readonly class: string | undefined;
-}
-
-export interface PutScriptResponse extends CloudflareApiResponse {
-    readonly result: Script;
-}
-
-export interface Script {
-    readonly id: string;
-    readonly etag: string;
-    readonly handlers: readonly string[];
-    readonly 'named_handlers'?: readonly NamedHandler[];
-    readonly 'modified_on': string;
-    readonly 'created_on': string;
-    readonly 'usage_model': string;
-}
-
-export interface NamedHandler {
-    readonly name: string;
-    readonly handlers: readonly string[];
-}
-
-export interface DeleteScriptResponse extends CloudflareApiResponse {
-    readonly result: DeleteScriptResult;
-}
-
-export interface DeleteScriptResult {
-    readonly id: string;
-}
-
-export interface ListScriptsResponse extends CloudflareApiResponse {
-    readonly result: readonly Script[];
-}
-
-export interface GetKeyMetadataResponse extends CloudflareApiResponse {
-    readonly result: Record<string, string>;
-}
-
-export interface WorkerAccountSettings {
-    readonly 'default_usage_model': string,
-    readonly 'green_compute': boolean,
-}
-
-export interface WorkerAccountSettingsResponse extends CloudflareApiResponse {
-    readonly result: WorkerAccountSettings;
 }
