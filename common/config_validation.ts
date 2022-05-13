@@ -77,10 +77,14 @@ function isValidApiTokenId(apiTokenId: string): boolean {
     return /^(regex:.*|[0-9a-f]{32})$/.test(apiTokenId)
 }
 
+function isValidCustomDomain(customDomain: string): boolean {
+    return /^([a-zA-Z0-9][a-zA-Z0-9-]*\.)+[\-a-zA-Z0-9]{2,20}$/.test(customDomain); // taken from cloudflare api Zone.name validation, should work for subdomains
+}
+
 // deno-lint-ignore no-explicit-any
 function checkScript(name: string, script: any): Script {
     checkObject(name, script);
-    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel} = script;
+    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains } = script;
     if (path !== undefined && typeof path !== 'string') throw new Error(`Bad ${name}.path: expected string, found ${typeof path}`);
     if (bindings !== undefined) {
         checkObject(`${name}.bindings`, bindings);
@@ -101,7 +105,7 @@ function checkScript(name: string, script: any): Script {
         if (typeof profile !== 'string' || !isValidProfileName(profile)) throw new Error(`Bad ${name}.profile: ${profile}`);
     }
     if (usageModel !== undefined && usageModel !== 'bundled' && usageModel !== 'unbound') throw new Error(`Bad ${name}.usageModel: expected bundled | unbound, found ${usageModel}`);
-
+    if (customDomains !== undefined && !(Array.isArray(customDomains) && customDomains.every(v => typeof v === 'string' && isValidCustomDomain(v)))) throw new Error(`Bad ${name}.customDomains: expected string array of domain names, found ${customDomains}`);
     return script as Script;
 }
 

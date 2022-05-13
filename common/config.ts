@@ -78,6 +78,12 @@ export interface Script {
      * See https://developers.cloudflare.com/workers/platform/pricing#usage-models
      */
     readonly usageModel?: UsageModel;
+
+    /** Custom domain(s) on which to bind this worker when deploying to Cloudflare.
+     * 
+     * See https://blog.cloudflare.com/custom-domains-for-workers/
+     */
+    readonly customDomains?: string[];
 }
 
 /** Binding definition for a worker script environment variable */

@@ -1,13 +1,13 @@
 import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve, fromFileUrl, relative } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain } from '../common/cloudflare_api.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { computeContentsForScriptReference } from './cli_common.ts';
 import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2Binding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
-import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { emit } from './emit.ts';
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
@@ -72,12 +72,27 @@ export async function push(args: (string | number)[], options: Record<string, un
 
         await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2 });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
-        pushNumber++;
+       
         if (doNamespaces.hasPendingUpdates()) {
             start = Date.now();
             await doNamespaces.flushPendingUpdates();
             console.log(`updated durable object namespaces in ${Date.now() - start}ms`);
         }
+
+        // only perform custom domain setup on first upload, not on subsequent --watch uploads
+        if (pushNumber === 1) {
+            const customDomains = script?.customDomains || [];
+            if (customDomains.length > 0) {
+                start = Date.now();
+                const zones = await listZones(accountId, apiToken, { perPage: 1000 });
+                for (const customDomain of customDomains) {
+                    await ensureCustomDomainExists(customDomain, { zones, scriptName, accountId, apiToken });
+                }
+                console.log(`bound worker to ${customDomains.length === 1 ? 'custom domain' : `${customDomains.length} custom domains`} in ${Date.now() - start}ms`);
+            }
+        }
+        
+        pushNumber++;
     }
     await buildAndPutScript();
 
@@ -101,6 +116,20 @@ export async function push(args: (string | number)[], options: Record<string, un
 
 //
 
+async function ensureCustomDomainExists(customDomain: string, opts: { zones: readonly Zone[], scriptName: string, accountId: string, apiToken: string }) {
+    const { zones, scriptName, accountId, apiToken } = opts;
+    console.log(`ensuring ${customDomain} points to ${scriptName}...`);
+    const zoneCandidates = zones.filter(v => customDomain.endsWith('.' + v.name));
+    if (zoneCandidates.length === 0) throw new Error(`Unable to locate the parent zone, do you have permissions to edit zones?`);
+    if (zoneCandidates.length > 1) throw new Error(`Unable to locate the parent zone, multiple candidates: ${zoneCandidates.map(v => v.name).join(', ')}`);
+    const [ zone ] = zoneCandidates;
+    checkEqual('zone.paused', zone.paused, false);
+    checkEqual('zone.status', zone.status, 'active');
+    checkEqual('zone.type', zone.type, 'full');
+
+    // idempotent
+    await putWorkersDomain(accountId, apiToken, { hostname: customDomain, zoneId: zone.id, service: scriptName, environment: 'production' });
+}
 
 function computeMigrations(options: Record<string, unknown>): Migrations | undefined {
     const option = options['delete-class'];

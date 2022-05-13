@@ -131,6 +131,13 @@
                             "type": "string",
                             "enum": ["bundled", "unbound"],
                             "default": "bundled"
+                        },
+                        "customDomains": {
+                            "description": "Custom domain(s) on which to bind this worker when deploying to Cloudflare.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
