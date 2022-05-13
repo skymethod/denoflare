@@ -395,7 +395,7 @@ export async function deleteWorkersDomain(accountId: string, apiToken: string, o
     const { workersDomainId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/domains/${workersDomainId}`;
 
-    await execute('deleteWorkersDomain', 'DELETE', url, apiToken);
+    await execute('deleteWorkersDomain', 'DELETE', url, apiToken, undefined, 'empty');
 }
 
 export interface WorkersDomain {
@@ -567,7 +567,8 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'text?'): Promise<string | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text?' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'empty'): Promise<undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text?' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | undefined;
@@ -584,6 +585,12 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
     if (CloudflareApi.DEBUG) console.log(`${fetchResponse.status} ${fetchResponse.url}`);
     if (CloudflareApi.DEBUG) console.log([...fetchResponse.headers].map(v => v.join(': ')).join('\n'));
     const contentType = fetchResponse.headers.get('Content-Type') || '';
+    if (responseType === 'empty') {
+        if (contentType !== '') throw new Error(`Unexpected content-type (expected none): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+        const text = await fetchResponse.text();
+        if (text !== '') throw new Error(`Unexpected body (expected none): ${text}, fetchResponse=${fetchResponse}, body=${text}`);
+        return;
+    }
     if ((responseType === 'bytes' || responseType === 'bytes?') && contentType === APPLICATION_OCTET_STREAM) {
         const buffer = await fetchResponse.arrayBuffer();
         return new Uint8Array(buffer);
