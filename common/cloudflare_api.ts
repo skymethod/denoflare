@@ -411,8 +411,6 @@ export interface WorkersDomain {
 
 //#region Zones
 
-// https://dash.cloudflare.com/api/v4/accounts/f544440e9a7208f0a57109af843824ac/workers/domains
-
 export interface ListZonesOpts {
 
     /**
@@ -479,14 +477,6 @@ export interface ListZonesResponse extends CloudflareApiResponse {
     readonly result_info: ResultInfo;
 }
 
-export interface ResultInfo {
-    readonly page: number;
-    readonly per_page: number;
-    readonly total_pages: number;
-    readonly count: number;
-    readonly total_count: number;
-}
-
 export type ZoneStatus = 'active' | 'pending' | 'initializing' | 'moved' | 'deleted' | 'deactivated' | 'read only';
 
 export interface Zone {
@@ -551,6 +541,206 @@ export interface VerifyTokenResponse extends CloudflareApiResponse {
 export interface VerifyTokenResult {
     readonly id: string;
     readonly status: string; // e.g. active
+}
+
+//#endregion
+
+//#region Memberships
+
+export interface ListMembershipsOpts {
+
+    /** Status of this membership */
+    readonly status?: MembershipStatus;
+
+    /** 
+     * Account name
+     * 
+     * max length: 100
+     */
+    readonly accountName?: string;
+
+    /**
+     * Field to order zones by
+     * 
+     * valid values: name, status, account.id, account.name
+     */
+    readonly order?: 'id' | 'status' | 'account.name';
+
+    /**
+     * Page number of paginated results
+     * 
+     * default value: 1
+     * min value:1
+     */
+    readonly page?: number;
+
+    /**
+     * Number of memberships per page
+     * 
+     * default value: 20
+     * min value:5
+     * max value:50 (found max value:1000)
+     */
+    readonly perPage?: number;
+
+    /** Direction to order zones */
+    readonly direction?: 'asc' | 'desc';
+}
+
+export async function listMemberships(apiToken: string, opts: ListMembershipsOpts = {}) {
+    const { status, accountName, order, page, perPage, direction } = opts;
+    const url = new URL(`${computeBaseUrl()}/memberships`);
+    if (status) url.searchParams.set('status', status);
+    if (accountName) url.searchParams.set('account.name', accountName);
+    if (order) url.searchParams.set('order', order);
+    if (page) url.searchParams.set('page', String(page));
+    if (perPage) url.searchParams.set('per_page', String(perPage));
+    if (direction) url.searchParams.set('direction', direction);
+    return (await execute('listMemberships', 'GET', url.toString(), apiToken) as ListMembershipsResponse).result;
+}
+
+export interface ListMembershipsResponse extends CloudflareApiResponse {
+    readonly result: readonly Membership[];
+    readonly result_info: ResultInfo;
+}
+
+export type MembershipStatus = 'accepted' | 'pending' | 'rejected';
+
+export interface Membership {
+    /** 
+     * Membership identifier tag
+     * 
+     * max length: 32
+     * read only
+     */
+    readonly id: string;
+
+    /**
+     * The unique activation code for the account membership
+     * 
+     * max length: 64
+     * read only
+     */
+    readonly code: string;
+
+    /** Status of this membership */
+    readonly status: MembershipStatus;
+
+    readonly account: Account;
+
+    /** List of role names for the User at the Account */
+    readonly roles: readonly string[];
+
+    // e.g. { "analytics": { "read": true, "write": true } }
+    readonly permissions: Record<string, unknown>;
+}
+
+//#endregion
+
+//#region Accounts
+
+export interface ListAccountsOpts {
+
+    /** Name of the account */
+    readonly name?: string;
+
+    /**
+     * Page number of paginated results
+     * 
+     * default value: 1
+     * min value:1
+     */
+    readonly page?: number;
+
+    /**
+     * Number of memberships per page
+     * 
+     * default value: 20
+     * min value:5
+     * max value:50 (found max value:1000)
+     */
+    readonly perPage?: number;
+
+    /** Direction to order zones */
+    readonly direction?: 'asc' | 'desc';
+}
+
+export async function listAccounts(apiToken: string, opts: ListAccountsOpts = {}) {
+    const { name, page, perPage, direction } = opts;
+    const url = new URL(`${computeBaseUrl()}/accounts`);
+    if (name) url.searchParams.set('name', name);
+    if (page) url.searchParams.set('page', String(page));
+    if (perPage) url.searchParams.set('per_page', String(perPage));
+    if (direction) url.searchParams.set('direction', direction);
+    return (await execute('listAccounts', 'GET', url.toString(), apiToken) as ListAccountsResponse).result;
+}
+
+export interface ListAccountsResponse extends CloudflareApiResponse {
+    readonly result: readonly Account[];
+    readonly result_info: ResultInfo;
+}
+
+export interface Account {
+    /**
+     * Account identifier tag
+     * 
+     * max length: 32
+     * read only
+     */
+    readonly id: string;
+
+    /**
+     * Account name
+     * 
+     * max length: 100
+     * read only
+     */
+    readonly name: string;
+
+    /** Account settings */
+    readonly settings: Record<string, unknown>;
+
+    /** Describes when account was created */
+    readonly created_on: string; // instant
+}
+
+//#endregion
+
+//#region User
+
+export async function getUser(apiToken: string): Promise<User> {
+    const url = `${computeBaseUrl()}/user`;
+    return (await execute('getUser', 'GET', url, apiToken) as UserResponse).result;
+}
+
+export interface UserResponse extends CloudflareApiResponse {
+    readonly result: User;
+}
+
+export interface User {
+    /**
+     * User identifier tag
+     * 
+     * max length: 32
+     * read only
+     */
+    readonly id: string;
+
+    /**
+     * Your contact email address
+     * 
+     * max length: 90
+     */
+    readonly email: string;
+
+    readonly has_pro_zones: boolean;
+    readonly has_business_zones: boolean;
+    readonly has_enterprise_zones: boolean;
+
+    /** Indicates whether the user is prevented from performing certain actions within their account */
+    readonly suspended: boolean;
+
+    // TODO as needed
 }
 
 //#endregion
@@ -650,4 +840,12 @@ export interface CloudflareApiResponse {
     readonly success: boolean;
     readonly errors: readonly Message[];
     readonly messages?: readonly Message[];
+}
+
+export interface ResultInfo {
+    readonly page: number;
+    readonly per_page: number;
+    readonly total_pages: number;
+    readonly count: number;
+    readonly total_count: number;
 }

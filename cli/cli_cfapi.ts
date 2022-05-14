@@ -1,6 +1,6 @@
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listFlags, listR2Buckets, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getUser, getWorkerAccountSettings, listAccounts, listFlags, listMemberships, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { parseOptionalIntegerOption, parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
@@ -13,8 +13,10 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
     }
 
     const config = await loadConfig(options);
-    const { accountId, apiToken } = await resolveProfile(config, options);
+    const { accountId, apiToken: apiTokenFromProfile } = await resolveProfile(config, options);
     if (options.verbose) CloudflareApi.DEBUG = true;
+    const apiTokenFromOption = parseOptionalStringOption('api-token', options);
+    const apiToken = apiTokenFromOption ?? apiTokenFromProfile;
     if (apiCommand === 'get-worker-account-settings') {
         const settings = await getWorkerAccountSettings(accountId, apiToken);
         console.log(settings);
@@ -71,10 +73,8 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
         const match = parseOptionalStringOption('match', options); if (typeof match === 'string' && match !== 'any' && match !== 'all') throw new Error(`Bad match: ${match}`);
         const name = parseOptionalStringOption('name', options);
         const order = parseOptionalStringOption('order', options); if (typeof order === 'string' && order !== 'name' && order !== 'status' && order !== 'account.id' && order !== 'account.name') throw new Error(`Bad order: ${order}`);
-        const page = parseOptionalIntegerOption('page', options);
-        const perPage = parseOptionalIntegerOption('per-page', options);
+        const { page, perPage, direction } = parsePagingOptions(options);
         const status = parseOptionalStringOption('status', options); if (typeof status === 'string' && status !== 'active' && status !== 'pending' && status !== 'initializing' && status !== 'moved' && status !== 'deleted' && status !== 'deactivated' && status !== 'read only') throw new Error(`Bad status: ${status}`);
-        const direction = parseOptionalStringOption('direction', options); if (typeof direction === 'string' && direction !== 'asc' && direction !== 'desc') throw new Error(`Bad direction: ${direction}`);
         const value = await listZones(accountId, apiToken, { match, name, order, page, perPage, status, direction });
         console.log(value);
     } else if (apiCommand === 'put-workers-domain') {
@@ -91,12 +91,36 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
     } else if (apiCommand === 'verify-token') {
         const value = await verifyToken(apiToken);
         console.log(value);
+    } else if (apiCommand === 'list-memberships') {
+        const order = parseOptionalStringOption('order', options); if (typeof order === 'string' && order !== 'id' && order !== 'status' && order !== 'account.name') throw new Error(`Bad order: ${order}`);
+        const { page, perPage, direction } = parsePagingOptions(options);
+        const status = parseOptionalStringOption('status', options); if (typeof status === 'string' && status !== 'accepted' && status !== 'pending' && status !== 'rejected') throw new Error(`Bad status: ${status}`);
+        const value = await listMemberships(apiToken, { order, page, perPage, status, direction });
+        console.log(value);
+    } else if (apiCommand === 'list-scripts') {
+        const value = await listScripts(accountId, apiToken);
+        console.log(value);
+    } else if (apiCommand === 'list-accounts') {
+        const name = parseOptionalStringOption('name', options);
+        const { page, perPage, direction } = parsePagingOptions(options);
+        const value = await listAccounts(apiToken, { page, perPage, name, direction });
+        console.log(value);
+    } else if (apiCommand === 'get-user') {
+        const value = await getUser(apiToken);
+        console.log(value);
     } else {
         dumpHelp();
     }
 }
 
 //
+
+function parsePagingOptions(options: Record<string, unknown>): { page?: number, perPage?: number, direction?: 'asc' | 'desc' }  {
+    const page = parseOptionalIntegerOption('page', options);
+    const perPage = parseOptionalIntegerOption('per-page', options);
+    const direction = parseOptionalStringOption('direction', options); if (typeof direction === 'string' && direction !== 'asc' && direction !== 'desc') throw new Error(`Bad direction: ${direction}`);
+    return { page, perPage, direction };
+}
 
 function dumpHelp() {
     const lines = [

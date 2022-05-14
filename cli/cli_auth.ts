@@ -1,4 +1,4 @@
-import { computeOauthPkce, computeOauthUserAuthorizationUrl } from '../common/oauth.ts';
+import { computeOauthObtainTokenRequest, computeOauthPkce, computeOauthUserAuthorizationUrl } from '../common/oauth.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { serve } from './deps_cli.ts';
 import { parseRequiredStringOption } from './cli_common.ts';
@@ -25,9 +25,10 @@ export async function auth(args: (string | number)[], options: Record<string, un
 async function tmp(_args: (string | number)[], options: Record<string, unknown>) {
     const port = 8976;
     const authUrl = 'https://dash.cloudflare.com/oauth2/auth';
+    const tokenUrl = 'https://dash.cloudflare.com/oauth2/token';
     const clientId = parseRequiredStringOption('client-id', options);
     const redirectUri = `http://localhost:${port}/oauth/callback`;
-    const scopes = [ 'workers_scripts:write', 'zone:read', 'offline_access' ];
+    const scopes = [ 'workers_scripts:write', 'zone:read', 'account:read', 'user:read', 'offline_access' ];
     const oauthRequestId = { time: Date.now(), nonce: crypto.randomUUID().toLowerCase().split('-').pop()! };
     const state = [oauthRequestId.time, oauthRequestId.nonce].join(':');
     const { codeVerifier, codeChallenge, codeChallengeMethod } = await computeOauthPkce();
@@ -46,7 +47,13 @@ async function tmp(_args: (string | number)[], options: Record<string, unknown>)
             } else if ('code' in params && 'scope' in params) {
                 const { code, scope } = params;
                 console.log(`received code ${code} for scopes: ${scope.split(' ').join(', ')}`);
-                console.log(`TODO exchange code for token, codeVerifier=${codeVerifier}`);
+
+                // exchange auth code for token
+                const req = computeOauthObtainTokenRequest(tokenUrl, { grantType: 'authorization_code', clientId, redirectUri, code, codeVerifier });
+                const res = await fetch(req);
+                console.log(`${res.status} ${res.url}`);
+                console.log([...res.headers].map(v => v.join(': ')).join('\n'));
+                console.log(await res.text());
             }
             return new Response('ok');
         }
