@@ -11,3 +11,4 @@ export { html } from 'https://deno.land/x/html_escape@v1.1.5/html.ts';
 export { default as hljs } from 'https://cdn.skypack.dev/highlight.js@11.2.0';
 export { Md5 } from 'https://deno.land/std@0.139.0/hash/md5.ts';
 export { crypto as WasmCrypto } from 'https://deno.land/std@0.139.0/crypto/mod.ts';
+export { serve } from 'https://deno.land/std@0.139.0/http/server.ts';

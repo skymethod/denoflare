@@ -7,12 +7,13 @@ import { CLI_VERSION } from './cli_version.ts';
 import { analytics } from './cli_analytics.ts';
 import { cfapi } from './cli_cfapi.ts';
 import { r2 } from './cli_r2.ts';
+import { auth } from './cli_auth.ts';
 
 const args = parseFlags(Deno.args);
 
 if (args._.length > 0) {
     const command = args._[0];
-    const fn = { serve, push, tail, site, analytics, version, cfapi, r2 }[command];
+    const fn = { serve, push, tail, site, analytics, version, cfapi, r2, auth }[command];
         if (fn) {
             await fn(args._.slice(1), args);
             Deno.exit(0);

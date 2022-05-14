@@ -197,7 +197,7 @@ function dumpHelp() {
         '    list-objects    List objects within a bucket',
         '    get-object      Get R2 object for a given key',
         '',
-        'For subcommand-specific help: denoflare site [subcommand] --help',
+        'For subcommand-specific help: denoflare r2 [subcommand] --help',
     ];
     for (const line of lines) {
         console.log(line);
