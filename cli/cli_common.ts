@@ -40,6 +40,14 @@ export function parseOptionalStringOption(name: string, options: Record<string, 
     throw new Error(`Bad ${name}: ${value}`);
 }
 
+export function parseOptionalStringOptions(name: string, options: Record<string, unknown>): string[] | undefined {
+    const value = options[name];
+    if (value === undefined) return undefined;
+    if (typeof value === 'string') return [ value ];
+    if (Array.isArray(value) && value.every(v => typeof v === 'string')) return value;
+    throw new Error(`Bad ${name}: ${value}`);
+}
+
 export function parseOptionalBooleanOption(name: string, options: Record<string, unknown>): boolean | undefined {
     const value = options[name];
     if (value === undefined || typeof value === 'boolean') return value;

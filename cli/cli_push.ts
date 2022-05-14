@@ -4,7 +4,7 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
-import { computeContentsForScriptReference } from './cli_common.ts';
+import { computeContentsForScriptReference, parseOptionalStringOptions } from './cli_common.ts';
 import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2Binding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
@@ -31,6 +31,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     const { accountId, apiToken } = await resolveProfile(config, options);
     const watch = !!options.watch;
     const watchIncludes = typeof options.watch === 'string' ? options.watch.split(',').map(v => v.trim()) : [];
+    const customDomainsFromOptions = parseOptionalStringOptions('custom-domain', options);
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -81,7 +82,7 @@ export async function push(args: (string | number)[], options: Record<string, un
 
         // only perform custom domain setup on first upload, not on subsequent --watch uploads
         if (pushNumber === 1) {
-            const customDomains = script?.customDomains || [];
+            const customDomains = customDomainsFromOptions || script?.customDomains || [];
             if (customDomains.length > 0) {
                 start = Date.now();
                 const zones = await listZones(accountId, apiToken, { perPage: 1000 });
