@@ -537,6 +537,24 @@ export interface Zone {
 
 //#endregion
 
+//#region Verify Token
+
+export async function verifyToken(apiToken: string): Promise<VerifyTokenResult> {
+    const url = `${computeBaseUrl()}/user/tokens/verify`;
+    return (await execute('verifyToken', 'GET', url, apiToken) as VerifyTokenResponse).result;
+}
+
+export interface VerifyTokenResponse extends CloudflareApiResponse {
+    readonly result: VerifyTokenResult;
+}
+
+export interface VerifyTokenResult {
+    readonly id: string;
+    readonly status: string; // e.g. active
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;

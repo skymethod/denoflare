@@ -1,6 +1,6 @@
 import { loadConfig, resolveProfile } from './config_loader.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listFlags, listR2Buckets, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getWorkerAccountSettings, listFlags, listR2Buckets, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { parseOptionalIntegerOption, parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
@@ -88,6 +88,9 @@ export async function cfapi(args: (string | number)[], options: Record<string, u
         const [ _, workersDomainId ] = args;
         check('workersDomainId', workersDomainId, typeof workersDomainId === 'string');
         await deleteWorkersDomain(accountId, apiToken, { workersDomainId });
+    } else if (apiCommand === 'verify-token') {
+        const value = await verifyToken(apiToken);
+        console.log(value);
     } else {
         dumpHelp();
     }

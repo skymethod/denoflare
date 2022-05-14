@@ -3,6 +3,7 @@ import { checkConfig, isValidProfileName } from '../common/config_validation.ts'
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 import { join, resolve } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
+import { parseOptionalStringOption } from './cli_common.ts';
 
 export async function loadConfig(options: Record<string, unknown>): Promise<Config> {
     const verbose = !!options.verbose;
@@ -107,6 +108,13 @@ async function findConfigFilePath(): Promise<string | undefined> {
 }
 
 function findProfile(config: Config, options: Record<string, unknown>): Profile | undefined {
+    const accountId = parseOptionalStringOption('account-id', options);
+    const apiToken = parseOptionalStringOption('api-token', options);
+    if (typeof accountId === 'string' && accountId.length > 0 && typeof apiToken === 'string' && apiToken.length > 0) {
+        const verbose = !!options.verbose;
+        if (verbose) console.log('Using account-id and api-token from options');
+        return { accountId, apiToken };
+    }
     const profiles = config.profiles || {};
     const { profile: optionProfileName } = options;
     if (optionProfileName !== undefined) {
