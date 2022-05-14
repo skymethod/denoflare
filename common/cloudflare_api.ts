@@ -87,7 +87,7 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
     return (await execute('putScript', 'PUT', url, apiToken, formData) as PutScriptResponse).result;
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2Binding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -126,7 +126,7 @@ export interface ServiceBinding {
     readonly environment: string;
 }
 
-export interface R2Binding {
+export interface R2BucketBinding {
     readonly type: 'r2_bucket';
     readonly name: string;
     readonly 'bucket_name': string;

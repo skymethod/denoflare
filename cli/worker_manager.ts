@@ -1,5 +1,5 @@
 import { ApiKVNamespace } from './api_kv_namespace.ts';
-import { Profile, Binding, isR2Binding } from '../common/config.ts';
+import { Profile, Binding, isR2BucketBinding } from '../common/config.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from '../common/rpc_fetch.ts';
@@ -123,11 +123,11 @@ export class WorkerManager {
 }
 
 export async function computeR2BucketProvider(profile: Profile | undefined, bindings: Record<string, Binding>, userAgent: string): Promise<R2BucketProvider> {
-    if (Object.values(bindings).some(isR2Binding)) {
+    if (Object.values(bindings).some(isR2BucketBinding)) {
         const { accountId, credentials } = await ApiR2Bucket.parseAccountAndCredentials(profile);
         return bucketName => ApiR2Bucket.ofAccountAndCredentials(accountId, credentials, bucketName, userAgent);
     }
-    return _ => { throw new Error('computeR2BucketProvider: No R2 bindings found'); }
+    return _ => { throw new Error('computeR2BucketProvider: No R2 bucket bindings found'); }
 }
 
 //

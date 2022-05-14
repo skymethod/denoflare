@@ -87,7 +87,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2Binding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -143,7 +143,7 @@ export interface ServiceBinding {
 }
 
 /** R2 environment variable binding */
-export interface R2Binding {
+export interface R2BucketBinding {
 
     // The R2 bucket name
     readonly bucketName: string;
@@ -212,7 +212,7 @@ export function isServiceBinding(binding: Binding): binding is ServiceBinding {
     return typeof (binding as any).serviceEnvironment === 'string';
 }
 
-export function isR2Binding(binding: Binding): binding is R2Binding {
+export function isR2BucketBinding(binding: Binding): binding is R2BucketBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).bucketName === 'string';
 }

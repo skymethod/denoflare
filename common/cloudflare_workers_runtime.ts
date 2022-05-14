@@ -1,4 +1,4 @@
-import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isR2Binding, isSecretBinding, isTextBinding } from './config.ts';
+import { Binding, isDONamespaceBinding, isKVNamespaceBinding, isR2BucketBinding, isSecretBinding, isTextBinding } from './config.ts';
 import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair, R2Bucket } from './cloudflare_workers_types.d.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 
@@ -65,7 +65,7 @@ function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceP
     if (isSecretBinding(binding)) return binding.secret;
     if (isKVNamespaceBinding(binding)) return kvNamespaceProvider(binding.kvNamespace);
     if (isDONamespaceBinding(binding)) return doNamespaceProvider(binding.doNamespace);
-    if (isR2Binding(binding)) return r2BucketProvider(binding.bucketName);
+    if (isR2BucketBinding(binding)) return r2BucketProvider(binding.bucketName);
     throw new Error(`TODO implement binding ${JSON.stringify(binding)}`);
 }
 

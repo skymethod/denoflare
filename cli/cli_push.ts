@@ -5,7 +5,7 @@ import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { computeContentsForScriptReference, parseOptionalStringOptions } from './cli_common.ts';
-import { Script, Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2Binding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { emit } from './emit.ts';
@@ -32,6 +32,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     const watch = !!options.watch;
     const watchIncludes = typeof options.watch === 'string' ? options.watch.split(',').map(v => v.trim()) : [];
     const customDomainsFromOptions = parseOptionalStringOptions('custom-domain', options);
+    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -52,7 +53,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const pushId = watch ? `${pushStart}.${pushNumber}` : undefined;
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const usageModel = script?.usageModel;
-        const { bindings, parts } = script ? await computeBindings(script, scriptName, doNamespaces, pushId) : { bindings: [], parts: [] };
+        const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
         const enableR2 = bindings.some(v => v.type === 'r2_bucket');
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
@@ -116,6 +117,40 @@ export async function push(args: (string | number)[], options: Record<string, un
 }
 
 //
+
+function parseInputBindingsFromOptions(options: Record<string, unknown>): Record<string, Binding> {
+    const rt: Record<string, Binding>  = {};
+    const pattern = /^([^:]+):(.*)$/;
+    for (const textBinding of parseOptionalStringOptions('text-binding', options) || []) {
+        const [ _, name, value] = checkMatchesReturnMatcher('text-binding', textBinding, pattern);
+        rt[name] = { value };
+    }
+    for (const secretBinding of parseOptionalStringOptions('secret-binding', options) || []) {
+        const [ _, name, secret] = checkMatchesReturnMatcher('secret-binding', secretBinding, pattern);
+        rt[name] = { secret };
+    }
+    for (const kvNamespaceBinding of parseOptionalStringOptions('kv-namespace-binding', options) || []) {
+        const [ _, name, kvNamespace] = checkMatchesReturnMatcher('kv-namespace-binding', kvNamespaceBinding, pattern);
+        rt[name] = { kvNamespace };
+    }
+    for (const doNamespaceBinding of parseOptionalStringOptions('do-namespace-binding', options) || []) {
+        const [ _, name, doNamespace] = checkMatchesReturnMatcher('do-namespace-binding', doNamespaceBinding, pattern);
+        rt[name] = { doNamespace };
+    }
+    for (const wasmModuleBinding of parseOptionalStringOptions('wasm-module-binding', options) || []) {
+        const [ _, name, wasmModule] = checkMatchesReturnMatcher('wasm-module-binding', wasmModuleBinding, pattern);
+        rt[name] = { wasmModule };
+    }
+    for (const serviceBinding of parseOptionalStringOptions('service-binding', options) || []) {
+        const [ _, name, serviceEnvironment] = checkMatchesReturnMatcher('service-binding', serviceBinding, pattern);
+        rt[name] = { serviceEnvironment };
+    }
+    for (const r2BucketBinding of parseOptionalStringOptions('r2-bucket-binding', options) || []) {
+        const [ _, name, bucketName] = checkMatchesReturnMatcher('r2-bucket-binding', r2BucketBinding, pattern);
+        rt[name] = { bucketName };
+    }
+    return rt;
+}
 
 async function ensureCustomDomainExists(customDomain: string, opts: { zones: readonly Zone[], scriptName: string, accountId: string, apiToken: string }) {
     const { zones, scriptName, accountId, apiToken } = opts;
@@ -267,8 +302,8 @@ class DurableObjectNamespaces {
 
 //
 
-async function computeBindings(script: Script, scriptName: string, doNamespaces: DurableObjectNamespaces, pushId: string | undefined): Promise<{ bindings: ApiBinding[], parts: Part[] }> {
-    const resolvedBindings = await resolveBindings(script.bindings || {}, undefined, pushId);
+async function computeBindings(inputBindings: Record<string, Binding>, scriptName: string, doNamespaces: DurableObjectNamespaces, pushId: string | undefined): Promise<{ bindings: ApiBinding[], parts: Part[] }> {
+    const resolvedBindings = await resolveBindings(inputBindings, undefined, pushId);
     const bindings: ApiBinding[] = [];
     const partsMap: Record<string, Part> = {};
     for (const [name, binding] of Object.entries(resolvedBindings)) {
@@ -291,7 +326,7 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
     } else if (isServiceBinding(binding)) {
         const [ _, service, environment ] = checkMatchesReturnMatcher('serviceEnvironment', binding.serviceEnvironment, /^(.*?):(.*?)$/);
         return { type: 'service', name, service, environment };
-    } else if (isR2Binding(binding)) {
+    } else if (isR2BucketBinding(binding)) {
         return { type: 'r2_bucket', name, bucket_name: binding.bucketName };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
