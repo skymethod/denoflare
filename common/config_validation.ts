@@ -73,10 +73,6 @@ function isValidApiToken(apiToken: string): boolean {
     return /^[^\s]{10,}$/.test(apiToken);
 }
 
-function isValidApiTokenId(apiTokenId: string): boolean {
-    return /^(regex:.*|[0-9a-f]{32})$/.test(apiTokenId)
-}
-
 function isValidCustomDomain(customDomain: string): boolean {
     return /^([a-zA-Z0-9][a-zA-Z0-9-]*\.)+[\-a-zA-Z0-9]{2,20}$/.test(customDomain); // taken from cloudflare api Zone.name validation, should work for subdomains
 }
@@ -129,10 +125,9 @@ function checkBinding(name: string, binding: any) {
 // deno-lint-ignore no-explicit-any
 function checkProfile(name: string, profile: any): Profile {
     checkObject(name, profile);
-    const { accountId, apiToken, apiTokenId, default: _default } = profile;
+    const { accountId, apiToken, default: _default } = profile;
     if (typeof accountId !== 'string' || !isValidAccountId(accountId)) throw new Error(`Bad ${name}.accountId: ${accountId}`);
     if (typeof apiToken !== 'string' || !isValidApiToken(apiToken)) throw new Error(`Bad ${name}.apiToken`);
-    if (apiTokenId !== undefined && (typeof apiTokenId !== 'string' || !isValidApiTokenId(apiTokenId))) throw new Error(`Bad ${name}.apiTokenId`);
     if (_default !== undefined && typeof _default !== 'boolean') throw new Error(`Bad ${name}.default: ${_default}`);
     return profile as Profile;
 }

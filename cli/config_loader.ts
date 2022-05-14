@@ -151,8 +151,7 @@ function findProfile(config: Config, options: Record<string, unknown>): Profile 
 async function resolveProfileComponents(profile: Profile): Promise<Profile> {
     const accountId = await resolveString(profile.accountId);
     const apiToken = await resolveString(profile.apiToken);
-    const apiTokenId = profile.apiTokenId ? await resolveString(profile.apiTokenId) : undefined;
-    return { accountId, apiToken, apiTokenId };
+    return { accountId, apiToken };
 }
 
 async function resolveString(string: string): Promise<string> {

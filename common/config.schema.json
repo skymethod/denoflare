@@ -163,10 +163,6 @@
                             "description": "Cloudflare API token: Value obtained from the Cloudflare dashboard (My Profile -> [API Tokens](https://dash.cloudflare.com/profile/api-tokens)) when creating the token under this account.\n\nThis value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.",
                             "type": "string"
                         },
-                        "apiTokenId": {
-                            "description": "Cloudflare API token: Underlying object id obtained from the Cloudflare dashboard (My Profile -> [API Tokens](https://dash.cloudflare.com/profile/api-tokens)) when creating the token under this account.\n\nNot normally needed, only required when calling R2 over the S3 compatible API.\n\nThis value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.",
-                            "type": "string"
-                        },
                         "default": {
                             "description": "If there are multiple profiles defined, choose this one as the default (when no `--profile` is explicitly specified or configured).\n\nThere can only be one default profile.",
                             "type": "boolean"

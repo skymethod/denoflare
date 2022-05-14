@@ -27,6 +27,7 @@ import { CLI_USER_AGENT, parseOptionalBooleanOption, parseOptionalStringOption }
 import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_crypto.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
+import { verifyToken } from '../common/cloudflare_api.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -73,8 +74,8 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
 
 export async function loadR2Options(options: Record<string, unknown>): Promise<{ origin: string, region: string, context: AwsCallContext }> {
     const config = await loadConfig(options);
-    const { accountId, apiToken, apiTokenId } = await resolveProfile(config, options);
-    if (!apiTokenId) throw new Error(`Profile needs an apiTokenId to use the S3 API for R2`);
+    const { accountId, apiToken } = await resolveProfile(config, options);
+    const apiTokenId = (await verifyToken(apiToken)).id;
 
     const credentials: AwsCredentials = {
         accessKey: apiTokenId,

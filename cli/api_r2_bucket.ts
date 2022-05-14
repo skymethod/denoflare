@@ -3,6 +3,7 @@ import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
 import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { verifyToken } from '../common/cloudflare_api.ts';
 
 export class ApiR2Bucket implements R2Bucket {
 
@@ -26,9 +27,9 @@ export class ApiR2Bucket implements R2Bucket {
 
     static async parseAccountAndCredentials(profile: Profile | undefined): Promise<{ accountId: string, credentials: AwsCredentials }> {
         if (!profile) throw new Error('Cannot use a bucketName binding without configuring a profile to use for its credentials');
-        const { accountId, apiToken, apiTokenId } = profile;
-        if (!apiTokenId) throw new Error('Cannot use a bucketName binding without configuring a profile with an apiTokenId to use for its credentials');
-
+        const { accountId, apiToken } = profile;
+        const apiTokenId = (await verifyToken(apiToken)).id;
+        
         const accessKey = apiTokenId;
         const secretKey = (await Bytes.ofUtf8(apiToken).sha256()).hex();
         return { accountId, credentials: { accessKey, secretKey } };
