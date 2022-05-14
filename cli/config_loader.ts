@@ -8,21 +8,29 @@ import { parseOptionalStringOption } from './cli_common.ts';
 export async function loadConfig(options: Record<string, unknown>): Promise<Config> {
     const verbose = !!options.verbose;
     const optionConfigFilePath = typeof options.config === 'string' && options.config.trim().length > 0 ? options.config.trim() : undefined;
-    const configFilePath = optionConfigFilePath || await findConfigFilePath();
+    const configFilePath = optionConfigFilePath || await findConfigFilePath(verbose);
     if (verbose) console.log(`loadConfig: path=${configFilePath}`);
     let config = configFilePath ? await loadConfigFromFile(configFilePath) : {};
 
     // enhance with env vars if we have no config profiles
     if (Object.keys(config.profiles || {}).length === 0) {
-        const cfAccountId = (Deno.env.get('CF_ACCOUNT_ID') || '').trim();
-        const cfApiToken = (Deno.env.get('CF_API_TOKEN') || '').trim();
-        if (verbose) console.log(`loadConfig: Trying to enhance with CF_ACCOUNT_ID=${cfAccountId}, CF_API_TOKEN=<redacted string length=${cfApiToken.length}>`);
-        if (cfAccountId.length > 0 && cfApiToken.length > 0) {
-            const envProfile: Profile = {
-                accountId: cfAccountId,
-                apiToken: cfApiToken,
-            };
-            config = { ...config, profiles: { 'env': envProfile } };
+        try {
+            const cfAccountId = (Deno.env.get('CF_ACCOUNT_ID') || '').trim();
+            const cfApiToken = (Deno.env.get('CF_API_TOKEN') || '').trim();
+            if (verbose) console.log(`loadConfig: Trying to enhance with CF_ACCOUNT_ID=${cfAccountId}, CF_API_TOKEN=<redacted string length=${cfApiToken.length}>`);
+            if (cfAccountId.length > 0 && cfApiToken.length > 0) {
+                const envProfile: Profile = {
+                    accountId: cfAccountId,
+                    apiToken: cfApiToken,
+                };
+                config = { ...config, profiles: { 'env': envProfile } };
+            }
+        } catch (e) {
+            if (e instanceof Deno.errors.PermissionDenied) {
+                if (verbose) console.log(`loadConfig: Permission denied reading CF_ACCOUNT_ID or CF_API_TOKEN`);
+            } else {
+                throw e;
+            }
         }
     }
 
@@ -92,18 +100,27 @@ async function loadConfigFromFile(path: string): Promise<Config> {
     }
 }
 
-async function findConfigFilePath(): Promise<string | undefined> {
-    let dir = Deno.cwd();
-    while (true) {
-        const filePath = join(dir, CONFIG_FILE_NAME);
-        if (await fileExists(filePath)) {
-            return filePath;
+async function findConfigFilePath(verbose: boolean): Promise<string | undefined> {
+    try {
+        let dir = Deno.cwd();
+        while (true) {
+            const filePath = join(dir, CONFIG_FILE_NAME);
+            if (await fileExists(filePath)) {
+                return filePath;
+            }
+            const parentDir = resolve(dir, '..');
+            if (parentDir === dir) {
+                return undefined; // as far as we can go
+            }
+            dir = parentDir;
         }
-        const parentDir = resolve(dir, '..');
-        if (parentDir === dir) {
-            return undefined; // as far as we can go
+    } catch (e) {
+        if (e instanceof Deno.errors.PermissionDenied) {
+            if (verbose) console.warn(`findConfigFilePath: Permission denied: ${e.message}`)
+            return undefined;
+        } else {
+            throw e;
         }
-        dir = parentDir;
     }
 }
 
