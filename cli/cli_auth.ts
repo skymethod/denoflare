@@ -1,7 +1,7 @@
-import { computeOauthObtainTokenRequest, computeOauthPkce, computeOauthUserAuthorizationUrl } from '../common/oauth.ts';
+import { computeOauthObtainTokenRequest, computeOauthPkce, computeOauthRefreshTokenRequest, computeOauthUserAuthorizationUrl } from '../common/oauth.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { serve } from './deps_cli.ts';
-import { parseRequiredStringOption } from './cli_common.ts';
+import { parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
 
 export async function auth(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -33,6 +33,15 @@ async function tmp(_args: (string | number)[], options: Record<string, unknown>)
     const state = [oauthRequestId.time, oauthRequestId.nonce].join(':');
     const { codeVerifier, codeChallenge, codeChallengeMethod } = await computeOauthPkce();
 
+    const refreshToken = parseOptionalStringOption('refresh-token', options);
+    if (refreshToken) {
+        const req = computeOauthRefreshTokenRequest(tokenUrl, { grantType: 'refresh_token', clientId, refreshToken });
+        const res = await fetch(req);
+        console.log(`${res.status} ${res.url}`);
+        console.log([...res.headers].map(v => v.join(': ')).join('\n'));
+        console.log(await res.text());
+        return;
+    }
     const url = computeOauthUserAuthorizationUrl(authUrl, { responseType: 'code', clientId, redirectUri, state, scopes, codeChallenge, codeChallengeMethod });
     console.log(url);
     const handler = async (request: Request): Promise<Response> => {

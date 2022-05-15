@@ -10,18 +10,12 @@ export async function computeOauthPkce(): Promise<{ codeVerifier: string, codeCh
 
 export interface OauthUserAuthorizationOpts {
     readonly responseType: string; // e.g. code
-
     readonly clientId: string;
-
     readonly redirectUri: string;
-
     readonly scopes?: readonly string[];
-
     readonly state?: string;
-
     // pkce: base64url(SHA256(code verifier))
     readonly codeChallenge?: string;
-
     // pkce: whether the challenge is the plain code verifier string or the SHA256 hash of the string
     readonly codeChallengeMethod?: 'S256' | 'plain';
 }
@@ -43,13 +37,9 @@ export function computeOauthUserAuthorizationUrl(authUrl: string, opts: OauthUse
 
 export interface OauthObtainTokenOpts {
     readonly grantType: 'authorization_code' | 'client_credentials';
-
     readonly clientId: string;
-
     readonly redirectUri: string;
-
     readonly code?: string;
-
     readonly codeVerifier?: string; // pkce
 }
 
@@ -65,7 +55,7 @@ export function computeOauthObtainTokenRequest(tokenUrl: string, opts: OauthObta
 }
 
 // https://datatracker.ietf.org/doc/html/rfc6749#section-4.2.2
-export interface OauthObtainTokenResponse {
+export interface OauthTokenResponse {
 
     /** REQUIRED.  The access token issued by the authorization server. */
     readonly access_token: string;
@@ -92,6 +82,23 @@ export interface OauthObtainTokenResponse {
 
     /** OPTIONAL.  The refresh token, which can be used to obtain new access tokens using the same authorization grant as described in Section 6. */
     readonly refresh_token?: string;
+}
+
+// refresh token -> new token
+
+export interface OauthRefreshTokenOpts {
+    readonly grantType: 'refresh_token';
+    readonly refreshToken: string;
+    readonly clientId: string;
+}
+
+export function computeOauthRefreshTokenRequest(tokenUrl: string, opts: OauthRefreshTokenOpts): Request {
+    const { grantType, clientId, refreshToken } = opts;
+    const data = new FormData();
+    data.set('grant_type', grantType);
+    data.set('client_id', clientId);
+    data.set('refresh_token', refreshToken);
+    return new Request(tokenUrl, { method: 'POST', body: data });
 }
 
 //
