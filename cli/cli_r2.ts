@@ -86,7 +86,7 @@ export async function loadR2Options(options: Record<string, unknown>): Promise<{
     const unsignedPayload = parseOptionalBooleanOption('unsigned-payload', options);
     const context = { credentials, userAgent: CLI_USER_AGENT, unsignedPayload };
 
-    return { origin, region, context,  };
+    return { origin, region, context };
 }
 
 export function surroundWithDoubleQuotesIfNecessary(value: string | undefined): string | undefined {

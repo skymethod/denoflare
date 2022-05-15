@@ -1,55 +1,30 @@
 import { listObjectsV2, R2 } from '../common/r2/r2.ts';
-import { CLI_VERSION } from './cli_version.ts';
-import { parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { loadR2Options } from './cli_r2.ts';
+import { CliCommand } from './cli_command.ts';
+import { CLI_VERSION } from './cli_version.ts';
+
+const cmd = CliCommand.of(['denoflare', 'r2', 'list-objects'], 'List objects within a bucket', { version: CLI_VERSION })
+    .arg('bucket', 'string', 'Name of the R2 bucket')
+    .option('maxKeys', 'integer', 'Limit on the number of keys to return', { min: 0, max: 1000 })
+    .option('continuationToken', 'string', 'Continue the listing on this bucket with a previously returned token (token is obfuscated and is not a real key)')
+    .option('startAfter', 'string', 'Start listing after this specified key, can be any key in the bucket')
+    .option('prefix', 'string', 'Limit to keys that begin with the specified prefix')
+    .option('delimiter', 'string', 'The character used to group keys')
+    .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
+    .option('fetchOwner', 'boolean', 'If set, return the owner info for each item')
+    ;
 
 export async function listObjects(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 1) {
-        dumpHelp();
-        return;
-    }
+    if (cmd.dump(args, options)) return;
 
-    const verbose = !!options.verbose;
+    const { bucket, verbose, maxKeys, continuationToken, startAfter, prefix,  delimiter,  encodingType, fetchOwner} = cmd.parse(args, options);
+
     if (verbose) {
         R2.DEBUG = true;
     }
-
-    const bucket = args[0];
-    if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
-
-    const { 'max-keys': maxKeys, 'continuation-token': continuationToken } = options;
-    if (maxKeys !== undefined && typeof maxKeys !== 'number') throw new Error(`Bad max-keys: ${maxKeys}`);
-    if (continuationToken !== undefined && typeof continuationToken !== 'string') throw new Error(`Bad continuation-token: ${continuationToken}`);
-    const startAfter = parseOptionalStringOption('start-after', options);
-    const prefix = parseOptionalStringOption('prefix', options);
-    const delimiter = parseOptionalStringOption('delimiter', options);
-    const encodingType = parseOptionalStringOption('encoding-type', options);
-    const fetchOwner = parseOptionalBooleanOption('fetch-owner', options);
 
     const { origin, region, context } = await loadR2Options(options);
 
     const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType, fetchOwner }, context);
     console.log(JSON.stringify(result, undefined, 2));
-}
-
-//
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2-list-objects ${CLI_VERSION}`,
-        'List objects within a bucket',
-        '',
-        'USAGE:',
-        '    denoflare r2 list-objects [FLAGS] [OPTIONS] [bucket]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <bucket>      Name of the R2 bucket',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }
