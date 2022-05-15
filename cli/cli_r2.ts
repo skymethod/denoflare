@@ -28,6 +28,7 @@ import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
+import { CliCommand } from './cli_command.ts';
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
@@ -70,6 +71,13 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
     } else {
         dumpHelp();
     }
+}
+
+export function commandOptionsForR2(command: CliCommand<unknown>) {
+    return command
+        .optionGroup()
+        .option('unsignedPayload', 'boolean', 'If set, skip request body signing (and thus verification) for the R2 request')
+        ;
 }
 
 export async function loadR2Options(options: Record<string, unknown>): Promise<{ origin: string, region: string, context: AwsCallContext }> {

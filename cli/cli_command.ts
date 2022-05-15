@@ -5,6 +5,7 @@ export class CliCommand<T> {
     private readonly version: string | undefined;
     private readonly argDefs: ArgDef[] = [];
     private readonly optionDefs: OptionDef[] = [];
+    private readonly optionGroupIndexes = new Set<number>();
 
     private constructor(command: string[], description: string, version: string | undefined) {
         this.command = command;
@@ -18,7 +19,7 @@ export class CliCommand<T> {
         const { version } = opts ?? {};
         return new CliCommand(command, description, version);
     }
-    
+
     arg<K extends string>(name: K, type: 'string', description: string): CliCommand<T & Record<K, string>> {
         this.argDefs.push({ camelName: name, kebabName: camelCaseToKebabCase(name), type, description });
         // deno-lint-ignore no-explicit-any
@@ -36,6 +37,17 @@ export class CliCommand<T> {
         this.optionDefs.push({ camelName: name, kebabName: camelCaseToKebabCase(name), type, description, opts });
         // deno-lint-ignore no-explicit-any
         return this as any;
+    }
+
+    optionGroup(): CliCommand<T> {
+        const index = this.optionDefs.length - 1;
+        if (index >= 0) this.optionGroupIndexes.add(index);
+        return this;
+    }
+
+    include(modifier: (command: CliCommand<unknown>) => void): CliCommand<T> {
+        modifier(this);
+        return this;
     }
 
     parse(args: (string | number)[], options: Record<string, unknown>): T {
@@ -59,12 +71,12 @@ export class CliCommand<T> {
     }
 
     dump(args: (string | number)[], options: Record<string, unknown>): boolean {
-        const { command, description, version, argDefs, optionDefs } = this;
+        const { command, description, version, argDefs, optionDefs, optionGroupIndexes } = this;
+
         if (!(args.length < argDefs.length || options.help)) return false;
 
         const argRows = [...argDefs.map(v => [`    <${v.kebabName}>`, v.description])];
-        const makeOptionRow = (v: OptionDef) => [`    --${v.kebabName}`, computeOptionDescription(v)];
-        const optionRows = [...optionDefs.map(makeOptionRow), ['', ''], ...[HELP, VERBOSE].map(makeOptionRow) ];
+        const optionRows = computeOptionRows(optionDefs, optionGroupIndexes)
         const columnLength = Math.max(...[...optionRows, ...argRows].map(v => v[0].length)) + 2;
 
         const lines = [
@@ -182,4 +194,18 @@ function tryGetEnumDefs(def: OptionDef): EnumDef[] | undefined {
         if (Array.isArray(enumDefs)) return enumDefs;
     }
     return undefined;
+}
+
+function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<number>): string[][] {
+    const rt: string[][] = [];
+    const makeOptionRow = (v: OptionDef) => [`    --${v.kebabName}`, computeOptionDescription(v)];
+    const addGroupBreak = () => rt.push(['', '']);
+    optionDefs.forEach((v, i) => {
+        rt.push(makeOptionRow(v));
+        if (optionGroupIndexes.has(i)) addGroupBreak();
+    });
+    addGroupBreak();
+    rt.push(makeOptionRow(HELP));
+    rt.push(makeOptionRow(VERBOSE));
+    return rt;
 }

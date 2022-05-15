@@ -1,9 +1,10 @@
 import { listObjectsV2, R2 } from '../common/r2/r2.ts';
-import { loadR2Options } from './cli_r2.ts';
+import { loadR2Options, commandOptionsForR2 } from './cli_r2.ts';
 import { CliCommand } from './cli_command.ts';
 import { CLI_VERSION } from './cli_version.ts';
+import { commandOptionsForFindProfile } from './config_loader.ts';
 
-const cmd = CliCommand.of(['denoflare', 'r2', 'list-objects'], 'List objects within a bucket', { version: CLI_VERSION })
+const cmd = CliCommand.of(['denoflare', 'r2', 'list-objects'], 'List objects within an R2 bucket', { version: CLI_VERSION })
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .option('maxKeys', 'integer', 'Limit on the number of keys to return', { min: 0, max: 1000 })
     .option('continuationToken', 'string', 'Continue the listing on this bucket with a previously returned token (token is obfuscated and is not a real key)')
@@ -12,12 +13,14 @@ const cmd = CliCommand.of(['denoflare', 'r2', 'list-objects'], 'List objects wit
     .option('delimiter', 'string', 'The character used to group keys')
     .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
     .option('fetchOwner', 'boolean', 'If set, return the owner info for each item')
+    .include(commandOptionsForR2)
+    .include(commandOptionsForFindProfile)
     ;
-
+    
 export async function listObjects(args: (string | number)[], options: Record<string, unknown>) {
     if (cmd.dump(args, options)) return;
 
-    const { bucket, verbose, maxKeys, continuationToken, startAfter, prefix,  delimiter,  encodingType, fetchOwner} = cmd.parse(args, options);
+    const { bucket, verbose, maxKeys, continuationToken, startAfter, prefix,  delimiter,  encodingType, fetchOwner } = cmd.parse(args, options);
 
     if (verbose) {
         R2.DEBUG = true;

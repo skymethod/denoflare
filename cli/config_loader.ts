@@ -4,6 +4,7 @@ import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.
 import { join, resolve } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { parseOptionalStringOption } from './cli_common.ts';
+import { CliCommand } from './cli_command.ts';
 
 export async function loadConfig(options: Record<string, unknown>): Promise<Config> {
     const verbose = !!options.verbose;
@@ -79,6 +80,15 @@ export async function resolveProfileOpt(config: Config, options: Record<string, 
     const profile = findProfile(config, options);
     if (profile === undefined) return undefined;
     return await resolveProfileComponents(profile);
+}
+
+export function commandOptionsForFindProfile(command: CliCommand<unknown>) {
+    return command
+        .optionGroup()
+        .option('accountId', 'string', 'Explicit Cloudflare account id to use for authentication')
+        .option('apiToken', 'string', 'Explicit Cloudflare API token to use for authentication')
+        .option('profile', 'string', 'Explicit profile to use from config file')
+        ;
 }
 
 //
