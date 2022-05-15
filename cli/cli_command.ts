@@ -26,11 +26,11 @@ export class CliCommand<T> {
         return this as any;
     }
 
-    option<K extends string>(name: K, type: 'string', description: string): CliCommand<T & Record<K, string | undefined>>;
+    option<K extends string>(name: K, type: 'string', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string | undefined>>;
     option<K extends string>(name: K, type: 'integer', description: string, opts?: { min?: number, max?: number }): CliCommand<T & Record<K, number | undefined>>;
     option<K extends string>(name: K, type: 'enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string | undefined>>;
     option<K extends string>(name: K, type: 'boolean', description: string): CliCommand<T & Record<K, boolean | undefined>>;
-    option<K extends string, V>(name: K, type: string, description: string, optsOrEnumDefs: Record<string, unknown> | EnumDef[] = {}): CliCommand<T & Record<K, V>> {
+    option<K extends string, V>(name: K, type: OptionType, description: string, optsOrEnumDefs: Record<string, unknown> | EnumDef[] = {}): CliCommand<T & Record<K, V>> {
         const opts = Array.isArray(optsOrEnumDefs) ? { enumDefs: optsOrEnumDefs } 
             : 'value' in optsOrEnumDefs && 'description' in optsOrEnumDefs ? { enumDefs: [ optsOrEnumDefs ] } 
             : optsOrEnumDefs;
@@ -70,7 +70,7 @@ export class CliCommand<T> {
         return rt as any;
     }
 
-    dump(args: (string | number)[], options: Record<string, unknown>): boolean {
+    dumpHelp(args: (string | number)[], options: Record<string, unknown>): boolean {
         const { command, description, version, argDefs, optionDefs, optionGroupIndexes } = this;
 
         if (!(args.length < argDefs.length || options.help)) return false;
@@ -111,7 +111,8 @@ export type EnumDef = { value: string, description: string, default?: boolean };
 //
 
 type ArgDef = { camelName: string, kebabName: string, type: string, description: string };
-type OptionDef = { camelName: string, kebabName: string, type: string, description: string, opts: Record<string, unknown> };
+type OptionDef = { camelName: string, kebabName: string, type: OptionType, description: string, opts: Record<string, unknown> };
+type OptionType = 'string' | 'integer' | 'boolean' | 'enum';
 
 const VERBOSE = makeInternalBooleanOption('verbose', 'Toggle verbose output (when applicable)');
 const HELP = makeInternalBooleanOption('help', 'Print help information');
@@ -198,14 +199,23 @@ function tryGetEnumDefs(def: OptionDef): EnumDef[] | undefined {
 
 function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<number>): string[][] {
     const rt: string[][] = [];
-    const makeOptionRow = (v: OptionDef) => [`    --${v.kebabName}`, computeOptionDescription(v)];
     const addGroupBreak = () => rt.push(['', '']);
     optionDefs.forEach((v, i) => {
-        rt.push(makeOptionRow(v));
+        rt.push(computeOptionRow(v));
         if (optionGroupIndexes.has(i)) addGroupBreak();
     });
     addGroupBreak();
-    rt.push(makeOptionRow(HELP));
-    rt.push(makeOptionRow(VERBOSE));
+    rt.push(computeOptionRow(HELP));
+    rt.push(computeOptionRow(VERBOSE));
     return rt;
+}
+
+function computeOptionRow(def: OptionDef): [string, string] {
+    const { type, opts } = def;
+    const hint = typeof opts.hint === 'string' ? opts.hint 
+        : type === 'string' ? 'string' 
+        : type === 'enum' ? 'enum'
+        : type === 'integer' ? 'integer' 
+        : undefined;
+    return  [`    --${def.kebabName}${hint ? ` <${hint}>` : ''}`, computeOptionDescription(def)];
 }

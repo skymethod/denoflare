@@ -2,7 +2,7 @@ import { CLI_VERSION } from './cli_version.ts';
 import { listObjects } from './cli_r2_list_objects.ts';
 import { listObjectsV1 } from './cli_r2_list_objects_v1.ts';
 import { getObject, headObject } from './cli_r2_get_head_object.ts';
-import { loadConfig, resolveProfile } from './config_loader.ts';
+import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
 import { AwsCallBody, AwsCallContext, AwsCredentials, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
 import { listBuckets } from './cli_r2_list_buckets.ts';
@@ -77,6 +77,7 @@ export function commandOptionsForR2(command: CliCommand<unknown>) {
     return command
         .optionGroup()
         .option('unsignedPayload', 'boolean', 'If set, skip request body signing (and thus verification) for the R2 request')
+        .include(commandOptionsForConfig)
         ;
 }
 

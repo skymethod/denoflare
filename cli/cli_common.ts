@@ -1,5 +1,6 @@
 import { Config, Script } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
+import { CliCommand } from './cli_command.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { basename, extname } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
@@ -9,6 +10,11 @@ const launchTime = Date.now();
 export const CLI_USER_AGENT = `denoflare-cli/${CLI_VERSION}`;
 export class CliStats {
     static readonly launchTime = launchTime;
+}
+
+export function denoflareCliCommand(command: string | string[], description: string) {
+    const commandArr = typeof command === 'string' ? [ command ] : command;
+    return CliCommand.of(['denoflare', ...commandArr], description, { version: CLI_VERSION });
 }
 
 export async function computeContentsForScriptReference(scriptSpec: string, config: Config, nameFromOptions?: string): Promise<{ scriptName: string, rootSpecifier: string, script?: Script }> {
