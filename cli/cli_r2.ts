@@ -8,6 +8,7 @@ import { Bytes } from '../common/bytes.ts';
 import { listBuckets, LIST_BUCKETS_COMMAND } from './cli_r2_list_buckets.ts';
 import { headBucket, HEAD_BUCKET_COMMAND } from './cli_r2_head_bucket.ts';
 import { getBucketEncryption, GET_BUCKET_ENCRYPTION_COMMAND } from './cli_r2_get_bucket_encryption.ts';
+import { getBucketLocation, GET_BUCKET_LOCATION_COMMAND } from './cli_r2_get_bucket_location.ts';
 import { deleteBucketEncryption, DELETE_BUCKET_ENCRYPTION_COMMAND } from './cli_r2_delete_bucket_encryption.ts';
 import { putBucketEncryption, PUT_BUCKET_ENCRYPTION_COMMAND } from './cli_r2_put_bucket_encryption.ts';
 import { createBucket, CREATE_BUCKET_COMMAND } from './cli_r2_create_bucket.ts';
@@ -38,6 +39,7 @@ const cmd = denoflareCliCommand('r2', 'Manage R2 storage using the S3 compatibil
     .subcommand(GET_BUCKET_ENCRYPTION_COMMAND, getBucketEncryption)
     .subcommand(DELETE_BUCKET_ENCRYPTION_COMMAND, deleteBucketEncryption)
     .subcommand(PUT_BUCKET_ENCRYPTION_COMMAND, putBucketEncryption)
+    .subcommand(GET_BUCKET_LOCATION_COMMAND, getBucketLocation)
 
     .subcommand(LIST_OBJECTS_COMMAND, listObjects)
     .subcommand(LIST_OBJECTS_V1_COMMAND, listObjectsV1)

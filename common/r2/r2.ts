@@ -23,6 +23,7 @@ export { uploadPartCopy } from './upload_part_copy.ts';
 export { getBucketEncryption } from './get_bucket_encryption.ts';
 export { deleteBucketEncryption } from './delete_bucket_encryption.ts';
 export { putBucketEncryption } from './put_bucket_encryption.ts';
+export { getBucketLocation } from './get_bucket_location.ts';
 
 export const R2_REGION_AUTO = 'auto';
 
