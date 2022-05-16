@@ -1,11 +1,11 @@
 export class CliCommand<T> {
-
-    private readonly command: string[];
+    private readonly command: readonly string[];
     private readonly description: string;
     private readonly version: string | undefined;
     private readonly argDefs: ArgDef[] = [];
     private readonly optionDefs: OptionDef[] = [];
     private readonly optionGroupIndexes = new Set<number>();
+    private readonly subcommandDefs: SubcommandDef[] = [];
 
     private constructor(command: string[], description: string, version: string | undefined) {
         this.command = command;
@@ -50,6 +50,30 @@ export class CliCommand<T> {
         return this;
     }
 
+    subcommand(subcommand: CliCommand<unknown>, handler: SubcommandHandler): CliCommand<T> {
+        const subcommandStr = subcommand.command.join('|');
+        const thisStr = this.command.join('|');
+        if (!subcommandStr.startsWith(thisStr + '|') || subcommandStr.substring(thisStr.length + 1).includes('|')) {
+            throw new Error(`Bad subcommand: ${subcommand.command.join(' ')} for parent ${this.command.join(' ')}`);
+        }
+        const kebabName = subcommand.command.at(-1)!;
+        const description = subcommand.description;
+        this.subcommandDefs.push({ kebabName, description, handler });
+        return this;
+    }
+
+    async routeSubcommand(args: (string | number)[], options: Record<string, unknown>) {
+        if (this.dumpHelp(args, options)) return;
+
+        const subcommand = args[0];
+        const def = this.subcommandDefs.find(v => v.kebabName === subcommand);
+        if (!def) {
+            throw new Error(`Unknown subcommand: ${subcommand}, try --help`);
+        }
+
+        await def.handler(args.slice(1), options);
+    }
+
     parse(args: (string | number)[], options: Record<string, unknown>): T {
         const { argDefs } = this;
         const allOptionDefs = [ ...this.optionDefs, VERBOSE ];
@@ -71,20 +95,23 @@ export class CliCommand<T> {
     }
 
     dumpHelp(args: (string | number)[], options: Record<string, unknown>): boolean {
-        const { command, description, version, argDefs, optionDefs, optionGroupIndexes } = this;
+        const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs } = this;
 
-        if (!(args.length < argDefs.length || options.help)) return false;
+        const dump = subcommandDefs.length > 0 ? (args.length === 0 || !subcommandDefs.some(v => v.kebabName === args[0]))
+            : (args.length < argDefs.length || options.help);
+        if (!dump) return false;
 
         const argRows = [...argDefs.map(v => [`    <${v.kebabName}>`, v.description])];
         const optionRows = computeOptionRows(optionDefs, optionGroupIndexes)
-        const columnLength = Math.max(...[...optionRows, ...argRows].map(v => v[0].length)) + 2;
+        const subcommandRows = [...subcommandDefs.map(v => [`    ${v.kebabName}`, v.description])];
+        const columnLength = Math.max(...[...optionRows, ...argRows, ...subcommandRows].map(v => v[0].length)) + 2;
 
         const lines = [
             `${command.join('-')}${version ? ` ${version}` : ''}`,
             description,
             '',
             'USAGE:',
-            `    ${command.join(' ')}${argDefs.map(v => ` <${v.kebabName}>`)} [OPTIONS]`,
+            this.subcommandDefs.length > 0 ? `    ${command.join(' ')} <subcommand> <subcommand args> <subcommand options>` : `    ${command.join(' ')}${argDefs.map(v => ` <${v.kebabName}>`)} [OPTIONS]`,
         ];
         if (argDefs.length > 0) {
             lines.push(
@@ -93,11 +120,21 @@ export class CliCommand<T> {
                 ...argRows.map(v => v[0].padEnd(columnLength) + v[1])
             );
         }
-        lines.push(
+        if (this.subcommandDefs.length > 0) {
+            lines.push(
+                '',
+                'SUBCOMMANDS:',
+                ...subcommandRows.map(v => v[0].padEnd(columnLength) + v[1]),
             '',
-            'OPTIONS:',
-            ...optionRows.map(v => v[0].padEnd(columnLength) + v[1])
-        );
+            `For subcommand-specific help: ${command.join(' ')} <subcommand> --help`,)
+        } else {
+            lines.push(
+                '',
+                'OPTIONS:',
+                ...optionRows.map(v => v[0].padEnd(columnLength) + v[1])
+            );
+        }
+
         for (const line of lines) {
             console.log(line);
         }
@@ -108,11 +145,14 @@ export class CliCommand<T> {
 
 export type EnumDef = { value: string, description: string, default?: boolean };
 
+export type SubcommandHandler = (args: (string|number)[], options: Record<string,unknown>) => Promise<void>;
+
 //
 
 type ArgDef = { camelName: string, kebabName: string, type: string, description: string };
 type OptionDef = { camelName: string, kebabName: string, type: OptionType, description: string, opts: Record<string, unknown> };
 type OptionType = 'string' | 'integer' | 'boolean' | 'enum';
+type SubcommandDef = { kebabName : string, description: string, handler: SubcommandHandler };
 
 const VERBOSE = makeInternalBooleanOption('verbose', 'Toggle verbose output (when applicable)');
 const HELP = makeInternalBooleanOption('help', 'Print help information');

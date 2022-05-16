@@ -5,7 +5,7 @@ import { getObject, headObject } from './cli_r2_get_head_object.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
 import { AwsCallBody, AwsCallContext, AwsCredentials, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
-import { listBuckets } from './cli_r2_list_buckets.ts';
+import { listBuckets, LIST_BUCKETS_COMMAND } from './cli_r2_list_buckets.ts';
 import { headBucket } from './cli_r2_head_bucket.ts';
 import { getBucketEncryption } from './cli_r2_get_bucket_encryption.ts';
 import { deleteBucketEncryption } from './cli_r2_delete_bucket_encryption.ts';
@@ -23,12 +23,16 @@ import { completeMultipartUpload } from './cli_r2_complete_multipart_upload.ts';
 import { uploadPart } from './cli_r2_upload_part.ts';
 import { uploadPartCopy } from './cli_r2_upload_part_copy.ts';
 import { putLargeObject } from './cli_r2_put_large_object.ts';
-import { CLI_USER_AGENT, parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
+import { CLI_USER_AGENT, denoflareCliCommand, parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_crypto.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
 import { CliCommand } from './cli_command.ts';
+
+const cmd = denoflareCliCommand('r2', 'Manage R2 storage using the S3 compatibility API')
+    .subcommand(LIST_BUCKETS_COMMAND, listBuckets)
+    ;
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     const subcommand = args[0];
