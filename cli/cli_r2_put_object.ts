@@ -1,31 +1,29 @@
 import { computeAwsCallBodyLength, putObject as putObjectR2, R2 } from '../common/r2/r2.ts';
-import { CliStats, parseNameValuePairsOption, parseOptionalStringOption } from './cli_common.ts';
-import { loadBodyFromOptions, loadR2Options } from './cli_r2.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { CliStats, denoflareCliCommand } from './cli_common.ts';
+import { commandOptionsForLoadBodyFromOptions, commandOptionsForR2, loadBodyFromOptions, loadR2Options } from './cli_r2.ts';
+
+export const PUT_OBJECT_COMMAND = denoflareCliCommand(['r2', 'put-object'], 'Put R2 object for a given key')
+    .arg('bucket', 'string', 'Name of the R2 bucket')
+    .arg('key', 'string', 'Key of the object to put')
+    .option('cacheControl', 'string', 'Specify caching behavior along the request/reply chain')
+    .option('contentDisposition', 'string', 'Specify presentational information for the object')
+    .option('contentEncoding', 'string', 'Specify what content encodings have been applied to the object')
+    .option('contentLanguage', 'string', 'Specify the language the object is in')
+    .option('contentType', 'string', 'A standard MIME type describing the format of the contents')
+    .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
+    .option('custom', 'name-value-pairs', 'Custom metadata for the object')
+    .include(commandOptionsForLoadBodyFromOptions)
+    .include(commandOptionsForR2)
+    ;
 
 export async function putObject(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 2) {
-        dumpHelp();
-        return;
-    }
+    if (PUT_OBJECT_COMMAND.dumpHelp(args, options)) return;
 
-    const verbose = !!options.verbose;
+    const { bucket, key, verbose, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentType, expires, custom: customMetadata } = PUT_OBJECT_COMMAND.parse(args, options);
+
     if (verbose) {
         R2.DEBUG = true;
     }
-
-    const [ bucket, key ] = args;
-    if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
-    if (typeof key !== 'string') throw new Error(`Bad key: ${key}`);
-
-    const cacheControl = parseOptionalStringOption('cache-control', options);
-    const contentDisposition = parseOptionalStringOption('content-disposition', options);
-    const contentEncoding = parseOptionalStringOption('content-encoding', options);
-    const contentLanguage = parseOptionalStringOption('content-language', options);
-    const contentType = parseOptionalStringOption('content-type', options);
-   
-    const expires = parseOptionalStringOption('expires', options);
-    const customMetadata = parseNameValuePairsOption('custom', options);
 
     const { origin, region, context } = await loadR2Options(options);
 
@@ -34,25 +32,4 @@ export async function putObject(args: (string | number)[], options: Record<strin
     await putObjectR2({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata }, context);
     const millis = Date.now() - CliStats.launchTime;
     console.log(`put ${computeAwsCallBodyLength(body)} bytes in ${millis}ms`);
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2-put-object ${CLI_VERSION}`,
-        'Put R2 object for a given key',
-        '',
-        'USAGE:',
-        '    denoflare r2 put-object [FLAGS] [OPTIONS] [bucket] [key]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <bucket>      Name of the R2 bucket',
-        '    <key>         Name of the R2 object key',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

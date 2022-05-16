@@ -1,67 +1,47 @@
 import { copyObject as copyObjectR2, R2 } from '../common/r2/r2.ts';
-import { CliStats, parseNameValuePairsOption, parseOptionalStringOption } from './cli_common.ts';
-import { loadR2Options } from './cli_r2.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { CliStats, denoflareCliCommand } from './cli_common.ts';
+import { commandOptionsForR2, loadR2Options } from './cli_r2.ts';
+
+export const COPY_OBJECT_COMMAND = denoflareCliCommand(['r2', 'copy-object'], 'Copy R2 object from a given source bucket and key')
+    .arg('bucket', 'string', 'Name of the destination R2 bucket')
+    .arg('key', 'string', 'Key of the destination object')
+    .option('sourceBucket', 'string', 'R2 Bucket of the source object (default: destination bucket)')
+    .option('sourceKey', 'string', 'Key of the source object (required)')
+    .optionGroup()
+    .option('cacheControl', 'string', 'Specify caching behavior along the request/reply chain')
+    .option('contentDisposition', 'string', 'Specify presentational information for the object')
+    .option('contentEncoding', 'string', 'Specify what content encodings have been applied to the object')
+    .option('contentLanguage', 'string', 'Specify the language the object is in')
+    .option('contentType', 'string', 'A standard MIME type describing the format of the contents')
+    .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
+    .option('custom', 'name-value-pairs', 'Custom metadata for the object')
+    .optionGroup()
+    .option('ifMatch', 'string', 'Copies the object if its entity tag (ETag) matches the specified tag')
+    .option('ifNoneMatch', 'string', 'Copies the object if its entity tag (ETag) is different than the specified ETag')
+    .option('ifModifiedSince', 'string', 'Copies the object if it has been modified since the specified time')
+    .option('ifUnmodifiedSince', 'string', `Copies the object if it hasn't been modified since the specified time`)
+    .include(commandOptionsForR2)
+    ;
 
 export async function copyObject(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 2) {
-        dumpHelp();
-        return;
-    }
+    if (COPY_OBJECT_COMMAND.dumpHelp(args, options)) return;
 
-    const verbose = !!options.verbose;
+    const { bucket, key, verbose, sourceKey, sourceBucket, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentType, expires, custom: customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = COPY_OBJECT_COMMAND.parse(args, options);
+
     if (verbose) {
         R2.DEBUG = true;
     }
 
-    const [ bucket, key ] = args;
-    if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
-    if (typeof key !== 'string') throw new Error(`Bad key: ${key}`);
-
-    const cacheControl = parseOptionalStringOption('cache-control', options);
-    const contentDisposition = parseOptionalStringOption('content-disposition', options);
-    const contentEncoding = parseOptionalStringOption('content-encoding', options);
-    const contentLanguage = parseOptionalStringOption('content-language', options);
-    const contentType = parseOptionalStringOption('content-type', options);
-    const expires = parseOptionalStringOption('expires', options);
-    const customMetadata = parseNameValuePairsOption('custom', options);
-
-    const sourceBucket = parseOptionalStringOption('source-bucket', options) || bucket;
-    const sourceKey = parseOptionalStringOption('source-key', options); if (!sourceKey) throw new Error(`--source-key is required`);
-    const ifMatch = parseOptionalStringOption('if-match', options);
-    const ifModifiedSince = parseOptionalStringOption('if-modified-since', options);
-    const ifNoneMatch = parseOptionalStringOption('if-none-match', options);
-    const ifUnmodifiedSince = parseOptionalStringOption('if-unmodified-since', options);
+    if (!sourceKey) throw new Error(`--source-key is required`);
 
     const { origin, region, context } = await loadR2Options(options);
 
     const result = await copyObjectR2({ 
         bucket, key, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, 
-        sourceBucket, sourceKey, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince,
+        sourceBucket: sourceBucket ?? bucket, sourceKey, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince,
     }, context);
     console.log(JSON.stringify(result, undefined, 2));
 
     const millis = Date.now() - CliStats.launchTime;
     console.log(`copied in ${millis}ms`);
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2-copy-object ${CLI_VERSION}`,
-        'Copy R2 object from a given source bucket and key',
-        '',
-        'USAGE:',
-        '    denoflare r2 copy-object [FLAGS] [OPTIONS] [bucket] [key]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <bucket>      Name of the R2 bucket',
-        '    <key>         Name of the R2 object key',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

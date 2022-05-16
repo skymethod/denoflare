@@ -20,7 +20,9 @@ export class CliCommand<T> {
         return new CliCommand(command, description, version);
     }
 
-    arg<K extends string>(name: K, type: 'string', description: string): CliCommand<T & Record<K, string>> {
+    arg<K extends string>(name: K, type: 'string', description: string): CliCommand<T & Record<K, string>>;
+    arg<K extends string>(name: K, type: 'strings', description: string): CliCommand<T & Record<K, string[]>>;
+    arg<K extends string, V>(name: K, type: 'string' | 'strings', description: string): CliCommand<T & Record<K, V>> {
         this.argDefs.push({ camelName: name, kebabName: camelCaseToKebabCase(name), type, description });
         // deno-lint-ignore no-explicit-any
         return this as any;
@@ -30,6 +32,7 @@ export class CliCommand<T> {
     option<K extends string>(name: K, type: 'integer', description: string, opts?: { min?: number, max?: number }): CliCommand<T & Record<K, number | undefined>>;
     option<K extends string>(name: K, type: 'enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string | undefined>>;
     option<K extends string>(name: K, type: 'boolean', description: string): CliCommand<T & Record<K, boolean | undefined>>;
+    option<K extends string>(name: K, type: 'name-value-pairs', description: string): CliCommand<T & Record<K, Record<string, string> | undefined>>;
     option<K extends string, V>(name: K, type: OptionType, description: string, optsOrEnumDefs: Record<string, unknown> | EnumDef[] = {}): CliCommand<T & Record<K, V>> {
         const opts = Array.isArray(optsOrEnumDefs) ? { enumDefs: optsOrEnumDefs } 
             : 'value' in optsOrEnumDefs && 'description' in optsOrEnumDefs ? { enumDefs: [ optsOrEnumDefs ] } 
@@ -77,12 +80,18 @@ export class CliCommand<T> {
     parse(args: (string | number)[], options: Record<string, unknown>): T {
         const { argDefs } = this;
         const allOptionDefs = [ ...this.optionDefs, VERBOSE ];
-        if (args.length !== argDefs.length) throw new Error(`Expected ${argDefs.length} argument${argDefs.length === 1 ? '' : 's'}, found ${args.length}, try --help`);
+        if (args.length < argDefs.length) throw new Error(`Expected at least ${argDefs.length} argument${argDefs.length === 1 ? '' : 's'}, found ${args.length}, try --help`);
         const rt: Record<string, unknown> = {};
         for (let i = 0; i < argDefs.length; i++) {
             const argDef = argDefs[i];
-            const arg = args[i];
-            rt[argDef.camelName] = typeof arg === 'string' ? arg : String(arg);
+            const argToString = (v: number | string) => typeof v === 'string' ? v : String(v);
+            if (argDef.type === 'strings') {
+                rt[argDef.camelName] = args.slice(i).map(argToString);
+                break;
+            } else {
+                const arg = args[i];
+                rt[argDef.camelName] = argToString(arg);
+            }
         }
         for (const [ optionNameKebab, optionValue ] of Object.entries(options)) {
             if (optionNameKebab === '_') continue;
@@ -111,7 +120,7 @@ export class CliCommand<T> {
             description,
             '',
             'USAGE:',
-            this.subcommandDefs.length > 0 ? `    ${command.join(' ')} <subcommand> <subcommand args> <subcommand options>` : `    ${command.join(' ')}${argDefs.map(v => ` <${v.kebabName}>`)} [OPTIONS]`,
+            this.subcommandDefs.length > 0 ? `    ${command.join(' ')} <subcommand> <subcommand args> <subcommand options>` : `    ${command.join(' ')}${argDefs.map(v => v.type === 'strings' ? ` <${v.kebabName}> <${v.kebabName}>...` : ` <${v.kebabName}>`).join('')} [OPTIONS]`,
         ];
         if (argDefs.length > 0) {
             lines.push(
@@ -151,7 +160,7 @@ export type SubcommandHandler = (args: (string|number)[], options: Record<string
 
 type ArgDef = { camelName: string, kebabName: string, type: string, description: string };
 type OptionDef = { camelName: string, kebabName: string, type: OptionType, description: string, opts: Record<string, unknown> };
-type OptionType = 'string' | 'integer' | 'boolean' | 'enum';
+type OptionType = 'string' | 'integer' | 'boolean' | 'enum' | 'name-value-pairs';
 type SubcommandDef = { kebabName : string, description: string, handler: SubcommandHandler };
 
 const VERBOSE = makeInternalBooleanOption('verbose', 'Toggle verbose output (when applicable)');
@@ -167,9 +176,9 @@ function camelCaseToKebabCase(name: string): string {
     for (const char of name) {
         const category = char >= 'a' && char <= 'z' ? 'lower' : char >= 'A' && char <= 'Z' ? 'upper' : char >= '0' && char <= '9' ? 'digit' : undefined;
         if (category === undefined) throw new Error(`Unable to convert '${name}' to kebab case, unsupported character '${char}'`);
-        if (category !== prevCategory) rt += '-';
+        if (category !== prevCategory && category === 'upper') rt += '-';
         rt += category === 'upper' ? char.toLowerCase() : char;
-        prevCategory = category === 'upper' && prevCategory === 'lower' ? 'lower' : category;
+        prevCategory = category;
     }
     return rt;
 }
@@ -210,6 +219,23 @@ function parseOptionValue(value: unknown, def: OptionDef) {
             const values = enumDefs.map(v => v.value);
             if (!values.includes(str)) throw new Error(`Bad ${kebabName}: ${value}, expected one of: ${values.join(', ')}`);
             return str;
+        }
+    } else if (type === 'name-value-pairs') {
+        if (value === undefined) return undefined;
+
+        const rt: Record<string, string> = {};
+        if (typeof value === 'string')  {
+            const { name, value: value_ } = parseNameValue(value);
+            rt[name] = value_;
+            return rt;
+        } else if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
+            for (const item of value) {
+                const { name, value: value_ } = parseNameValue(item);
+                rt[name] = value_;
+            }
+            return rt;
+        } else {
+            throw new Error(`Bad ${kebabName}: ${value}`);
         }
     }
     if (typeof value === 'boolean') throw new Error(`Bad ${kebabName}: expected value`);
@@ -252,10 +278,19 @@ function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<numb
 
 function computeOptionRow(def: OptionDef): [string, string] {
     const { type, opts } = def;
-    const hint = typeof opts.hint === 'string' ? opts.hint 
-        : type === 'string' ? 'string' 
-        : type === 'enum' ? 'enum'
-        : type === 'integer' ? 'integer' 
+    const hint = typeof opts.hint === 'string' ? `<${opts.hint}>`
+        : type === 'string' ? '<string>' 
+        : type === 'enum' ? '<enum>'
+        : type === 'integer' ? '<integer>' 
+        : type === 'name-value-pairs' ? '<name=value>...' 
         : undefined;
-    return  [`    --${def.kebabName}${hint ? ` <${hint}>` : ''}`, computeOptionDescription(def)];
+    return  [`    --${def.kebabName}${hint ? ` ${hint}` : ''}`, computeOptionDescription(def)];
+}
+
+function parseNameValue(str: string): { name: string, value: string} {
+    const i = str.indexOf('=');
+    if (i < 0) throw new Error(`Bad name value: ${str}`);
+    const name = str.substring(0, i);
+    const value = str.substring(i + 1);
+    return { name, value };
 }

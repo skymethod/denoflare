@@ -2,7 +2,7 @@ import { listObjectsV2, R2 } from '../common/r2/r2.ts';
 import { loadR2Options, commandOptionsForR2 } from './cli_r2.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 
-const cmd = denoflareCliCommand(['r2', 'list-objects'], 'List objects within an R2 bucket (list-objects-v2)')
+export const LIST_OBJECTS_COMMAND = denoflareCliCommand(['r2', 'list-objects'], 'List objects within an R2 bucket (list-objects-v2)')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .option('maxKeys', 'integer', 'Limit the number of keys to return', { min: 0, max: 1000 })
     .option('continuationToken', 'string', 'Continue the listing on this bucket with a previously returned token (token is obfuscated and is not a real key)')
@@ -15,9 +15,9 @@ const cmd = denoflareCliCommand(['r2', 'list-objects'], 'List objects within an 
     ;
     
 export async function listObjects(args: (string | number)[], options: Record<string, unknown>) {
-    if (cmd.dumpHelp(args, options)) return;
+    if (LIST_OBJECTS_COMMAND.dumpHelp(args, options)) return;
 
-    const { bucket, verbose, maxKeys, continuationToken, startAfter, prefix,  delimiter,  encodingType, fetchOwner } = cmd.parse(args, options);
+    const { bucket, verbose, maxKeys, continuationToken, startAfter, prefix,  delimiter,  encodingType, fetchOwner } = LIST_OBJECTS_COMMAND.parse(args, options);
 
     if (verbose) {
         R2.DEBUG = true;

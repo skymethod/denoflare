@@ -1,45 +1,53 @@
 import { computeHeadersString, getObject as getObjectR2, headObject as headObjectR2, R2 } from '../common/r2/r2.ts';
-import { parseOptionalStringOption } from './cli_common.ts';
-import { loadR2Options, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { denoflareCliCommand } from './cli_common.ts';
+import { commandOptionsForR2, loadR2Options, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
+
+export const HEAD_OBJECT_COMMAND = getOrHeadCommand('head-object', 'Get R2 object (metadata only) for a given key');
 
 export async function headObject(args: (string | number)[], options: Record<string, unknown>) {
-    return await getOrHeadObject('HEAD', args, options);
+    if (HEAD_OBJECT_COMMAND.dumpHelp(args, options)) return;
+
+    const { bucket, key, verbose, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range, partNumber } = HEAD_OBJECT_COMMAND.parse(args, options);
+    return await getOrHeadObject('HEAD', options, { bucket, key, verbose, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range, partNumber });
 }
 
+export const GET_OBJECT_COMMAND = getOrHeadCommand('get-object', 'Get R2 object for a given key');
+
 export async function getObject(args: (string | number)[], options: Record<string, unknown>) {
-    return await getOrHeadObject('GET', args, options);
+    if (GET_OBJECT_COMMAND.dumpHelp(args, options)) return;
+
+    const { bucket, key, verbose, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range, partNumber } = GET_OBJECT_COMMAND.parse(args, options);
+    return await getOrHeadObject('GET', options, { bucket, key, verbose, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range, partNumber });
 }
 
 //
 
-async function getOrHeadObject(method: 'GET' | 'HEAD', args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 2) {
-        dumpHelp();
-        return;
-    }
+function getOrHeadCommand(name: string, description: string) {
+    return denoflareCliCommand(['r2', name], description)
+        .arg('bucket', 'string', 'Name of the R2 bucket')
+        .arg('key', 'string', 'Key of the object to get')
+        .option('ifMatch', 'string', 'Return the object only if its entity tag (ETag) is the same as the one specified')
+        .option('ifNoneMatch', 'string', 'Return the object only if its entity tag (ETag) is different from the one specified')
+        .option('ifModifiedSince', 'string', 'Return the object only if it has been modified since the specified time')
+        .option('ifUnmodifiedSince', 'string', 'Return the object only if it has not been modified since the specified time')
+        .option('range', 'string', 'Downloads the specified range bytes of an object, e.g. bytes=0-100')
+        .option('partNumber', 'integer', 'Part number of the object being read, effectively performs a ranged GET request for the part specified', { min: 1, max: 10000 })
+        .include(commandOptionsForR2)
+        ;
+}
 
-    const verbose = !!options.verbose;
+async function getOrHeadObject(method: 'GET' | 'HEAD', options: Record<string, unknown>, opts: { bucket: string, key: string, verbose: boolean, ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string, range?: string, partNumber?: number }) {
+    const { verbose, bucket, key, ifMatch: ifMatchOpt, ifNoneMatch: ifNoneMatchOpt, ifModifiedSince, ifUnmodifiedSince, range, partNumber } = opts;
+
     if (verbose) {
         R2.DEBUG = true;
     }
 
-    const [ bucket, key ] = args;
-    if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
-    if (typeof key !== 'string') throw new Error(`Bad key: ${key}`);
+    const ifMatch = surroundWithDoubleQuotesIfNecessary(ifMatchOpt);
+    const ifNoneMatch = surroundWithDoubleQuotesIfNecessary(ifNoneMatchOpt);
 
-    const ifMatch = surroundWithDoubleQuotesIfNecessary(parseOptionalStringOption('if-match', options));
-    const ifNoneMatch = surroundWithDoubleQuotesIfNecessary(parseOptionalStringOption('if-none-match', options));
-    const ifModifiedSince = parseOptionalStringOption('if-modified-since', options);
-    const ifUnmodifiedSince = parseOptionalStringOption('if-unmodified-since', options);
-    const range = parseOptionalStringOption('range', options);
-
-    const { 'part-number': partNumber } = options;
-    if (partNumber !== undefined && typeof partNumber !== 'number') throw new Error(`Bad part-number: ${partNumber}`);
-    
     const { origin, region, context } = await loadR2Options(options);
-    const fn = method === 'GET' ? getObjectR2 : headObjectR2;
-    const response = await fn({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
+    const response = await (method === 'GET' ? getObjectR2 : headObjectR2)({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
     if (!response) {
         console.log('(not found)');
         return;
@@ -51,26 +59,5 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', args: (string | number)[]
     } else {
         const body = await response.arrayBuffer();
         console.log(`(${body.byteLength} bytes)`);
-    }
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2-get-object ${CLI_VERSION}`,
-        'Get R2 object for a given key',
-        '',
-        'USAGE:',
-        '    denoflare r2 get-object [FLAGS] [OPTIONS] [bucket]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <bucket>      Name of the R2 bucket',
-        '    <key>         Name of the R2 object key',
-    ];
-    for (const line of lines) {
-        console.log(line);
     }
 }
