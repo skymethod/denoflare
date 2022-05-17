@@ -1,28 +1,28 @@
-import { checkString } from '../common/check.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { denoflareCliCommand } from "./cli_common.ts";
 import { resolve } from './deps_cli.ts';
 import { computeFileInfoVersion } from './fs_util.ts';
 import { RepoDir } from './repo_dir.ts';
 import { InputFileInfo, SiteModel } from './site/site_model.ts';
 
-export async function serve(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 1) {
-        dumpHelp();
-        return;
-    }
+const DEFAULT_PORT = 8099;
 
-    const verbose = !!options.verbose;
+export const SITE_SERVE_COMMAND = denoflareCliCommand(['site', 'serve'], 'Host static Cloudflare Pages site is a local Deno web server')
+    .arg('repoDir', 'string', 'Local path to the git repo to use as the source input')
+    .option('port', 'integer', `Local port to use for the http server (default: ${DEFAULT_PORT})`)
+    .option('watch', 'boolean', `If set, rebuild the site when file system changes are detected in <repo-dir>`)
+    ;
+
+export async function serve(args: (string | number)[], options: Record<string, unknown>) {
+    if (SITE_SERVE_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, repoDir: repoDirOpt, port: portOpt, watch } = SITE_SERVE_COMMAND.parse(args, options);
+
     if (verbose) RepoDir.VERBOSE = true;
 
-    const watch = !!options.watch;
-
-    let port = DEFAULT_PORT;
-    if (typeof options.port === 'number') {
-        port = options.port;
-    }
+    const port = portOpt ?? DEFAULT_PORT;
     const localOrigin = `http://localhost:${port}`;
 
-    const repoDir = await RepoDir.of(resolve(Deno.cwd(), checkString('repoDir', args[0])));
+    const repoDir = await RepoDir.of(resolve(Deno.cwd(), repoDirOpt));
     const siteModel = new SiteModel(repoDir.path, { localOrigin });
 
     const buildSite = async () => {
@@ -63,32 +63,4 @@ export async function serve(args: (string | number)[], options: Record<string, u
         handle(conn).catch(e => console.error('Error in handle', e.stack || e));
     }
 
-}
-
-//
-
-const DEFAULT_PORT = 8099;
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-site-serve ${CLI_VERSION}`,
-        'Host static Cloudflare Pages site locally',
-        '',
-        'USAGE:',
-        '    denoflare site serve [FLAGS] [OPTIONS] [repo-dir]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '        --watch       Rebuild the site when file system changes are detected in <repo-dir>',
-        '',
-        'OPTIONS:',
-        `        --port <number>     Local port to use for the http server (default: ${DEFAULT_PORT})`,
-        '',
-        'ARGS:',
-        '    <repo-dir>      Local path to the git repo to use as the source input',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

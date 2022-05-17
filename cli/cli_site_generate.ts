@@ -1,25 +1,23 @@
-import { checkString } from '../common/check.ts';
-import { CliStats } from './cli_common.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { CliStats, denoflareCliCommand } from './cli_common.ts';
 import { ensureDir, resolve } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { RepoDir } from './repo_dir.ts';
 import { InputFileInfo, SiteModel } from './site/site_model.ts';
 
+export const SITE_GENERATE_COMMAND = denoflareCliCommand(['site', 'generate'], 'Develop and deploy a static docs site to Cloudflare Pages')
+    .arg('repoDir', 'string', 'Local path to the git repo to use as the source input for generation')
+    .arg('outputDir', 'string', 'Local path to the directory to use for generated output')
+    ;
+
 export async function generate(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 2) {
-        dumpHelp();
-        return;
-    }
+    if (SITE_GENERATE_COMMAND.dumpHelp(args, options)) return;
 
-    const verbose = !!options.verbose;
+    const { verbose, repoDir: repoDirOpt, outputDir: outputDirOpt } = SITE_GENERATE_COMMAND.parse(args, options);
 
-    const repoDir = await RepoDir.of(resolve(Deno.cwd(), checkString('repoDir', args[0])));
+    const repoDir = await RepoDir.of(resolve(Deno.cwd(), repoDirOpt));
 
-    let outputDir = args[1];
-    if (typeof outputDir !== 'string') throw new Error(`Bad outputDir: ${outputDir}`);
-    if (await fileExists(outputDir)) throw new Error(`Bad outputDir, exists as file: ${outputDir}`);
-    outputDir = resolve(Deno.cwd(), outputDir);
+    if (await fileExists(outputDirOpt)) throw new Error(`Bad output-dir, exists as file: ${outputDirOpt}`);
+    const outputDir = resolve(Deno.cwd(), outputDirOpt);
 
     const siteModel = new SiteModel(repoDir.path);
     
@@ -37,27 +35,4 @@ export async function generate(args: (string | number)[], options: Record<string
     await siteModel.writeOutput(outputDir);
     console.log(`Wrote output to ${outputDir}, took ${Date.now() - start}ms`);
     console.log(`Done in ${Date.now() - CliStats.launchTime}ms`);
-}
-
-//
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-site-generate ${CLI_VERSION}`,
-        'Generate static output for Cloudfare Pages',
-        '',
-        'USAGE:',
-        '    denoflare site generate [FLAGS] [OPTIONS] [repo-dir] [output-dir]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <repo-dir>      Local path to the git repo to use as the source input for generation',
-        '    <output-dir>    Local path to the directory to use for generated output',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }
