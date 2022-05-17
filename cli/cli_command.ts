@@ -29,8 +29,10 @@ export class CliCommand<T> {
     }
 
     option<K extends string>(name: K, type: 'string', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string | undefined>>;
+    option<K extends string>(name: K, type: 'required-string', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string>>;
     option<K extends string>(name: K, type: 'integer', description: string, opts?: { min?: number, max?: number }): CliCommand<T & Record<K, number | undefined>>;
     option<K extends string>(name: K, type: 'enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string | undefined>>;
+    option<K extends string>(name: K, type: 'required-enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string>>;
     option<K extends string>(name: K, type: 'boolean', description: string): CliCommand<T & Record<K, boolean | undefined>>;
     option<K extends string>(name: K, type: 'name-value-pairs', description: string): CliCommand<T & Record<K, Record<string, string> | undefined>>;
     option<K extends string, V>(name: K, type: OptionType, description: string, optsOrEnumDefs: Record<string, unknown> | EnumDef[] = {}): CliCommand<T & Record<K, V>> {
@@ -48,7 +50,7 @@ export class CliCommand<T> {
         return this;
     }
 
-    include(modifier: (command: CliCommand<unknown>) => void): CliCommand<T> {
+    include(modifier: CliCommandModifier): CliCommand<T> {
         modifier(this);
         return this;
     }
@@ -103,6 +105,11 @@ export class CliCommand<T> {
             if (!optionDef) throw new Error(`Unknown option: ${optionNameKebab}, try --help`);
             rt[optionDef.camelName] = parseOptionValue(optionValue, optionDef);
         }
+        for (const optionDef of allOptionDefs) {
+            if ((optionDef.type === 'required-enum' || optionDef.type === 'required-string') && !(optionDef.camelName in rt)) {
+                throw new Error(`Missing required option: --${optionDef.kebabName}`);
+            }
+        }
         // deno-lint-ignore no-explicit-any
         return rt as any;
     }
@@ -156,15 +163,17 @@ export class CliCommand<T> {
 
 }
 
-export type EnumDef = { value: string, description: string, default?: boolean };
+export type EnumDef = { value: string, description?: string, default?: boolean };
 
 export type SubcommandHandler = (args: (string|number)[], options: Record<string,unknown>) => Promise<void>;
+
+export type CliCommandModifier = (command: CliCommand<unknown>) => void;
 
 //
 
 type ArgDef = { camelName: string, kebabName: string, type: string, description: string };
 type OptionDef = { camelName: string, kebabName: string, type: OptionType, description: string, opts: Record<string, unknown> };
-type OptionType = 'string' | 'integer' | 'boolean' | 'enum' | 'name-value-pairs';
+type OptionType = 'string' | 'required-string' | 'integer' | 'boolean' | 'enum' | 'required-enum' | 'name-value-pairs';
 type SubcommandDef = { kebabName : string, description: string, handler: SubcommandHandler };
 
 const VERBOSE = makeInternalBooleanOption('verbose', 'Toggle verbose output (when applicable)');
@@ -200,7 +209,8 @@ function computeOptionDescription(def: OptionDef): string {
 
 function parseOptionValue(value: unknown, def: OptionDef) {
     const { type, kebabName } = def;
-    if (type === 'string') {
+
+    if (type === 'string' || type === 'required-string') {
         if (value === undefined || typeof value === 'string') return value;
         if (typeof value === 'number') return String(value);
     } else if (type === 'integer') {
@@ -214,7 +224,7 @@ function parseOptionValue(value: unknown, def: OptionDef) {
         }
     } else if (type === 'boolean') {
         if (value === undefined || typeof value === 'boolean') return value;
-    } else if (type === 'enum') {
+    } else if (type === 'enum' || type === 'required-enum') {
         if (value === undefined) return undefined;
         if (typeof value === 'string' || typeof value === 'number') {
             const str = typeof value === 'string' ? value : String(value);
