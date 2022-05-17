@@ -301,7 +301,6 @@ function parseNameValue(str: string): { name: string, value: string} {
 
 function findOtherSubcommandHandler(subcommand: string, other: Record<string, SubcommandHandler>): SubcommandHandler | undefined {
     for (const [otherCamelName, otherHandler] of Object.entries(other)) {
-        console.log(`otherCamelName=${otherCamelName} subcommand=${subcommand}`)
         if (camelCaseToKebabCase(otherCamelName) === subcommand) {
             return otherHandler;
         }
