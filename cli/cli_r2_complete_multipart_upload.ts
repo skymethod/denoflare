@@ -1,23 +1,23 @@
 import { CompletedPart, completeMultipartUpload as completeMultipartUploadR2, R2 } from '../common/r2/r2.ts';
-import { CliStats } from './cli_common.ts';
-import { loadR2Options, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { CliStats, denoflareCliCommand } from './cli_common.ts';
+import { commandOptionsForR2, loadR2Options, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
+
+export const COMPLETE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'complete-multipart-upload'], 'Complete an existing multipart upload')
+    .arg('bucket', 'string', 'Name of the R2 bucket')
+    .arg('key', 'string', 'Key of the object')
+    .arg('uploadId', 'string', 'Id of the existing multipart upload to complete')
+    .arg('part', 'strings', 'partNumber:etag')
+    .include(commandOptionsForR2)
+    ;
 
 export async function completeMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 3) {
-        dumpHelp();
-        return;
-    }
+    if (COMPLETE_MULTIPART_UPLOAD_COMMAND.dumpHelp(args, options)) return;
 
-    const verbose = !!options.verbose;
+    const { bucket, key, uploadId, part: partSpecs, verbose } = COMPLETE_MULTIPART_UPLOAD_COMMAND.parse(args, options);
+
     if (verbose) {
         R2.DEBUG = true;
     }
-
-    const [ bucket, key, uploadId, ...partSpecs ] = args;
-    if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
-    if (typeof key !== 'string') throw new Error(`Bad key: ${key}`);
-    if (typeof uploadId !== 'string') throw new Error(`Bad uploadId: ${uploadId}`);
 
     const parts = partSpecs.map(parsePartSpec);
 
@@ -30,6 +30,8 @@ export async function completeMultipartUpload(args: (string | number)[], options
     console.log(`completed in ${millis}ms`);
 }
 
+//
+
 function parsePartSpec(partSpec: unknown): CompletedPart {
     if (typeof partSpec !== 'string') throw new Error(`Invalid part: ${partSpec}`);
     const [ partNumberStr, etagStr ] = partSpec.split(':');
@@ -37,27 +39,4 @@ function parsePartSpec(partSpec: unknown): CompletedPart {
     const partNumber = parseInt(partNumberStr);
     const etag = surroundWithDoubleQuotesIfNecessary(etagStr)!;
     return { partNumber, etag };
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2-complete-multipart-upload ${CLI_VERSION}`,
-        'Complete R2 multipart upload',
-        '',
-        'USAGE:',
-        '    denoflare r2 complete-multipart-upload [FLAGS] [OPTIONS] [bucket] [key] [uploadId] ...[parts]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <bucket>      Name of the R2 bucket',
-        '    <key>         Name of the R2 object key',
-        '    <uploadId>    ID of the multipart upload',
-        '    <parts>       partNumber:etag',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

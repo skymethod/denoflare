@@ -1,30 +1,28 @@
 import { createMultipartUpload as createMultipartUploadR2, R2 } from '../common/r2/r2.ts';
-import { CliStats, parseNameValuePairsOption, parseOptionalStringOption } from './cli_common.ts';
-import { loadR2Options } from './cli_r2.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { CliStats, denoflareCliCommand } from './cli_common.ts';
+import { commandOptionsForR2, loadR2Options } from './cli_r2.ts';
+
+export const CREATE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'create-multipart-upload'], 'Start a multipart upload and return an upload ID')
+    .arg('bucket', 'string', 'Name of the R2 bucket')
+    .arg('key', 'string', 'Key of the object to upload')
+    .option('cacheControl', 'string', 'Specify caching behavior along the request/reply chain')
+    .option('contentDisposition', 'string', 'Specify presentational information for the object')
+    .option('contentEncoding', 'string', 'Specify what content encodings have been applied to the object')
+    .option('contentLanguage', 'string', 'Specify the language the object is in')
+    .option('contentType', 'string', 'A standard MIME type describing the format of the contents')
+    .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
+    .option('custom', 'name-value-pairs', 'Custom metadata for the object')
+    .include(commandOptionsForR2)
+    ;
 
 export async function createMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 2) {
-        dumpHelp();
-        return;
-    }
+    if (CREATE_MULTIPART_UPLOAD_COMMAND.dumpHelp(args, options)) return;
 
-    const verbose = !!options.verbose;
+    const { bucket, key, verbose, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentType, expires, custom: customMetadata } = CREATE_MULTIPART_UPLOAD_COMMAND.parse(args, options);
+
     if (verbose) {
         R2.DEBUG = true;
     }
-
-    const [ bucket, key ] = args;
-    if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
-    if (typeof key !== 'string') throw new Error(`Bad key: ${key}`);
-
-    const cacheControl = parseOptionalStringOption('cache-control', options);
-    const contentDisposition = parseOptionalStringOption('content-disposition', options);
-    const contentEncoding = parseOptionalStringOption('content-encoding', options);
-    const contentLanguage = parseOptionalStringOption('content-language', options);
-    const contentType = parseOptionalStringOption('content-type', options);
-    const expires = parseOptionalStringOption('expires', options);
-    const customMetadata = parseNameValuePairsOption('custom', options);
 
     const { origin, region, context } = await loadR2Options(options);
 
@@ -35,25 +33,4 @@ export async function createMultipartUpload(args: (string | number)[], options: 
 
     const millis = Date.now() - CliStats.launchTime;
     console.log(`copied in ${millis}ms`);
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2-create-multipart-upload ${CLI_VERSION}`,
-        'Copy R2 object from a given source bucket and key',
-        '',
-        'USAGE:',
-        '    denoflare r2 create-multipart-upload [FLAGS] [OPTIONS] [bucket] [key]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <bucket>      Name of the R2 bucket',
-        '    <key>         Name of the R2 object key',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

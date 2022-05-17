@@ -18,11 +18,11 @@ import { putObject, PUT_OBJECT_COMMAND } from './cli_r2_put_object.ts';
 import { deleteObject, DELETE_OBJECT_COMMAND } from './cli_r2_delete_object.ts';
 import { deleteObjects, DELETE_OBJECTS_COMMAND } from './cli_r2_delete_objects.ts';
 import { copyObject, COPY_OBJECT_COMMAND } from './cli_r2_copy_object.ts';
-import { createMultipartUpload } from './cli_r2_create_multipart_upload.ts';
-import { abortMultipartUpload } from './cli_r2_abort_multipart_upload.ts';
-import { completeMultipartUpload } from './cli_r2_complete_multipart_upload.ts';
-import { uploadPart } from './cli_r2_upload_part.ts';
-import { uploadPartCopy } from './cli_r2_upload_part_copy.ts';
+import { createMultipartUpload, CREATE_MULTIPART_UPLOAD_COMMAND } from './cli_r2_create_multipart_upload.ts';
+import { abortMultipartUpload, ABORT_MULTIPART_UPLOAD_COMMAND } from './cli_r2_abort_multipart_upload.ts';
+import { completeMultipartUpload, COMPLETE_MULTIPART_UPLOAD_COMMAND } from './cli_r2_complete_multipart_upload.ts';
+import { uploadPart, UPLOAD_PART_COMMAND } from './cli_r2_upload_part.ts';
+import { uploadPartCopy, UPLOAD_PART_COPY_COMMAND } from './cli_r2_upload_part_copy.ts';
 import { putLargeObject } from './cli_r2_put_large_object.ts';
 import { CLI_USER_AGENT, denoflareCliCommand, parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_crypto.ts';
@@ -49,6 +49,13 @@ const cmd = denoflareCliCommand('r2', 'Manage R2 storage using the S3 compatibil
     .subcommand(DELETE_OBJECT_COMMAND, deleteObject)
     .subcommand(DELETE_OBJECTS_COMMAND, deleteObjects)
     .subcommand(COPY_OBJECT_COMMAND, copyObject)
+
+    .subcommand(CREATE_MULTIPART_UPLOAD_COMMAND, createMultipartUpload)
+    .subcommand(ABORT_MULTIPART_UPLOAD_COMMAND, abortMultipartUpload)
+    .subcommand(COMPLETE_MULTIPART_UPLOAD_COMMAND, completeMultipartUpload)
+    .subcommand(UPLOAD_PART_COMMAND, uploadPart)
+    .subcommand(UPLOAD_PART_COPY_COMMAND, uploadPartCopy)
+
     ;
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
