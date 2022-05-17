@@ -17,7 +17,7 @@ export const ANALYTICS_COMMAND = denoflareCliCommand('analytics', 'Dump stats vi
 export async function analytics(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (ANALYTICS_COMMAND.dumpHelp(args, options)) return;
 
-    const { service, namespaceId, start, end } = ANALYTICS_COMMAND.parse(args, options);;
+    const { service, namespaceId, start, end } = ANALYTICS_COMMAND.parse(args, options);
     if (service === 'do' || service === 'durable-objects') {
         const config = await loadConfig(options);
         const profile = await resolveProfile(config, options);

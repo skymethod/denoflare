@@ -21,7 +21,7 @@ export const TAIL_COMMAND = denoflareCliCommand('tail', 'View a stream of logs f
 export async function tail(args: (string | number)[], options: Record<string, unknown>) {
     if (TAIL_COMMAND.dumpHelp(args, options)) return;
 
-    const opt = TAIL_COMMAND.parse(args, options);;
+    const opt = TAIL_COMMAND.parse(args, options);
     const { name: scriptName, verbose, once } = opt;
 
     const format = opt.format || 'json';

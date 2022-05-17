@@ -21,53 +21,9 @@ const DENOFLARE = CliCommand.of(['denoflare'], undefined, { version: CLI_VERSION
     .subcommand(TAIL_COMMAND, tail)
     .subcommand(SITE_COMMAND, site)
     .subcommand(ANALYTICS_COMMAND, analytics)
-
     .subcommand(CFAPI_COMMAND, cfapi)
     .subcommand(R2_COMMAND, r2)
-    .subcommand(VERSION_COMMAND, version)
+    .subcommand(VERSION_COMMAND, () => console.log(CLI_VERSION))
     ;
 
-if (Deno.env.get('CLI_COMMAND') ?? '' !== '') {
-    await DENOFLARE.routeSubcommand(args._, args);
-} else {
-    if (args._.length > 0) {
-        const command = args._[0];
-        const fn = { serve, push, tail, site, analytics, version, cfapi, r2, auth }[command];
-            if (fn) {
-                await fn(args._.slice(1), args);
-                Deno.exit(0);
-            }
-    }
-
-    dumpHelp();
-
-    Deno.exit(1);
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare ${CLI_VERSION}`,
-        '',
-        'USAGE:',
-        '    denoflare [command] [FLAGS] [OPTIONS] [args]',
-        '',
-        'COMMANDS:',
-        '    serve       Run a worker script on a local web server',
-        '    push        Upload a worker script to Cloudflare Workers',
-        '    tail        View a stream of logs from a published worker',
-        '    site        Develop and deploy a static docs site to Cloudflare Pages',
-        '    analytics   Dump stats via the Cloudflare GraphQL Analytics API',
-        '    cfapi       Call the Cloudflare REST API',
-        '    r2          Interact with R2 using the S3 compatible API',
-        '    version     Dump cli version',
-        '',
-        'For command-specific help: denoflare [command] --help',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
-}
-
-function version() {
-    console.log(CLI_VERSION)
-}
+await DENOFLARE.routeSubcommand(args._, args, { auth });

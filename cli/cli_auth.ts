@@ -1,23 +1,11 @@
 import { computeOauthObtainTokenRequest, computeOauthPkce, computeOauthRefreshTokenRequest, computeOauthUserAuthorizationUrl } from '../common/oauth.ts';
-import { CLI_VERSION } from './cli_version.ts';
 import { serve } from './deps_cli.ts';
-import { parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
+import { denoflareCliCommand, parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
+
+const AUTH_COMMAND = denoflareCliCommand('auth', 'Authentication');
 
 export async function auth(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    const subcommand = args[0];
-    if (options.help && args.length === 0 || typeof subcommand !== 'string') {
-        dumpHelp();
-        return;
-    }
-    const fn = { 
-        tmp,
-
-     }[subcommand];
-    if (fn) {
-        await fn(args.slice(1), options);
-    } else {
-        dumpHelp();
-    }
+    await AUTH_COMMAND.routeSubcommand(args, options, { tmp });
 }
 
 //
@@ -70,21 +58,4 @@ async function tmp(_args: (string | number)[], options: Record<string, unknown>)
     };
     console.log(`Callback server: http://localhost:${port}`);
     await serve(handler, { port });
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-auth ${CLI_VERSION}`,
-        'Auth',
-        '',
-        'USAGE:',
-        '    denoflare auth [subcommand] [FLAGS] [OPTIONS] [args]',
-        '',
-        'SUBCOMMANDS:',
-        '',
-        'For subcommand-specific help: denoflare auth [subcommand] --help',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

@@ -40,6 +40,7 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage R2 storage using the
     .subcommand(PUT_BUCKET_ENCRYPTION_COMMAND, putBucketEncryption)
     .subcommand(GET_BUCKET_LOCATION_COMMAND, getBucketLocation)
 
+    .subcommandGroup()
     .subcommand(LIST_OBJECTS_COMMAND, listObjects)
     .subcommand(LIST_OBJECTS_V1_COMMAND, listObjectsV1)
     .subcommand(GET_OBJECT_COMMAND, getObject)
@@ -49,6 +50,7 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage R2 storage using the
     .subcommand(DELETE_OBJECTS_COMMAND, deleteObjects)
     .subcommand(COPY_OBJECT_COMMAND, copyObject)
 
+    .subcommandGroup()
     .subcommand(CREATE_MULTIPART_UPLOAD_COMMAND, createMultipartUpload)
     .subcommand(ABORT_MULTIPART_UPLOAD_COMMAND, abortMultipartUpload)
     .subcommand(COMPLETE_MULTIPART_UPLOAD_COMMAND, completeMultipartUpload)

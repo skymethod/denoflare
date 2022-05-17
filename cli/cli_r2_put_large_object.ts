@@ -1,28 +1,26 @@
 import { Bytes } from '../common/bytes.ts';
 import { createMultipartUpload, uploadPart, abortMultipartUpload, completeMultipartUpload, R2, CompletedPart } from '../common/r2/r2.ts';
-import { CliStats } from './cli_common.ts';
-import { loadR2Options } from './cli_r2.ts';
-import { CLI_VERSION } from './cli_version.ts';
+import { CliStats, denoflareCliCommand } from './cli_common.ts';
+import { commandOptionsForR2, loadR2Options } from './cli_r2.ts';
+
+const PUT_LARGE_OBJECT_COMMAND = denoflareCliCommand(['cli', 'r2', 'put-large-object'], 'Upload a large file in multiple chunks')
+    .arg('bucket', 'string', 'Name of the R2 bucket')
+    .arg('key', 'string', 'Name of the R2 object key')
+    .option('file', 'required-string', 'Local path to the file', { hint: 'path' })
+    .include(commandOptionsForR2)
+    ;
+
 
 export async function putLargeObject(args: (string | number)[], options: Record<string, unknown>) {
-    if (options.help || args.length < 2) {
-        dumpHelp();
-        return;
-    }
+    if (PUT_LARGE_OBJECT_COMMAND.dumpHelp(args, options)) return;
 
-    const verbose = !!options.verbose;
+    const { verbose, bucket, key, file } = PUT_LARGE_OBJECT_COMMAND.parse(args, options);
+
     if (verbose) {
         R2.DEBUG = true;
     }
 
-    const [ bucket, key ] = args;
-    if (typeof bucket !== 'string') throw new Error(`Bad bucket: ${bucket}`);
-    if (typeof key !== 'string') throw new Error(`Bad key: ${key}`);
-
     const { origin, region, context } = await loadR2Options(options);
-
-    const { file } = options;
-    if (typeof file !== 'string') throw new Error(`Must provide --file`);
 
     const start = Date.now();
     const bytes = await Deno.readFile(file);
@@ -58,25 +56,4 @@ export async function putLargeObject(args: (string | number)[], options: Record<
 
     const millis = Date.now() - CliStats.launchTime;
     console.log(`put ${bytes.length} total bytes in ${millis}ms`);
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2-put-large-object ${CLI_VERSION}`,
-        'Upload a large file in multiple chunks',
-        '',
-        'USAGE:',
-        '    denoflare r2 put-large-object [FLAGS] [OPTIONS] [bucket] [key]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'ARGS:',
-        '    <bucket>      Name of the R2 bucket',
-        '    <key>         Name of the R2 object key',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

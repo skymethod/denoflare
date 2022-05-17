@@ -6,6 +6,7 @@ export class CliCommand<T> {
     private readonly optionDefs: OptionDef[] = [];
     private readonly optionGroupIndexes = new Set<number>();
     private readonly subcommandDefs: SubcommandDef[] = [];
+    private readonly subcommandGroupIndexes = new Set<number>();
 
     private constructor(command: string[], description: string | undefined, version: string | undefined) {
         this.command = command;
@@ -71,6 +72,12 @@ export class CliCommand<T> {
         return this;
     }
 
+    subcommandGroup(): CliCommand<T> {
+        const index = this.subcommandDefs.length - 1;
+        if (index >= 0) this.subcommandGroupIndexes.add(index);
+        return this;
+    }
+
     async routeSubcommand(args: (string | number)[], options: Record<string, unknown>, other: Record<string, SubcommandHandler> = {}) {
         if (this.dumpHelp(args, options, other)) return;
 
@@ -119,23 +126,24 @@ export class CliCommand<T> {
     }
 
     dumpHelp(args: (string | number)[], options: Record<string, unknown>, other: Record<string, SubcommandHandler> = {}): boolean {
-        const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs } = this;
+        const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs, subcommandGroupIndexes } = this;
 
-        const dump = subcommandDefs.length > 0 ? (args.length === 0 || !subcommandDefs.some(v => v.kebabName === args[0]) && !other[args[0]])
+        const dump = subcommandDefs.length > 0 ? (args.length === 0 || !subcommandDefs.some(v => v.kebabName === args[0]) && !Object.keys(other).map(camelCaseToKebabCase).includes(String(args[0])))
             : (args.length < argDefs.length || options.help);
         if (!dump) return false;
 
         const argRows = [...argDefs.map(v => [`    <${v.kebabName}>`, v.description])];
         const optionRows = computeOptionRows(optionDefs, optionGroupIndexes)
-        const subcommandRows = [...subcommandDefs.map(v => [`    ${v.kebabName}`, v.description])];
+        const subcommandRows = computeSubcommandRows(subcommandDefs, subcommandGroupIndexes);
         const columnLength = Math.max(...[...optionRows, ...argRows, ...subcommandRows].map(v => v[0].length)) + 2;
 
+        const commandType = command.length === 1 ? 'command' : 'subcommand';
         const lines = [
             `${command.join('-')}${version ? ` ${version}` : ''}`,
             ...(description ? ['', description] : []),
             '',
             'USAGE:',
-            this.subcommandDefs.length > 0 ? `    ${command.join(' ')} <subcommand> <subcommand args> <subcommand options>` : `    ${command.join(' ')}${argDefs.map(v => v.type === 'strings' ? ` <${v.kebabName}> <${v.kebabName}>...` : ` <${v.kebabName}>`).join('')} [OPTIONS]`,
+            this.subcommandDefs.length > 0 ? `    ${command.join(' ')} <${commandType}> <args> <options>` : `    ${command.join(' ')}${argDefs.map(v => v.type === 'strings' ? ` <${v.kebabName}> <${v.kebabName}>...` : ` <${v.kebabName}>`).join('')} [OPTIONS]`,
         ];
         if (argDefs.length > 0) {
             lines.push(
@@ -147,10 +155,10 @@ export class CliCommand<T> {
         if (this.subcommandDefs.length > 0) {
             lines.push(
                 '',
-                'SUBCOMMANDS:',
+                `${commandType.toUpperCase()}S:`,
                 ...subcommandRows.map(v => v[0].padEnd(columnLength) + v[1]),
             '',
-            `For subcommand-specific help: ${command.join(' ')} <subcommand> --help`,)
+            `For ${commandType}-specific help: ${command.join(' ')} <${commandType}> --help`,)
         } else {
             lines.push(
                 '',
@@ -298,6 +306,16 @@ function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<numb
     addGroupBreak();
     rt.push(computeOptionRow(HELP));
     rt.push(computeOptionRow(VERBOSE));
+    return rt;
+}
+
+function computeSubcommandRows(subcommandDefs: SubcommandDef[], subcommandGroupIndexes: Set<number>): string[][] {
+    const rt: string[][] = [];
+    const addGroupBreak = () => rt.push(['', '']);
+    subcommandDefs.forEach((v, i) => {
+        rt.push([`    ${v.kebabName}`, v.description]);
+        if (subcommandGroupIndexes.has(i)) addGroupBreak();
+    });
     return rt;
 }
 

@@ -40,6 +40,29 @@ function cfapiCommand() {
         console.log(success);
     });
 
+    add(apiCommand('list-flags', 'List account-level flags'), async (accountId, apiToken) => {
+        const value = await listFlags(accountId, apiToken);
+        console.log(value);
+    });
+
+    add(apiCommand('list-zones', 'List zones')
+        .option('match', 'enum', 'Match type', { value: 'any' }, { value: 'all' })
+        .option('name', 'string', 'Name filter')
+        .option('order', 'enum', 'Order by', { value: 'name' }, { value: 'status' }, { value: 'account.id' }, { value: 'account.name' })
+        .option('status', 'enum', 'Status filter', { value: 'active' }, { value: 'pending' }, { value: 'initializing' }, { value: 'moved' }, { value: 'deleted' }, { value: 'deactivated' }, { value: 'read only' })
+        .include(commandOptionsForParsePagingOptions)
+    , async (accountId, apiToken, opts, options) => {
+        const match = opts.match as 'any' | 'all';
+        const order = opts.order as 'name' | 'status' | 'account.id' | 'account.name';
+        const status = opts.status as 'active' | 'pending' | 'initializing' | 'moved' | 'deleted' | 'deactivated' | 'read only';
+        const { name } = opts;
+        const { page, perPage, direction } = parsePagingOptions(options);
+        const value = await listZones(accountId, apiToken, { match, name, order, page, perPage, status, direction });
+        console.log(value);
+    });
+
+    rt.subcommandGroup();
+
     add(apiCommand('put-key-value', 'Set KV value')
         .arg('namespaceId', 'string', 'KV namespace id')
         .arg('key', 'string', 'Key within the namespace')
@@ -72,42 +95,8 @@ function cfapiCommand() {
             console.log(JSON.stringify(metadata, undefined, 2));
         }
     });
-
-    add(apiCommand('list-buckets', 'List R2 buckets'), async (accountId, apiToken) => {
-        const value = await listR2Buckets(accountId, apiToken);
-        console.log(value);
-    });
-
-    add(apiCommand('create-bucket', 'Create a new R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
-        const { bucketName } = opts;
-        await createR2Bucket(accountId, bucketName, apiToken);
-    });
-
-    add(apiCommand('delete-bucket', 'Delete a R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
-        const { bucketName } = opts;
-        await deleteR2Bucket(accountId, bucketName, apiToken);
-    });
-
-    add(apiCommand('list-flags', 'List account-level flags'), async (accountId, apiToken) => {
-        const value = await listFlags(accountId, apiToken);
-        console.log(value);
-    });
-
-    add(apiCommand('list-zones', 'List zones')
-        .option('match', 'enum', 'Match type', { value: 'any' }, { value: 'all' })
-        .option('name', 'string', 'Name filter')
-        .option('order', 'enum', 'Order by', { value: 'name' }, { value: 'status' }, { value: 'account.id' }, { value: 'account.name' })
-        .option('status', 'enum', 'Status filter', { value: 'active' }, { value: 'pending' }, { value: 'initializing' }, { value: 'moved' }, { value: 'deleted' }, { value: 'deactivated' }, { value: 'read only' })
-        .include(commandOptionsForParsePagingOptions)
-    , async (accountId, apiToken, opts, options) => {
-        const match = opts.match as 'any' | 'all';
-        const order = opts.order as 'name' | 'status' | 'account.id' | 'account.name';
-        const status = opts.status as 'active' | 'pending' | 'initializing' | 'moved' | 'deleted' | 'deactivated' | 'read only';
-        const { name } = opts;
-        const { page, perPage, direction } = parsePagingOptions(options);
-        const value = await listZones(accountId, apiToken, { match, name, order, page, perPage, status, direction });
-        console.log(value);
-    });
+    
+    rt.subcommandGroup();
 
     add(apiCommand('list-workers-domains', 'List Workers domains').option('hostname', 'string', 'Hostname filter'), async (accountId, apiToken, opts) => {
         const { hostname } = opts;
@@ -130,6 +119,25 @@ function cfapiCommand() {
         const { workersDomainId } = opts;
         await deleteWorkersDomain(accountId, apiToken, { workersDomainId });
     });
+
+    rt.subcommandGroup();
+
+    add(apiCommand('list-buckets', 'List R2 buckets'), async (accountId, apiToken) => {
+        const value = await listR2Buckets(accountId, apiToken);
+        console.log(value);
+    });
+
+    add(apiCommand('create-bucket', 'Create a new R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
+        const { bucketName } = opts;
+        await createR2Bucket(accountId, bucketName, apiToken);
+    });
+
+    add(apiCommand('delete-bucket', 'Delete a R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
+        const { bucketName } = opts;
+        await deleteR2Bucket(accountId, bucketName, apiToken);
+    });
+
+    rt.subcommandGroup();
 
     add(apiCommand('verify-token', 'Verify an api token'), async (_, apiToken) => {
         const value = await verifyToken(apiToken);
