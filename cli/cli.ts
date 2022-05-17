@@ -1,27 +1,42 @@
-import { serve } from './cli_serve.ts';
+import { serve, SERVE_COMMAND } from './cli_serve.ts';
 import { tail } from './cli_tail.ts';
 import { push } from './cli_push.ts';
 import { site } from './cli_site.ts';
 import { parseFlags } from './deps_cli.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { analytics } from './cli_analytics.ts';
-import { cfapi } from './cli_cfapi.ts';
-import { r2 } from './cli_r2.ts';
+import { cfapi, CFAPI_COMMAND } from './cli_cfapi.ts';
+import { r2, R2_COMMAND } from './cli_r2.ts';
 import { auth } from './cli_auth.ts';
+import { CliCommand } from './cli_command.ts';
+import { denoflareCliCommand } from './cli_common.ts';
 
 const args = parseFlags(Deno.args);
 
-if (args._.length > 0) {
-    const command = args._[0];
-    const fn = { serve, push, tail, site, analytics, version, cfapi, r2, auth }[command];
-        if (fn) {
-            await fn(args._.slice(1), args);
-            Deno.exit(0);
-        }
-}
+const VERSION_COMMAND = denoflareCliCommand('version', 'Dump cli version');
 
-function version() {
-    console.log(CLI_VERSION);
+const DENOFLARE = CliCommand.of(['denoflare'], undefined, { version: CLI_VERSION })
+    .subcommand(SERVE_COMMAND, serve)
+    .subcommand(CFAPI_COMMAND, cfapi)
+    .subcommand(R2_COMMAND, r2)
+    .subcommand(VERSION_COMMAND, version)
+    ;
+
+if (args.cmd) {
+    await DENOFLARE.routeSubcommand(args._, args);
+} else {
+    if (args._.length > 0) {
+        const command = args._[0];
+        const fn = { serve, push, tail, site, analytics, version, cfapi, r2, auth }[command];
+            if (fn) {
+                await fn(args._.slice(1), args);
+                Deno.exit(0);
+            }
+    }
+
+    dumpHelp();
+
+    Deno.exit(1);
 }
 
 function dumpHelp() {
@@ -48,6 +63,6 @@ function dumpHelp() {
     }
 }
 
-dumpHelp();
-
-Deno.exit(1);
+function version() {
+    console.log(CLI_VERSION)
+}

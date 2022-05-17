@@ -1,13 +1,13 @@
 export class CliCommand<T> {
     private readonly command: readonly string[];
-    private readonly description: string;
+    private readonly description: string | undefined;
     private readonly version: string | undefined;
     private readonly argDefs: ArgDef[] = [];
     private readonly optionDefs: OptionDef[] = [];
     private readonly optionGroupIndexes = new Set<number>();
     private readonly subcommandDefs: SubcommandDef[] = [];
 
-    private constructor(command: string[], description: string, version: string | undefined) {
+    private constructor(command: string[], description: string | undefined, version: string | undefined) {
         this.command = command;
         this.description = description;
         this.version = version;
@@ -15,7 +15,7 @@ export class CliCommand<T> {
 
     //
 
-    static of(command: string[], description: string, opts?: { version?: string }): CliCommand<{ verbose: boolean }> {
+    static of(command: string[], description?: string, opts?: { version?: string }): CliCommand<{ verbose: boolean }> {
         const { version } = opts ?? {};
         return new CliCommand(command, description, version);
     }
@@ -30,7 +30,7 @@ export class CliCommand<T> {
 
     option<K extends string>(name: K, type: 'string', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string | undefined>>;
     option<K extends string>(name: K, type: 'required-string', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string>>;
-    option<K extends string>(name: K, type: 'integer', description: string, opts?: { min?: number, max?: number }): CliCommand<T & Record<K, number | undefined>>;
+    option<K extends string>(name: K, type: 'integer', description: string, opts?: { hint?: string, min?: number, max?: number }): CliCommand<T & Record<K, number | undefined>>;
     option<K extends string>(name: K, type: 'enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string | undefined>>;
     option<K extends string>(name: K, type: 'required-enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string>>;
     option<K extends string>(name: K, type: 'boolean', description: string): CliCommand<T & Record<K, boolean | undefined>>;
@@ -62,7 +62,7 @@ export class CliCommand<T> {
             throw new Error(`Bad subcommand: ${subcommand.command.join(' ')} for parent ${this.command.join(' ')}`);
         }
         const kebabName = subcommand.command.at(-1)!;
-        const description = subcommand.description;
+        const description = subcommand.description ?? '';
         this.subcommandDefs.push({ kebabName, description, handler });
         return this;
     }
@@ -128,7 +128,7 @@ export class CliCommand<T> {
 
         const lines = [
             `${command.join('-')}${version ? ` ${version}` : ''}`,
-            description,
+            ...(description ? ['', description] : []),
             '',
             'USAGE:',
             this.subcommandDefs.length > 0 ? `    ${command.join(' ')} <subcommand> <subcommand args> <subcommand options>` : `    ${command.join(' ')}${argDefs.map(v => v.type === 'strings' ? ` <${v.kebabName}> <${v.kebabName}>...` : ` <${v.kebabName}>`).join('')} [OPTIONS]`,
@@ -165,7 +165,7 @@ export class CliCommand<T> {
 
 export type EnumDef = { value: string, description?: string, default?: boolean };
 
-export type SubcommandHandler = (args: (string|number)[], options: Record<string,unknown>) => Promise<void>;
+export type SubcommandHandler = (args: (string|number)[], options: Record<string,unknown>) => Promise<void> | void;
 
 export type CliCommandModifier = (command: CliCommand<unknown>) => void;
 

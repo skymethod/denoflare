@@ -1,4 +1,4 @@
-import { loadConfig, resolveBindings, resolveProfileOpt } from './config_loader.ts';
+import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfileOpt } from './config_loader.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
 import { LocalDurableObjects } from '../common/local_durable_objects.ts';
@@ -9,9 +9,8 @@ import { WorkerExecution, WorkerExecutionCallbacks } from '../common/worker_exec
 import { makeIncomingRequestCfProperties } from '../common/incoming_request_cf_properties.ts';
 import { UnimplementedDurableObjectNamespace } from '../common/unimplemented_cloudflare_stubs.ts';
 import { ModuleWatcher } from './module_watcher.ts';
-import { CLI_VERSION } from './cli_version.ts';
 import { Binding, Isolation, Script } from '../common/config.ts';
-import { CLI_USER_AGENT, computeContentsForScriptReference } from './cli_common.ts';
+import { CLI_USER_AGENT, computeContentsForScriptReference, denoflareCliCommand } from './cli_common.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { ModuleWorkerExecution } from '../common/module_worker_execution.ts';
@@ -21,14 +20,22 @@ import { LocalWebSockets } from '../common/local_web_sockets.ts';
 import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_types.d.ts';
 import { emit } from './emit.ts';
 
-export async function serve(args: (string | number)[], options: Record<string, unknown>) {
-    const scriptSpec = args[0];
-    if (options.help || typeof scriptSpec !== 'string') {
-        dumpHelp();
-        return;
-    }
+const DEFAULT_PORT = 8080;
 
-    const verbose = !!options.verbose;
+export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a worker script in a local Deno web server')
+    .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
+    .option('port', 'integer', `Local port to use for the http(s) server (default: ${DEFAULT_PORT})`, { hint: 'number' })
+    .option('certPem', 'string', `(required for https) Path to certificate file in pem format (contents start with -----BEGIN CERTIFICATE-----)`, { hint: 'path' })
+    .option('keyPem', 'string', `(required for https) Path to private key file in pem format (contents start with -----BEGIN PRIVATE KEY-----)`, { hint: 'path' })
+    .option('name', 'string', `Explicit script name to use from config file`)
+    .include(commandOptionsForConfig)
+    ;
+
+export async function serve(args: (string | number)[], options: Record<string, unknown>) {
+    if (SERVE_COMMAND.dumpHelp(args, options)) return;
+
+    const { scriptSpec, verbose, port: portOpt, certPem: certPemOpt, keyPem: keyPemOpt, name: nameOpt } = SERVE_COMMAND.parse(args, options);
+
     if (verbose) {
         // in cli
         ModuleWatcher.VERBOSE = verbose;
@@ -46,16 +53,15 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
     const start = Date.now();
     const config = await loadConfig(options);
-    const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
-    const { scriptName, rootSpecifier } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
+    const { scriptName, rootSpecifier } = await computeContentsForScriptReference(scriptSpec, config, nameOpt);
  
     const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
     if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
     
     // read the script-based cloudflare worker contents
-    let certPem = typeof options['cert-pem'] === 'string' ? options['cert-pem'] : undefined;
-    let keyPem = typeof options['key-pem'] === 'string' ? options['key-pem'] : undefined;
     let port = DEFAULT_PORT;
+    let certPem = certPemOpt;
+    let keyPem = keyPemOpt;
     let bindingsProvider: () => Promise<Record<string, Binding>> = () => Promise.resolve({});
     let isolation: Isolation = 'isolate';
     let script: Script | undefined;
@@ -74,8 +80,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
         certPem = certPem || script.localCertPem;
         keyPem = keyPem || script.localKeyPem;
     } else {
-        if (typeof options.port === 'number') {
-            port = options.port;
+        if (typeof portOpt === 'number') {
+            port = portOpt;
         }
     }
     const profile = await resolveProfileOpt(config, options);
@@ -294,35 +300,4 @@ class DenoWebSocketForwarder {
         return this.clientSocket;
     }
 
-}
-
-//
-
-const DEFAULT_PORT = 8080;
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-serve ${CLI_VERSION}`,
-        'Run a worker script on a local web server',
-        '',
-        'USAGE:',
-        '    denoflare serve [FLAGS] [OPTIONS] [--] [script-spec]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '',
-        'OPTIONS:',
-        `        --port <number>      Local port to use for the http(s) server (default: ${DEFAULT_PORT})`,
-        `        --cert-pem <path>    (required for https) Path to certificate file in pem format (contents start with -----BEGIN CERTIFICATE-----)`,
-        `        --key-pem <path>     (required for https) Path to private key file in pem format (contents start with -----BEGIN PRIVATE KEY-----)`,
-        '        --profile <name>     Name of profile to load from config (default: only profile or default profile in config)',
-        '        --config <path>      Path to config file (default: .denoflare in cwd or parents)',
-        '',
-        'ARGS:',
-        '    <script-spec>    Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

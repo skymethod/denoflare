@@ -5,11 +5,17 @@ import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand, SubcommandHandler } from './cli_command.ts';
 
+export const CFAPI_COMMAND = cfapiCommand();
+
 export async function cfapi(args: (string | number)[], options: Record<string, unknown>) {
-    return await cfapiCommand().routeSubcommand(args, options);
+    return await CFAPI_COMMAND.routeSubcommand(args, options);
 }
 
-export function cfapiCommand() {
+//
+
+type ApiHandler<T> = (accountId: string, apiToken: string, opts: T, options: Record<string, unknown>) => Promise<void>;
+
+function cfapiCommand() {
     const apiCommand = (name: string, description: string) => denoflareCliCommand(['cfapi', name], description);
     const rt = denoflareCliCommand('cfapi', 'Call the Cloudflare REST API');
     function add<T>(c: CliCommand<T>, handler: ApiHandler<T>) {
@@ -160,9 +166,6 @@ export function cfapiCommand() {
     return rt;
 }
 
-//
-
-type ApiHandler<T> = (accountId: string, apiToken: string, opts: T, options: Record<string, unknown>) => Promise<void>;
 
 function makeSubcommandHandler<T>(cliCommand: CliCommand<T>, apiHandler: ApiHandler<T>): SubcommandHandler {
     return async (args, options) => {
