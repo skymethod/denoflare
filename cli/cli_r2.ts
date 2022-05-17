@@ -1,4 +1,3 @@
-import { CLI_VERSION } from './cli_version.ts';
 import { listObjects, LIST_OBJECTS_COMMAND } from './cli_r2_list_objects.ts';
 import { listObjectsV1, LIST_OBJECTS_V1_COMMAND } from './cli_r2_list_objects_v1.ts';
 import { getObject, GET_OBJECT_COMMAND, headObject, HEAD_OBJECT_COMMAND } from './cli_r2_get_head_object.ts';
@@ -55,54 +54,10 @@ const cmd = denoflareCliCommand('r2', 'Manage R2 storage using the S3 compatibil
     .subcommand(COMPLETE_MULTIPART_UPLOAD_COMMAND, completeMultipartUpload)
     .subcommand(UPLOAD_PART_COMMAND, uploadPart)
     .subcommand(UPLOAD_PART_COPY_COMMAND, uploadPartCopy)
-
     ;
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    if (1 === 1) {
-        await cmd.routeSubcommand(args, options);
-        return;
-    }
-    const subcommand = args[0];
-    if (options.help && args.length === 0 || typeof subcommand !== 'string') {
-        dumpHelp();
-        return;
-    }
-
-    const fn = { 
-        'list-buckets': listBuckets, 
-        'head-bucket': headBucket,
-        'create-bucket': createBucket, 
-        'delete-bucket': deleteBucket, 
-        'get-bucket-encryption': getBucketEncryption, 
-        'delete-bucket-encryption': deleteBucketEncryption, 
-        'put-bucket-encryption': putBucketEncryption, 
-
-        'list-objects': listObjects, 
-        'list-objects-v1': listObjectsV1,
-        'get-object': getObject, 
-        'head-object': headObject,
-        'put-object': putObject,
-        'delete-object': deleteObject,
-        'delete-objects': deleteObjects,
-        'copy-object': copyObject,
-
-        'create-multipart-upload': createMultipartUpload,
-        'abort-multipart-upload': abortMultipartUpload,
-        'complete-multipart-upload': completeMultipartUpload,
-        'upload-part': uploadPart,
-        'upload-part-copy': uploadPartCopy,
-
-        generic,
-        'put-large-object': putLargeObject,
-        tmp,
-
-     }[subcommand];
-    if (fn) {
-        await fn(args.slice(1), options);
-    } else {
-        dumpHelp();
-    }
+    await cmd.routeSubcommand(args, options, { generic, putLargeObject, tmp });
 }
 
 export function commandOptionsForR2(command: CliCommand<unknown>) {
@@ -236,23 +191,3 @@ async function tmp(args: (string | number)[], options: Record<string, unknown>) 
     console.log(res);
     // if (res) console.log(await res.text());
 }
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-r2 ${CLI_VERSION}`,
-        'Manage R2 storage using the S3 compatibility API',
-        '',
-        'USAGE:',
-        '    denoflare r2 [subcommand] [FLAGS] [OPTIONS] [args]',
-        '',
-        'SUBCOMMANDS:',
-        '    list-objects    List objects within a bucket',
-        '    get-object      Get R2 object for a given key',
-        '',
-        'For subcommand-specific help: denoflare r2 [subcommand] --help',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
-}
-

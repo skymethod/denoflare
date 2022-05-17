@@ -65,16 +65,21 @@ export class CliCommand<T> {
         return this;
     }
 
-    async routeSubcommand(args: (string | number)[], options: Record<string, unknown>) {
-        if (this.dumpHelp(args, options)) return;
+    async routeSubcommand(args: (string | number)[], options: Record<string, unknown>, other: Record<string, SubcommandHandler> = {}) {
+        if (this.dumpHelp(args, options, other)) return;
 
-        const subcommand = args[0];
+        const subcommand = argToString(args[0]);
         const def = this.subcommandDefs.find(v => v.kebabName === subcommand);
-        if (!def) {
-            throw new Error(`Unknown subcommand: ${subcommand}, try --help`);
+        if (def) {
+            await def.handler(args.slice(1), options);
+        } else {
+            const otherHandler = findOtherSubcommandHandler(subcommand, other);
+            if (otherHandler) {
+                await otherHandler(args.slice(1), options);
+            } else {
+                throw new Error(`Unknown subcommand: ${subcommand}, try --help`);
+            }
         }
-
-        await def.handler(args.slice(1), options);
     }
 
     parse(args: (string | number)[], options: Record<string, unknown>): T {
@@ -84,7 +89,6 @@ export class CliCommand<T> {
         const rt: Record<string, unknown> = {};
         for (let i = 0; i < argDefs.length; i++) {
             const argDef = argDefs[i];
-            const argToString = (v: number | string) => typeof v === 'string' ? v : String(v);
             if (argDef.type === 'strings') {
                 rt[argDef.camelName] = args.slice(i).map(argToString);
                 break;
@@ -103,10 +107,10 @@ export class CliCommand<T> {
         return rt as any;
     }
 
-    dumpHelp(args: (string | number)[], options: Record<string, unknown>): boolean {
+    dumpHelp(args: (string | number)[], options: Record<string, unknown>, other: Record<string, SubcommandHandler> = {}): boolean {
         const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs } = this;
 
-        const dump = subcommandDefs.length > 0 ? (args.length === 0 || !subcommandDefs.some(v => v.kebabName === args[0]))
+        const dump = subcommandDefs.length > 0 ? (args.length === 0 || !subcommandDefs.some(v => v.kebabName === args[0]) && !other[args[0]])
             : (args.length < argDefs.length || options.help);
         if (!dump) return false;
 
@@ -293,4 +297,17 @@ function parseNameValue(str: string): { name: string, value: string} {
     const name = str.substring(0, i);
     const value = str.substring(i + 1);
     return { name, value };
+}
+
+function findOtherSubcommandHandler(subcommand: string, other: Record<string, SubcommandHandler>): SubcommandHandler | undefined {
+    for (const [otherCamelName, otherHandler] of Object.entries(other)) {
+        console.log(`otherCamelName=${otherCamelName} subcommand=${subcommand}`)
+        if (camelCaseToKebabCase(otherCamelName) === subcommand) {
+            return otherHandler;
+        }
+    }
+}
+
+function argToString(v: number | string): string {
+    return typeof v === 'string' ? v : String(v);
 }
