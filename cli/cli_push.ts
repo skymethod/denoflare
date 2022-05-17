@@ -1,38 +1,49 @@
-import { loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
+import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve, fromFileUrl, relative } from './deps_cli.ts';
 import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain } from '../common/cloudflare_api.ts';
-import { CLI_VERSION } from './cli_version.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
-import { computeContentsForScriptReference, parseOptionalStringOptions } from './cli_common.ts';
+import { computeContentsForScriptReference, denoflareCliCommand } from './cli_common.ts';
 import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { emit } from './emit.ts';
 
+export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a worker script to Cloudflare Workers')
+    .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
+    .option('name', 'string', `Name to use for Cloudflare Worker script [default: Name of script defined in .denoflare config, or https url basename sans extension]`)
+    .option('watch', 'boolean', 'If set, watch the local file system and automatically re-upload on script changes')
+    .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
+    .option('customDomain', 'strings', 'Bind worker to one or more custom domains', { hint: 'domain-or-subdomain-name' })
+    .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
+    .optionGroup()
+    .option('textBinding', 'strings', 'Plain text environment variable binding, overrides config', { hint: 'name:plain-text'})
+    .option('secretBinding', 'strings', 'Secret text environment variable binding, overrides config', { hint: 'name:secret-text'})
+    .option('kvNamespaceBinding', 'strings', 'KV namespace environment variable binding, overrides config', { hint: 'name:namespace-id'})
+    .option('doNamespaceBinding', 'strings', 'DO namespace environment variable binding, overrides config', { hint: 'name:namespace-name:class-name'})
+    .option('wasmModuleBinding', 'strings', 'WASM module environment variable binding, overrides config', { hint: 'name:path-to-local-wasm-file'})
+    .option('serviceBinding', 'strings', 'Service environment variable binding, overrides config', { hint: 'name:service:environment'})
+    .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
+    .include(commandOptionsForConfig)
+    ;
+
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
-    const scriptSpec = args[0];
-    if (options.help || typeof scriptSpec !== 'string') {
-        dumpHelp();
-        return;
-    }
-    const verbose = !!options.verbose;
+    if (PUSH_COMMAND.dumpHelp(args, options)) return;
+
+    const opt = PUSH_COMMAND.parse(args, options);
+    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
+
     if (verbose) {
         // in cli
         ModuleWatcher.VERBOSE = verbose;
         CloudflareApi.DEBUG = true;
     }
 
-    const nameFromOptions = typeof options.name === 'string' && options.name.trim().length > 0 ? options.name.trim() : undefined;
-
     const config = await loadConfig(options);
-    const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameFromOptions);
+    const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameOpt);
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
-    const watch = !!options.watch;
-    const watchIncludes = typeof options.watch === 'string' ? options.watch.split(',').map(v => v.trim()) : [];
-    const customDomainsFromOptions = parseOptionalStringOptions('custom-domain', options);
-    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
+    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(opt) };
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -58,7 +69,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
         // only perform migrations on first upload, not on subsequent --watch uploads
-        const migrations = pushNumber === 1 ? computeMigrations(options) : undefined;
+        const migrations = pushNumber === 1 ? computeMigrations(deleteClassOpt) : undefined;
 
         if (isModule) {
             scriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, parts);
@@ -83,7 +94,7 @@ export async function push(args: (string | number)[], options: Record<string, un
 
         // only perform custom domain setup on first upload, not on subsequent --watch uploads
         if (pushNumber === 1) {
-            const customDomains = customDomainsFromOptions || script?.customDomains || [];
+            const customDomains = customDomainOpt || script?.customDomains || [];
             if (customDomains.length > 0) {
                 start = Date.now();
                 const zones = await listZones(accountId, apiToken, { perPage: 1000 });
@@ -111,41 +122,41 @@ export async function push(args: (string | number)[], options: Record<string, un
             } finally {
                 console.log('watching for changes...');
             }
-        }, watchIncludes);
+        }, watchInclude);
         return new Promise(() => {});
     }
 }
 
 //
 
-function parseInputBindingsFromOptions(options: Record<string, unknown>): Record<string, Binding> {
+function parseInputBindingsFromOptions(opts: { textBinding?: string[], secretBinding?: string[], kvNamespaceBinding?: string[], doNamespaceBinding?: string[], wasmModuleBinding?: string[], serviceBinding?: string[], r2BucketBinding?: string[] }): Record<string, Binding> {
     const rt: Record<string, Binding>  = {};
     const pattern = /^([^:]+):(.*)$/;
-    for (const textBinding of parseOptionalStringOptions('text-binding', options) || []) {
+    for (const textBinding of opts.textBinding || []) {
         const [ _, name, value] = checkMatchesReturnMatcher('text-binding', textBinding, pattern);
         rt[name] = { value };
     }
-    for (const secretBinding of parseOptionalStringOptions('secret-binding', options) || []) {
+    for (const secretBinding of opts.secretBinding || []) {
         const [ _, name, secret] = checkMatchesReturnMatcher('secret-binding', secretBinding, pattern);
         rt[name] = { secret };
     }
-    for (const kvNamespaceBinding of parseOptionalStringOptions('kv-namespace-binding', options) || []) {
+    for (const kvNamespaceBinding of opts.kvNamespaceBinding || []) {
         const [ _, name, kvNamespace] = checkMatchesReturnMatcher('kv-namespace-binding', kvNamespaceBinding, pattern);
         rt[name] = { kvNamespace };
     }
-    for (const doNamespaceBinding of parseOptionalStringOptions('do-namespace-binding', options) || []) {
+    for (const doNamespaceBinding of opts.doNamespaceBinding || []) {
         const [ _, name, doNamespace] = checkMatchesReturnMatcher('do-namespace-binding', doNamespaceBinding, pattern);
         rt[name] = { doNamespace };
     }
-    for (const wasmModuleBinding of parseOptionalStringOptions('wasm-module-binding', options) || []) {
+    for (const wasmModuleBinding of opts.wasmModuleBinding || []) {
         const [ _, name, wasmModule] = checkMatchesReturnMatcher('wasm-module-binding', wasmModuleBinding, pattern);
         rt[name] = { wasmModule };
     }
-    for (const serviceBinding of parseOptionalStringOptions('service-binding', options) || []) {
+    for (const serviceBinding of opts.serviceBinding || []) {
         const [ _, name, serviceEnvironment] = checkMatchesReturnMatcher('service-binding', serviceBinding, pattern);
         rt[name] = { serviceEnvironment };
     }
-    for (const r2BucketBinding of parseOptionalStringOptions('r2-bucket-binding', options) || []) {
+    for (const r2BucketBinding of opts.r2BucketBinding || []) {
         const [ _, name, bucketName] = checkMatchesReturnMatcher('r2-bucket-binding', r2BucketBinding, pattern);
         rt[name] = { bucketName };
     }
@@ -167,9 +178,8 @@ async function ensureCustomDomainExists(customDomain: string, opts: { zones: rea
     await putWorkersDomain(accountId, apiToken, { hostname: customDomain, zoneId: zone.id, service: scriptName, environment: 'production' });
 }
 
-function computeMigrations(options: Record<string, unknown>): Migrations | undefined {
-    const option = options['delete-class'];
-    const deleted_classes = typeof option === 'string' ? [ option ] : Array.isArray(option) && option.every(v => typeof v === 'string') ? option as string[] : [];
+function computeMigrations(deleteClassOpt: string[] | undefined): Migrations | undefined {
+    const deleted_classes = deleteClassOpt ?? [];
     return deleted_classes.length > 0 ? { tag: `delete-${deleted_classes.join('-')}`, deleted_classes } : undefined;
 }
 
@@ -338,31 +348,4 @@ async function computeWasmModulePart(wasmModule: string, parts: Record<string, P
     const part = name;
     parts[part] = { name, value: new Blob([ valueBytes ], { type: 'application/wasm' }), valueBytes };
     return part;
-}
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-push ${CLI_VERSION}`,
-        'Upload a worker script to Cloudflare Workers',
-        '',
-        'USAGE:',
-        '    denoflare push [FLAGS] [OPTIONS] [--] [script-spec]',
-        '',
-        'FLAGS:',
-        '    -h, --help        Prints help information',
-        '        --verbose     Toggle verbose output (when applicable)',
-        '        --watch       Re-upload the worker script when local changes are detected',
-        '',
-        'OPTIONS:',
-        '    -n, --name <name>          Name to use for Cloudflare Worker script [default: Name of script defined in .denoflare config, or https url basename sans extension]',
-        '        --profile <name>       Name of profile to load from config (default: only profile or default profile in config)',
-        '        --config <path>        Path to config file (default: .denoflare in cwd or parents)',
-        '        --delete-class <name>  Delete an obsolete Durable Object (and all data!) by class name',
-        '',
-        'ARGS:',
-        '    <script-spec>    Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
 }

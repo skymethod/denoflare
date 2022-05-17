@@ -29,8 +29,10 @@ export class CliCommand<T> {
     }
 
     option<K extends string>(name: K, type: 'string', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string | undefined>>;
+    option<K extends string>(name: K, type: 'strings', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string[] | undefined>>;
     option<K extends string>(name: K, type: 'required-string', description: string, opts?: { hint: string }): CliCommand<T & Record<K, string>>;
     option<K extends string>(name: K, type: 'integer', description: string, opts?: { hint?: string, min?: number, max?: number }): CliCommand<T & Record<K, number | undefined>>;
+    option<K extends string>(name: K, type: 'required-integer', description: string, opts?: { hint?: string, min?: number, max?: number }): CliCommand<T & Record<K, number>>;
     option<K extends string>(name: K, type: 'enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string | undefined>>;
     option<K extends string>(name: K, type: 'required-enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string>>;
     option<K extends string>(name: K, type: 'boolean', description: string): CliCommand<T & Record<K, boolean | undefined>>;
@@ -106,7 +108,7 @@ export class CliCommand<T> {
             rt[optionDef.camelName] = parseOptionValue(optionValue, optionDef);
         }
         for (const optionDef of allOptionDefs) {
-            if ((optionDef.type === 'required-enum' || optionDef.type === 'required-string') && !(optionDef.camelName in rt)) {
+            if ((optionDef.type.startsWith('required-')) && !(optionDef.camelName in rt)) {
                 throw new Error(`Missing required option: --${optionDef.kebabName}`);
             }
         }
@@ -165,7 +167,7 @@ export class CliCommand<T> {
 
 export type EnumDef = { value: string, description?: string, default?: boolean };
 
-export type SubcommandHandler = (args: (string|number)[], options: Record<string,unknown>) => Promise<void> | void;
+export type SubcommandHandler = (args: (string|number)[], options: Record<string,unknown>) => Promise<unknown> | void;
 
 export type CliCommandModifier = (command: CliCommand<unknown>) => void;
 
@@ -173,7 +175,7 @@ export type CliCommandModifier = (command: CliCommand<unknown>) => void;
 
 type ArgDef = { camelName: string, kebabName: string, type: string, description: string };
 type OptionDef = { camelName: string, kebabName: string, type: OptionType, description: string, opts: Record<string, unknown> };
-type OptionType = 'string' | 'required-string' | 'integer' | 'boolean' | 'enum' | 'required-enum' | 'name-value-pairs';
+type OptionType = 'string' | 'strings' | 'required-string' | 'integer' | 'required-integer' | 'boolean' | 'enum' | 'required-enum' | 'name-value-pairs';
 type SubcommandDef = { kebabName : string, description: string, handler: SubcommandHandler };
 
 const VERBOSE = makeInternalBooleanOption('verbose', 'Toggle verbose output (when applicable)');
@@ -200,6 +202,7 @@ function computeOptionDescription(def: OptionDef): string {
     const { description } = def;
     const { min, max } = tryGetIntegerOpts(def) ?? {};
     const constraints: string[] = [];
+    if (def.type.startsWith('required-')) constraints.push('required');
     if (typeof min === 'number') constraints.push(`min: ${min}`);
     if (typeof max === 'number') constraints.push(`max: ${max}`);
     const enumDefs = tryGetEnumDefs(def);
@@ -213,7 +216,11 @@ function parseOptionValue(value: unknown, def: OptionDef) {
     if (type === 'string' || type === 'required-string') {
         if (value === undefined || typeof value === 'string') return value;
         if (typeof value === 'number') return String(value);
-    } else if (type === 'integer') {
+    } else if (type === 'strings') {
+        if (value === undefined) return undefined;
+        if (typeof value === 'string') return [ value ];
+        if (Array.isArray(value)) return value.map(v => String(v));
+    } else if (type === 'integer' || type === 'required-integer') {
         if (value === undefined) return undefined;
         if (typeof value === 'number') {
             if (value !== Math.round(value)) throw new Error(`Bad ${kebabName}: ${value}, expected integer`);
@@ -292,10 +299,11 @@ function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<numb
 
 function computeOptionRow(def: OptionDef): [string, string] {
     const { type, opts } = def;
-    const hint = typeof opts.hint === 'string' ? `<${opts.hint}>`
-        : type === 'string' ? '<string>' 
-        : type === 'enum' ? '<enum>'
-        : type === 'integer' ? '<integer>' 
+    const hint = typeof opts.hint === 'string' ? `<${opts.hint}>${type === 'strings' || type === 'name-value-pairs' ? '...' : ''}`
+        : type === 'string' || type === 'required-string' ? '<string>' 
+        : type === 'strings' ? '<string>...' 
+        : type === 'enum' || type === 'required-enum' ? '<enum>'
+        : type === 'integer' || type === 'required-integer' ? '<integer>' 
         : type === 'name-value-pairs' ? '<name=value>...' 
         : undefined;
     return  [`    --${def.kebabName}${hint ? ` ${hint}` : ''}`, computeOptionDescription(def)];

@@ -5,10 +5,10 @@ import { commandOptionsForR2, loadR2Options } from './cli_r2.ts';
 export const UPLOAD_PART_COPY_COMMAND = denoflareCliCommand(['r2', 'upload-part-copy'], 'Copy R2 part from a given source bucket and key')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .arg('key', 'string', 'Key of the object')
-    .option('uploadId', 'string', 'Id of the existing multipart upload to complete (required)')
-    .option('partNumber', 'integer', 'Number of the part (required)', { min: 1, max: 10000 })
+    .option('uploadId', 'required-string', 'Id of the existing multipart upload to complete')
+    .option('partNumber', 'required-integer', 'Number of the part', { min: 1, max: 10000 })
     .option('sourceBucket', 'string', 'R2 Bucket of the source object (default: destination bucket)')
-    .option('sourceKey', 'string', 'Key of the source object (required)')
+    .option('sourceKey', 'required-string', 'Key of the source object')
     .option('sourceRange', 'string', 'The range of bytes to copy from the source object')
     .optionGroup()
     .option('ifMatch', 'string', 'Copies the object part if its entity tag (ETag) matches the specified tag')
@@ -27,10 +27,6 @@ export async function uploadPartCopy(args: (string | number)[], options: Record<
         R2.DEBUG = true;
     }
     
-    if (!uploadId) throw new Error(`Must provide --upload-id`);
-    if (partNumber === undefined) throw new Error(`Must provide --part-number`);
-    if (!sourceKey) throw new Error(`--source-key is required`);
-
     const { origin, region, context } = await loadR2Options(options);
 
     const result = await uploadPartCopyR2({ 

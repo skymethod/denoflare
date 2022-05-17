@@ -5,8 +5,8 @@ import { commandOptionsForLoadBodyFromOptions, commandOptionsForR2, loadBodyFrom
 export const UPLOAD_PART_COMMAND = denoflareCliCommand(['r2', 'upload-part'], 'Upload part of a multipart upload')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .arg('key', 'string', 'Key of the object')
-    .option('uploadId', 'string', 'Id of the existing multipart upload to complete (required)')
-    .option('partNumber', 'integer', 'Number of the part (required)', { min: 1, max: 10000 })
+    .option('uploadId', 'required-string', 'Id of the existing multipart upload to complete')
+    .option('partNumber', 'required-integer', 'Number of the part', { min: 1, max: 10000 })
     .include(commandOptionsForLoadBodyFromOptions)
     .include(commandOptionsForR2)
     ;
@@ -19,9 +19,6 @@ export async function uploadPart(args: (string | number)[], options: Record<stri
     if (verbose) {
         R2.DEBUG = true;
     }
-
-    if (!uploadId) throw new Error(`Must provide --upload-id`);
-    if (partNumber === undefined) throw new Error(`Must provide --part-number`);
 
     const { origin, region, context } = await loadR2Options(options);
 

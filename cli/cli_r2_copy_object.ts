@@ -6,7 +6,7 @@ export const COPY_OBJECT_COMMAND = denoflareCliCommand(['r2', 'copy-object'], 'C
     .arg('bucket', 'string', 'Name of the destination R2 bucket')
     .arg('key', 'string', 'Key of the destination object')
     .option('sourceBucket', 'string', 'R2 Bucket of the source object (default: destination bucket)')
-    .option('sourceKey', 'string', 'Key of the source object (required)')
+    .option('sourceKey', 'required-string', 'Key of the source object')
     .optionGroup()
     .option('cacheControl', 'string', 'Specify caching behavior along the request/reply chain')
     .option('contentDisposition', 'string', 'Specify presentational information for the object')
@@ -31,8 +31,6 @@ export async function copyObject(args: (string | number)[], options: Record<stri
     if (verbose) {
         R2.DEBUG = true;
     }
-
-    if (!sourceKey) throw new Error(`--source-key is required`);
 
     const { origin, region, context } = await loadR2Options(options);
 
