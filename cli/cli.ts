@@ -1,5 +1,5 @@
 import { serve, SERVE_COMMAND } from './cli_serve.ts';
-import { tail } from './cli_tail.ts';
+import { tail, TAIL_COMMAND } from './cli_tail.ts';
 import { push, PUSH_COMMAND } from './cli_push.ts';
 import { site } from './cli_site.ts';
 import { parseFlags } from './deps_cli.ts';
@@ -18,6 +18,8 @@ const VERSION_COMMAND = denoflareCliCommand('version', 'Dump cli version');
 const DENOFLARE = CliCommand.of(['denoflare'], undefined, { version: CLI_VERSION })
     .subcommand(SERVE_COMMAND, serve)
     .subcommand(PUSH_COMMAND, push)
+    .subcommand(TAIL_COMMAND, tail)
+
     .subcommand(CFAPI_COMMAND, cfapi)
     .subcommand(R2_COMMAND, r2)
     .subcommand(VERSION_COMMAND, version)

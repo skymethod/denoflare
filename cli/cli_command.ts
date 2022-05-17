@@ -37,10 +37,12 @@ export class CliCommand<T> {
     option<K extends string>(name: K, type: 'required-enum', description: string, ...enumDefs: EnumDef[]): CliCommand<T & Record<K, string>>;
     option<K extends string>(name: K, type: 'boolean', description: string): CliCommand<T & Record<K, boolean | undefined>>;
     option<K extends string>(name: K, type: 'name-value-pairs', description: string): CliCommand<T & Record<K, Record<string, string> | undefined>>;
-    option<K extends string, V>(name: K, type: OptionType, description: string, optsOrEnumDefs: Record<string, unknown> | EnumDef[] = {}): CliCommand<T & Record<K, V>> {
-        const opts = Array.isArray(optsOrEnumDefs) ? { enumDefs: optsOrEnumDefs } 
-            : 'value' in optsOrEnumDefs && 'description' in optsOrEnumDefs ? { enumDefs: [ optsOrEnumDefs ] } 
-            : optsOrEnumDefs;
+    option<K extends string, V>(name: K, type: OptionType, description: string, _?: unknown): CliCommand<T & Record<K, V>> {
+        const rest = [...arguments].slice(3);
+        const opts: Record<string, unknown> = rest.length === 0 ? {} 
+            : rest.length === 1 && 'value' in rest[0] ? { enumDefs: [ rest[0] ]}
+            : rest.length === 1 ? rest[0]
+            : { enumDefs: rest };
         this.optionDefs.push({ camelName: name, kebabName: camelCaseToKebabCase(name), type, description, opts });
         // deno-lint-ignore no-explicit-any
         return this as any;
@@ -207,6 +209,8 @@ function computeOptionDescription(def: OptionDef): string {
     if (typeof max === 'number') constraints.push(`max: ${max}`);
     const enumDefs = tryGetEnumDefs(def);
     if (enumDefs) constraints.push(`one of: ${enumDefs.map(v => v.value).join(', ')}`);
+    const defaultEnumDef = (enumDefs ?? []).find(v => v.default);
+    if (defaultEnumDef) constraints.push(`default: ${defaultEnumDef.value}`);
     return description + (constraints.length > 0 ? ` (${constraints.join(', ')})` : '');
 }
 
@@ -298,11 +302,11 @@ function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<numb
 }
 
 function computeOptionRow(def: OptionDef): [string, string] {
-    const { type, opts } = def;
+    const { type, opts, kebabName } = def;
     const hint = typeof opts.hint === 'string' ? `<${opts.hint}>${type === 'strings' || type === 'name-value-pairs' ? '...' : ''}`
         : type === 'string' || type === 'required-string' ? '<string>' 
         : type === 'strings' ? '<string>...' 
-        : type === 'enum' || type === 'required-enum' ? '<enum>'
+        : type === 'enum' || type === 'required-enum' ? `<${kebabName}>`
         : type === 'integer' || type === 'required-integer' ? '<integer>' 
         : type === 'name-value-pairs' ? '<name=value>...' 
         : undefined;
