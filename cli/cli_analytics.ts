@@ -1,60 +1,36 @@
 import { Profile } from '../common/config.ts';
-import { CLI_VERSION } from './cli_version.ts';
-import { loadConfig, resolveProfile } from './config_loader.ts';
+import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
 import { CfGqlClient } from '../common/analytics/cfgql_client.ts';
 import { computeDurableObjectsCostsTable } from '../common/analytics/durable_objects_costs.ts';
+import { denoflareCliCommand } from './cli_common.ts';
 
+export const ANALYTICS_COMMAND = denoflareCliCommand('analytics', 'Dump stats via the Cloudflare GraphQL Analytics API')
+    .arg('service', 'string', `durable-objects: Dump stats for Durable Objects`)
+    .option('namespaceId', 'string', 'Filter to single Durable Objects namespace id')
+    .option('start', 'string', 'Start of the analysis range (inclusive)', { hint: 'yyyy-mm-dd' })
+    .option('end', 'string', 'End of the analysis range (inclusive)', { hint: 'yyyy-mm-dd' })
+    .option('budget', 'boolean', 'If set, dump GraphQL API request budget')
+    .option('totals', 'boolean', 'If set, dump storage read/write unit and request/subrequest totals')
+    .include(commandOptionsForConfig)
+    ;
+    
 export async function analytics(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    const firstArg = args[0];
-    if (options.help || typeof firstArg !== 'string' ) {
-        dumpHelp();
-        return;
-    }
-    if (firstArg === 'do' || firstArg === 'durable-objects') {
+    if (ANALYTICS_COMMAND.dumpHelp(args, options)) return;
+
+    const { service, namespaceId, start, end } = ANALYTICS_COMMAND.parse(args, options);;
+    if (service === 'do' || service === 'durable-objects') {
         const config = await loadConfig(options);
         const profile = await resolveProfile(config, options);
-        const namespaceId = typeof args[1] === 'string' ? args[1] : undefined;
-        const start = typeof options.start === 'string' ? options.start : undefined;
-        const end = typeof options.end === 'string' ? options.end : undefined;
         const range = start && end ? { start, end } : undefined;
         const dumpBudget = !!options.budget; 
         const dumpTotals = !!options.totals; 
         await dumpDurableObjects(profile, namespaceId, { dumpBudget, dumpTotals, range });
     } else {
-        dumpHelp();
+        console.log(`Unknown service: ${service}, try --help`);
     }
 }
 
 //
-
-function dumpHelp() {
-    const lines = [
-        `denoflare-analytics ${CLI_VERSION}`,
-        'Dump stats via the Cloudflare GraphQL Analytics API',
-        '',
-        'USAGE:',
-        '    denoflare analytics [FLAGS] [OPTIONS] [--] [service] [service-args]',
-        '',
-        'SERVICES:',
-        '    durable-objects             Dump stats for Durable Objects (optional namespace-id as first service arg)',
-        '',
-        'FLAGS:',
-        '    -h, --help                  Prints help information',
-        '        --verbose               Toggle verbose output (when applicable)',
-        '',
-        'OPTIONS:',
-        '        --profile <name>        Name of profile to load from config (default: only profile or default profile in config)',
-        '        --config <path>         Path to config file (default: .denoflare in cwd or parents)',
-        '        --start <yyyy-mm-dd>    Start of the analysis range (inclusive)',
-        '        --end <yyyy-mm-dd>      End of the analysis range (inclusive)',
-        '        --budget                Dump GraphQL API request budget',
-        '        --totals                Dump storage read/write unit and request/subrequest totals',
-        '',
-    ];
-    for (const line of lines) {
-        console.log(line);
-    }
-}
 
 async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined, opts: { dumpBudget?: boolean, dumpTotals?: boolean, range?: { start: string, end: string } }) {
     const { dumpBudget, dumpTotals, range } = opts;

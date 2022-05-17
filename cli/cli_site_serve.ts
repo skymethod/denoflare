@@ -1,4 +1,4 @@
-import { denoflareCliCommand } from "./cli_common.ts";
+import { denoflareCliCommand } from './cli_common.ts';
 import { resolve } from './deps_cli.ts';
 import { computeFileInfoVersion } from './fs_util.ts';
 import { RepoDir } from './repo_dir.ts';

@@ -4,7 +4,7 @@ import { push, PUSH_COMMAND } from './cli_push.ts';
 import { site, SITE_COMMAND } from './cli_site.ts';
 import { parseFlags } from './deps_cli.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { analytics } from './cli_analytics.ts';
+import { analytics, ANALYTICS_COMMAND } from './cli_analytics.ts';
 import { cfapi, CFAPI_COMMAND } from './cli_cfapi.ts';
 import { r2, R2_COMMAND } from './cli_r2.ts';
 import { auth } from './cli_auth.ts';
@@ -20,6 +20,7 @@ const DENOFLARE = CliCommand.of(['denoflare'], undefined, { version: CLI_VERSION
     .subcommand(PUSH_COMMAND, push)
     .subcommand(TAIL_COMMAND, tail)
     .subcommand(SITE_COMMAND, site)
+    .subcommand(ANALYTICS_COMMAND, analytics)
 
     .subcommand(CFAPI_COMMAND, cfapi)
     .subcommand(R2_COMMAND, r2)
