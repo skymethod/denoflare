@@ -7,7 +7,7 @@ export const COMPLETE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'com
     .arg('key', 'string', 'Key of the object')
     .arg('uploadId', 'string', 'Id of the existing multipart upload to complete')
     .arg('part', 'strings', 'partNumber:etag')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function completeMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {
@@ -21,9 +21,9 @@ export async function completeMultipartUpload(args: (string | number)[], options
 
     const parts = partSpecs.map(parsePartSpec);
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    const result = await completeMultipartUploadR2({ bucket, key, uploadId, parts, origin, region }, context);
+    const result = await completeMultipartUploadR2({ bucket, key, uploadId, parts, origin, region, urlStyle }, context);
     console.log(JSON.stringify(result, undefined, 2));
 
     const millis = Date.now() - CliStats.launchTime;

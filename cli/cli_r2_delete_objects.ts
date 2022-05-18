@@ -6,7 +6,7 @@ export const DELETE_OBJECTS_COMMAND = denoflareCliCommand(['r2', 'delete-objects
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .arg('key', 'strings', 'Keys of the objects to delete')
     .option('quiet', 'boolean', 'Enable quiet mode, response will only include keys where the delete action encountered an error')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function deleteObjects(args: (string | number)[], options: Record<string, unknown>) {
@@ -18,8 +18,8 @@ export async function deleteObjects(args: (string | number)[], options: Record<s
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    const result = await deleteObjectsR2({ bucket, items, origin, region, quiet }, context);
+    const result = await deleteObjectsR2({ bucket, items, origin, region, quiet, urlStyle }, context);
     console.log(JSON.stringify(result, undefined, 2));
 }

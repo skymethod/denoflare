@@ -32,7 +32,7 @@ function getOrHeadCommand(name: string, description: string) {
         .option('ifUnmodifiedSince', 'string', 'Return the object only if it has not been modified since the specified time')
         .option('range', 'string', 'Downloads the specified range bytes of an object, e.g. bytes=0-100')
         .option('partNumber', 'integer', 'Part number of the object being read, effectively performs a ranged GET request for the part specified', { min: 1, max: 10000 })
-        .include(commandOptionsForR2)
+        .include(commandOptionsForR2())
         ;
 }
 
@@ -46,8 +46,8 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', options: Record<string, u
     const ifMatch = surroundWithDoubleQuotesIfNecessary(ifMatchOpt);
     const ifNoneMatch = surroundWithDoubleQuotesIfNecessary(ifNoneMatchOpt);
 
-    const { origin, region, context } = await loadR2Options(options);
-    const response = await (method === 'GET' ? getObjectR2 : headObjectR2)({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
+    const response = await (method === 'GET' ? getObjectR2 : headObjectR2)({ bucket, key, origin, region, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
     if (!response) {
         console.log('(not found)');
         return;

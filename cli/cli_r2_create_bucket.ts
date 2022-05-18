@@ -4,7 +4,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 
 export const CREATE_BUCKET_COMMAND = denoflareCliCommand(['r2', 'create-bucket'], 'Create a new R2 bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function createBucket(args: (string | number)[], options: Record<string, unknown>) {
@@ -16,8 +16,8 @@ export async function createBucket(args: (string | number)[], options: Record<st
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    const { location } = await createBucketR2({ bucket, origin, region }, context);
+    const { location } = await createBucketR2({ bucket, origin, region, urlStyle }, context);
     console.log(location);
 }

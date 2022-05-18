@@ -1,11 +1,11 @@
-import { AwsCallContext, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, s3Fetch, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type CreateBucketOpts = { bucket: string, origin: string, region: string };
+export type CreateBucketOpts = { bucket: string, origin: string, region: string, urlStyle?: UrlStyle };
 
 export async function createBucket(opts: CreateBucketOpts, context: AwsCallContext): Promise<{ location: string }> {
-    const { bucket, origin, region } = opts;
+    const { bucket, origin, region, urlStyle } = opts;
     const method = 'PUT';
-    const url = new URL(`${origin}/${bucket}`);
+    const url = computeBucketUrl({ origin, bucket, urlStyle });
 
     const body = payload(region);
     const res = await s3Fetch({ method, url, region, context, body });

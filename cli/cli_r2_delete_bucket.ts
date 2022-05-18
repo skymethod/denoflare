@@ -4,7 +4,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 
 export const DELETE_BUCKET_COMMAND = denoflareCliCommand(['r2', 'delete-bucket'], 'Delete an R2 bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function deleteBucket(args: (string | number)[], options: Record<string, unknown>) {
@@ -16,7 +16,7 @@ export async function deleteBucket(args: (string | number)[], options: Record<st
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    await deleteBucketR2({ bucket, origin, region }, context);
+    await deleteBucketR2({ bucket, origin, region, urlStyle }, context);
 }

@@ -1,13 +1,14 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type CreateMultipartUploadOpts = { bucket: string, key: string, origin: string, region: string, cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentType?: string, customMetadata?: Record<string, string> };
+export type CreateMultipartUploadOpts = { bucket: string, key: string, origin: string, region: string, urlStyle?: UrlStyle, 
+    cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentType?: string, customMetadata?: Record<string, string> };
 
 export async function createMultipartUpload(opts: CreateMultipartUploadOpts, context: AwsCallContext): Promise<InitiateMultipartUploadResult> {
-    const { bucket, key, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata } = opts;
+    const { bucket, key, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, urlStyle } = opts;
     const method = 'POST';
-    const url = new URL(`${origin}/${bucket}/${key}?uploads`);
+    const url = computeBucketUrl({ origin, bucket, key, urlStyle, subresource: 'uploads' });
     const headers = new Headers();
     if (typeof cacheControl === 'string') headers.set('cache-control', cacheControl);
     if (typeof contentDisposition === 'string') headers.set('content-disposition', contentDisposition);

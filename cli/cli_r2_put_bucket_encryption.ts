@@ -4,7 +4,7 @@ import { commandOptionsForR2, loadR2Options } from './cli_r2.ts';
 
 export const PUT_BUCKET_ENCRYPTION_COMMAND = denoflareCliCommand(['r2', 'put-bucket-encryption'], 'Sets encryption config for a bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function putBucketEncryption(args: (string | number)[], options: Record<string, unknown>) {
@@ -19,7 +19,7 @@ export async function putBucketEncryption(args: (string | number)[], options: Re
     const sseAlgorithm = parseOptionalStringOption('sse-algorithm', options); if (sseAlgorithm === undefined) throw new Error(`--sse-algorithm is required`);
     const bucketKeyEnabled = parseOptionalBooleanOption('bucket-key-enabled', options); if (bucketKeyEnabled === undefined) throw new Error(`--bucket-key-enabled is required`);
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    await putBucketEncryptionR2({ bucket, sseAlgorithm, bucketKeyEnabled, origin, region }, context);
+    await putBucketEncryptionR2({ bucket, sseAlgorithm, bucketKeyEnabled, origin, region, urlStyle }, context);
 }

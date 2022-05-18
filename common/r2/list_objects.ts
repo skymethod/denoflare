@@ -1,13 +1,13 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, BucketResultOwner, checkBoolean, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, BucketResultOwner, checkBoolean, computeBucketUrl, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
-export type ListObjectsOpts = { bucket: string, origin: string, region: string, maxKeys?: number, marker?: string, delimiter?: string, prefix?: string, encodingType?: string };
+export type ListObjectsOpts = { bucket: string, origin: string, region: string, urlStyle?: UrlStyle, maxKeys?: number, marker?: string, delimiter?: string, prefix?: string, encodingType?: string };
 
 export async function listObjects(opts: ListObjectsOpts, context: AwsCallContext): Promise<ListBucketResult> {
-    const { bucket, origin, region, maxKeys, marker, delimiter, prefix, encodingType } = opts;
+    const { bucket, origin, region, urlStyle, maxKeys, marker, delimiter, prefix, encodingType } = opts;
     const method = 'GET';
-    const url = new URL(`${origin}/${bucket}/`);
+    const url = computeBucketUrl({ origin, bucket, urlStyle });
     if (typeof maxKeys === 'number') url.searchParams.set('max-keys', String(maxKeys));
     if (typeof marker === 'string') url.searchParams.set('marker', marker);
     if (typeof delimiter === 'string') url.searchParams.set('delimiter', delimiter);
@@ -47,6 +47,7 @@ export interface ListBucketResultItem {
     readonly lastModified: string;
     readonly owner: BucketResultOwner;
     readonly etag: string;
+    readonly storageClass?: string;
 }
 
 //
@@ -86,8 +87,9 @@ function parseListBucketResultItem(element: KnownElement): ListBucketResultItem 
     const lastModified = element.getElementText('LastModified');
     const owner = parseBucketResultOwner(element.getKnownElement('Owner'));
     const etag = element.getElementText('ETag');
+    const storageClass = element.getOptionalElementText('StorageClass');
     element.check();
-    return { key, size, lastModified, owner, etag };
+    return { key, size, lastModified, owner, etag, storageClass };
 }
 
 function parseCommonPrefixes(element: KnownElement | undefined): string[] | undefined {

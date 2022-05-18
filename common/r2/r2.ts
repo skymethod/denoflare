@@ -51,6 +51,22 @@ export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Pro
     return { signedHeaders: headers, bodyInfo };
 }
 
+export type UrlStyle = 'path' | 'vhost';
+
+export function computeBucketUrl(opts: { origin: string, bucket: string, urlStyle?: UrlStyle, key?: string, subresource?: string }) {
+    const { origin, bucket, urlStyle, key, subresource } = opts;
+    const url = new URL(origin);
+    if (urlStyle === 'path') {
+        url.pathname = `/${bucket}${key ? `/${key}` : ''}`;
+    } else {
+        // vhost (default)
+        url.hostname = `${bucket}.${url.hostname}`;
+        if (key !== undefined) url.pathname = `/${key}`;
+    }
+    if (subresource) url.search = `?${subresource}`;
+    return url;
+}
+
 export async function s3Fetch(opts: { method: 'GET' | 'HEAD' | 'PUT' | 'DELETE' | 'POST', url: URL, headers?: Headers, body?: AwsCallBody, region: string, context: AwsCallContext }): Promise<Response> {
     const { url, region, context, method } = opts;
     const headers = opts.headers || new Headers();

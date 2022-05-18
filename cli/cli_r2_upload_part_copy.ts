@@ -15,7 +15,7 @@ export const UPLOAD_PART_COPY_COMMAND = denoflareCliCommand(['r2', 'upload-part-
     .option('ifNoneMatch', 'string', 'Copies the object part if its entity tag (ETag) is different than the specified ETag')
     .option('ifModifiedSince', 'string', 'Copies the object part if it has been modified since the specified time')
     .option('ifUnmodifiedSince', 'string', `Copies the object part if it hasn't been modified since the specified time`)
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function uploadPartCopy(args: (string | number)[], options: Record<string, unknown>) {
@@ -27,10 +27,10 @@ export async function uploadPartCopy(args: (string | number)[], options: Record<
         R2.DEBUG = true;
     }
     
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
     const result = await uploadPartCopyR2({ 
-        bucket, key, uploadId, partNumber, origin, region, 
+        bucket, key, uploadId, partNumber, origin, region, urlStyle,
         sourceBucket: sourceBucket ?? bucket, sourceKey, sourceRange, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince,
     }, context);
     console.log(JSON.stringify(result, undefined, 2));

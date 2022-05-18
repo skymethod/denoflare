@@ -4,7 +4,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 
 export const DELETE_BUCKET_ENCRYPTION_COMMAND = denoflareCliCommand(['r2', 'delete-bucket-encryption'], 'Reset encryption config for a bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function deleteBucketEncryption(args: (string | number)[], options: Record<string, unknown>) {
@@ -16,8 +16,8 @@ export async function deleteBucketEncryption(args: (string | number)[], options:
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    const result = await deleteBucketEncryptionR2({ bucket, origin, region }, context);
+    const result = await deleteBucketEncryptionR2({ bucket, origin, region, urlStyle }, context);
     console.log(JSON.stringify(result, undefined, 2));
 }

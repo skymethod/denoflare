@@ -1,12 +1,12 @@
 import { Bytes } from '../bytes.ts';
-import { AwsCallBody, AwsCallContext, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallBody, AwsCallContext, computeBucketUrl, s3Fetch, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type UploadPartOpts = { bucket: string, key: string, uploadId: string, partNumber: number, body: AwsCallBody, origin: string, region: string, contentMd5?: string };
+export type UploadPartOpts = { bucket: string, key: string, uploadId: string, partNumber: number, body: AwsCallBody, origin: string, region: string, urlStyle?: UrlStyle, contentMd5?: string };
 
 export async function uploadPart(opts: UploadPartOpts, context: AwsCallContext): Promise<{ etag: string }> {
-    const { bucket, key, uploadId, partNumber, body, origin, region, contentMd5 } = opts;
+    const { bucket, key, uploadId, partNumber, body, origin, region, contentMd5, urlStyle } = opts;
     const method = 'PUT';
-    const url = new URL(`${origin}/${bucket}/${key}`);
+    const url = computeBucketUrl({ origin, bucket, key, urlStyle });
     url.searchParams.set('uploadId', uploadId)
     url.searchParams.set('partNumber', String(partNumber));
 

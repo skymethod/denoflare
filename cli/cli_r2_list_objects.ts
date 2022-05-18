@@ -11,7 +11,7 @@ export const LIST_OBJECTS_COMMAND = denoflareCliCommand(['r2', 'list-objects'], 
     .option('delimiter', 'string', 'The character used to group keys', { hint: 'char' })
     .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
     .option('fetchOwner', 'boolean', 'If set, return the owner info for each item')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
     
 export async function listObjects(args: (string | number)[], options: Record<string, unknown>) {
@@ -23,8 +23,8 @@ export async function listObjects(args: (string | number)[], options: Record<str
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType, fetchOwner }, context);
+    const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType, fetchOwner, urlStyle }, context);
     console.log(JSON.stringify(result, undefined, 2));
 }

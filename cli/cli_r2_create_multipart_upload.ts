@@ -12,7 +12,7 @@ export const CREATE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'creat
     .option('contentType', 'string', 'A standard MIME type describing the format of the contents')
     .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
     .option('custom', 'name-value-pairs', 'Custom metadata for the object')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function createMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {
@@ -24,10 +24,10 @@ export async function createMultipartUpload(args: (string | number)[], options: 
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
     const result = await createMultipartUploadR2({ 
-        bucket, key, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, 
+        bucket, key, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, 
     }, context);
     console.log(JSON.stringify(result, undefined, 2));
 

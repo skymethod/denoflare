@@ -1,13 +1,14 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, BucketResultOwner, checkBoolean, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, BucketResultOwner, checkBoolean, computeBucketUrl, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
-export type ListObjectsOpts = { bucket: string, origin: string, region: string, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string, encodingType?: string, fetchOwner?: boolean };
+export type ListObjectsOpts = { bucket: string, origin: string, region: string, urlStyle?: UrlStyle, maxKeys?: number, continuationToken?: string, delimiter?: string, prefix?: string, startAfter?: string, encodingType?: string, fetchOwner?: boolean };
 
 export async function listObjectsV2(opts: ListObjectsOpts, context: AwsCallContext): Promise<ListBucketResult> {
-    const { bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType, fetchOwner } = opts;
+    const { bucket, origin, region, urlStyle, maxKeys, continuationToken, delimiter, prefix, startAfter, encodingType, fetchOwner } = opts;
     const method = 'GET';
-    const url = new URL(`${origin}/${bucket}/?list-type=2`);
+    const url = computeBucketUrl({ origin, bucket, urlStyle });
+    url.searchParams.set('list-type', '2');
     if (typeof maxKeys === 'number') url.searchParams.set('max-keys', String(maxKeys));
     if (typeof continuationToken === 'string') url.searchParams.set('continuation-token', continuationToken);
     if (typeof delimiter === 'string') url.searchParams.set('delimiter', delimiter);
@@ -50,6 +51,7 @@ export interface ListBucketResultItem {
     readonly lastModified: string;
     readonly owner?: BucketResultOwner;
     readonly etag: string;
+    readonly storageClass?: string;
 }
 
 //
@@ -89,8 +91,9 @@ function parseListBucketResultItem(element: KnownElement): ListBucketResultItem 
     const lastModified = element.getElementText('LastModified');
     const owner = parseBucketResultOwner(element.getOptionalKnownElement('Owner'));
     const etag = element.getElementText('ETag');
+    const storageClass = element.getOptionalElementText('StorageClass');
     element.check();
-    return { key, size, lastModified, owner, etag };
+    return { key, size, lastModified, owner, etag, storageClass };
 }
 
 function parseCommonPrefixes(element: KnownElement | undefined): string[] | undefined {

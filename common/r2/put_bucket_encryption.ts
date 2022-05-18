@@ -1,11 +1,11 @@
-import { AwsCallContext, R2, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type PutBucketEncryptionOpts = { bucket: string, origin: string, region: string, sseAlgorithm: string, bucketKeyEnabled: boolean };
+export type PutBucketEncryptionOpts = { bucket: string, origin: string, region: string, urlStyle?: UrlStyle, sseAlgorithm: string, bucketKeyEnabled: boolean };
 
 export async function putBucketEncryption(opts: PutBucketEncryptionOpts, context: AwsCallContext): Promise<void> {
-    const { bucket, sseAlgorithm, bucketKeyEnabled, origin, region } = opts;
+    const { bucket, sseAlgorithm, bucketKeyEnabled, origin, region, urlStyle } = opts;
     const method = 'PUT';
-    const url = new URL(`${origin}/${bucket}/?encryption`);
+    const url = computeBucketUrl({ origin, bucket, subresource: 'encryption', urlStyle });
 
     const body = computePayload(sseAlgorithm, bucketKeyEnabled);
     if (R2.DEBUG) console.log(body);

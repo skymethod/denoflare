@@ -6,7 +6,7 @@ export const DELETE_OBJECT_COMMAND = denoflareCliCommand(['r2', 'delete-object']
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .arg('key', 'string', 'Key of the object to delete')
     .option('versionId', 'string', 'Returns the version ID of the delete marker created as a result of the DELETE operation')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function deleteObject(args: (string | number)[], options: Record<string, unknown>) {
@@ -20,7 +20,7 @@ export async function deleteObject(args: (string | number)[], options: Record<st
 
     const versionId = parseOptionalStringOption('version-id', options);
     
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    await deleteObjectR2({ bucket, key, origin, region, versionId }, context);
+    await deleteObjectR2({ bucket, key, origin, region, versionId, urlStyle }, context);
 }

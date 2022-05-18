@@ -2,7 +2,7 @@ import { listObjects, LIST_OBJECTS_COMMAND } from './cli_r2_list_objects.ts';
 import { listObjectsV1, LIST_OBJECTS_V1_COMMAND } from './cli_r2_list_objects_v1.ts';
 import { getObject, GET_OBJECT_COMMAND, headObject, HEAD_OBJECT_COMMAND } from './cli_r2_get_head_object.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { AwsCallBody, AwsCallContext, AwsCredentials, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCallContext, AwsCredentials, R2, R2_REGION_AUTO, UrlStyle } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
 import { listBuckets, LIST_BUCKETS_COMMAND } from './cli_r2_list_buckets.ts';
 import { headBucket, HEAD_BUCKET_COMMAND } from './cli_r2_head_bucket.ts';
@@ -12,7 +12,6 @@ import { deleteBucketEncryption, DELETE_BUCKET_ENCRYPTION_COMMAND } from './cli_
 import { putBucketEncryption, PUT_BUCKET_ENCRYPTION_COMMAND } from './cli_r2_put_bucket_encryption.ts';
 import { createBucket, CREATE_BUCKET_COMMAND } from './cli_r2_create_bucket.ts';
 import { deleteBucket, DELETE_BUCKET_COMMAND } from './cli_r2_delete_bucket.ts';
-import { generic } from './cli_r2_generic.ts';
 import { putObject, PUT_OBJECT_COMMAND } from './cli_r2_put_object.ts';
 import { deleteObject, DELETE_OBJECT_COMMAND } from './cli_r2_delete_object.ts';
 import { deleteObjects, DELETE_OBJECTS_COMMAND } from './cli_r2_delete_objects.ts';
@@ -28,7 +27,7 @@ import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
-import { CliCommand } from './cli_command.ts';
+import { CliCommand, CliCommandModifier } from './cli_command.ts';
 
 export const R2_COMMAND = denoflareCliCommand('r2', 'Manage R2 storage using the S3 compatibility API')
     .subcommand(LIST_BUCKETS_COMMAND, listBuckets)
@@ -59,18 +58,21 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage R2 storage using the
     ;
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    await R2_COMMAND.routeSubcommand(args, options, { generic, putLargeObject, tmp });
+    await R2_COMMAND.routeSubcommand(args, options, { putLargeObject, tmp });
 }
 
-export function commandOptionsForR2(command: CliCommand<unknown>) {
-    return command
-        .optionGroup()
-        .option('unsignedPayload', 'boolean', 'If set, skip request body signing (and thus verification) for the R2 request')
-        .include(commandOptionsForConfig)
-        ;
+export function commandOptionsForR2(opts: { hideUrlStyle?: boolean } = {}): CliCommandModifier {
+    const { hideUrlStyle } = opts;
+    return command => {
+        command
+            .optionGroup()
+            .option('unsignedPayload', 'boolean', 'If set, skip request body signing (and thus verification) for the R2 request');
+        if (!hideUrlStyle) command.option('urlStyle', 'enum', 'URL addressing method used in request', { value: 'path' }, { value: 'vhost', default: true }); 
+        return command.include(commandOptionsForConfig);
+    }
 }
 
-export async function loadR2Options(options: Record<string, unknown>): Promise<{ origin: string, region: string, context: AwsCallContext }> {
+export async function loadR2Options(options: Record<string, unknown>): Promise<{ origin: string, region: string, context: AwsCallContext, urlStyle?: UrlStyle }> {
     const config = await loadConfig(options);
     const { accountId, apiToken } = await resolveProfile(config, options);
     const apiTokenId = (await verifyToken(apiToken)).id;
@@ -83,8 +85,9 @@ export async function loadR2Options(options: Record<string, unknown>): Promise<{
     const region = R2_REGION_AUTO;
     const unsignedPayload = parseOptionalBooleanOption('unsigned-payload', options);
     const context = { credentials, userAgent: CLI_USER_AGENT, unsignedPayload };
-
-    return { origin, region, context };
+    const urlStyle = parseOptionalStringOption('url-style', options);
+    if (urlStyle !== undefined && urlStyle !== 'path' && urlStyle !== 'vhost') throw new Error(`Bad url-style: ${urlStyle}`);
+    return { origin, region, context, urlStyle };
 }
 
 export function surroundWithDoubleQuotesIfNecessary(value: string | undefined): string | undefined {

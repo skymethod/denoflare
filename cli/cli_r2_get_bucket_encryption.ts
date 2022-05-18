@@ -4,7 +4,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 
 export const GET_BUCKET_ENCRYPTION_COMMAND = denoflareCliCommand(['r2', 'get-bucket-encryption'], 'Gets encryption config for a bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function getBucketEncryption(args: (string | number)[], options: Record<string, unknown>) {
@@ -16,8 +16,8 @@ export async function getBucketEncryption(args: (string | number)[], options: Re
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    const result = await getBucketEncryptionR2({ bucket, origin, region }, context);
+    const result = await getBucketEncryptionR2({ bucket, origin, region, urlStyle }, context);
     console.log(JSON.stringify(result, undefined, 2));
 }

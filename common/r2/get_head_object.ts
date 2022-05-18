@@ -1,6 +1,6 @@
-import { AwsCallContext, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, s3Fetch, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type GetObjectOpts = { bucket: string, key: string, origin: string, region: string, ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string, partNumber?: number, range?: string };
+export type GetObjectOpts = { bucket: string, key: string, origin: string, region: string, urlStyle?: UrlStyle, ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string, partNumber?: number, range?: string };
 
 export async function getObject(opts: GetObjectOpts, context: AwsCallContext): Promise<Response | undefined> {
     return await getOrHeadObject('GET', opts, context);
@@ -15,8 +15,8 @@ export async function headObject(opts: HeadObjectOpts, context: AwsCallContext):
 //
 
 async function getOrHeadObject(method: 'GET' | 'HEAD', opts: GetObjectOpts | HeadObjectOpts, context: AwsCallContext): Promise<Response | undefined> {
-    const { bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range } = opts;
-    const url = new URL(`${origin}/${bucket}/${key}`);
+    const { bucket, key, origin, region, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range } = opts;
+    const url = computeBucketUrl({ origin, bucket, key, urlStyle });
     const headers = new Headers();
     if (typeof ifMatch === 'string') headers.set('if-match', ifMatch);
     if (typeof ifNoneMatch === 'string') headers.set('if-none-match', ifNoneMatch);

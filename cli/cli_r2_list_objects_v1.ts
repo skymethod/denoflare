@@ -9,7 +9,7 @@ export const LIST_OBJECTS_V1_COMMAND = denoflareCliCommand(['r2', 'list-objects-
     .option('prefix', 'string', 'Limit to keys that begin with the specified prefix')
     .option('delimiter', 'string', 'The character used to group keys', { hint: 'char' })
     .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function listObjectsV1(args: (string | number)[], options: Record<string, unknown>) {
@@ -21,8 +21,8 @@ export async function listObjectsV1(args: (string | number)[], options: Record<s
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
-    const result = await listObjects({ bucket, origin, region, maxKeys, marker, delimiter, prefix, encodingType }, context);
+    const result = await listObjects({ bucket, origin, region, urlStyle, maxKeys, marker, delimiter, prefix, encodingType }, context);
     console.log(JSON.stringify(result, undefined, 2));
 }

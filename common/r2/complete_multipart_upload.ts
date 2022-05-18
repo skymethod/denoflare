@@ -1,15 +1,15 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type CompleteMultipartUploadOpts = { bucket: string, key: string, uploadId: string, parts: CompletedPart[], origin: string, region: string };
+export type CompleteMultipartUploadOpts = { bucket: string, key: string, uploadId: string, parts: CompletedPart[], origin: string, region: string, urlStyle?: UrlStyle };
 
 export async function completeMultipartUpload(opts: CompleteMultipartUploadOpts, context: AwsCallContext): Promise<CompleteMultipartUploadResult> {
-    const { bucket, key, uploadId, parts, origin, region } = opts;
+    const { bucket, key, uploadId, parts, origin, region, urlStyle } = opts;
     if (parts.length === 0) throw new Error(`Must include at least one part`);
 
     const method = 'POST';
-    const url = new URL(`${origin}/${bucket}/${key}`);
+    const url = computeBucketUrl({ origin, bucket, key, urlStyle });
     url.searchParams.set('uploadId', uploadId);
 
     const body = computePayload(parts);

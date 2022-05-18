@@ -20,7 +20,7 @@ export const COPY_OBJECT_COMMAND = denoflareCliCommand(['r2', 'copy-object'], 'C
     .option('ifNoneMatch', 'string', 'Copies the object if its entity tag (ETag) is different than the specified ETag')
     .option('ifModifiedSince', 'string', 'Copies the object if it has been modified since the specified time')
     .option('ifUnmodifiedSince', 'string', `Copies the object if it hasn't been modified since the specified time`)
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function copyObject(args: (string | number)[], options: Record<string, unknown>) {
@@ -32,10 +32,10 @@ export async function copyObject(args: (string | number)[], options: Record<stri
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
     const result = await copyObjectR2({ 
-        bucket, key, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, 
+        bucket, key, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, 
         sourceBucket: sourceBucket ?? bucket, sourceKey, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince,
     }, context);
     console.log(JSON.stringify(result, undefined, 2));

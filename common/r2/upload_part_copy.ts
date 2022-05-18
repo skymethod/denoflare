@@ -1,16 +1,16 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type UploadPartCopyOpts = { 
-    bucket: string, key: string, uploadId: string, partNumber: number, origin: string, region: string,
+    bucket: string, key: string, uploadId: string, partNumber: number, origin: string, region: string, urlStyle?: UrlStyle,
     sourceBucket: string, sourceKey: string, sourceRange?: string, ifMatch?: string, ifModifiedSince?: string, ifNoneMatch?: string, ifUnmodifiedSince?: string,
 };
 
 export async function uploadPartCopy(opts: UploadPartCopyOpts, context: AwsCallContext): Promise<CopyPartResult> {
-    const { bucket, key, origin, region, uploadId, partNumber, sourceBucket, sourceKey, sourceRange, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince } = opts;
+    const { bucket, key, origin, region, urlStyle, uploadId, partNumber, sourceBucket, sourceKey, sourceRange, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince } = opts;
     const method = 'PUT';
-    const url = new URL(`${origin}/${bucket}/${key}`);
+    const url = computeBucketUrl({ origin, bucket, key, urlStyle });
     url.searchParams.set('partNumber', String(partNumber));
     url.searchParams.set('uploadId', uploadId);
 

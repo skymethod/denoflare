@@ -13,7 +13,7 @@ export const PUT_OBJECT_COMMAND = denoflareCliCommand(['r2', 'put-object'], 'Put
     .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
     .option('custom', 'name-value-pairs', 'Custom metadata for the object')
     .include(commandOptionsForLoadBodyFromOptions)
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function putObject(args: (string | number)[], options: Record<string, unknown>) {
@@ -25,11 +25,11 @@ export async function putObject(args: (string | number)[], options: Record<strin
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
     const { body, contentMd5 } = await loadBodyFromOptions(options, context.unsignedPayload);
 
-    await putObjectR2({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata }, context);
+    await putObjectR2({ bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata }, context);
     const millis = Date.now() - CliStats.launchTime;
     console.log(`put ${computeAwsCallBodyLength(body)} bytes in ${millis}ms`);
 }

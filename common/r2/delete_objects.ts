@@ -1,14 +1,14 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, checkBoolean, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, checkBoolean, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type ObjectIdentifier = { key: string, versionId?: string };
-export type DeleteObjectsOpts = { bucket: string, items: (string | ObjectIdentifier)[], origin: string, region: string, quiet?: boolean };
+export type DeleteObjectsOpts = { bucket: string, items: (string | ObjectIdentifier)[], origin: string, region: string, urlStyle?: UrlStyle, quiet?: boolean };
 
 export async function deleteObjects(opts: DeleteObjectsOpts, context: AwsCallContext): Promise<DeleteResult> {
-    const { bucket, items, origin, region, quiet } = opts;
+    const { bucket, items, origin, region, urlStyle, quiet } = opts;
     const method = 'POST';
-    const url = new URL(`${origin}/${bucket}/?delete`);
+    const url = computeBucketUrl({ origin, bucket, urlStyle, subresource: 'delete' });
 
     const body = computePayload(items, quiet);
     if (R2.DEBUG) console.log(body);

@@ -1,13 +1,13 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
-export type GetBucketEncryptionOpts = { bucket: string, origin: string, region: string };
+export type GetBucketEncryptionOpts = { bucket: string, origin: string, region: string, urlStyle?: UrlStyle };
 
 export async function getBucketEncryption(opts: GetBucketEncryptionOpts, context: AwsCallContext): Promise<ServerSideEncryptionConfiguration> {
-    const { bucket, origin, region } = opts;
+    const { bucket, origin, region, urlStyle } = opts;
     const method = 'GET';
-    const url = new URL(`${origin}/${bucket}/?encryption`);
+    const url = computeBucketUrl({ origin, bucket, subresource: 'encryption', urlStyle });
 
     const res = await s3Fetch({ method, url, region, context });
     await throwIfUnexpectedStatus(res, 200);

@@ -8,7 +8,7 @@ export const UPLOAD_PART_COMMAND = denoflareCliCommand(['r2', 'upload-part'], 'U
     .option('uploadId', 'required-string', 'Id of the existing multipart upload to complete')
     .option('partNumber', 'required-integer', 'Number of the part', { min: 1, max: 10000 })
     .include(commandOptionsForLoadBodyFromOptions)
-    .include(commandOptionsForR2)
+    .include(commandOptionsForR2())
     ;
 
 export async function uploadPart(args: (string | number)[], options: Record<string, unknown>) {
@@ -20,11 +20,11 @@ export async function uploadPart(args: (string | number)[], options: Record<stri
         R2.DEBUG = true;
     }
 
-    const { origin, region, context } = await loadR2Options(options);
+    const { origin, region, context, urlStyle } = await loadR2Options(options);
 
     const { body, contentMd5 } = await loadBodyFromOptions(options, context.unsignedPayload);
 
-    const result = await uploadPartR2({ bucket, key, uploadId, partNumber, body, origin, region, contentMd5 }, context);
+    const result = await uploadPartR2({ bucket, key, uploadId, partNumber, body, origin, region, contentMd5, urlStyle }, context);
     const millis = Date.now() - CliStats.launchTime;
     console.log(JSON.stringify(result));
     console.log(`put ${computeAwsCallBodyLength(body)} bytes in ${millis}ms`);

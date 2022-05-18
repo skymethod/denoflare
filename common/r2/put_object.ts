@@ -1,12 +1,12 @@
 import { Bytes } from '../bytes.ts';
-import { AwsCallBody, AwsCallContext, s3Fetch, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallBody, AwsCallContext, computeBucketUrl, s3Fetch, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type PutObjectOpts = { bucket: string, key: string, body: AwsCallBody, origin: string, region: string, cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentMd5?: string, contentType?: string, customMetadata?: Record<string, string> };
+export type PutObjectOpts = { bucket: string, key: string, body: AwsCallBody, origin: string, region: string, urlStyle?: UrlStyle, cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentMd5?: string, contentType?: string, customMetadata?: Record<string, string> };
 
 export async function putObject(opts: PutObjectOpts, context: AwsCallContext): Promise<void> {
-    const { bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata } = opts;
+    const { bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata } = opts;
     const method = 'PUT';
-    const url = new URL(`${origin}/${bucket}/${key}`);
+    const url = computeBucketUrl({ origin, bucket, key, urlStyle });
     const headers = new Headers();
     if (typeof cacheControl === 'string') headers.set('cache-control', cacheControl);
     if (typeof contentDisposition === 'string') headers.set('content-disposition', contentDisposition);
