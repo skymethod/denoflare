@@ -79,20 +79,24 @@ export class CliCommand<T> {
     }
 
     async routeSubcommand(args: (string | number)[], options: Record<string, unknown>, other: Record<string, SubcommandHandler> = {}) {
-        if (this.dumpHelp(args, options, other)) return;
-
+        const { subcommandDefs, command } = this;
+        if (args.length === 0) {
+            this.dumpHelp_();
+            return;
+        }
         const subcommand = argToString(args[0]);
-        const def = this.subcommandDefs.find(v => v.kebabName === subcommand);
+        const def = findSubcommand(subcommand, subcommandDefs);
         if (def) {
             await def.handler(args.slice(1), options);
-        } else {
-            const otherHandler = findOtherSubcommandHandler(subcommand, other);
-            if (otherHandler) {
-                await otherHandler(args.slice(1), options);
-            } else {
-                throw new Error(`Unknown subcommand: ${subcommand}, try --help`);
-            }
+            return;
         }
+        const otherHandler = findOtherSubcommandHandler(subcommand, other);
+        if (otherHandler) {
+            await otherHandler(args.slice(1), options);
+            return;
+        }
+        console.log(`Unknown ${command.length === 1 ? 'command' : 'subcommand' }`);
+        this.dumpHelp_();
     }
 
     parse(args: (string | number)[], options: Record<string, unknown>): T {
@@ -125,12 +129,18 @@ export class CliCommand<T> {
         return rt as any;
     }
 
-    dumpHelp(args: (string | number)[], options: Record<string, unknown>, other: Record<string, SubcommandHandler> = {}): boolean {
-        const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs, subcommandGroupIndexes } = this;
-
-        const dump = subcommandDefs.length > 0 ? (args.length === 0 || !subcommandDefs.some(v => v.kebabName === args[0]) && !Object.keys(other).map(camelCaseToKebabCase).includes(String(args[0])))
-            : (args.length < argDefs.length || options.help);
+    dumpHelp(args: (string | number)[], options: Record<string, unknown>): boolean {
+        const { argDefs } = this;
+        const dump = args.length < argDefs.length || options.help;
         if (!dump) return false;
+        this.dumpHelp_();
+        return true;
+    }
+
+    //
+    
+    private dumpHelp_() {
+        const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs, subcommandGroupIndexes } = this;
 
         const argRows = [...argDefs.map(v => [`    <${v.kebabName}>`, v.description])];
         const optionRows = computeOptionRows(optionDefs, optionGroupIndexes)
@@ -170,7 +180,6 @@ export class CliCommand<T> {
         for (const line of lines) {
             console.log(line);
         }
-        return true;
     }
 
 }
@@ -349,4 +358,17 @@ function findOtherSubcommandHandler(subcommand: string, other: Record<string, Su
 
 function argToString(v: number | string): string {
     return typeof v === 'string' ? v : String(v);
+}
+
+function findSubcommand(subcommand: string, subcommandDefs: SubcommandDef[]): SubcommandDef | undefined {
+    const rt = subcommandDefs.find(v => v.kebabName === subcommand);
+    if (rt) return rt;
+    if (!subcommand.includes('-')) {
+        const candidates = subcommandDefs.filter(v => computeAbbreviation(v.kebabName) === subcommand);
+        if (candidates.length === 1) return candidates[0];
+    }
+}
+
+function computeAbbreviation(kebabName: string) {
+    return kebabName.split('-').map(v => v.charAt(0)).join('');
 }
