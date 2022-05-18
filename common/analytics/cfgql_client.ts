@@ -367,6 +367,8 @@ export interface GetR2StorageByDateRow {
     readonly bucketName: string,
     readonly maxMetadataSize: number,
     readonly maxPayloadSize: number,
+    readonly maxObjectCount: number,
+    readonly maxUploadCount: number,
 }
 
 async function _getR2StorageByDate(profile: Profile, startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetR2StorageByDateRow>> {
@@ -381,6 +383,8 @@ async function _getR2StorageByDate(profile: Profile, startDateInclusive: string,
         .object('max')
             .scalar('metadataSize')
             .scalar('payloadSize')
+            .scalar('objectCount')
+            .scalar('uploadCount')
             .end(), { start: startDateInclusive, end: endDateInclusive });
     
 
@@ -397,8 +401,10 @@ async function _getR2StorageByDate(profile: Profile, startDateInclusive: string,
                             bucketName: string,
                         },
                         max: {
-                            metadataSize: number,
-                            payloadSize: number,
+                            metadataSize: number, // Max of metadata size
+                            payloadSize: number, // Max of payload size
+                            objectCount: number, // Max of object count
+                            uploadCount: number, // Max of upload count
                         },
                     }[],
                 }[],
@@ -418,7 +424,9 @@ async function _getR2StorageByDate(profile: Profile, startDateInclusive: string,
             const bucketName = group.dimensions.bucketName;
             const maxMetadataSize = group.max.metadataSize;
             const maxPayloadSize = group.max.payloadSize;
-            rows.push({ date, bucketName, maxMetadataSize, maxPayloadSize });
+            const maxObjectCount = group.max.objectCount;
+            const maxUploadCount = group.max.uploadCount;
+            rows.push({ date, bucketName, maxMetadataSize, maxPayloadSize, maxObjectCount, maxUploadCount });
         }
     }
     return { info: { fetchMillis, cost, budget }, rows };
@@ -432,6 +440,7 @@ export interface GetR2OperationsByDateRow {
     readonly date: string,
     readonly bucketName: string,
     readonly sumSuccessfulRequests: number,
+    readonly sumSuccessfulResponseObjectSize: number,
 }
 
 export type R2OperationClass = 'A' | 'B';
@@ -465,7 +474,8 @@ async function _getR2OperationsByDate(profile: Profile, operationClass: R2Operat
                             bucketName: string,
                         },
                         sum: {
-                            requests: number,
+                            requests: number, // Sum of Requests
+                            responseObjectSize: number; // Sum of Response Object Sizes
                         },
                     }[],
                 }[],
@@ -484,7 +494,8 @@ async function _getR2OperationsByDate(profile: Profile, operationClass: R2Operat
             const date = group.dimensions.date;
             const bucketName = group.dimensions.bucketName;
             const sumSuccessfulRequests = group.sum.requests;
-            rows.push({ date, bucketName, sumSuccessfulRequests });
+            const sumSuccessfulResponseObjectSize = group.sum.responseObjectSize;
+            rows.push({ date, bucketName, sumSuccessfulRequests, sumSuccessfulResponseObjectSize });
         }
     }
     return { info: { fetchMillis, cost, budget }, rows };

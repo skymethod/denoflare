@@ -10,24 +10,24 @@ export const ANALYTICS_R2_COMMAND = denoflareCliCommand(['analytics', 'r2'], 'Du
     .option('start', 'string', 'Start of the analysis range (inclusive)', { hint: 'yyyy-mm-dd' })
     .option('end', 'string', 'End of the analysis range (inclusive)', { hint: 'yyyy-mm-dd' })
     .option('budget', 'boolean', 'If set, dump GraphQL API request budget')
-    .option('totals', 'boolean', 'If set, dump class a and class b operation totals')
     .include(commandOptionsForConfig)
     ;
     
 export async function analyticsR2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (ANALYTICS_R2_COMMAND.dumpHelp(args, options)) return;
 
-    const { bucket: bucketName, start, end, budget: dumpBudget, totals: dumpTotals } = ANALYTICS_R2_COMMAND.parse(args, options);
+    const { bucket: bucketName, start, end, budget: dumpBudget } = ANALYTICS_R2_COMMAND.parse(args, options);
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
     const range = start && end ? { start, end } : undefined;
-    await dumpR2(profile, bucketName, { dumpBudget, dumpTotals, range });
+
+    await dumpR2(profile, bucketName, { dumpBudget, range });
 }
 
 //
 
-async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { dumpBudget?: boolean, dumpTotals?: boolean, range?: { start: string, end: string } }) {
-    const { dumpBudget, dumpTotals, range } = opts;
+async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { dumpBudget?: boolean, range?: { start: string, end: string } }) {
+    const { dumpBudget, range } = opts;
     const client = new CfGqlClient(profile);
     // CfGqlClient.DEBUG = true;
 
@@ -63,39 +63,29 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
         tableRows.push(tableRow);
     }
 
-    if (table.estimated30DayRow) {
+    if (table.totalRow) {
         tableRows.push(Array(8).fill(''));
         tableRows.push([
-            'est 30-day', 
-            '', 
-            `$${table.estimated30DayRow.classAOperationsCost.toFixed(2)}`,
-            '', 
-            `$${table.estimated30DayRow.classBOperationsCost.toFixed(2)}`,
+            'total', 
+            table.totalRow.classAOperations, 
+            `$${table.totalRow.classAOperationsCost.toFixed(2)}`, 
+            table.totalRow.classBOperations, 
+            `$${table.totalRow.classBOperationsCost.toFixed(2)}`, 
             '',
-            table.estimated30DayRow.storageCost ? `$${table.estimated30DayRow.storageCost.toFixed(2)}` : '',
-            `$${table.estimated30DayRow.totalCost.toFixed(2)}`
+            table.totalRow.storageCost ? `$${table.totalRow.storageCost?.toFixed(2)}` : '',
+            `$${table.totalRow.totalCost.toFixed(2)}`,
         ]);
     }
-    if (table.estimated30DayRowMinusFree) {
-        tableRows.push([
-            'minus free', 
-            '', 
-            `$${table.estimated30DayRowMinusFree.classAOperationsCost.toFixed(2)}`,
-            '', 
-            `$${table.estimated30DayRowMinusFree.classBOperationsCost.toFixed(2)}`,
-            '',
-            table.estimated30DayRowMinusFree.storageCost ? `$${table.estimated30DayRowMinusFree.storageCost.toFixed(2)}` : '',
-            `$${table.estimated30DayRowMinusFree.totalCost.toFixed(2)}`
-        ]);
-    }
+
     dumpTable(tableRows);
 
     const bucketNames = [...Object.keys(tableResult.bucketTables)];
     if (bucketNames.length > 1 && !bucketName) {
         console.log('\nper bucket:');
-        for (const [ bucketName, table ] of [...Object.entries(tableResult.bucketTables)].sort((a, b) => (b[1].estimated30DayRow?.totalCost || 0) - (a[1].estimated30DayRow?.totalCost || 0))) {
-            const estTotal = table.estimated30DayRow?.totalCost || 0;
-            const pieces = [ `$${estTotal.toFixed(2)}`.padStart(7, ' '), bucketName ];
+        for (const [ bucketName, table ] of [...Object.entries(tableResult.bucketTables)].sort((a, b) => (b[1].totalRow?.totalCost || 0) - (a[1].totalRow?.totalCost || 0))) {
+            const totalCost = table.totalRow.totalCost;
+            const latestStorageGb = table.rows.at(-1)?.storageGb ?? 0;
+            const pieces = [ `$${totalCost.toFixed(2)}`.padStart(7, ' '), `${latestStorageGb.toFixed(2)}gb`.padStart(9, ' '), bucketName ];
             console.log(pieces.join(' '));
         }
     }
@@ -107,10 +97,4 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
         }
     }
 
-    if (dumpTotals) {
-        const width = Math.max(...[sumClassAOperations, sumClassBOperations].map(v => v.toString().length));
-        console.log('\ntotals:');
-        console.log(`  class a operations:  ${sumClassAOperations.toString().padStart(width)}`);
-        console.log(`  class b operations:  ${sumClassBOperations.toString().padStart(width)}`);
-    }
 }
