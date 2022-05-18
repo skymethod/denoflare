@@ -24,6 +24,14 @@ export class CfGqlClient {
         return await _getDurableObjectInvocationsByDate(this.profile, startDateInclusive, endDateInclusive);
     }
 
+    async getR2StorageByDate(startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetR2StorageByDateRow>> {
+        return await _getR2StorageByDate(this.profile, startDateInclusive, endDateInclusive);
+    }
+
+    async getR2OperationsByDate(operationClass: R2OperationClass, startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetR2OperationsByDateRow>> {
+        return await _getR2OperationsByDate(this.profile, operationClass, startDateInclusive, endDateInclusive);
+    }
+
 }
 
 export interface CfGqlResultInfo {
@@ -345,6 +353,138 @@ async function _getDurableObjectInvocationsByDate(profile: Profile, startDateInc
             const avgSampleInterval = group.avg.sampleInterval;
             const sumRequests = group.sum.requests;
             rows.push({ date, namespaceId, avgSampleInterval, sumRequests });
+        }
+    }
+    return { info: { fetchMillis, cost, budget }, rows };
+}
+
+//#endregion
+
+//#region GetR2StorageByDate
+
+export interface GetR2StorageByDateRow {
+    readonly date: string,
+    readonly bucketName: string,
+    readonly maxMetadataSize: number,
+    readonly maxPayloadSize: number,
+}
+
+async function _getR2StorageByDate(profile: Profile, startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetR2StorageByDateRow>> {
+    const resObj = await query(profile, q => q.object('r2StorageAdaptiveGroups')
+        .argLong('limit', 10000)
+        .argRaw('filter', `{date_geq: $start, date_leq: $end}`)
+        .argRaw('orderBy', `[date_ASC]`)
+        .object('dimensions')
+            .scalar('date')
+            .scalar('bucketName')
+            .end()
+        .object('max')
+            .scalar('metadataSize')
+            .scalar('payloadSize')
+            .end(), { start: startDateInclusive, end: endDateInclusive });
+    
+
+    interface GqlResponse {
+        data: {
+            cost: number,
+            viewer: {
+                budget: number,
+                accounts: {
+                    accountTag: string,
+                    r2StorageAdaptiveGroups: {
+                        dimensions: {
+                            date: string,
+                            bucketName: string,
+                        },
+                        max: {
+                            metadataSize: number,
+                            payloadSize: number,
+                        },
+                    }[],
+                }[],
+            },
+        },
+    }
+
+    const fetchMillis = resObj.fetchMillis;
+    const res = resObj as GqlResponse;
+    const cost = res.data.cost;
+    const budget = res.data.viewer.budget;
+    const rows: GetR2StorageByDateRow[] = [];
+    for (const account of res.data.viewer.accounts) {
+        checkEqual('account.accountTag', account.accountTag, profile.accountId);
+        for (const group of account.r2StorageAdaptiveGroups) {
+            const date = group.dimensions.date;
+            const bucketName = group.dimensions.bucketName;
+            const maxMetadataSize = group.max.metadataSize;
+            const maxPayloadSize = group.max.payloadSize;
+            rows.push({ date, bucketName, maxMetadataSize, maxPayloadSize });
+        }
+    }
+    return { info: { fetchMillis, cost, budget }, rows };
+}
+
+//#endregion
+
+//#region GetR2OperationsByDate
+
+export interface GetR2OperationsByDateRow {
+    readonly date: string,
+    readonly bucketName: string,
+    readonly sumSuccessfulRequests: number,
+}
+
+export type R2OperationClass = 'A' | 'B';
+
+async function _getR2OperationsByDate(profile: Profile, operationClass: R2OperationClass, startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetR2OperationsByDateRow>> {
+    const actionTypes = operationClass === 'A' ? [ 'ListBuckets', 'PutBucket', 'ListObjects', 'PutObject', 'CopyObject', 'CompleteMultipartUpload', 'CreateMultipartUpload', 'UploadPartCopy']
+        : [ 'HeadBucket', 'HeadObject', 'GetObject' ];
+    const resObj = await query(profile, q => q.object('r2OperationsAdaptiveGroups')
+        .argLong('limit', 10000)
+        .argRaw('filter', `{date_geq: $start, date_leq: $end, actionStatus: "success", actionType_in: ${JSON.stringify(actionTypes)}}`)
+        .argRaw('orderBy', `[date_ASC]`)
+        .object('dimensions')
+            .scalar('date')
+            .scalar('bucketName')
+            .end()
+        .object('sum')
+            .scalar('requests')
+            .end(), { start: startDateInclusive, end: endDateInclusive });
+    
+
+    interface GqlResponse {
+        data: {
+            cost: number,
+            viewer: {
+                budget: number,
+                accounts: {
+                    accountTag: string,
+                    r2OperationsAdaptiveGroups: {
+                        dimensions: {
+                            date: string,
+                            bucketName: string,
+                        },
+                        sum: {
+                            requests: number,
+                        },
+                    }[],
+                }[],
+            },
+        },
+    }
+
+    const fetchMillis = resObj.fetchMillis;
+    const res = resObj as GqlResponse;
+    const cost = res.data.cost;
+    const budget = res.data.viewer.budget;
+    const rows: GetR2OperationsByDateRow[] = [];
+    for (const account of res.data.viewer.accounts) {
+        checkEqual('account.accountTag', account.accountTag, profile.accountId);
+        for (const group of account.r2OperationsAdaptiveGroups) {
+            const date = group.dimensions.date;
+            const bucketName = group.dimensions.bucketName;
+            const sumSuccessfulRequests = group.sum.requests;
+            rows.push({ date, bucketName, sumSuccessfulRequests });
         }
     }
     return { info: { fetchMillis, cost, budget }, rows };

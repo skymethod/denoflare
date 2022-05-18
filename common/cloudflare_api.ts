@@ -313,11 +313,11 @@ export interface SendTailHeartbeatResponse extends CloudflareApiResponse {
  */
 export async function listR2Buckets(accountId: string, apiToken: string): Promise<readonly Bucket[]> {
     const url = `${computeAccountBaseUrl(accountId)}/r2/buckets`;
-    return (await execute('listR2Buckets', 'GET', url, apiToken) as ListR2BucketsResponse).result;
+    return (await execute('listR2Buckets', 'GET', url, apiToken) as ListR2BucketsResponse).result.buckets;
 }
 
 export interface ListR2BucketsResponse extends CloudflareApiResponse {
-    readonly result: readonly Bucket[];
+    readonly result: { buckets: readonly Bucket[]; };
 }
 
 export interface Bucket {
