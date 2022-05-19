@@ -38,20 +38,26 @@ const INTERNAL_KEYS_PAGES = new Set([ '_headers' ]); // special handling for _he
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
     const { bucket, pushId } = env;
-    const flags = new Set((env.flags || '').split(',').map(v => v.trim()));
+    const flags = stringSetFromCsv(env.flags);
+    const allowIps = stringSetFromCsv(env.allowIps);
+    const denyIps = stringSetFromCsv(env.denyIps);
     const disallowRobots = flags.has('disallowRobots');
     const emulatePages = flags.has('emulatePages');
     const listDirectories = flags.has('listDirectories');
 
     const { method, url, headers } = request;
-    console.log(`${method} ${url}`);
     if (pushId) console.log(`pushId: ${pushId}`);
+
+    // apply ip filters, if configured
+    const ip = headers.get('cf-connecting-ip') || 'unknown';
+    if (denyIps.size > 0 && denyIps.has(ip)) return notFound(method);
+    if (allowIps.size > 0 && !allowIps.has(ip)) return notFound(method);
 
     if (method !== 'GET' && method !== 'HEAD') {
         return new Response(`Method '${method}' not allowed`, { status: 405 });
     }
 
-    const { pathname, searchParams } = new URL(request.url);
+    const { pathname, searchParams } = new URL(url);
     let key = pathname.substring(1); // strip leading slash
 
     // special handling for robots.txt, if configured
@@ -124,7 +130,16 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
             return computeObjResponse(obj, 404);
         }
     }
-    return new Response(method === 'GET' ? 'not found' : undefined, { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
+
+    return notFound(method);
+}
+
+function stringSetFromCsv(value: string | undefined) {
+    return new Set((value ?? '').split(',').map(v => v.trim()).filter(v => v !== ''));
+}
+
+function notFound(method: string): Response {
+    return new Response(method === 'HEAD' ? undefined : 'not found', { status: 404, headers: { 'content-type': TEXT_PLAIN_UTF8 } });
 }
 
 function unmodified(): Response {
