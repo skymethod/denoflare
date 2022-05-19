@@ -1,3 +1,6 @@
+import { toFileUrl } from './deps_cli.ts';
+import { fileExists } from './fs_util.ts';
+
 export async function emit(rootSpecifier: string): Promise<string> {
     // deno-lint-ignore no-explicit-any
     const deno = Deno as any;
@@ -23,12 +26,22 @@ export async function emit(rootSpecifier: string): Promise<string> {
     const url = 'https://deno.land/x/emit@0.0.1/mod.ts';
     const { bundle } = await import(url);  
 
+    // new 'bundle' no longer takes abs file paths
     // https://github.com/denoland/deno_emit/issues/22
-    if (rootSpecifier.startsWith('/')) rootSpecifier = 'file://' + rootSpecifier;
+    if (!/^(file|https):\/\//.test(rootSpecifier) && await fileExists(rootSpecifier)) {
+        rootSpecifier = toFileUrl(rootSpecifier).toString();
+    }
 
     // the new userland 'bundle' is closer to what we were doing with Deno.emit before
-    const result = await bundle(rootSpecifier);
-    return result.code;
+    let { code } = await bundle(rootSpecifier);
+
+    // currently unable to disable inline source maps
+    // https://github.com/denoland/deno_emit/issues/25
+    const i = code.indexOf('\n//# sourceMappingURL=');
+    if (i > 0) {
+        code = code.substring(0, i);
+    }
+    return code;
 }
 
 //
