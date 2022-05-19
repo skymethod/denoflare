@@ -74,7 +74,7 @@ function parseListBucketResult(element: KnownElement): ListBucketResult {
     const startAfter = element.getOptionalElementText('StartAfter');
     const prefix = element.getOptionalElementText('Prefix');
     const encodingType = element.getOptionalElementText('EncodingType');
-    const commonPrefixes = parseCommonPrefixes(element.getOptionalKnownElement('CommonPrefixes'));
+    const commonPrefixes = element.getKnownElements('CommonPrefixes').map(parseCommonPrefixes);
     element.check();
     return { name, isTruncated, maxKeys, keyCount, contents, nextContinuationToken, delimiter, commonPrefixes, startAfter, prefix, encodingType };
 }
@@ -96,9 +96,8 @@ function parseListBucketResultItem(element: KnownElement): ListBucketResultItem 
     return { key, size, lastModified, owner, etag, storageClass };
 }
 
-function parseCommonPrefixes(element: KnownElement | undefined): string[] | undefined {
-    if (element === undefined) return undefined;
-    const rt = element.getElementTexts('Prefix');
+function parseCommonPrefixes(element: KnownElement): string {
+    const rt = element.getElementText('Prefix');
     element.check();
     return rt;
 }
