@@ -1,6 +1,7 @@
 import { R2Objects } from './deps.ts';
 
-export function computeDirectoryListingHtml(objects: R2Objects, prefix: string): string {
+export function computeDirectoryListingHtml(objects: R2Objects, opts: { prefix: string, cursor?: string }): string {
+    const { prefix, cursor } = opts;
     const lines = ['<!DOCTYPE html>', '<html>', '<head>', '<style>', STYLE, '</style>', '</head>', '<body>'];
 
     lines.push('<div id="contents">');
@@ -18,6 +19,9 @@ export function computeDirectoryListingHtml(objects: R2Objects, prefix: string):
     lines.push('</div>');
 
     if (objects.truncated) lines.push('(truncated)');
+    if (cursor) {
+        lines.push(`<a href="?cursor=${encodeHtml(cursor)}">next ➜</a>`)
+    }
 
     lines.push('</body>','</html>');
     return lines.join('\n');

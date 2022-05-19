@@ -51,7 +51,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         return new Response(`Method '${method}' not allowed`, { status: 405 });
     }
 
-    const { pathname } = new URL(request.url);
+    const { pathname, searchParams } = new URL(request.url);
     let key = pathname.substring(1); // strip leading slash
 
     // special handling for robots.txt, if configured
@@ -107,12 +107,13 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
             prefix += '/';
             redirect = true;
         }
-        const options: R2ListOptions = { delimiter: '/', limit: 1000, prefix };  // r2 bugs: max limit due to the delimitedPrefixes and truncated bugs
+        const options: R2ListOptions = { delimiter: '/', limit: 1000, prefix: prefix === '' ? undefined : prefix, cursor: searchParams.get('cursor') || undefined }; // r2 bug: max limit due to the delimitedPrefixes and truncated bug
         console.log(`list: ${JSON.stringify(options)}`);
         const objects = await bucket.list(options);
         if (objects.delimitedPrefixes.length > 0 || objects.objects.length > 0) {
-            console.log({ numPrefixes: objects.delimitedPrefixes.length, numObjects: objects.objects.length, truncated: objects.truncated });
-            return redirect ? temporaryRedirect({ location: '/' + prefix }) : new Response(computeDirectoryListingHtml(objects, prefix), { headers: { 'content-type': TEXT_HTML_UTF8 } });
+            const { cursor } = objects;
+            console.log({ numPrefixes: objects.delimitedPrefixes.length, numObjects: objects.objects.length, truncated: objects.truncated, cursor });
+            return redirect ? temporaryRedirect({ location: '/' + prefix }) : new Response(computeDirectoryListingHtml(objects, { prefix, cursor }), { headers: { 'content-type': TEXT_HTML_UTF8 } });
         }
     }
 
