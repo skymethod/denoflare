@@ -14,6 +14,7 @@ import { addRequestHandlerForRpcR2Bucket } from '../common/rpc_r2_bucket.ts';
 import { R2BucketProvider } from '../common/cloudflare_workers_runtime.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { CLI_USER_AGENT } from './cli_common.ts';
+import { versionCompare } from './versions.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -31,7 +32,10 @@ export class WorkerManager {
         const webworkerRootSpecifier = computeWebworkerRootSpecifier();
         consoleLog(`Compiling ${webworkerRootSpecifier} into worker contents...`);
         const start = Date.now();
-        const workerJs = await emit(webworkerRootSpecifier);
+        let workerJs = await emit(webworkerRootSpecifier);
+        if (!canWorkerOptionsRemoveDenoNamespace()) {
+            workerJs = 'delete globalThis.Deno;\n' + workerJs;
+        }
         if (WorkerManager.VERBOSE) consoleLog(workerJs);
         const contents = new TextEncoder().encode(workerJs);
         const blob = new Blob([contents]);
@@ -49,7 +53,12 @@ export class WorkerManager {
         }
 
         // instantiate the permissionless deno worker
-        const worker = new Worker(this.workerUrl, { deno: { namespace: false, permissions: 'none' }, type: 'module' });
+        const workerOptions: WorkerOptions = { deno: { permissions: 'none' }, type: 'module' };
+        if (canWorkerOptionsRemoveDenoNamespace()) {
+            // deno-lint-ignore no-explicit-any
+            (workerOptions.deno as any).namespace = false;
+        }
+        const worker = new Worker(this.workerUrl, workerOptions);
 
         // init rpc
         const rpcChannel = new RpcChannel('host', worker.postMessage.bind(worker));
@@ -145,6 +154,10 @@ function computeWebworkerRootSpecifier() {
         const denoflareCliPath = dirname(thisPath);
         return resolve(denoflareCliPath, '..', 'cli-webworker', 'worker.ts');
     }
+}
+
+function canWorkerOptionsRemoveDenoNamespace() {
+    return versionCompare(Deno.version.deno, "1.22") < 0;
 }
 
 //

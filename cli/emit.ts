@@ -1,16 +1,34 @@
-
 export async function emit(rootSpecifier: string): Promise<string> {
-    const result = await Deno.emit(rootSpecifier, {
-        bundle: 'module',
-    });
-    const blockingDiagnostics = result.diagnostics.filter(v => !isKnownIgnorableWarning(v))
-            if (blockingDiagnostics.length > 0) {
-                console.warn(Deno.formatDiagnostics(blockingDiagnostics));
-                throw new Error('bundle failed');
-            }
-    const bundleJs = result.files['deno:///bundle.js'];
-    if (typeof bundleJs !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
-    return bundleJs;
+    // deno-lint-ignore no-explicit-any
+    const deno = Deno as any;
+    if ('emit' in deno && 'formatDiagnostics' in deno) {
+        // < 1.22
+        const result = await deno.emit(rootSpecifier, {
+            bundle: 'module',
+        });
+        // deno-lint-ignore no-explicit-any
+        const blockingDiagnostics = result.diagnostics.filter((v: any) => !isKnownIgnorableWarning(v))
+        if (blockingDiagnostics.length > 0) {
+            console.warn(deno.formatDiagnostics(blockingDiagnostics));
+            throw new Error('bundle failed');
+        }
+        const bundleJs = result.files['deno:///bundle.js'];
+        if (typeof bundleJs !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
+        return bundleJs;
+    }
+
+    // 1.22+
+
+    // dynamic import, otherwise fails pre 1.22, and avoid typecheck failures using two lines
+    const url = 'https://deno.land/x/emit@0.0.1/mod.ts';
+    const { bundle } = await import(url);  
+
+    // https://github.com/denoland/deno_emit/issues/22
+    if (rootSpecifier.startsWith('/')) rootSpecifier = 'file://' + rootSpecifier;
+
+    // the new userland 'bundle' is closer to what we were doing with Deno.emit before
+    const result = await bundle(rootSpecifier);
+    return result.code;
 }
 
 //
