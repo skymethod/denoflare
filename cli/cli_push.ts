@@ -166,7 +166,7 @@ function parseInputBindingsFromOptions(opts: { textBinding?: string[], secretBin
 async function ensureCustomDomainExists(customDomain: string, opts: { zones: readonly Zone[], scriptName: string, accountId: string, apiToken: string }) {
     const { zones, scriptName, accountId, apiToken } = opts;
     console.log(`ensuring ${customDomain} points to ${scriptName}...`);
-    const zoneCandidates = zones.filter(v => customDomain.endsWith('.' + v.name));
+    const zoneCandidates = zones.filter(v => customDomain === v.name || customDomain.endsWith('.' + v.name));
     if (zoneCandidates.length === 0) throw new Error(`Unable to locate the parent zone, do you have permissions to edit zones?`);
     if (zoneCandidates.length > 1) throw new Error(`Unable to locate the parent zone, multiple candidates: ${zoneCandidates.map(v => v.name).join(', ')}`);
     const [ zone ] = zoneCandidates;

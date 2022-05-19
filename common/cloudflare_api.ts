@@ -793,7 +793,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', ur
     if (CloudflareApi.DEBUG) console.log(`${fetchResponse.status} ${fetchResponse.url}`);
     if (CloudflareApi.DEBUG) console.log([...fetchResponse.headers].map(v => v.join(': ')).join('\n'));
     const contentType = fetchResponse.headers.get('Content-Type') || '';
-    if (responseType === 'empty') {
+    if (responseType === 'empty' && fetchResponse.status >= 200 && fetchResponse.status < 300) {
         if (contentType !== '') throw new Error(`Unexpected content-type (expected none): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
         const text = await fetchResponse.text();
         if (text !== '') throw new Error(`Unexpected body (expected none): ${text}, fetchResponse=${fetchResponse}, body=${text}`);
