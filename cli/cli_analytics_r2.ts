@@ -2,7 +2,7 @@ import { Profile } from '../common/config.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
 import { CfGqlClient } from '../common/analytics/cfgql_client.ts';
 import { denoflareCliCommand } from './cli_common.ts';
-import { computeR2CostsTable } from '../common/analytics/r2_costs.ts';
+import { computeR2CostsTable, R2CostsRow } from '../common/analytics/r2_costs.ts';
 import { dumpTable } from './cli_analytics.ts';
 
 export const ANALYTICS_R2_COMMAND = denoflareCliCommand(['analytics', 'r2'], 'Dump R2 stats via the Cloudflare GraphQL Analytics API')
@@ -39,42 +39,40 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
         '',
         'class-b',
         '',
+        'egress',
+        '',
         'storage',
         '',
         'total.cost',
     ]);
 
     const table = bucketName ? tableResult.bucketTables[bucketName] : tableResult.accountTable;
-    let sumClassAOperations = 0;
-    let sumClassBOperations = 0;
-    for (const row of table.rows) {
-        sumClassAOperations += row.classAOperations;
-        sumClassBOperations += row.classBOperations;
-        const tableRow = [
-            row.date,
+    const computeEgressText = (row: R2CostsRow) => {
+        const egressGb = (row.classAEgress + row.classBEgress) / 1024 / 1024 / 1024;
+        return `${egressGb.toFixed(4)}gb`;
+    };
+    const computeTableRow = (row: R2CostsRow, opts: { total: boolean }) => {
+        const { total } = opts;
+        return [
+            total ? 'total' : row.date,
             row.classAOperations,
             `$${row.classAOperationsCost.toFixed(2)}`,
             row.classBOperations,
             `$${row.classBOperationsCost.toFixed(2)}`,
-            row.storageGb ? `${row.storageGb?.toFixed(2)}gb` : '0',
-            row.storageCost ? `$${row.storageCost?.toFixed(2)}` : '',
+            computeEgressText(row),
+            `$0.00`,
+            total ? '' : `${row.storageGb.toFixed(2)}gb`,
+            `$${row.storageCost.toFixed(2)}`,
             `$${row.totalCost.toFixed(2)}`,
         ];
-        tableRows.push(tableRow);
+    };
+    for (const row of table.rows) {
+        tableRows.push(computeTableRow(row, { total: false }));
     }
 
     if (table.totalRow) {
-        tableRows.push(Array(8).fill(''));
-        tableRows.push([
-            'total', 
-            table.totalRow.classAOperations, 
-            `$${table.totalRow.classAOperationsCost.toFixed(2)}`, 
-            table.totalRow.classBOperations, 
-            `$${table.totalRow.classBOperationsCost.toFixed(2)}`, 
-            '',
-            table.totalRow.storageCost ? `$${table.totalRow.storageCost?.toFixed(2)}` : '',
-            `$${table.totalRow.totalCost.toFixed(2)}`,
-        ]);
+        tableRows.push(Array(10).fill(''));
+        tableRows.push(computeTableRow(table.totalRow, { total: true }));
     }
 
     dumpTable(tableRows);
@@ -85,8 +83,13 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
         for (const [ bucketName, table ] of [...Object.entries(tableResult.bucketTables)].sort((a, b) => (b[1].totalRow?.totalCost || 0) - (a[1].totalRow?.totalCost || 0))) {
             const totalCost = table.totalRow.totalCost;
             const latestStorageGb = table.rows.at(-1)?.storageGb ?? 0;
-            const pieces = [ `$${totalCost.toFixed(2)}`.padStart(7, ' '), `${latestStorageGb.toFixed(2)}gb`.padStart(9, ' '), bucketName ];
-            console.log(pieces.join(' '));
+            const pieces = [ 
+                `$${totalCost.toFixed(2)}`.padStart(7, ' '), 
+                `${latestStorageGb.toFixed(2)}gb`.padStart(9, ' '),
+                computeEgressText(table.totalRow).padStart(9, ' '),
+                bucketName 
+            ];
+            console.log(pieces.join('  '));
         }
     }
 

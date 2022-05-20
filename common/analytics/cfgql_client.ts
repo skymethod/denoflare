@@ -458,6 +458,7 @@ async function _getR2OperationsByDate(profile: Profile, operationClass: R2Operat
             .end()
         .object('sum')
             .scalar('requests')
+            .scalar('responseObjectSize')
             .end(), { start: startDateInclusive, end: endDateInclusive });
     
 
@@ -475,7 +476,7 @@ async function _getR2OperationsByDate(profile: Profile, operationClass: R2Operat
                         },
                         sum: {
                             requests: number, // Sum of Requests
-                            responseObjectSize: number; // Sum of Response Object Sizes
+                            responseObjectSize: number, // Sum of Response Object Sizes
                         },
                     }[],
                 }[],

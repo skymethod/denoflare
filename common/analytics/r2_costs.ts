@@ -48,8 +48,8 @@ export async function computeR2CostsTable(client: CfGqlClient, opts: { lookbackD
             dateRows = [];
             rowsByDate[date] = dateRows;
         }
-        const { sumSuccessfulRequests: classAOperations } = operationsA.rows.filter(v => v.date === date && v.bucketName === bucketName)[0] || { sumSuccessfulRequests: 0 };
-        const { sumSuccessfulRequests: classBOperations } = operationsB.rows.filter(v => v.date === date && v.bucketName === bucketName)[0] || { sumSuccessfulRequests: 0 };
+        const { sumSuccessfulRequests: classAOperations, sumSuccessfulResponseObjectSize: classAEgress } = operationsA.rows.filter(v => v.date === date && v.bucketName === bucketName)[0] || { sumSuccessfulRequests: 0, sumSuccessfulResponseObjectSize: 0 };
+        const { sumSuccessfulRequests: classBOperations, sumSuccessfulResponseObjectSize: classBEgress } = operationsB.rows.filter(v => v.date === date && v.bucketName === bucketName)[0] || { sumSuccessfulRequests: 0, sumSuccessfulResponseObjectSize: 0 };
 
         const { classAOperationsCost, classBOperationsCost, storageGb, storageGbMo, storageCost, totalCost } = 
             computeCosts({ classAOperations, classBOperations, maxMetadataSize, maxPayloadSize, excludeFreeUsage: false });
@@ -60,6 +60,8 @@ export async function computeR2CostsTable(client: CfGqlClient, opts: { lookbackD
             classAOperationsCost,
             classBOperations,
             classBOperationsCost,
+            classAEgress,
+            classBEgress,
             objectCount,
             uploadCount,
             storageGb,
@@ -102,8 +104,11 @@ export interface R2CostsRow {
 
     readonly classAOperations: number;
     readonly classAOperationsCost: number;
+    readonly classAEgress: number;
+
     readonly classBOperations: number;
     readonly classBOperationsCost: number;
+    readonly classBEgress: number;
 
     readonly objectCount: number;
     readonly uploadCount: number;
@@ -144,8 +149,10 @@ function computeTotalRow(date: string, rows: R2CostsRow[]): R2CostsRow {
         date,
         classAOperations: lhs.classAOperations + rhs.classAOperations,
         classAOperationsCost: lhs.classAOperationsCost + rhs.classAOperationsCost,
+        classAEgress: lhs.classAEgress + rhs.classAEgress,
         classBOperations: lhs.classBOperations + rhs.classBOperations,
         classBOperationsCost: lhs.classBOperationsCost + rhs.classBOperationsCost,
+        classBEgress: lhs.classBEgress + rhs.classBEgress,
         objectCount: lhs.objectCount + rhs.objectCount,
         uploadCount: lhs.uploadCount + rhs.uploadCount,
         storageGb: lhs.storageGb + rhs.storageGb,
