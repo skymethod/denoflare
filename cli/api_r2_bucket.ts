@@ -53,7 +53,7 @@ export class ApiR2Bucket implements R2Bucket {
     async get(key: string, options?: R2GetOptions): Promise<R2ObjectBody | R2Object | null> {
         const { origin, credentials, bucket, region, userAgent } = this;
         const { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = parseOnlyIf(options?.onlyIf);
-        const range = parseRange(options?.range);
+        const range = computeRangeHeader(options?.range);
         const res = await getObject({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range }, { credentials, userAgent });
         if (!res) return null;
         if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
@@ -167,8 +167,11 @@ function parseOnlyIf(onlyIf?: R2Conditional | Headers): { ifMatch?: string, ifNo
     return { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince };
 }
 
-function parseRange(range?: R2Range): string | undefined {
-    return range === undefined ? undefined : `bytes=${range.offset}-${range.offset + range.length - 1}`;    
+function computeRangeHeader(range?: R2Range): string | undefined {
+    if (range === undefined) return undefined;
+    if ('suffix' in range) return `bytes=-${range.suffix}`;
+    const start = range.offset ?? 0;
+    return `bytes=${start}-${typeof range.offset === 'number' ? start + range.offset - 1 : ''}`;   
 }
 
 function getExpectedHeader(name: string, headers: Headers): string {

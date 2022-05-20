@@ -194,7 +194,7 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
     headers.set('etag', obj.httpEtag); // the version with double quotes, e.g. "96f20d7dc0d24de9c154d822967dcae1"
     headers.set('last-modified', obj.uploaded.toUTCString()); // toUTCString is the http date format (rfc 1123)
 
-    if (range) headers.set('content-range', `bytes ${range.offset}-${Math.min(range.offset + range.length - 1, obj.size)}/${obj.size}`);
+    if (range) headers.set('content-range', computeContentRange(range, obj.size));
 
     // obj.writeHttpMetadata(headers); // r2 bug: currently returns content-encoding and cache-control in content-disposition!
     // for now, don't trust any header except content-type
@@ -219,13 +219,16 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
 }
 
 function tryParseRange(headers: Headers): R2Range | undefined {
-    // cf bucket api only supports byte ranges with bounded start and end
-    const m = /^bytes=(\d+)-(\d+)$/.exec(headers.get('range') || '');
+    const m = /^bytes=(\d*)-(\d*)$/.exec(headers.get('range') || '');
     if (!m) return undefined;
-    const offset = parseInt(m[1]);
-    const length = parseInt(m[2]) - offset + 1;
-    if (length < 1) return undefined;
-    return { offset, length };
+    const lhs = m[1] === '' ? undefined : parseInt(m[1]);
+    const rhs = m[2] === '' ? undefined : parseInt(m[2]);
+    if (lhs === undefined && typeof rhs === 'number') return { suffix: rhs };
+    if (typeof lhs === 'number' && rhs === undefined) return { offset: lhs };
+    if (typeof lhs === 'number' && typeof rhs === 'number') {
+        const length = rhs - lhs + 1;
+        return length > 0 ? { offset: lhs, length } : undefined;
+    }
 }
 
 function tryParseR2Conditional(headers: Headers): R2Conditional | undefined {
@@ -256,4 +259,19 @@ function stripEtagQuoting(str: string): string {
 
 function addingOneSecond(time: Date): Date {
     return new Date(time.getTime() + 1000);
+}
+
+function computeContentRange(range: R2Range, size: number) {
+    const offset = 'offset' in range ? range.offset : undefined;
+    const length = 'length' in range ? range.length : undefined;
+    const suffix = 'suffix' in range ? range.suffix : undefined;
+
+    const startOffset = typeof suffix === 'number' ? size - suffix
+        : typeof offset === 'number' ? offset
+        : 0;
+    const endOffset = typeof suffix === 'number' ? size
+        : typeof length === 'number' ? startOffset + length
+        : size;
+
+    return `bytes ${startOffset}-${endOffset - 1}/${size}`;
 }

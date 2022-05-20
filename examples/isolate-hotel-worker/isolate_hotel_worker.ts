@@ -69,12 +69,12 @@ let _canaryClient: CanaryClient | undefined;
 let _requests = 0;
 
 async function registerRequest(WorldDO: DurableObjectNamespace, colo: string, ctx: ModuleWorkerContext): Promise<void> {
-    const requests = ++_requests;
-    const client = await getOrInitCanaryClient(WorldDO, colo, ctx);
-    // client.register({ requests });
+    const __requests = ++_requests;
+    const __client = await getOrInitCanaryClient(WorldDO, colo, ctx);
+    // client.register({ __requests });
 }
 
-async function getOrInitCanaryClient(WorldDO: DurableObjectNamespace, colo: string, ctx: ModuleWorkerContext): Promise<CanaryClient> {
+async function getOrInitCanaryClient(WorldDO: DurableObjectNamespace, colo: string, _ctx: ModuleWorkerContext): Promise<CanaryClient> {
     if (!_canaryClient) {
         _canaryClient = await CanaryClient.create(WorldDO, colo);
         // ctx.waitUntil(new Promise(() => {})); // see how long it lasts on an infinite promise
