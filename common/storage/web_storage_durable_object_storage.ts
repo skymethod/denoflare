@@ -1,6 +1,6 @@
 import { isStringArray } from '../check.ts';
 import { Bytes } from '../bytes.ts';
-import { DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
+import { DurableObjectGetAlarmOptions, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
 
 export class WebStorageDurableObjectStorage implements DurableObjectStorage {
 
@@ -143,6 +143,18 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
         throw new Error(`WebStorageDurableObjectStorage.list not implemented: options=${options}`);
     }
 
+    getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {
+        throw new Error(`WebStorageDurableObjectStorage.getAlarm not implemented options=${JSON.stringify(options)}`);
+    }
+
+    setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void> {
+        throw new Error(`WebStorageDurableObjectStorage.setAlarm not implemented scheduledTime=${scheduledTime} options=${JSON.stringify(options)}`);
+    }
+    
+    deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void> {
+        throw new Error(`WebStorageDurableObjectStorage.deleteAlarm not implemented options=${JSON.stringify(options)}`);
+    }
+    
 }
 
 //
@@ -216,4 +228,16 @@ class WebStorageDurableObjectStorageTransaction implements DurableObjectStorageT
         return this.storage.list(options);
     }
 
+    getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {
+        return this.storage.getAlarm(options);
+    }
+
+    setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void> {
+        return this.storage.setAlarm(scheduledTime, options);
+    }
+    
+    deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void> {
+        return this.storage.deleteAlarm(options);
+    }
+    
 }

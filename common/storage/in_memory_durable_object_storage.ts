@@ -1,5 +1,5 @@
 import { isStringArray } from '../check.ts';
-import { DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
+import { DurableObjectGetAlarmOptions, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
 
 export class InMemoryDurableObjectStorage implements DurableObjectStorage {
 
@@ -133,6 +133,18 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
         throw new Error(`InMemoryDurableObjectStorage.list not implemented options=${JSON.stringify(options)}`);
     }
 
+    getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {
+        throw new Error(`InMemoryDurableObjectStorage.getAlarm not implemented options=${JSON.stringify(options)}`);
+    }
+
+    setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void> {
+        throw new Error(`InMemoryDurableObjectStorage.setAlarm not implemented scheduledTime=${scheduledTime} options=${JSON.stringify(options)}`);
+    }
+    
+    deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void> {
+        throw new Error(`InMemoryDurableObjectStorage.deleteAlarm not implemented options=${JSON.stringify(options)}`);
+    }
+
 }
 
 //
@@ -172,6 +184,18 @@ class InMemoryDurableObjectStorageTransaction implements DurableObjectStorageTra
 
     list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
         return this.storage.list(options);
+    }
+
+    getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {
+        return this.storage.getAlarm(options);
+    }
+
+    setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void> {
+        return this.storage.setAlarm(scheduledTime, options);
+    }
+    
+    deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void> {
+        return this.storage.deleteAlarm(options);
     }
 
 }

@@ -586,6 +586,28 @@ export interface DurableObjectStorageMethods {
 
     /** Returns keys associated with the current Durable Object according to the parameters in the provided DurableObjectStorageListOptions object. */
     list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions): Promise<Map<string, DurableObjectStorageValue>>;
+
+    /** Retrieves the current alarm time (if set) as integer milliseconds since epoch. 
+     * 
+     * The alarm is considered to be set if it has not started, or if it has failed and any retry has not begun.
+     * 
+     * If no alarm is set, getAlarm() returns null. */
+    getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null>;
+
+    /** Sets the current alarm time, accepting either a JS Date, or integer milliseconds since epoch.
+     * 
+     * If setAlarm() is called with a time equal to or before Date.now(), the alarm will be scheduled for asynchronous execution in the immediate future. 
+     * 
+     * If the alarm handler is currently executing in this case, it will not be canceled.
+     * 
+     * Alarms can be set to millisecond granularity and will usually execute within a few milliseconds after the set time, 
+     * but can be delayed by up to a minute due to maintenance or failures while failover takes place. */
+    setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void>;
+
+    /** Deletes the alarm if one exists.
+     * 
+     * Does not cancel the alarm handler if it is currently executing. */
+    deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void>;
 }
 
 export interface DurableObjectStorage extends DurableObjectStorageMethods {
@@ -630,6 +652,12 @@ export interface DurableObjectStorageReadOptions {
     readonly noCache?: boolean;
 }
 
+export interface DurableObjectGetAlarmOptions {
+
+    // see DurableObjectStorageReadOptions
+    readonly allowConcurrency?: boolean;
+}
+
 export interface DurableObjectStorageWriteOptions {
     /** Bypass the built-in waiting for write to complete before returning a response
      * 
@@ -640,6 +668,12 @@ export interface DurableObjectStorageWriteOptions {
 
     /** Bypass the built-in memory cache */
     readonly noCache?: boolean;
+}
+
+export interface DurableObjectSetAlarmOptions {
+
+    // see DurableObjectStorageWriteOptions
+    readonly allowUnconfirmed?: boolean;
 }
 
 export interface DurableObjectStorageListOptions {
