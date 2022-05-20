@@ -4,6 +4,7 @@ import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
+import { encodeXml } from '../../common/xml_util.ts';
 
 export default {
 
@@ -134,14 +135,6 @@ function computeAppResponse(): Response {
     return new Response(array, { headers: computeHeaders('text/javascript; charset=utf-8', { immutable: true }) });
 }
 
-function encodeHtml(value: string): string {
-    return value.replace(/&/g, '&amp;')
-        .replace(/\"/g, '&quot;')
-        .replace(/'/g, '&apos;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
 const ICONS_MANIFEST_AND_THEME_COLORS = `
 <link rel="icon" href="${FAVICON_ICO_PATHNAME}">
 <link rel="icon" href="${FAVICON_SVG_PATHNAME}" type="${SVG_MIME_TYPE}">
@@ -206,7 +199,7 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>${encodeHtml(name)}</title>
+<title>${encodeXml(name)}</title>
 
 <script id="static-data-script" type="application/json">${JSON.stringify(staticData)}</script>
 <script type="module">
@@ -217,11 +210,11 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <link rel="modulepreload" href="${appJsPath}" as="script" />
 <script id="app-module-script" type="module" src="${appJsPath}" onload="if (!this.dataset.state) { document.documentElement.classList.remove('js'); }"></script>
 
-<meta name="description" content="${encodeHtml(description)}">
-<meta property="og:title" content="${encodeHtml(name)}">
-<meta property="og:description" content="${encodeHtml(description)}">
+<meta name="description" content="${encodeXml(description)}">
+<meta property="og:title" content="${encodeXml(name)}">
+<meta property="og:description" content="${encodeXml(description)}">
 <meta property="og:image" content="${url.origin}${TWITTER_IMAGE_PNG_PATHNAME}">
-<meta property="og:image:alt" content="${encodeHtml(name)} screenshot">
+<meta property="og:image:alt" content="${encodeXml(name)} screenshot">
 <meta property="og:locale" content="en_US">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -254,7 +247,7 @@ ${COMMON_STYLES}
 </head>
 <body>
   <div id="centered">
-    <div>${encodeHtml(name)} requires a current version of:
+    <div>${encodeXml(name)} requires a current version of:
       <ul>
         <li><a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a></li>
         <li><a href="http://www.google.com/chrome" target="_blank">Google Chrome</a></li>

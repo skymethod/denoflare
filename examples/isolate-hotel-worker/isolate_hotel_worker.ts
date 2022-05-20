@@ -9,6 +9,7 @@ import { CanaryClient } from './canary_client.ts';
 export { WorldDO } from './world_do.ts';
 export { BroadcastDO } from './broadcast_do.ts';
 import * as _ from './globals.d.ts';
+import { encodeXml } from '../../common/xml_util.ts';
 
 // WORK IN PROGRESS: DO NOT USE
 
@@ -119,14 +120,6 @@ function computeAppResponse(): Response {
     return new Response(array, { headers: computeHeaders('text/javascript; charset=utf-8', { immutable: true }) });
 }
 
-function encodeHtml(value: string): string {
-    return value.replace(/&/g, '&amp;')
-        .replace(/\"/g, '&quot;')
-        .replace(/'/g, '&apos;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
 const ICONS_MANIFEST_AND_THEME_COLORS = `
 <link rel="icon" href="${FAVICON_ICO_PATHNAME}">
 <link rel="icon" href="${FAVICON_SVG_PATHNAME}" type="${SVG_MIME_TYPE}">
@@ -192,7 +185,7 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>${encodeHtml(title)}</title>
+<title>${encodeXml(title)}</title>
 
 <script id="static-data-script" type="application/json">${JSON.stringify(staticData)}</script>
 <script type="module">
@@ -203,11 +196,11 @@ function computeHtml(url: URL, staticData: Record<string, unknown>) {
 <link rel="modulepreload" href="${appJsPath}" as="script" />
 <script id="app-module-script" type="module" src="${appJsPath}" onload="if (!this.dataset.state) { document.documentElement.classList.remove('js'); }"></script>
 
-<meta name="description" content="${encodeHtml(description)}">
-<meta property="og:title" content="${encodeHtml(name)}">
-<meta property="og:description" content="${encodeHtml(description)}">
+<meta name="description" content="${encodeXml(description)}">
+<meta property="og:title" content="${encodeXml(name)}">
+<meta property="og:description" content="${encodeXml(description)}">
 <meta property="og:image" content="${url.origin}${TWITTER_IMAGE_PNG_PATHNAME}">
-<meta property="og:image:alt" content="${encodeHtml(name)} screenshot">
+<meta property="og:image:alt" content="${encodeXml(name)} screenshot">
 <meta property="og:locale" content="en_US">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
@@ -240,7 +233,7 @@ ${COMMON_STYLES}
 </head>
 <body>
   <div id="centered">
-    <div>${encodeHtml(name)} requires a current version of:
+    <div>${encodeXml(name)} requires a current version of:
       <ul>
         <li><a href="https://www.microsoft.com/en-us/edge" target="_blank">Microsoft Edge</a></li>
         <li><a href="http://www.google.com/chrome" target="_blank">Google Chrome</a></li>

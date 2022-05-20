@@ -1,3 +1,4 @@
+import { encodeXml } from '../../common/xml_util.ts';
 import { fromFileUrl, html, join, marked, hljs } from '../deps_cli.ts';
 import { Page } from './page.ts';
 import { computeBreadcrumbs, SidebarNode } from './sidebar.ts';
@@ -54,7 +55,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     outputHtml = outputHtml.replace('<div class="sidebar-section sidebar-header-section">', '<div class="sidebar-section sidebar-header-section" style="visibility:hidden;">');
 
     // set product
-    outputHtml = outputHtml.replaceAll(/<!-- start: product -->.*?<!-- end: product -->/sg, escape(product));
+    outputHtml = outputHtml.replaceAll(/<!-- start: product -->.*?<!-- end: product -->/sg, encodeXml(product));
 
     // set product link
     outputHtml = outputHtml.replaceAll(/ href="#product-link"/sg, ` href="/"`);
@@ -118,18 +119,18 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
                 return computeExternalAnchorHtml(href, text);
             }
             let a = `<a class="markdown-link"`;
-            if (typeof href === 'string') a += ` href="${escape(href)}"`;
-            if (typeof title === 'string') a += ` title="${escape(title)}"`;
-            a += `><span class="markdown-link-content">${escape(text)}</span></a>`;
+            if (typeof href === 'string') a += ` href="${encodeXml(href)}"`;
+            if (typeof title === 'string') a += ` title="${encodeXml(title)}"`;
+            a += `><span class="markdown-link-content">${encodeXml(text)}</span></a>`;
             return a;
         }
         heading(text: string, level: 1 | 2 | 3 | 4 | 5 | 6, _raw: string, slugger: marked.Slugger): string {
-            const textEscaped = escape(text);
+            const textEscaped = encodeXml(text);
             if (level === 1) return `<h1>${textEscaped}</h1>`;
 
             const id = slugger.slug(text);
             headings.push({ level, text, id });
-            const idEscaped = escape(id);
+            const idEscaped = encodeXml(id);
 
             return '' +
 `<h${level} id="${idEscaped}">
@@ -141,7 +142,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
         }
         code(code: string, language: string | undefined, _isEscaped: boolean): string {
             if ((language || '').length === 0) {
-                return `<pre class="code-block code-block-scrolls-horizontally"><code>${escape(code)}</code></pre>`;
+                return `<pre class="code-block code-block-scrolls-horizontally"><code>${encodeXml(code)}</code></pre>`;
             }
             language = language === 'jsonc' ? 'json' : language; // highlight.js does not support jsonc
             const highlightedCodeHtml = hljs.highlight(code, { language }).value;
@@ -201,8 +202,8 @@ function computeBreadcrumbsHtml(designHtml: string, sidebar: SidebarNode, path: 
 
 function computeBreadcrumbHtml(node: SidebarNode, designHtml: string): string {
     return designHtml
-    .replaceAll(/<!-- start: breadcrumb-text -->(.*?)<!-- end: breadcrumb-text -->/g, escape(node.title))
-    .replace(/ href=".*?"/, ` href="${escape(node.path)}"`)
+    .replaceAll(/<!-- start: breadcrumb-text -->(.*?)<!-- end: breadcrumb-text -->/g, encodeXml(node.title))
+    .replace(/ href=".*?"/, ` href="${encodeXml(node.path)}"`)
 }
 
 function computeSidebarHtml(designHtml: string, sidebar: SidebarNode, path: string): string {
@@ -243,8 +244,8 @@ function appendSidebarNodeHtml(node: SidebarNode, path: string, navItemTemplate:
 
 function computeSidebarItemHtml(node: SidebarNode, path: string, template: string, depth?: number): string {
     let rt = template
-        .replaceAll(/<!-- start: sidebar-nav-item-text -->(.*?)<!-- end: sidebar-nav-item-text -->/g, escape(node.title))
-        .replace(/ href=".*?"/, ` href="${escape(node.path)}"`)
+        .replaceAll(/<!-- start: sidebar-nav-item-text -->(.*?)<!-- end: sidebar-nav-item-text -->/g, encodeXml(node.title))
+        .replace(/ href=".*?"/, ` href="${encodeXml(node.path)}"`)
         .replaceAll(`depth="1" style="--depth:1"`, `depth="${depth}" style="--depth:${depth}"`)
         ;
     const active = node.path === path || (node.path + '/') === path;
@@ -252,20 +253,6 @@ function computeSidebarItemHtml(node: SidebarNode, path: string, template: strin
         rt = rt.replaceAll(' is-active=""', '');
     }
     return rt;
-}
-
-const ENTITIES: { [char: string]: string } = {
-    "<": "&lt;",
-    ">": "&gt;",
-    "&": "&amp;",
-    "'": "&#39;", // "&#39;" is shorter than "&apos;"
-    '"': "&#34;", // "&#34;" is shorter than "&quot;"
-};
-
-function escape(text: string): string {
-    return text.replaceAll(/[&<>"']/g, (char) => {
-        return ENTITIES[char];
-    });
 }
 
 function computeTocHtml(designHtml: string, toc: TocNode[]): string {
@@ -307,18 +294,18 @@ function appendTocNodeHtml(node: TocNode, tocItemTemplate: string, tocItemWithCh
 
 function computeTocItemHtml(node: TocNode, template: string): string {
     return template
-        .replaceAll(/<!-- start: toc-item-text -->(.*?)<!-- end: toc-item-text -->/g, escape(node.title))
-        .replace(/ href=".*?"/, ` href="#${escape(node.anchorId)}"`);
+        .replaceAll(/<!-- start: toc-item-text -->(.*?)<!-- end: toc-item-text -->/g, encodeXml(node.title))
+        .replace(/ href=".*?"/, ` href="#${encodeXml(node.anchorId)}"`);
 }
 
 function computeProductGithubHtml(designHtml: string, productRepo: string | undefined): string {
     if (!productRepo) return '';
-    return designHtml.replace(/ href=".*?"/, ` href="https://github.com/${escape(productRepo)}"`);
+    return designHtml.replace(/ href=".*?"/, ` href="https://github.com/${encodeXml(productRepo)}"`);
 }
 
 function computeContentGithubHtml(designHtml: string, contentRepoPath: string, contentRepo: string | undefined): string {
     if (!contentRepo) return '';
-    return designHtml.replace(/ href=".*?"/, ` href="https://github.com/${escape(contentRepo)}/blob/HEAD${escape(contentRepoPath)}"`);
+    return designHtml.replace(/ href=".*?"/, ` href="https://github.com/${encodeXml(contentRepo)}/blob/HEAD${encodeXml(contentRepoPath)}"`);
 }
 
 function computeContentUpdateTimeHtml(_designHtml: string, contentUpdateTime: number): string {

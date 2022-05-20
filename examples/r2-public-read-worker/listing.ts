@@ -1,4 +1,4 @@
-import { R2Objects } from './deps.ts';
+import { encodeXml, R2Objects } from './deps.ts';
 
 export function computeDirectoryListingHtml(objects: R2Objects, opts: { prefix: string, cursor?: string }): string {
     const { prefix, cursor } = opts;
@@ -9,18 +9,18 @@ export function computeDirectoryListingHtml(objects: R2Objects, opts: { prefix: 
     lines.push('<div class="full">&nbsp;</div>');
     if (objects.delimitedPrefixes.length > 0) {
         for (const delimitedPrefix of objects.delimitedPrefixes) {
-            lines.push(`<a class="full" href="${encodeHtml('/' + delimitedPrefix)}">${encodeHtml(delimitedPrefix.substring(prefix.length))}</a>`);
+            lines.push(`<a class="full" href="${encodeXml('/' + delimitedPrefix)}">${encodeXml(delimitedPrefix.substring(prefix.length))}</a>`);
         }
         lines.push('<div class="full">&nbsp;</div>');
     }
     for (const obj of objects.objects) {
-        lines.push(`<a href="${encodeHtml('/' + obj.key)}">${encodeHtml(obj.key.substring(prefix.length))}</a><div class="ralign">${obj.size.toLocaleString()}</div><div class="ralign">${computeBytesString(obj.size)}</div><div>${obj.uploaded.toISOString()}</div>`);
+        lines.push(`<a href="${encodeXml('/' + obj.key)}">${encodeXml(obj.key.substring(prefix.length))}</a><div class="ralign">${obj.size.toLocaleString()}</div><div class="ralign">${computeBytesString(obj.size)}</div><div>${obj.uploaded.toISOString()}</div>`);
     }
     lines.push('</div>');
 
     if (objects.truncated) lines.push('(truncated)');
     if (cursor) {
-        lines.push(`<a href="?cursor=${encodeHtml(cursor)}">next ➜</a>`)
+        lines.push(`<a href="?cursor=${encodeXml(cursor)}">next ➜</a>`)
     }
 
     lines.push('</body>','</html>');
@@ -45,14 +45,6 @@ a:hover { text-decoration: underline; }
 
 const MAX_TWO_DECIMALS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
-function encodeHtml(value: string): string {
-    return value.replace(/&/g, '&amp;')
-        .replace(/\"/g, '&quot;')
-        .replace(/'/g, '&apos;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
 function computeBytesString(bytes: number): string {
     if (bytes < 1024) return '';
     let amount = bytes / 1024;
@@ -65,5 +57,5 @@ function computeBytesString(bytes: number): string {
 
 function computeBreadcrumbs(prefix: string): string {
     const tokens = ('/' + prefix).split('/').filter((v, i) => i === 0 || v !== '');
-    return tokens.map((v, i) => `${i === 0 ? '' : ` ⟩ `}${i === tokens.length - 1 ? (i === 0 ? 'home' : encodeHtml(v)) : `<a href="${tokens.slice(0, i + 1).join('/') + '/'}">${i === 0 ? 'home' : encodeHtml(v)}</a>`}`).join('');
+    return tokens.map((v, i) => `${i === 0 ? '' : ` ⟩ `}${i === tokens.length - 1 ? (i === 0 ? 'home' : encodeXml(v)) : `<a href="${tokens.slice(0, i + 1).join('/') + '/'}">${i === 0 ? 'home' : encodeXml(v)}</a>`}`).join('');
 }

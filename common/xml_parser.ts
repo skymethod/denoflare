@@ -1,8 +1,9 @@
 import { checkEqual } from './check.ts';
 import { getTraversalObj } from './deps_xml.ts';
+import { decodeXml } from './xml_util.ts';
 
 export function parseXml(xml: string): ExtendedXmlNode {
-    const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false }) as XmlNode;
+    const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false, tagValueProcessor: decodeXml }) as XmlNode;
     const namespaces = new XmlNamespaces();
     applyQnames(rt, namespaces);
     checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
