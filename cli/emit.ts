@@ -1,13 +1,16 @@
+import { denoBundle } from './deno_bundle.ts';
 import { toFileUrl } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 
-export async function emit(rootSpecifier: string): Promise<string> {
+export async function emit(rootSpecifier: string, opts: { useDenoBundle?: boolean, compilerOptions?: { lib?: string[] } } = {}): Promise<string> {
+    const { useDenoBundle, compilerOptions } = opts;
     // deno-lint-ignore no-explicit-any
     const deno = Deno as any;
     if ('emit' in deno && 'formatDiagnostics' in deno) {
         // < 1.22
         const result = await deno.emit(rootSpecifier, {
             bundle: 'module',
+            compilerOptions,
         });
         // deno-lint-ignore no-explicit-any
         const blockingDiagnostics = result.diagnostics.filter((v: any) => !isKnownIgnorableWarning(v))
@@ -21,6 +24,17 @@ export async function emit(rootSpecifier: string): Promise<string> {
     }
 
     // 1.22+
+    // Deno.emit is gone
+
+    if (useDenoBundle) {
+        const { code, diagnostics } = await denoBundle(rootSpecifier);
+        const blockingDiagnostics = diagnostics.filter(v => !isKnownIgnorableWarning(v))
+        if (blockingDiagnostics.length > 0) {
+            console.warn(blockingDiagnostics);
+            throw new Error('bundle failed');
+        }
+        return code;
+    }
 
     // dynamic import, otherwise fails pre 1.22, and avoid typecheck failures using two lines
     const url = 'https://deno.land/x/emit@0.0.1/mod.ts';
