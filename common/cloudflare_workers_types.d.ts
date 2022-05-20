@@ -794,9 +794,9 @@ export interface R2PutOptions {
     readonly md5?: ArrayBuffer | string; // hex if string
 }
 
-export interface R2Range {
-    readonly offset: number;
-    readonly length: number;
-}
+export type R2Range =
+  | { offset: number; length?: number }
+  | { offset?: number; length: number }
+  | { suffix: number };
 
 //#endregion
