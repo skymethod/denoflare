@@ -186,35 +186,18 @@ function computeObjResponse(obj: R2Object, status: number, range?: R2Range, only
 
 function computeHeaders(obj: R2Object, range?: R2Range): Headers {
     const headers = new Headers();
+    // writes content-type, content-encoding, content-disposition, i.e. the values from obj.httpMetadata
+    obj.writeHttpMetadata(headers);
+    console.log('writeHttpMetadata', [...headers].map(v => v.join(': ')).join(', ')); // for debugging, writeHttpMetadata was buggy in the past
 
     // obj.size represents the full size, but seems to be clamped by the cf frontend down to the actual number of bytes in the partial response
-    // exactly what we want
+    // exactly what we want in a content-length header
     headers.set('content-length', String(obj.size));
 
     headers.set('etag', obj.httpEtag); // the version with double quotes, e.g. "96f20d7dc0d24de9c154d822967dcae1"
     headers.set('last-modified', obj.uploaded.toUTCString()); // toUTCString is the http date format (rfc 1123)
 
     if (range) headers.set('content-range', computeContentRange(range, obj.size));
-
-    // obj.writeHttpMetadata(headers); // r2 bug: currently returns content-encoding and cache-control in content-disposition!
-    // for now, don't trust any header except content-type
-    // and try to move content-dispositions that look like known content-encoding or cache-control values
-    const { contentType, contentLanguage, contentDisposition, contentEncoding, cacheControl, cacheExpiry } = obj.httpMetadata;
-    if (contentType) headers.set('content-type', contentType);
-    if (contentLanguage) headers.set('x-r2-content-language', contentLanguage);
-    if (contentDisposition) {
-        headers.set('x-r2-content-disposition', contentDisposition);
-        if (contentDisposition === 'gzip') {
-            headers.set('content-encoding', contentDisposition);
-        }
-        // max-age=31536000, no-transform, public
-        if (/(private|public|maxage|max-age|no-transform|immutable)/.test(contentDisposition)) {
-            headers.set('cache-control', contentDisposition);
-        }
-    }
-    if (contentEncoding) headers.set('x-r2-content-encoding', contentEncoding);
-    if (cacheControl) headers.set('x-r2-cache-control', cacheControl);
-    if (cacheExpiry) headers.set('x-r2-cache-expiry', cacheExpiry.toISOString());
     return headers;
 }
 
