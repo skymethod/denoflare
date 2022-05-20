@@ -42,7 +42,7 @@ async function build(_args: (string | number)[]) {
         console.log(`bundling ${basename(appPath)} into bundle.js...`);
         try {
             const start = Date.now();
-            const scriptContentsStr = await emit(appPath, { compilerOptions: {
+            const scriptContentsStr = await emit(appPath, { useDenoBundle: true, compilerOptions: {
                 lib: ['esnext', 'dom'],
             } });
             console.log(`bundle finished in ${Date.now() - start}ms`);

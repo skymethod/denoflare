@@ -27,7 +27,7 @@ export async function emit(rootSpecifier: string, opts: { useDenoBundle?: boolea
     // Deno.emit is gone
 
     if (useDenoBundle) {
-        const { code, diagnostics } = await denoBundle(rootSpecifier);
+        const { code, diagnostics } = await denoBundle(rootSpecifier, { compilerOptions });
         const blockingDiagnostics = diagnostics.filter(v => !isKnownIgnorableWarning(v))
         if (blockingDiagnostics.length > 0) {
             console.warn(blockingDiagnostics);
