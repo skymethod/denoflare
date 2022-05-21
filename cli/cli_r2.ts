@@ -28,6 +28,7 @@ import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
 import { CliCommand, CliCommandModifier } from './cli_command.ts';
+import { generateCredentials, GENERATE_CREDENTIALS_COMMAND } from './cli_r2_generate_credentials.ts';
 
 export const R2_COMMAND = denoflareCliCommand('r2', 'Manage R2 storage using the S3 compatibility API')
     .subcommand(LIST_BUCKETS_COMMAND, listBuckets)
@@ -55,6 +56,9 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage R2 storage using the
     .subcommand(COMPLETE_MULTIPART_UPLOAD_COMMAND, completeMultipartUpload)
     .subcommand(UPLOAD_PART_COMMAND, uploadPart)
     .subcommand(UPLOAD_PART_COPY_COMMAND, uploadPartCopy)
+
+    .subcommandGroup()
+    .subcommand(GENERATE_CREDENTIALS_COMMAND, generateCredentials)
     ;
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {

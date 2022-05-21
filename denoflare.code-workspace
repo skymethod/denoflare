@@ -40,6 +40,10 @@
 		{
 			"path": "examples/r2-public-read-worker",
 			"name": "examples/r2-public-read-worker"
+		},
+		{
+			"path": "examples/r2-presigned-url-worker",
+			"name": "examples/r2-presigned-url-worker"
 		}
 	],
 	"settings": {

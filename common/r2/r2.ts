@@ -31,6 +31,22 @@ export class R2 {
     static DEBUG = false;
 }
 
+export async function computeExpectedAwsSignature(call: AwsCall, context: Omit<AwsCallContext, 'userAgent'>) {
+    const { method, url, body, region, service } = call;
+    const { credentials } = context;
+    const headers = new Headers(call.headers);
+    const amazonDate = computeAmazonDate();
+    headers.set('x-amz-date', amazonDate);
+
+    const bodyInfo = await computeBodyInfo(body, context.unsignedPayload);
+    headers.set('x-amz-content-sha256', bodyInfo.bodySha256Hex || 'UNSIGNED-PAYLOAD'); // required for all v4 requests
+    const canonicalRequest = computeCanonicalRequest(method, url, headers, bodyInfo.bodySha256Hex);
+    if (R2.DEBUG) console.log(`canonicalRequest=<<<${canonicalRequest.text}>>>`);
+    const stringToSign = await stringToSignFinal(amazonDate, region, service, canonicalRequest.text);
+    if (R2.DEBUG) console.log(`stringToSign=<<<${stringToSign}>>>`);
+    return await sig(credentials.secretKey, amazonDate, region, service, stringToSign);
+}
+
 export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Promise<{ signedHeaders: Headers, bodyInfo: BodyInfo }> {
     const { method, url, body, region, service } = call;
     const { userAgent, credentials } = context;
@@ -138,6 +154,17 @@ export function checkBoolean(text: string, name: string): boolean {
     return text === 'true';
 }
 
+export function computeAmazonDate(): string {
+    const iso8601 = new Date().toISOString();
+    const rt = checkIso8601('iso8601', iso8601);
+    return `${rt[1]}${rt[2]}${rt[3]}T${rt[4]}${rt[5]}${rt[6]}Z`;
+}
+
+export function tryParseAmazonDate(amazonDate: string): Date | undefined {
+    const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(amazonDate);
+    return m ? new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`) : undefined;
+}
+
 //
 
 export interface AwsCallContext {
@@ -173,12 +200,6 @@ export interface BucketResultOwner {
 }
 
 //
-
-function computeAmazonDate(): string {
-    const iso8601 = new Date().toISOString();
-    const rt = checkIso8601('iso8601', iso8601);
-    return `${rt[1]}${rt[2]}${rt[3]}T${rt[4]}${rt[5]}${rt[6]}Z`;
-}
 
 function uriEncode(value: string): string {
     if (value === '') return value;
