@@ -9,7 +9,7 @@ import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
 import { DenoflareResponse } from '../common/denoflare_response.ts';
 import { RpcHostWebSockets } from './rpc_host_web_sockets.ts';
 import { makeRpcHostDurableObjectStorage } from './rpc_host_durable_object_storage.ts';
-import { emit } from './emit.ts';
+import { emit, EmitOpts } from './emit.ts';
 import { addRequestHandlerForRpcR2Bucket } from '../common/rpc_r2_bucket.ts';
 import { R2BucketProvider } from '../common/cloudflare_workers_runtime.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
@@ -27,12 +27,12 @@ export class WorkerManager {
         this.workerUrl = workerUrl;
     }
 
-    static async start(): Promise<WorkerManager> {
+    static async start(opts: EmitOpts | undefined): Promise<WorkerManager> {
         // compile the permissionless deno worker (once)
         const webworkerRootSpecifier = computeWebworkerRootSpecifier();
         consoleLog(`Compiling ${webworkerRootSpecifier} into worker contents...`);
         const start = Date.now();
-        let workerJs = await emit(webworkerRootSpecifier);
+        let { code: workerJs, backend } = await emit(webworkerRootSpecifier, opts);
         if (!canWorkerOptionsRemoveDenoNamespace()) {
             workerJs = 'delete globalThis.Deno;\n' + workerJs;
         }
@@ -40,7 +40,7 @@ export class WorkerManager {
         const contents = new TextEncoder().encode(workerJs);
         const blob = new Blob([contents]);
         const workerUrl = URL.createObjectURL(blob);
-        consoleLog(`Compiled ${webworkerRootSpecifier} into worker contents in ${Date.now() - start}ms`);
+        consoleLog(`Bundled ${webworkerRootSpecifier} (${backend}) in ${Date.now() - start}ms`);
         return new WorkerManager(workerUrl);
     }
 

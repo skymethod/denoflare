@@ -54,11 +54,12 @@ function parseDiagnostics(err: string): Deno.Diagnostic[] {
     const rt: Deno.Diagnostic[] = [];
     if (err.length === 0) return rt;
 
-    for (const [ _, codeStr, fileName, lineStr, charStr ] of [...err.matchAll(/TS(\d+).*?\s+at\s+([^\s]+):(\d+):(\d+)\n/gs)]) {
+    for (const [ _, codeStr, inBetween, fileName, lineStr, charStr ] of [...err.matchAll(/TS(\d+)(.*?)\s+at\s+([^\s]+):(\d+):(\d+)\n/gs)]) {
+        const messageText = inBetween.trim();
         const code = parseInt(codeStr);
         const line = parseInt(lineStr);
         const character = parseInt(charStr);
-        rt.push({ category: 1 /*error*/, code, fileName, start: { line, character } });
+        rt.push({ category: 1 /*error*/, code, messageText, fileName, start: { line, character } });
     }
     return rt;
 }

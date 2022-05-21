@@ -7,7 +7,7 @@ import { computeContentsForScriptReference, denoflareCliCommand } from './cli_co
 import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
-import { emit } from './emit.ts';
+import { commandOptionsForEmit, emit, parseEmitOpts } from './emit.ts';
 
 export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a worker script to Cloudflare Workers')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
@@ -25,6 +25,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a worker script 
     .option('serviceBinding', 'strings', 'Service environment variable binding, overrides config', { hint: 'name:service:environment'})
     .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
     .include(commandOptionsForConfig)
+    .include(commandOptionsForEmit)
     ;
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {
@@ -44,6 +45,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
     const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(opt) };
+    const emitOpts = parseEmitOpts(options);
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -53,8 +55,9 @@ export async function push(args: (string | number)[], options: Record<string, un
         if (isModule) {
             console.log(`bundling ${scriptName} into bundle.js...`);
             const start = Date.now();
-            scriptContentsStr = await emit(rootSpecifier);
-            console.log(`bundle finished in ${Date.now() - start}ms`);
+            const output = await emit(rootSpecifier, emitOpts);
+            scriptContentsStr = output.code;
+            console.log(`bundle finished (${output.backend}) in ${Date.now() - start}ms`);
         } else {
             scriptContentsStr = await Deno.readTextFile(rootSpecifier);
         }
