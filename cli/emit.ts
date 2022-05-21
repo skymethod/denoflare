@@ -36,8 +36,10 @@ export async function emit(rootSpecifier: string, opts: { useDenoBundle?: boolea
         return code;
     }
 
+    // the new userland 'bundle' is closer to what we were doing with Deno.emit before
+
     // dynamic import, otherwise fails pre 1.22, and avoid typecheck failures using two lines
-    const url = 'https://deno.land/x/emit@0.0.1/mod.ts';
+    const url = 'https://deno.land/x/emit@0.0.2/mod.ts';
     const { bundle } = await import(url);  
 
     // new 'bundle' no longer takes abs file paths
@@ -45,9 +47,10 @@ export async function emit(rootSpecifier: string, opts: { useDenoBundle?: boolea
     if (!/^(file|https):\/\//.test(rootSpecifier) && await fileExists(rootSpecifier)) {
         rootSpecifier = toFileUrl(rootSpecifier).toString();
     }
+    // supposedly better, but not apparently: https://github.com/denoland/deno_emit/issues/17
+    const rootUrl = new URL(rootSpecifier);
 
-    // the new userland 'bundle' is closer to what we were doing with Deno.emit before
-    let { code } = await bundle(rootSpecifier);
+    let { code } = await bundle(rootUrl);
 
     // currently unable to disable inline source maps
     // https://github.com/denoland/deno_emit/issues/25
