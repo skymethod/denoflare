@@ -28,8 +28,8 @@ export async function loadConfig(options: Record<string, unknown>): Promise<Conf
         try {
             const cfAccountId = (Deno.env.get('CF_ACCOUNT_ID') || '').trim();
             const cfApiToken = (Deno.env.get('CF_API_TOKEN') || '').trim();
-            if (verbose) console.log(`loadConfig: Trying to enhance with CF_ACCOUNT_ID=${cfAccountId}, CF_API_TOKEN=<redacted string length=${cfApiToken.length}>`);
             if (cfAccountId.length > 0 && cfApiToken.length > 0) {
+                if (verbose) console.log(`loadConfig: Trying to enhance with CF_ACCOUNT_ID=${cfAccountId}, CF_API_TOKEN=<redacted string length=${cfApiToken.length}>`);
                 const envProfile: Profile = {
                     accountId: cfAccountId,
                     apiToken: cfApiToken,
