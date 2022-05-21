@@ -309,7 +309,7 @@ function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<numb
     const rt: string[][] = [];
     const addGroupBreak = () => rt.push(['', '']);
     optionDefs.forEach((v, i) => {
-        rt.push(computeOptionRow(v));
+        if (v.description.length > 0) rt.push(computeOptionRow(v));
         if (optionGroupIndexes.has(i)) addGroupBreak();
     });
     addGroupBreak();

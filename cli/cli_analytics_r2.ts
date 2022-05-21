@@ -10,24 +10,25 @@ export const ANALYTICS_R2_COMMAND = denoflareCliCommand(['analytics', 'r2'], 'Du
     .option('start', 'string', 'Start of the analysis range (inclusive)', { hint: 'yyyy-mm-dd' })
     .option('end', 'string', 'End of the analysis range (inclusive)', { hint: 'yyyy-mm-dd' })
     .option('budget', 'boolean', 'If set, dump GraphQL API request budget')
+    .option('demo', 'boolean', '')
     .include(commandOptionsForConfig)
     ;
     
 export async function analyticsR2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (ANALYTICS_R2_COMMAND.dumpHelp(args, options)) return;
 
-    const { bucket: bucketName, start, end, budget: dumpBudget } = ANALYTICS_R2_COMMAND.parse(args, options);
+    const { bucket: bucketName, start, end, budget: dumpBudget, demo } = ANALYTICS_R2_COMMAND.parse(args, options);
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
     const range = start && end ? { start, end } : undefined;
 
-    await dumpR2(profile, bucketName, { dumpBudget, range });
+    await dumpR2(profile, bucketName, { dumpBudget, range, demo });
 }
 
 //
 
-async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { dumpBudget?: boolean, range?: { start: string, end: string } }) {
-    const { dumpBudget, range } = opts;
+async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { dumpBudget?: boolean, range?: { start: string, end: string }, demo?: boolean }) {
+    const { dumpBudget, range, demo } = opts;
     const client = new CfGqlClient(profile);
     // CfGqlClient.DEBUG = true;
 
@@ -80,17 +81,27 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
     const bucketNames = [...Object.keys(tableResult.bucketTables)];
     if (bucketNames.length > 1 && !bucketName) {
         console.log('\nper bucket:');
+        const bucketTableRows: (string | number)[][] = [];
+        bucketTableRows.push([
+            'cost',
+            'storage',
+            'objects',
+            'egress',
+            'bucket',
+        ]);
         for (const [ bucketName, table ] of [...Object.entries(tableResult.bucketTables)].sort((a, b) => (b[1].totalRow?.totalCost || 0) - (a[1].totalRow?.totalCost || 0))) {
             const totalCost = table.totalRow.totalCost;
             const latestStorageGb = table.rows.at(-1)?.storageGb ?? 0;
-            const pieces = [ 
-                `$${totalCost.toFixed(2)}`.padStart(7, ' '), 
-                `${latestStorageGb.toFixed(2)}gb`.padStart(9, ' '),
-                computeEgressText(table.totalRow).padStart(9, ' '),
-                bucketName 
-            ];
-            console.log(pieces.join('  '));
+            const latestObjectCount = table.rows.at(-1)?.objectCount ?? 0;
+            bucketTableRows.push([ 
+                `$${totalCost.toFixed(2)}`, 
+                `${latestStorageGb.toFixed(2)}gb`,
+                latestObjectCount,
+                computeEgressText(table.totalRow),
+                demo ? computeDemoBucketName(Object.keys(tableResult.bucketTables).indexOf(bucketName)) : bucketName,
+            ]);
         }
+        dumpTable(bucketTableRows, { leftAlignColumns: [ 4 ] });
     }
 
     if (dumpBudget) {
@@ -100,4 +111,9 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
         }
     }
 
+}
+
+function computeDemoBucketName(i: number) {
+    const names = [ 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa', 'lambda', 'mu', 'nu' ];
+    return names[i % names.length ];
 }

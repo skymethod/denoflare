@@ -11,7 +11,8 @@ export async function analytics(args: (string | number)[], options: Record<strin
     await ANALYTICS_COMMAND.routeSubcommand(args, options);
 }
 
-export function dumpTable(rows: (string | number)[][]) {
+export function dumpTable(rows: (string | number)[][], opts: { leftAlignColumns?: number[] } = {}) {
+    const { leftAlignColumns = [] } = opts;
     const sizes: number[] = [];
     for (const row of rows) {
         for (let i = 0; i < row.length; i++) {
@@ -24,7 +25,8 @@ export function dumpTable(rows: (string | number)[][]) {
         for (let i = 0; i < row.length; i++) {
             const size = sizes[i];
             const val = `${row[i]}`;
-            pieces.push(val.padStart(size, ' '));
+            const piece = leftAlignColumns.includes(i) ? val.padEnd(size, ' ') : val.padStart(size, ' ');
+            pieces.push(piece);
         }
         console.log(pieces.join('  '));
     }
