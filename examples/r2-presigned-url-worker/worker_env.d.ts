@@ -7,4 +7,7 @@ export interface WorkerEnv {
     readonly allowIps?: string;
     readonly denyIps?: string;
     readonly credentials?: string;
+    readonly maxSkewMinutes?: string;
+    readonly maxExpiresMinutes?: string;
+    
 }

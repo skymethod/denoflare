@@ -31,15 +31,12 @@ export class R2 {
     static DEBUG = false;
 }
 
-export async function computeExpectedAwsSignature(call: AwsCall, context: Omit<AwsCallContext, 'userAgent'>) {
+export async function computeExpectedAwsSignature(call: AwsCall, context: { credentials: AwsCredentials; amazonDate: string, unsignedPayload?: boolean; }) {
     const { method, url, body, region, service } = call;
-    const { credentials } = context;
+    const { credentials, amazonDate, unsignedPayload } = context;
     const headers = new Headers(call.headers);
-    const amazonDate = computeAmazonDate();
-    headers.set('x-amz-date', amazonDate);
 
-    const bodyInfo = await computeBodyInfo(body, context.unsignedPayload);
-    headers.set('x-amz-content-sha256', bodyInfo.bodySha256Hex || 'UNSIGNED-PAYLOAD'); // required for all v4 requests
+    const bodyInfo = await computeBodyInfo(body, unsignedPayload);
     const canonicalRequest = computeCanonicalRequest(method, url, headers, bodyInfo.bodySha256Hex);
     if (R2.DEBUG) console.log(`canonicalRequest=<<<${canonicalRequest.text}>>>`);
     const stringToSign = await stringToSignFinal(amazonDate, region, service, canonicalRequest.text);
