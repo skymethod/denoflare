@@ -18,7 +18,7 @@ import { redefineGlobalFetchToWorkaroundBareIpAddresses } from '../common/deno_w
 import { FetchUtil } from '../common/fetch_util.ts';
 import { LocalWebSockets } from '../common/local_web_sockets.ts';
 import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_types.d.ts';
-import { commandOptionsForEmit, emit, parseEmitOpts } from './emit.ts';
+import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -29,7 +29,7 @@ export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a worker script i
     .option('keyPem', 'string', `(required for https) Path to private key file in pem format (contents start with -----BEGIN PRIVATE KEY-----)`, { hint: 'path' })
     .option('name', 'string', `Explicit script name to use from config file`)
     .include(commandOptionsForConfig)
-    .include(commandOptionsForEmit)
+    .include(commandOptionsForBundle)
     ;
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
@@ -89,7 +89,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
     redefineGlobalFetchToWorkaroundBareIpAddresses();
 
-    const emitOpts = parseEmitOpts(options);
+    const bundleOpts = parseBundleOpts(options);
 
     const computeScriptContents = async (scriptPathOrModuleWorkerUrl: string, scriptType: 'module' | 'script'): Promise<Uint8Array> => {
         if (scriptType === 'script') {
@@ -97,7 +97,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             return await Deno.readFile(scriptPathOrModuleWorkerUrl);
         }
         const start = Date.now();
-        const { code: workerJs, backend } = await emit(scriptPathOrModuleWorkerUrl, emitOpts);
+        const { code: workerJs, backend } = await bundle(scriptPathOrModuleWorkerUrl, bundleOpts);
         if (verbose) consoleLog('computeScriptContents: workerJs', workerJs);
         const rt = new TextEncoder().encode(workerJs);
         console.log(`Bundled ${scriptPathOrModuleWorkerUrl} (${backend}) in ${Date.now() - start}ms`);
@@ -132,7 +132,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             return await WorkerExecution.start(rootSpecifier, scriptType, bindings, callbacks);
         } else {
             // start the host for the permissionless deno workers
-            const workerManager = await WorkerManager.start(emitOpts);
+            const workerManager = await WorkerManager.start(bundleOpts);
         
             // run the cloudflare worker script inside deno worker
             const runScript = async () => {

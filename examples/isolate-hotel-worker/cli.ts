@@ -1,4 +1,4 @@
-import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags, emit } from './deps_cli.ts';
+import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags, bundle } from './deps_cli.ts';
 
 const args = parseFlags(Deno.args);
 
@@ -42,7 +42,7 @@ async function build(_args: (string | number)[]) {
         console.log(`bundling ${basename(appPath)} into bundle.js...`);
         try {
             const start = Date.now();
-            const { code: scriptContentsStr } = await emit(appPath, { compilerOptions: {
+            const { code: scriptContentsStr } = await bundle(appPath, { compilerOptions: {
                 lib: ['esnext', 'dom'],
             } });
             console.log(`bundle finished in ${Date.now() - start}ms`);

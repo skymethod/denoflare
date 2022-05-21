@@ -4,27 +4,27 @@ import { denoBundle } from './deno_bundle.ts';
 import { toFileUrl } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 
-export type EmitBackend = 'process' | 'module' | 'builtin';
+export type BundleBackend = 'builtin' | 'process' | 'module';
 
-export type EmitOpts = { backend?: EmitBackend, compilerOptions?: { lib?: string[] } };
+export type BundleOpts = { backend?: BundleBackend, compilerOptions?: { lib?: string[] } };
 
-export function commandOptionsForEmit(command: CliCommand<unknown>) {
+export function commandOptionsForBundle(command: CliCommand<unknown>) {
     return command
         .optionGroup()
-        .option('emit', 'name-value-pairs', `Advanced options used when emitting javascript bundles: backend=(${computeSupportedBackends().join(', ')})`)
+        .option('bundle', 'name-value-pairs', `Advanced options used when emitting javascript bundles: backend=(${computeSupportedBackends().join(', ')})`)
         ;
 }
 
-export function parseEmitOpts(options: Record<string, unknown>): EmitOpts | undefined {
-    const nvps = parseNameValuePairsOption('emit', options);
+export function parseBundleOpts(options: Record<string, unknown>): BundleOpts | undefined {
+    const nvps = parseNameValuePairsOption('bundle', options);
     if (nvps === undefined) return undefined;
     const { backend } = nvps;
     const supportedBackends = computeSupportedBackends();
     if (backend && !supportedBackends.includes(backend)) throw new Error(`Bad backend: ${backend}, expected one of (${supportedBackends.join(', ')})`);
-    return { backend: backend as EmitBackend };
+    return { backend: backend as BundleBackend };
 }
 
-export async function emit(rootSpecifier: string, opts: EmitOpts = {}): Promise<{ code: string, backend: EmitBackend }> {
+export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Promise<{ code: string, backend: BundleBackend }> {
     const { backend, compilerOptions } = opts;
     
     // deno-lint-ignore no-explicit-any
@@ -95,7 +95,7 @@ function computeSupportedBackends() {
     // deno-lint-ignore no-explicit-any
     const deno = Deno as any;
     const builtinSupported = 'emit' in deno && 'formatDiagnostics' in deno;
-    return [ 'process', 'module', ...(builtinSupported ? [ 'builtin'] : []) ];
+    return [ ...(builtinSupported ? [ 'builtin'] : []), 'process', 'module' ];
 }
 
 function isKnownIgnorableWarning(diag: Deno.Diagnostic): boolean {
