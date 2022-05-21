@@ -39,7 +39,7 @@ interface Credential {
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
-    const { bucket, pushId } = env;
+    const { bucket } = env;
     const flags = stringSetFromCsv(env.flags);
     const allowIps = stringSetFromCsv(env.allowIps);
     const denyIps = stringSetFromCsv(env.denyIps);
@@ -48,7 +48,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     const maxExpiresMinutes = tryParsePositiveInteger('maxExpiresMinutes', env.maxExpiresMinutes);
 
     const { method, url, headers } = request;
-    console.log(JSON.stringify({ pushId, credentials: credentials.length, flags: [...flags] }));
+    console.log(JSON.stringify({ accessKeyIds: credentials.map(v => v.accessKeyId), flags: [...flags] }));
 
     // apply ip filters, if configured
     const ip = headers.get('cf-connecting-ip') || 'unknown';
@@ -63,10 +63,11 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     // parse bucket-name, key from url
     const { hostname, pathname, searchParams } = new URL(url);
     const debug = searchParams.has('debug');
-    const m = /^\/(.+)\/(.+)$/.exec(pathname);
+    const m = /^\/(.+?)\/(.+)$/.exec(pathname);
     if (!m) return notFound(method);
-    const [ _, bucketName, key ] = m;
-    console.log(JSON.stringify({ hostname, bucketName, key }));
+    const [ _, bucketName, keyEncoded ] = m;
+    const key = decodeURIComponent(keyEncoded);
+    console.log(JSON.stringify({ hostname, bucketName, keyEncoded, key }));
 
     // check auth
     const credential = await isPresignedUrlAuthorized({ url, searchParams, credentials, debug, maxSkewMinutes, maxExpiresMinutes });

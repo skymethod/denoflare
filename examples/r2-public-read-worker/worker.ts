@@ -37,7 +37,7 @@ const INTERNAL_KEYS = new Set();
 const INTERNAL_KEYS_PAGES = new Set([ '_headers' ]); // special handling for _headers, we'll process this later
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
-    const { bucket, pushId, directoryListingLimit } = env;
+    const { bucket, directoryListingLimit } = env;
     const flags = stringSetFromCsv(env.flags);
     const allowIps = stringSetFromCsv(env.allowIps);
     const denyIps = stringSetFromCsv(env.denyIps);
@@ -46,7 +46,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     const listDirectories = flags.has('listDirectories');
 
     const { method, url, headers } = request;
-    console.log(JSON.stringify({ pushId, directoryListingLimit, flags: [...flags] }));
+    console.log(JSON.stringify({ directoryListingLimit, flags: [...flags] }));
 
     // apply ip filters, if configured
     const ip = headers.get('cf-connecting-ip') || 'unknown';
@@ -59,6 +59,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
 
     const { pathname, searchParams } = new URL(url);
     let key = pathname.substring(1); // strip leading slash
+    key = decodeURIComponent(key);
 
     // special handling for robots.txt, if configured
     if (disallowRobots && key === 'robots.txt') {
