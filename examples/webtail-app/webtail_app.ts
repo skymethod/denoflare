@@ -3,7 +3,7 @@
 
 import { initSidebar, SIDEBAR_CSS, SIDEBAR_HTML } from './views/sidebar_view.ts';
 import { WebtailAppVM } from './webtail_app_vm.ts';
-import { CloudflareApi, css, html, LitElement } from './deps_app.ts';
+import { CloudflareApi, css, html, LitElement, CfGqlClient } from './deps_app.ts';
 import { MATERIAL_CSS } from './material.ts';
 import { initModal, MODAL_CSS, MODAL_HTML } from './views/modal_view.ts';
 import { HEADER_CSS } from './views/header_view.ts';
@@ -14,7 +14,6 @@ import { FILTER_EDITOR_CSS } from './views/filter_editor_view.ts';
 import { StaticData } from './static_data.ts';
 import { WELCOME_PANEL_CSS } from './views/welcome_panel.ts';
 import { ANALYTICS_HTML, ANALYTICS_CSS, initAnalytics } from './views/analytics_view.ts';
-import { CfGqlClient } from '../../common/analytics/cfgql_client.ts';
 
 const appModuleScript = document.getElementById('app-module-script') as HTMLScriptElement;
 

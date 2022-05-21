@@ -1,11 +1,9 @@
 import { CloudflareApiError, listScripts, listTails, Tail, setEqual, setIntersect, setSubtract, isTailMessageCronEvent, parseHeaderFilter, TailFilter, TailMessage, TailOptions, ErrorInfo, 
-    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, AdditionalLog, generateUuid, dumpMessagePretty, parseLogProps, HeaderFilter } from './deps_app.ts';
+    UnparsedMessage, formatLocalYyyyMmDdHhMmSs, AdditionalLog, generateUuid, dumpMessagePretty, parseLogProps, HeaderFilter, CfGqlClient, computeDurableObjectsCostsTable, DurableObjectsCostsTable } from './deps_app.ts';
 import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
 import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
-import { CfGqlClient } from '../../common/analytics/cfgql_client.ts';
-import { computeDurableObjectsCostsTable, DurableObjectsCostsTable } from '../../common/analytics/durable_objects_costs.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;

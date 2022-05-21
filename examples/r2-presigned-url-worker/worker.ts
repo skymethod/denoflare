@@ -1,6 +1,5 @@
-import { Bytes } from '../../common/bytes.ts';
-import { AwsCall, computeExpectedAwsSignature, R2, tryParseAmazonDate } from '../../common/r2/r2.ts';
-import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions, R2Conditional } from './deps.ts';
+
+import { IncomingRequestCf, R2Object, R2ObjectBody, R2Range, R2GetOptions, R2Conditional, Bytes, AwsCall, computeExpectedAwsSignature, R2, tryParseAmazonDate } from './deps.ts';
 import { WorkerEnv } from './worker_env.d.ts';
 
 export default {

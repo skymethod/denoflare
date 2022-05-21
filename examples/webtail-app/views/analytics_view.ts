@@ -1,7 +1,6 @@
 /// <reference lib="dom" />
 
-import { DurableObjectsCostsTable, DurableObjectsDailyCostsTable } from '../../../common/analytics/durable_objects_costs.ts';
-import { css, html, LitElement } from '../deps_app.ts';
+import { css, html, LitElement, DurableObjectsCostsTable, DurableObjectsDailyCostsTable } from '../deps_app.ts';
 import { WebtailAppVM } from '../webtail_app_vm.ts';
 
 export const ANALYTICS_HTML = html`

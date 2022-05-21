@@ -30,14 +30,6 @@
 			"name": "examples/tiered-websockets-worker"
 		},
 		{
-			"path": "examples/isolate-hotel-worker",
-			"name": "examples/isolate-hotel-worker"
-		},
-		{
-			"path": "examples/isolate-hotel-app",
-			"name": "examples/isolate-hotel-app"
-		},
-		{
 			"path": "examples/r2-public-read-worker",
 			"name": "examples/r2-public-read-worker"
 		},

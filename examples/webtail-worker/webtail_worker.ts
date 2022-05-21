@@ -1,10 +1,9 @@
-import { Bytes, IncomingRequestCf, ModuleWorkerContext } from './deps_worker.ts';
+import { Bytes, IncomingRequestCf, ModuleWorkerContext, encodeXml } from './deps_worker.ts';
 import { WEBTAIL_APP_B64, WEBTAIL_APP_HASH } from './webtail_data.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
-import { encodeXml } from '../../common/xml_util.ts';
 
 export default {
 
