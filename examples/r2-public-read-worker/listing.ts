@@ -16,12 +16,11 @@ export function computeDirectoryListingHtml(objects: R2Objects, opts: { prefix: 
     for (const obj of objects.objects) {
         lines.push(`<a href="${encodeXml('/' + obj.key)}">${encodeXml(obj.key.substring(prefix.length))}</a><div class="ralign">${obj.size.toLocaleString()}</div><div class="ralign">${computeBytesString(obj.size)}</div><div>${obj.uploaded.toISOString()}</div>`);
     }
-    lines.push('</div>');
-
-    if (objects.truncated) lines.push('(truncated)');
     if (cursor) {
-        lines.push(`<a href="?cursor=${encodeXml(cursor)}">next ➜</a>`)
+        lines.push('<div class="full">&nbsp;</div>');
+        lines.push(`<div class="full"><a href="?cursor=${encodeXml(cursor)}">next ➜</a></div>`);
     }
+    lines.push('</div>');
 
     lines.push('</body>','</html>');
     return lines.join('\n');

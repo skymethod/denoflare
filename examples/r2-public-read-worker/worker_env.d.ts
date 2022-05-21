@@ -6,4 +6,5 @@ export interface WorkerEnv {
     readonly flags?: string;
     readonly allowIps?: string;
     readonly denyIps?: string;
+    readonly directoryListingLimit?: string;
 }

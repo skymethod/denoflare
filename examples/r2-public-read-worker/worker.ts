@@ -37,7 +37,7 @@ const INTERNAL_KEYS = new Set();
 const INTERNAL_KEYS_PAGES = new Set([ '_headers' ]); // special handling for _headers, we'll process this later
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
-    const { bucket, pushId } = env;
+    const { bucket, pushId, directoryListingLimit } = env;
     const flags = stringSetFromCsv(env.flags);
     const allowIps = stringSetFromCsv(env.allowIps);
     const denyIps = stringSetFromCsv(env.denyIps);
@@ -46,7 +46,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     const listDirectories = flags.has('listDirectories');
 
     const { method, url, headers } = request;
-    if (pushId) console.log(`pushId: ${pushId}`);
+    console.log(JSON.stringify({ pushId, directoryListingLimit, flags: [...flags] }));
 
     // apply ip filters, if configured
     const ip = headers.get('cf-connecting-ip') || 'unknown';
@@ -113,7 +113,19 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
             prefix += '/';
             redirect = true;
         }
-        const options: R2ListOptions = { delimiter: '/', limit: 1000, prefix: prefix === '' ? undefined : prefix, cursor: searchParams.get('cursor') || undefined }; // r2 bug: max limit due to the delimitedPrefixes and truncated bug
+        const limit = (() => {
+            if (typeof directoryListingLimit === 'string') {
+                try {
+                    const limit = parseInt(directoryListingLimit);
+                    if (String(limit) === directoryListingLimit && limit >= 1 && limit <= 1000) return limit;
+                } catch {
+                    // noop
+                }
+                console.log(`Bad directoryListingLimit: ${directoryListingLimit}, expected integer between 1 to 1000`)
+            }
+            return 1000; // r2 bug: default limit to the max limit due to the delimitedPrefixes and truncated bug
+        })();
+        const options: R2ListOptions = { delimiter: '/', limit, prefix: prefix === '' ? undefined : prefix, cursor: searchParams.get('cursor') || undefined }; 
         console.log(`list: ${JSON.stringify(options)}`);
         const objects = await bucket.list(options);
         if (objects.delimitedPrefixes.length > 0 || objects.objects.length > 0) {
