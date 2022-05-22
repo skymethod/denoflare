@@ -1,5 +1,5 @@
 export class CliCommand<T> {
-    readonly command: readonly string[];
+    private readonly command: readonly string[];
     
     private readonly description: string | undefined;
     private readonly version: string | undefined;
@@ -68,8 +68,9 @@ export class CliCommand<T> {
         return this;
     }
 
-    getDocsLink(): string | undefined {
-        return this.docsLink_;
+    getInfo(): { command: string, docsLink?: string, description?: string } {
+        const { command, docsLink_: docsLink, description } = this;
+        return { command: command.join('-'), docsLink, description };
     }
 
     subcommand(subcommand: CliCommand<unknown>, handler: SubcommandHandler): CliCommand<T> {

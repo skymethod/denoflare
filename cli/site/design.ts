@@ -104,7 +104,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     const markdownResolved = markdown
 
         // simple $ENV_VAR replacements
-        .replaceAll(/\$([_A-Z0-9]+)/g, (_, g1) => Deno.env.get(g1) || '') 
+        .replaceAll(/\$([A-Z][_A-Z0-9]+)/g, (_, g1) => Deno.env.get(g1) || '') 
         
         // primary buttons
         .replaceAll(/<Button\s+type="primary"\s+href="(.*?)"\s*>(.*?)<\/Button>/g, (_, g1, g2) => computePrimaryButtonHtml(g1, g2))

@@ -48,13 +48,18 @@ export async function regenerateDocs(args: (string | number)[], options: Record<
     if (!await directoryExists(docsRepoDir)) throw new Error(`Bad docsRepoDir: ${docsRepoDir}, must exist`);
 
     let madeChanges = false;
-    const replace = async (path: string, command: CliCommand<unknown>) => {
+    const replace = async (path: string, cliCommand: CliCommand<unknown>) => {
         const absPath = join(docsRepoDir, path);
         const oldContents = await Deno.readTextFile(absPath);
-        const helpContents = command.computeHelp({ includeDocsLinks: true });
-        const newContents = oldContents.replace(new RegExp('\n' + command.command.join('-') + '.*?```', 's'), '\n' + helpContents + '\n```');
+        const helpContents = cliCommand.computeHelp({ includeDocsLinks: true });
+        const { command, docsLink, description} = cliCommand.getInfo();
+        let newContents = oldContents.replace(new RegExp('\n' + command + '.*?```', 's'), '\n' + helpContents + '\n```');
+        if (docsLink && !docsLink.includes('#') && description) {
+            // top-level doc, except root
+            newContents = newContents.replace(/\nsummary:\s+.*?\n/, `\nsummary: ${description}\n`);
+        }
         if (newContents !== oldContents) {
-            console.log(`CHANGED: ${path} ${command.getDocsLink()}`);
+            console.log(`CHANGED: ${path} ${docsLink ?? ''}`);
             await Deno.writeTextFile(absPath, newContents);
             madeChanges = true;
         }

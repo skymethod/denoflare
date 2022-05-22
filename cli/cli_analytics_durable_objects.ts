@@ -4,6 +4,8 @@ import { CfGqlClient } from '../common/analytics/cfgql_client.ts';
 import { computeDurableObjectsCostsTable } from '../common/analytics/durable_objects_costs.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { dumpTable } from './cli_analytics.ts';
+import { Bytes } from '../common/bytes.ts';
+import { DurableObjectsNamespace } from "../common/cloudflare_api.ts";
 
 export const ANALYTICS_DURABLE_OBJECTS_COMMAND = denoflareCliCommand(['analytics', 'durable-objects'], 'Dump durable objects stats via the Cloudflare GraphQL Analytics API')
     .option('namespaceId', 'string', 'Filter to single Durable Objects namespace id')
@@ -11,6 +13,7 @@ export const ANALYTICS_DURABLE_OBJECTS_COMMAND = denoflareCliCommand(['analytics
     .option('end', 'string', 'End of the analysis range (inclusive)', { hint: 'yyyy-mm-dd' })
     .option('budget', 'boolean', 'If set, dump GraphQL API request budget')
     .option('totals', 'boolean', 'If set, dump storage read/write unit and request/subrequest totals')
+    .option('demo', 'boolean', '')
     .include(commandOptionsForConfig)
     .docsLink('/cli/analytics/durable-objects')
     ;
@@ -18,17 +21,17 @@ export const ANALYTICS_DURABLE_OBJECTS_COMMAND = denoflareCliCommand(['analytics
 export async function analyticsDurableObjects(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (ANALYTICS_DURABLE_OBJECTS_COMMAND.dumpHelp(args, options)) return;
 
-    const { namespaceId, start, end, budget: dumpBudget, totals: dumpTotals } = ANALYTICS_DURABLE_OBJECTS_COMMAND.parse(args, options);
+    const { namespaceId, start, end, budget: dumpBudget, totals: dumpTotals, demo } = ANALYTICS_DURABLE_OBJECTS_COMMAND.parse(args, options);
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
     const range = start && end ? { start, end } : undefined;
-    await dumpDurableObjects(profile, namespaceId, { dumpBudget, dumpTotals, range });
+    await dumpDurableObjects(profile, namespaceId, { dumpBudget, dumpTotals, range, demo });
 }
 
 //
 
-async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined, opts: { dumpBudget?: boolean, dumpTotals?: boolean, range?: { start: string, end: string } }) {
-    const { dumpBudget, dumpTotals, range } = opts;
+async function dumpDurableObjects(profile: Profile, namespaceId: string | undefined, opts: { dumpBudget?: boolean, dumpTotals?: boolean, range?: { start: string, end: string }, demo?: boolean }) {
+    const { dumpBudget, dumpTotals, range, demo } = opts;
     const client = new CfGqlClient(profile);
     // CfGqlClient.DEBUG = true;
 
@@ -148,9 +151,11 @@ async function dumpDurableObjects(profile: Profile, namespaceId: string | undefi
         console.log('\nper namespace:');
         for (const [ namespaceId, table ] of [...Object.entries(tableResult.namespaceTables)].sort((a, b) => (b[1].estimated30DayRow?.totalCost || 0) - (a[1].estimated30DayRow?.totalCost || 0))) {
             const estTotal = table.estimated30DayRow?.totalCost || 0;
-            const pieces = [ `$${estTotal.toFixed(2)}`.padStart(7, ' '), namespaceId ];
-            if (table.namespace?.script) pieces.push(table.namespace.script);
-            if (table.namespace?.class) pieces.push(table.namespace.class);
+            const demoNamespace = demo ? getDemoNamespace(Object.keys(tableResult.namespaceTables).indexOf(namespaceId)) : undefined;
+            const pieces = [ `$${estTotal.toFixed(2)}`.padStart(7, ' '), demoNamespace?.id ?? namespaceId ];
+            const namespace = demoNamespace ?? table.namespace;
+            if (namespace?.script) pieces.push(namespace.script);
+            if (namespace?.class) pieces.push(namespace.class);
             console.log(pieces.join(' '));
         }
     }
@@ -170,4 +175,16 @@ async function dumpDurableObjects(profile: Profile, namespaceId: string | undefi
         console.log(`  requests:            ${sumRequests.toString().padStart(width)}`);
         console.log(`  subrequests:         ${sumSubrequests.toString().padStart(width)}`);
     }
+}
+
+const demoNamespaces: DurableObjectsNamespace[] = [];
+
+function getDemoNamespace(index: number): DurableObjectsNamespace {
+    if (demoNamespaces.length === 0) {
+        [ 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa' ].forEach((name, i) => {
+            const id = new Bytes(crypto.getRandomValues(new Uint8Array(16))).hex();
+            demoNamespaces.push({ id, name: `name${i + 1}`, script: `script${i + 1}`, class: `${name.substring(0, 1).toUpperCase()}${name.substring(1)}DO` });
+        });
+    }
+    return demoNamespaces[index % demoNamespaces.length];
 }
