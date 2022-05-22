@@ -1,4 +1,5 @@
-import { Config, Script } from '../common/config.ts';
+import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { Binding, Config, Script } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { CliCommand } from './cli_command.ts';
 import { CLI_VERSION } from './cli_version.ts';
@@ -86,6 +87,53 @@ export function parseNameValuePairsOption(option: string, options: Record<string
     } else {
         throw new Error(`Bad ${option}: ${optionValue}`);
     }
+}
+
+export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
+    return command
+        .optionGroup()
+        .option('textBinding', 'strings', 'Plain text environment variable binding, overrides config', { hint: 'name:plain-text'})
+        .option('secretBinding', 'strings', 'Secret text environment variable binding, overrides config', { hint: 'name:secret-text'})
+        .option('kvNamespaceBinding', 'strings', 'KV namespace environment variable binding, overrides config', { hint: 'name:namespace-id'})
+        .option('doNamespaceBinding', 'strings', 'DO namespace environment variable binding, overrides config', { hint: 'name:namespace-name:class-name'})
+        .option('wasmModuleBinding', 'strings', 'WASM module environment variable binding, overrides config', { hint: 'name:path-to-local-wasm-file'})
+        .option('serviceBinding', 'strings', 'Service environment variable binding, overrides config', { hint: 'name:service:environment'})
+        .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
+        ;
+}
+
+export function parseInputBindingsFromOptions(options: Record<string, unknown>): Record<string, Binding> {
+    const rt: Record<string, Binding> = {};
+    const pattern = /^([^:]+):(.*)$/;
+    for (const textBinding of parseOptionalStringOptions('text-binding', options) || []) {
+        const [ _, name, value] = checkMatchesReturnMatcher('text-binding', textBinding, pattern);
+        rt[name] = { value };
+    }
+    for (const secretBinding of parseOptionalStringOptions('secret-binding', options) || []) {
+        const [ _, name, secret] = checkMatchesReturnMatcher('secret-binding', secretBinding, pattern);
+        rt[name] = { secret };
+    }
+    for (const kvNamespaceBinding of parseOptionalStringOptions('kv-namespace-binding', options) || []) {
+        const [ _, name, kvNamespace] = checkMatchesReturnMatcher('kv-namespace-binding', kvNamespaceBinding, pattern);
+        rt[name] = { kvNamespace };
+    }
+    for (const doNamespaceBinding of parseOptionalStringOptions('do-namespace-binding', options) || []) {
+        const [ _, name, doNamespace] = checkMatchesReturnMatcher('do-namespace-binding', doNamespaceBinding, pattern);
+        rt[name] = { doNamespace };
+    }
+    for (const wasmModuleBinding of parseOptionalStringOptions('wasm-module-binding', options) || []) {
+        const [ _, name, wasmModule] = checkMatchesReturnMatcher('wasm-module-binding', wasmModuleBinding, pattern);
+        rt[name] = { wasmModule };
+    }
+    for (const serviceBinding of parseOptionalStringOptions('service-binding', options) || []) {
+        const [ _, name, serviceEnvironment] = checkMatchesReturnMatcher('service-binding', serviceBinding, pattern);
+        rt[name] = { serviceEnvironment };
+    }
+    for (const r2BucketBinding of parseOptionalStringOptions('r2-bucket-binding', options) || []) {
+        const [ _, name, bucketName] = checkMatchesReturnMatcher('r2-bucket-binding', r2BucketBinding, pattern);
+        rt[name] = { bucketName };
+    }
+    return rt;
 }
 
 //

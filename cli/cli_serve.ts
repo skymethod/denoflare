@@ -10,7 +10,7 @@ import { makeIncomingRequestCfProperties } from '../common/incoming_request_cf_p
 import { UnimplementedDurableObjectNamespace } from '../common/unimplemented_cloudflare_stubs.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { Binding, Isolation, Script } from '../common/config.ts';
-import { CLI_USER_AGENT, computeContentsForScriptReference, denoflareCliCommand } from './cli_common.ts';
+import { CLI_USER_AGENT, commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { ModuleWorkerExecution } from '../common/module_worker_execution.ts';
@@ -28,6 +28,7 @@ export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a worker script i
     .option('certPem', 'string', `(required for https) Path to certificate file in pem format (contents start with -----BEGIN CERTIFICATE-----)`, { hint: 'path' })
     .option('keyPem', 'string', `(required for https) Path to private key file in pem format (contents start with -----BEGIN PRIVATE KEY-----)`, { hint: 'path' })
     .option('name', 'string', `Explicit script name to use from config file`)
+    .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
     ;
@@ -67,14 +68,17 @@ export async function serve(args: (string | number)[], options: Record<string, u
     let isolation: Isolation = 'isolate';
     let script: Script | undefined;
     let localHostname: string | undefined;
+    const bindingsFromOptions = parseInputBindingsFromOptions(options);
     if (isValidScriptName(scriptSpec)) {
         script = config.scripts && config.scripts[scriptName];
         if (script === undefined) throw new Error(`Script '${scriptName}' not found`);
         if (script.localPort) port = script.localPort;
         let pushNumber = 1;
+        const inputBindings = { ...(script!.bindings || {}), ...parseInputBindingsFromOptions(options) };
+
         bindingsProvider = async () => {
             const pushId = isolation === 'none' ? undefined : `${pushNumber++}`;
-            return await resolveBindings(script!.bindings || {}, port, pushId);
+            return await resolveBindings(inputBindings, port, pushId);
         }
         isolation = script.localIsolation || isolation;
         localHostname = script.localHostname;
@@ -83,6 +87,9 @@ export async function serve(args: (string | number)[], options: Record<string, u
     } else {
         if (typeof portOpt === 'number') {
             port = portOpt;
+        }
+        bindingsProvider = () => {
+            return Promise.resolve(bindingsFromOptions);
         }
     }
     const profile = await resolveProfileOpt(config, options);

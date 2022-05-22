@@ -3,7 +3,7 @@ import { gzip, isAbsolute, resolve, fromFileUrl, relative } from './deps_cli.ts'
 import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
-import { computeContentsForScriptReference, denoflareCliCommand } from './cli_common.ts';
+import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
 import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
@@ -16,14 +16,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a worker script 
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
     .option('customDomain', 'strings', 'Bind worker to one or more custom domains', { hint: 'domain-or-subdomain-name' })
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
-    .optionGroup()
-    .option('textBinding', 'strings', 'Plain text environment variable binding, overrides config', { hint: 'name:plain-text'})
-    .option('secretBinding', 'strings', 'Secret text environment variable binding, overrides config', { hint: 'name:secret-text'})
-    .option('kvNamespaceBinding', 'strings', 'KV namespace environment variable binding, overrides config', { hint: 'name:namespace-id'})
-    .option('doNamespaceBinding', 'strings', 'DO namespace environment variable binding, overrides config', { hint: 'name:namespace-name:class-name'})
-    .option('wasmModuleBinding', 'strings', 'WASM module environment variable binding, overrides config', { hint: 'name:path-to-local-wasm-file'})
-    .option('serviceBinding', 'strings', 'Service environment variable binding, overrides config', { hint: 'name:service:environment'})
-    .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
+    .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
     ;
@@ -44,7 +37,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameOpt);
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options);
-    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(opt) };
+    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
     const bundleOpts = parseBundleOpts(options);
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
@@ -131,40 +124,6 @@ export async function push(args: (string | number)[], options: Record<string, un
 }
 
 //
-
-function parseInputBindingsFromOptions(opts: { textBinding?: string[], secretBinding?: string[], kvNamespaceBinding?: string[], doNamespaceBinding?: string[], wasmModuleBinding?: string[], serviceBinding?: string[], r2BucketBinding?: string[] }): Record<string, Binding> {
-    const rt: Record<string, Binding>  = {};
-    const pattern = /^([^:]+):(.*)$/;
-    for (const textBinding of opts.textBinding || []) {
-        const [ _, name, value] = checkMatchesReturnMatcher('text-binding', textBinding, pattern);
-        rt[name] = { value };
-    }
-    for (const secretBinding of opts.secretBinding || []) {
-        const [ _, name, secret] = checkMatchesReturnMatcher('secret-binding', secretBinding, pattern);
-        rt[name] = { secret };
-    }
-    for (const kvNamespaceBinding of opts.kvNamespaceBinding || []) {
-        const [ _, name, kvNamespace] = checkMatchesReturnMatcher('kv-namespace-binding', kvNamespaceBinding, pattern);
-        rt[name] = { kvNamespace };
-    }
-    for (const doNamespaceBinding of opts.doNamespaceBinding || []) {
-        const [ _, name, doNamespace] = checkMatchesReturnMatcher('do-namespace-binding', doNamespaceBinding, pattern);
-        rt[name] = { doNamespace };
-    }
-    for (const wasmModuleBinding of opts.wasmModuleBinding || []) {
-        const [ _, name, wasmModule] = checkMatchesReturnMatcher('wasm-module-binding', wasmModuleBinding, pattern);
-        rt[name] = { wasmModule };
-    }
-    for (const serviceBinding of opts.serviceBinding || []) {
-        const [ _, name, serviceEnvironment] = checkMatchesReturnMatcher('service-binding', serviceBinding, pattern);
-        rt[name] = { serviceEnvironment };
-    }
-    for (const r2BucketBinding of opts.r2BucketBinding || []) {
-        const [ _, name, bucketName] = checkMatchesReturnMatcher('r2-bucket-binding', r2BucketBinding, pattern);
-        rt[name] = { bucketName };
-    }
-    return rt;
-}
 
 async function ensureCustomDomainExists(customDomain: string, opts: { zones: readonly Zone[], scriptName: string, accountId: string, apiToken: string }) {
     const { zones, scriptName, accountId, apiToken } = opts;
