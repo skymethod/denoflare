@@ -1,6 +1,8 @@
 import { computeHeadersString, getObject as getObjectR2, headObject as headObjectR2, R2 } from '../common/r2/r2.ts';
-import { denoflareCliCommand } from './cli_common.ts';
+import { denoflareCliCommand, parseOptionalStringOption } from './cli_common.ts';
 import { commandOptionsForR2, loadR2Options, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
+import { join } from './deps_cli.ts';
+import { directoryExists } from './fs_util.ts';
 
 export const HEAD_OBJECT_COMMAND = getOrHeadCommand('head-object', 'Get R2 object (metadata only) for a given key');
 
@@ -32,6 +34,7 @@ function getOrHeadCommand(name: string, description: string) {
         .option('ifUnmodifiedSince', 'string', 'Return the object only if it has not been modified since the specified time')
         .option('range', 'string', 'Downloads the specified range bytes of an object, e.g. bytes=0-100')
         .option('partNumber', 'integer', 'Part number of the object being read, effectively performs a ranged GET request for the part specified', { min: 1, max: 10000 })
+        .include(v => name === 'get-object' ? v.optionGroup().option('file', 'string', 'If specified, save object body to a local file', { hint: 'path' }) : v)
         .include(commandOptionsForR2())
         ;
 }
@@ -47,14 +50,25 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', options: Record<string, u
     const ifNoneMatch = surroundWithDoubleQuotesIfNecessary(ifNoneMatchOpt);
 
     const { origin, region, context, urlStyle } = await loadR2Options(options);
+    const file = method === 'GET' ? parseOptionalStringOption('file', options) : undefined;
+    if (file) {
+        const parent = join(file, '..');
+        if (!await directoryExists(parent)) throw new Error(`Bad file: parent directory must exist`);
+    }
     const response = await (method === 'GET' ? getObjectR2 : headObjectR2)({ bucket, key, origin, region, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
     if (!response) {
         console.log('(not found)');
         return;
     }
     console.log(`${response.status} ${computeHeadersString(response.headers)}`);
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.toLowerCase().includes('text')) {
+    if (response.status === 200 && file) {
+        const body = await response.arrayBuffer();
+        await Deno.writeFile(file, new Uint8Array(body));
+        console.log(`(wrote ${body.byteLength} bytes to ${file})`);
+        return;
+    }
+    const contentTypeLower = (response.headers.get('content-type') || '').toLowerCase();
+    if (/(text|json|xml)/.test(contentTypeLower)) {
         console.log(await response.text());
     } else {
         const body = await response.arrayBuffer();
