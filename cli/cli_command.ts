@@ -1,5 +1,6 @@
 export class CliCommand<T> {
-    private readonly command: readonly string[];
+    readonly command: readonly string[];
+    
     private readonly description: string | undefined;
     private readonly version: string | undefined;
     private readonly argDefs: ArgDef[] = [];
@@ -137,9 +138,19 @@ export class CliCommand<T> {
         return true;
     }
 
+    computeHelp(): string {
+        return this.computeHelpLines().join('\n');
+    }
+    
     //
     
     private dumpHelp_() {
+        for (const line of this.computeHelpLines()) {
+            console.log(line);
+        }
+    }
+
+    private computeHelpLines(): string[] {
         const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs, subcommandGroupIndexes } = this;
 
         const argRows = [...argDefs.map(v => [`    <${v.kebabName}>`, v.description])];
@@ -177,9 +188,7 @@ export class CliCommand<T> {
             );
         }
 
-        for (const line of lines) {
-            console.log(line);
-        }
+        return lines;
     }
 
 }
@@ -322,7 +331,7 @@ function computeSubcommandRows(subcommandDefs: SubcommandDef[], subcommandGroupI
     const rt: string[][] = [];
     const addGroupBreak = () => rt.push(['', '']);
     subcommandDefs.forEach((v, i) => {
-        rt.push([`    ${v.kebabName}`, v.description]);
+        if (v.description.length > 0) rt.push([`    ${v.kebabName}`, v.description]);
         if (subcommandGroupIndexes.has(i)) addGroupBreak();
     });
     return rt;

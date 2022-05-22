@@ -71,7 +71,7 @@ export async function readPageFromFile(file: string): Promise<Page> {
 //
 
 function parseFrontmatterLine(line: string): { name: string, value: string} {
-    const m = /^\s*([a-z]+)\s*:\s*(.*?)\s*$/.exec(line);
+    const m = /^\s*([a-z]+[a-zA-Z]+)\s*:\s*(.*?)\s*$/.exec(line);
     if (!m) throw new Error(`Bad frontmatter line: ${line}`);
     return { name: m[1], value: m[2] };
 }

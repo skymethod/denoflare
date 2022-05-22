@@ -6,7 +6,7 @@ import { InputFileInfo, SiteModel } from './site/site_model.ts';
 
 const DEFAULT_PORT = 8099;
 
-export const SITE_SERVE_COMMAND = denoflareCliCommand(['site', 'serve'], 'Host static Cloudflare Pages site is a local Deno web server')
+export const SITE_SERVE_COMMAND = denoflareCliCommand(['site', 'serve'], 'Host a static Cloudflare Pages site in a local Deno web server')
     .arg('repoDir', 'string', 'Local path to the git repo to use as the source input')
     .option('port', 'integer', `Local port to use for the http server (default: ${DEFAULT_PORT})`)
     .option('watch', 'boolean', `If set, rebuild the site when file system changes are detected in <repo-dir>`)

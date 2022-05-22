@@ -128,24 +128,24 @@ export interface DONamespaceBinding {
     readonly doNamespace: string;
 }
 
-/** Workers Wasm Module environment variable binding */
+/** Wasm module environment variable binding */
 export interface WasmModuleBinding {
 
-    // Absolute file path to wasm module
+    /** Absolute file path to wasm module */
     readonly wasmModule: string;
 }
 
 /** Service environment variable binding */
 export interface ServiceBinding {
 
-    // The service and environment, delimited by ':'.  e.g. my-service:production
+    /** The service and environment, delimited by ':'.  e.g. my-service:production */
     readonly serviceEnvironment: string;
 }
 
 /** R2 environment variable binding */
 export interface R2BucketBinding {
 
-    // The R2 bucket name
+    /** The R2 bucket name */
     readonly bucketName: string;
 }
 

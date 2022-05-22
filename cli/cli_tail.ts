@@ -5,7 +5,7 @@ import { TailConnection, TailConnectionCallbacks } from '../common/tail_connecti
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 
-export const TAIL_COMMAND = denoflareCliCommand('tail', 'View a stream of logs from a published worker')
+export const TAIL_COMMAND = denoflareCliCommand('tail', 'View a real-time stream of logs from a published Cloudflare worker')
     .arg('name', 'string', 'Name of the worker to tail')
     .option('format', 'enum', `Output format for log messages`, { value: 'json', default: true }, { value: 'pretty' }, { value: 'compact' })
     .option('header', 'strings', `Filter by HTTP header`, { hint: 'name:value' })

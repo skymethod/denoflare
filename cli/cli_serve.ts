@@ -22,7 +22,7 @@ import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 
 const DEFAULT_PORT = 8080;
 
-export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a worker script in a local Deno web server')
+export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a Cloudflare worker script in a local Deno web server')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
     .option('port', 'integer', `Local port to use for the http(s) server (default: ${DEFAULT_PORT})`, { hint: 'number' })
     .option('certPem', 'string', `(required for https) Path to certificate file in pem format (contents start with -----BEGIN CERTIFICATE-----)`, { hint: 'path' })

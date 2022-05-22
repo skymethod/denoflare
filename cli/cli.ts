@@ -15,7 +15,7 @@ const args = parseFlags(Deno.args);
 
 const VERSION_COMMAND = denoflareCliCommand('version', 'Dump cli version');
 
-const DENOFLARE = CliCommand.of(['denoflare'], undefined, { version: CLI_VERSION })
+export const DENOFLARE_COMMAND = CliCommand.of(['denoflare'], undefined, { version: CLI_VERSION })
     .subcommand(SERVE_COMMAND, serve)
     .subcommand(PUSH_COMMAND, push)
     .subcommand(TAIL_COMMAND, tail)
@@ -26,4 +26,4 @@ const DENOFLARE = CliCommand.of(['denoflare'], undefined, { version: CLI_VERSION
     .subcommand(VERSION_COMMAND, () => console.log(CLI_VERSION))
     ;
 
-await DENOFLARE.routeSubcommand(args._, args, { auth });
+await DENOFLARE_COMMAND.routeSubcommand(args._, args, { auth });

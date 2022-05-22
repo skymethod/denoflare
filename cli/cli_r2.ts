@@ -30,7 +30,7 @@ import { verifyToken } from '../common/cloudflare_api.ts';
 import { CliCommand, CliCommandModifier } from './cli_command.ts';
 import { generateCredentials, GENERATE_CREDENTIALS_COMMAND } from './cli_r2_generate_credentials.ts';
 
-export const R2_COMMAND = denoflareCliCommand('r2', 'Manage R2 storage using the S3 compatibility API')
+export const R2_COMMAND = denoflareCliCommand('r2', 'Manage Cloudflare R2 storage using the S3 compatibility API')
     .subcommand(LIST_BUCKETS_COMMAND, listBuckets)
     .subcommand(HEAD_BUCKET_COMMAND, headBucket)
     .subcommand(CREATE_BUCKET_COMMAND, createBucket)
