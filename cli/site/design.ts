@@ -108,6 +108,9 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
         
         // primary buttons
         .replaceAll(/<Button\s+type="primary"\s+href="(.*?)"\s*>(.*?)<\/Button>/g, (_, g1, g2) => computePrimaryButtonHtml(g1, g2))
+
+        // asides
+        .replaceAll(/<Aside(\s+type="warning")?(\s+header="(.*?)")?>(.*?)<\/Aside>/gs, (_, g1, _g2, g3, g4) => computeAsideHtml(!!g1, g3, g4))
         ;
     const tokens = marked.lexer(markdownResolved);
     if (verbose) console.log(tokens);
@@ -347,4 +350,8 @@ function computeDocsearchScript(designHtml: string, search: SiteSearchConfig): s
         .replace('${appId}', search.appId)
         .replace('${apiKey}', search.apiKey)
         .replace('${indexName}', search.indexName);
+}
+
+function computeAsideHtml(isWarning: boolean, header: string | undefined, contents: string): string {
+    return `<aside class="markdown-aside" role="note" data-type="${isWarning ? 'warning' : 'note'}">${header ? `<div class="markdown-aside-header">${header}</div>` : ''}${contents}</aside>`;
 }
