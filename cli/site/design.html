@@ -1704,6 +1704,11 @@ span.tooltip-root {
     box-shadow: var(--focus-shadow);
 }
 
+[theme=light] .markdown code a .markdown-link-content {
+    --border-bottom-color-rgb: 255, 255, 255;
+    --border-bottom-color-alpha: 1;
+}
+
 .markdown-link .markdown-link-content {
     background-color: var(--background-color);
     border-bottom: 1px solid rgba(var(--border-bottom-color-rgb), var(--border-bottom-color-alpha));
@@ -1742,6 +1747,10 @@ span.tooltip-root {
     --background-color-alpha: .15;
 }
 
+.markdown code .markdown-link:hover {
+    --background-color-alpha: 1;
+}
+
 .markdown-link-content > code {
     --padding: 0;
     --background: transparent;
@@ -1767,6 +1776,10 @@ span.tooltip-root {
     margin-left: .5em;
 }
 
+.markdown code .markdown-link {
+    cursor: pointer;
+}
+
 [theme=dark] .markdown-link {
     --background-color-alpha: .03;
     --border-bottom-color-rgb: var(--logo-color-rgb);
@@ -1776,6 +1789,10 @@ span.tooltip-root {
 
 [theme=dark] .markdown-link:hover {
     --background-color-alpha: .08;
+}
+
+[theme=dark] .markdown code .markdown-link:hover {
+    --background-color-alpha: .2;
 }
 
 .markdown strong {

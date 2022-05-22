@@ -14,6 +14,7 @@ export const PUT_OBJECT_COMMAND = denoflareCliCommand(['r2', 'put-object'], 'Put
     .option('custom', 'name-value-pairs', 'Custom metadata for the object')
     .include(commandOptionsForLoadBodyFromOptions)
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#put-object')
     ;
 
 export async function putObject(args: (string | number)[], options: Record<string, unknown>) {

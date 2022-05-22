@@ -12,6 +12,7 @@ export const LIST_OBJECTS_COMMAND = denoflareCliCommand(['r2', 'list-objects'], 
     .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
     .option('fetchOwner', 'boolean', 'If set, return the owner info for each item')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#list-objects')
     ;
     
 export async function listObjects(args: (string | number)[], options: Record<string, unknown>) {

@@ -5,6 +5,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 export const GET_BUCKET_ENCRYPTION_COMMAND = denoflareCliCommand(['r2', 'get-bucket-encryption'], 'Gets encryption config for a bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#get-bucket-encryption')
     ;
 
 export async function getBucketEncryption(args: (string | number)[], options: Record<string, unknown>) {

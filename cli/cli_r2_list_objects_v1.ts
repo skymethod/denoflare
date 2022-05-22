@@ -10,6 +10,7 @@ export const LIST_OBJECTS_V1_COMMAND = denoflareCliCommand(['r2', 'list-objects-
     .option('delimiter', 'string', 'The character used to group keys', { hint: 'char' })
     .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#list-objects-v1')
     ;
 
 export async function listObjectsV1(args: (string | number)[], options: Record<string, unknown>) {

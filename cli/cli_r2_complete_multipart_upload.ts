@@ -8,6 +8,7 @@ export const COMPLETE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'com
     .arg('uploadId', 'string', 'Id of the existing multipart upload to complete')
     .arg('part', 'strings', 'partNumber:etag')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#complete-multipart-upload')
     ;
 
 export async function completeMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {

@@ -145,7 +145,20 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
         }
         code(code: string, language: string | undefined, _isEscaped: boolean): string {
             if ((language || '').length === 0) {
-                return `<pre class="code-block code-block-scrolls-horizontally"><code>${encodeXml(code)}</code></pre>`;
+                const codeHtml: string[] = [];
+                const p = /\[(.*?)\]\((\/.*?)\)/g;
+                let m: RegExpExecArray | null;
+                let i = 0;
+                // deno-lint-ignore no-cond-assign
+                while(m = p.exec(code)) {
+                    if (m.index > i) {
+                        codeHtml.push(encodeXml(code.substring(i, m.index)));
+                    }
+                    codeHtml.push(`<a class="markdown-link" href="${m[2]}"><span class="markdown-link-content">${m[1]}</span></a>`);
+                    i = m.index + m[0].length;
+                }
+                if (i < code.length) codeHtml.push(encodeXml(code.substring(i)));
+                return `<pre class="code-block code-block-scrolls-horizontally"><code>${codeHtml.join('')}</code></pre>`;
             }
             language = language === 'jsonc' ? 'json' : language; // highlight.js does not support jsonc
             const highlightedCodeHtml = hljs.highlight(code, { language }).value;

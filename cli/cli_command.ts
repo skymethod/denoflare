@@ -9,6 +9,8 @@ export class CliCommand<T> {
     private readonly subcommandDefs: SubcommandDef[] = [];
     private readonly subcommandGroupIndexes = new Set<number>();
 
+    private docsLink_?: string;
+
     private constructor(command: string[], description: string | undefined, version: string | undefined) {
         this.command = command;
         this.description = description;
@@ -61,6 +63,15 @@ export class CliCommand<T> {
         return this;
     }
 
+    docsLink(docsLink: string): CliCommand<T> {
+        this.docsLink_ = docsLink;
+        return this;
+    }
+
+    getDocsLink(): string | undefined {
+        return this.docsLink_;
+    }
+
     subcommand(subcommand: CliCommand<unknown>, handler: SubcommandHandler): CliCommand<T> {
         const subcommandStr = subcommand.command.join('|');
         const thisStr = this.command.join('|');
@@ -69,7 +80,8 @@ export class CliCommand<T> {
         }
         const kebabName = subcommand.command.at(-1)!;
         const description = subcommand.description ?? '';
-        this.subcommandDefs.push({ kebabName, description, handler });
+        const docsLink = subcommand.docsLink_;
+        this.subcommandDefs.push({ kebabName, description, handler, docsLink });
         return this;
     }
 
@@ -138,8 +150,8 @@ export class CliCommand<T> {
         return true;
     }
 
-    computeHelp(): string {
-        return this.computeHelpLines().join('\n');
+    computeHelp(opts: { includeDocsLinks?: boolean } = {}): string {
+        return this.computeHelpLines(opts).join('\n');
     }
     
     //
@@ -150,13 +162,14 @@ export class CliCommand<T> {
         }
     }
 
-    private computeHelpLines(): string[] {
+    private computeHelpLines(opts: { includeDocsLinks?: boolean } = {}): string[] {
+        const { includeDocsLinks } = opts;
         const { command, description, version, argDefs, optionDefs, optionGroupIndexes, subcommandDefs, subcommandGroupIndexes } = this;
 
         const argRows = [...argDefs.map(v => [`    <${v.kebabName}>`, v.description])];
         const optionRows = computeOptionRows(optionDefs, optionGroupIndexes)
-        const subcommandRows = computeSubcommandRows(subcommandDefs, subcommandGroupIndexes);
-        const columnLength = Math.max(...[...optionRows, ...argRows, ...subcommandRows].map(v => v[0].length)) + 2;
+        const { markdown: subcommandMarkdownRows, text: subcommandTextRows } = computeSubcommandRows(subcommandDefs, subcommandGroupIndexes, includeDocsLinks);
+        const columnLength = Math.max(...[...optionRows, ...argRows, ...subcommandTextRows].map(v => v[0].length)) + 2;
 
         const commandType = command.length === 1 ? 'command' : 'subcommand';
         const lines = [
@@ -177,7 +190,7 @@ export class CliCommand<T> {
             lines.push(
                 '',
                 `${commandType.toUpperCase()}S:`,
-                ...subcommandRows.map(v => v[0].padEnd(columnLength) + v[1]),
+                ...subcommandMarkdownRows.map((v, i) => v[0].padEnd(columnLength + v[0].length - subcommandTextRows[i][0].length) + v[1]),
             '',
             `For ${commandType}-specific help: ${command.join(' ')} <${commandType}> --help`,)
         } else {
@@ -204,7 +217,7 @@ export type CliCommandModifier = (command: CliCommand<unknown>) => void;
 type ArgDef = { camelName: string, kebabName: string, type: string, description: string };
 type OptionDef = { camelName: string, kebabName: string, type: OptionType, description: string, opts: Record<string, unknown> };
 type OptionType = 'string' | 'strings' | 'required-string' | 'integer' | 'required-integer' | 'boolean' | 'enum' | 'required-enum' | 'name-value-pairs';
-type SubcommandDef = { kebabName : string, description: string, handler: SubcommandHandler };
+type SubcommandDef = { kebabName : string, description: string, handler: SubcommandHandler, docsLink?: string };
 
 const VERBOSE = makeInternalBooleanOption('verbose', 'Toggle verbose output (when applicable)');
 const HELP = makeInternalBooleanOption('help', 'Print help information');
@@ -327,14 +340,16 @@ function computeOptionRows(optionDefs: OptionDef[], optionGroupIndexes: Set<numb
     return rt;
 }
 
-function computeSubcommandRows(subcommandDefs: SubcommandDef[], subcommandGroupIndexes: Set<number>): string[][] {
-    const rt: string[][] = [];
-    const addGroupBreak = () => rt.push(['', '']);
+function computeSubcommandRows(subcommandDefs: SubcommandDef[], subcommandGroupIndexes: Set<number>, includeDocsLinks: boolean | undefined): { markdown: string[][], text: string[][] } {
+    const markdown: string[][] = [];
+    const text: string[][] = [];
+    const addGroupBreak = () => [ markdown, text ].forEach(v => v.push([ '', '' ]));
     subcommandDefs.forEach((v, i) => {
-        if (v.description.length > 0) rt.push([`    ${v.kebabName}`, v.description]);
+        if (v.description.length > 0) markdown.push([`    ${v.docsLink && includeDocsLinks ? `[${v.kebabName}](${v.docsLink})` : v.kebabName}`, v.description]);
+        if (v.description.length > 0) text.push([`    ${v.kebabName}`, v.description]);
         if (subcommandGroupIndexes.has(i)) addGroupBreak();
     });
-    return rt;
+    return { markdown, text };
 }
 
 function computeOptionRow(def: OptionDef): [string, string] {

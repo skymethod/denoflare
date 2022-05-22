@@ -5,6 +5,7 @@ import { commandOptionsForR2, loadR2Options } from './cli_r2.ts';
 export const PUT_BUCKET_ENCRYPTION_COMMAND = denoflareCliCommand(['r2', 'put-bucket-encryption'], 'Sets encryption config for a bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#put-bucket-encryption')
     ;
 
 export async function putBucketEncryption(args: (string | number)[], options: Record<string, unknown>) {

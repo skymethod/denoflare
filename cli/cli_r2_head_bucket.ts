@@ -5,6 +5,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 export const HEAD_BUCKET_COMMAND = denoflareCliCommand(['r2', 'head-bucket'], 'Determine if an R2 bucket exists')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#head-bucket')
     ;
 
 export async function headBucket(args: (string | number)[], options: Record<string, unknown>) {

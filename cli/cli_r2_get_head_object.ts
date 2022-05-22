@@ -36,6 +36,7 @@ function getOrHeadCommand(name: string, description: string) {
         .option('partNumber', 'integer', 'Part number of the object being read, effectively performs a ranged GET request for the part specified', { min: 1, max: 10000 })
         .include(v => name === 'get-object' ? v.optionGroup().option('file', 'string', 'If specified, save object body to a local file', { hint: 'path' }) : v)
         .include(commandOptionsForR2())
+        .docsLink('/cli/r2#' + name)
         ;
 }
 

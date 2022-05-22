@@ -5,6 +5,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 export const DELETE_BUCKET_ENCRYPTION_COMMAND = denoflareCliCommand(['r2', 'delete-bucket-encryption'], 'Reset encryption config for a bucket')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#delete-bucket-encryption')
     ;
 
 export async function deleteBucketEncryption(args: (string | number)[], options: Record<string, unknown>) {

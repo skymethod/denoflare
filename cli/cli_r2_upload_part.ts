@@ -9,6 +9,7 @@ export const UPLOAD_PART_COMMAND = denoflareCliCommand(['r2', 'upload-part'], 'U
     .option('partNumber', 'required-integer', 'Number of the part', { min: 1, max: 10000 })
     .include(commandOptionsForLoadBodyFromOptions)
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#upload-part')
     ;
 
 export async function uploadPart(args: (string | number)[], options: Record<string, unknown>) {

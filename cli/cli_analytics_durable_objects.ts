@@ -12,6 +12,7 @@ export const ANALYTICS_DURABLE_OBJECTS_COMMAND = denoflareCliCommand(['analytics
     .option('budget', 'boolean', 'If set, dump GraphQL API request budget')
     .option('totals', 'boolean', 'If set, dump storage read/write unit and request/subrequest totals')
     .include(commandOptionsForConfig)
+    .docsLink('/cli/analytics/durable-objects')
     ;
     
 export async function analyticsDurableObjects(args: (string | number)[], options: Record<string, unknown>): Promise<void> {

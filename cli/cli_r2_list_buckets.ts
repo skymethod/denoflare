@@ -4,6 +4,7 @@ import { loadR2Options, commandOptionsForR2 } from './cli_r2.ts';
 
 export const LIST_BUCKETS_COMMAND = denoflareCliCommand(['r2', 'list-buckets'], 'List all R2 buckets')
     .include(commandOptionsForR2({ hideUrlStyle: true }))
+    .docsLink('/cli/r2#list-buckets')
     ;
 
 export async function listBuckets(args: (string | number)[], options: Record<string, unknown>) {

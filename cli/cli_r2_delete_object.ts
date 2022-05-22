@@ -7,6 +7,7 @@ export const DELETE_OBJECT_COMMAND = denoflareCliCommand(['r2', 'delete-object']
     .arg('key', 'string', 'Key of the object to delete')
     .option('versionId', 'string', 'Returns the version ID of the delete marker created as a result of the DELETE operation')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#delete-object')
     ;
 
 export async function deleteObject(args: (string | number)[], options: Record<string, unknown>) {

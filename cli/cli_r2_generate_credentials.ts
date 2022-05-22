@@ -2,6 +2,7 @@ import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 
 export const GENERATE_CREDENTIALS_COMMAND = denoflareCliCommand(['r2', 'generate-credentials'], 'Generate private R2-looking credentials for any use')
+    .docsLink('/cli/r2#generate-credentials')
     ;
 
 export function generateCredentials(args: (string | number)[], options: Record<string, unknown>) {

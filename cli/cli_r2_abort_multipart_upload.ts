@@ -7,6 +7,7 @@ export const ABORT_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'abort-
     .arg('key', 'string', 'Key of the object')
     .arg('uploadId', 'string', 'Id of the existing multipart upload to abort')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#abort-multipart-upload')
     ;
 
 export async function abortMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {

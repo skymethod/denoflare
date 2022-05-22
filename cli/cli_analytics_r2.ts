@@ -12,6 +12,7 @@ export const ANALYTICS_R2_COMMAND = denoflareCliCommand(['analytics', 'r2'], 'Du
     .option('budget', 'boolean', 'If set, dump GraphQL API request budget')
     .option('demo', 'boolean', '')
     .include(commandOptionsForConfig)
+    .docsLink('/cli/analytics/r2')
     ;
     
 export async function analyticsR2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {

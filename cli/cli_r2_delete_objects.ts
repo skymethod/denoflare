@@ -7,6 +7,7 @@ export const DELETE_OBJECTS_COMMAND = denoflareCliCommand(['r2', 'delete-objects
     .arg('key', 'strings', 'Keys of the objects to delete')
     .option('quiet', 'boolean', 'Enable quiet mode, response will only include keys where the delete action encountered an error')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#delete-objects')
     ;
 
 export async function deleteObjects(args: (string | number)[], options: Record<string, unknown>) {

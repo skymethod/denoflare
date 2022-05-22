@@ -21,6 +21,7 @@ export const COPY_OBJECT_COMMAND = denoflareCliCommand(['r2', 'copy-object'], 'C
     .option('ifModifiedSince', 'string', 'Copies the object if it has been modified since the specified time')
     .option('ifUnmodifiedSince', 'string', `Copies the object if it hasn't been modified since the specified time`)
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#copy-object')
     ;
 
 export async function copyObject(args: (string | number)[], options: Record<string, unknown>) {

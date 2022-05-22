@@ -16,6 +16,7 @@ export const TAIL_COMMAND = denoflareCliCommand('tail', 'View a real-time stream
     .option('status', 'strings', 'Filter by invocation status (ok, error, canceled)')
     .option('once', 'boolean', `If set, stops the tail after receiving the first log (useful for testing)`)
     .include(commandOptionsForConfig)
+    .docsLink('/cli/tail')
     ;
 
 export async function tail(args: (string | number)[], options: Record<string, unknown>) {

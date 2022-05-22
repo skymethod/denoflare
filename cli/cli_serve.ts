@@ -31,6 +31,7 @@ export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a Cloudflare work
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
+    .docsLink('/cli/serve')
     ;
 
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {

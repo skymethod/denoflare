@@ -16,6 +16,7 @@ export const UPLOAD_PART_COPY_COMMAND = denoflareCliCommand(['r2', 'upload-part-
     .option('ifModifiedSince', 'string', 'Copies the object part if it has been modified since the specified time')
     .option('ifUnmodifiedSince', 'string', `Copies the object part if it hasn't been modified since the specified time`)
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#upload-part-copy')
     ;
 
 export async function uploadPartCopy(args: (string | number)[], options: Record<string, unknown>) {

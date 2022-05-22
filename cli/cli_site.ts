@@ -7,6 +7,7 @@ export const SITE_COMMAND = denoflareCliCommand('site', 'Develop and deploy a st
     .subcommand(SITE_GENERATE_COMMAND, generate)
     .subcommand(SITE_SERVE_COMMAND, serve)
     .subcommand(SITE_REGENERATE_DOCS_COMMAND, regenerateDocs)
+    .docsLink('/cli/site')
     ;
 
 export async function site(args: (string | number)[], options: Record<string, unknown>): Promise<void> {

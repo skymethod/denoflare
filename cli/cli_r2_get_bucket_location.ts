@@ -5,6 +5,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 export const GET_BUCKET_LOCATION_COMMAND = denoflareCliCommand(['r2', 'get-bucket-location'], 'Returns the region the bucket resides in')
     .arg('bucket', 'string', 'Name of the R2 bucket')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#get-bucket-location')
     ;
 
 export async function getBucketLocation(args: (string | number)[], options: Record<string, unknown>) {

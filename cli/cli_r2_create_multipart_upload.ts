@@ -13,6 +13,7 @@ export const CREATE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'creat
     .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
     .option('custom', 'name-value-pairs', 'Custom metadata for the object')
     .include(commandOptionsForR2())
+    .docsLink('/cli/r2#create-multipart-upload')
     ;
 
 export async function createMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {

@@ -19,6 +19,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
+    .docsLink('/cli/push')
     ;
 
 export async function push(args: (string | number)[], options: Record<string, unknown>) {

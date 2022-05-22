@@ -7,6 +7,7 @@ import { InputFileInfo, SiteModel } from './site/site_model.ts';
 export const SITE_GENERATE_COMMAND = denoflareCliCommand(['site', 'generate'], 'Develop and deploy a static docs site to Cloudflare Pages')
     .arg('repoDir', 'string', 'Local path to the git repo to use as the source input for generation')
     .arg('outputDir', 'string', 'Local path to the directory to use for generated output')
+    .docsLink('/cli/site/generate')
     ;
 
 export async function generate(args: (string | number)[], options: Record<string, unknown>) {
