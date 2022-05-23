@@ -59,6 +59,8 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage Cloudflare R2 storag
 
     .subcommandGroup()
     .subcommand(GENERATE_CREDENTIALS_COMMAND, generateCredentials)
+
+    .docsLink('/cli/r2')
     ;
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {

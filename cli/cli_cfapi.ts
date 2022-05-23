@@ -17,7 +17,9 @@ type ApiHandler<T> = (accountId: string, apiToken: string, opts: T, options: Rec
 
 function cfapiCommand() {
     const apiCommand = (name: string, description: string) => denoflareCliCommand(['cfapi', name], description);
-    const rt = denoflareCliCommand('cfapi', 'Call the Cloudflare REST API');
+    const rt = denoflareCliCommand('cfapi', 'Call the Cloudflare REST API')
+        .docsLink('/cli/cfapi')
+        ;
     function add<T>(c: CliCommand<T>, handler: ApiHandler<T>) {
         rt.subcommand(c.include(commandOptionsForConfig), makeSubcommandHandler(c, handler));
     }

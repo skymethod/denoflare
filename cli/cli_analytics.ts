@@ -5,6 +5,7 @@ import { analyticsR2, ANALYTICS_R2_COMMAND } from './cli_analytics_r2.ts';
 export const ANALYTICS_COMMAND = denoflareCliCommand('analytics', 'Dump stats via the Cloudflare GraphQL Analytics API')
     .subcommand(ANALYTICS_DURABLE_OBJECTS_COMMAND, analyticsDurableObjects)
     .subcommand(ANALYTICS_R2_COMMAND, analyticsR2)
+    .docsLink('/cli/analytics')
     ;
 
 export async function analytics(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
