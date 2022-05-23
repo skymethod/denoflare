@@ -268,6 +268,9 @@ function computeSidebarItemHtml(node: SidebarNode, path: string, template: strin
     if (!active) {
         rt = rt.replaceAll(' is-active=""', '');
     }
+    if (((depth ?? 0) > 1)) {
+        rt = rt.replaceAll(' is-expanded', '').replaceAll(`min-height:0px;height: auto;"`, `min-height:0px;height: 0;"`);
+    }
     return rt;
 }
 
