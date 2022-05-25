@@ -48,6 +48,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
 
     const { method, url, headers } = request;
     console.log(JSON.stringify({ accessKeyIds: credentials.map(v => v.accessKeyId), flags: [...flags] }));
+    console.log('request headers:\n' + [...headers].map(v => v.join(': ')).join('\n'));
 
     // apply ip filters, if configured
     const ip = headers.get('cf-connecting-ip') || 'unknown';
@@ -82,7 +83,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     // first, try to request the object at the given key
     let obj: R2Object | null = null;
     const loggedGet: (key: string, options: R2GetOptions) => Promise<R2Object | null> = (key, options) => {
-        console.log(`${method} ${key} ${JSON.stringify(options)}`);
+        console.log(`bucket.${method.toLowerCase()} ${key} ${JSON.stringify(options)}`);
         return bucket.get(key, options);
     };
     obj = key === '' ? null : await loggedGet(key, { range, onlyIf });

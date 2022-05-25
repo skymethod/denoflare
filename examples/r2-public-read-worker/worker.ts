@@ -47,6 +47,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
 
     const { method, url, headers } = request;
     console.log(JSON.stringify({ directoryListingLimit, flags: [...flags] }));
+    console.log('request headers:\n' + [...headers].map(v => v.join(': ')).join('\n'));
 
     // apply ip filters, if configured
     const ip = headers.get('cf-connecting-ip') || 'unknown';
@@ -68,7 +69,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
 
     let obj: R2Object | null = null;
     const getOrHead: (key: string, options?: R2GetOptions) => Promise<R2Object | null> = (key, options) => {
-        console.log(`${method} ${key} ${JSON.stringify(options)}`);
+        console.log(`bucket.${method.toLowerCase()} ${key} ${JSON.stringify(options)}`);
         return method === 'GET' ? (options ? bucket.get(key, options) : bucket.get(key)) : bucket.head(key);
     };
 
