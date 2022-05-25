@@ -4,7 +4,7 @@ import { computeCosts } from './r2_costs.ts';
 const DEBUG = false;
 
 Deno.test({
-    name: 'versions',
+    name: 'r2.computeCosts',
     fn: () => {
         {
             const { classAOperationsCost, classBOperationsCost, storageGbMo, storageCost, totalCost } = computeCosts({ classAOperations: 499751, classBOperations: 430084, storageGb: 500, excludeFreeUsage: false });
