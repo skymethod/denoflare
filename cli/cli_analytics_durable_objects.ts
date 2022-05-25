@@ -24,7 +24,7 @@ export async function analyticsDurableObjects(args: (string | number)[], options
     const { namespaceId, start, end, budget: dumpBudget, totals: dumpTotals, demo } = ANALYTICS_DURABLE_OBJECTS_COMMAND.parse(args, options);
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
-    const range = start && end ? { start, end } : undefined;
+    const range = start && end ? { start, end } : start && !end ? { start, end: new Date().toISOString().substring(0, 10) } : undefined;
     await dumpDurableObjects(profile, namespaceId, { dumpBudget, dumpTotals, range, demo });
 }
 

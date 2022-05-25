@@ -21,7 +21,7 @@ export async function analyticsR2(args: (string | number)[], options: Record<str
     const { bucket: bucketName, start, end, budget: dumpBudget, demo } = ANALYTICS_R2_COMMAND.parse(args, options);
     const config = await loadConfig(options);
     const profile = await resolveProfile(config, options);
-    const range = start && end ? { start, end } : undefined;
+    const range = start && end ? { start, end } : start && !end ? { start, end: new Date().toISOString().substring(0, 10) } : undefined;
 
     await dumpR2(profile, bucketName, { dumpBudget, range, demo });
 }
@@ -37,9 +37,9 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
     const tableRows: (string | number)[][] = [];
     tableRows.push([
         'date',
-        'class-a',
+        'class.a',
         '',
-        'class-b',
+        'class.b',
         '',
         'egress',
         '',
@@ -53,28 +53,35 @@ async function dumpR2(profile: Profile, bucketName: string | undefined, opts: { 
         const egressGb = (row.classAEgress + row.classBEgress) / 1024 / 1024 / 1024;
         return `${egressGb.toFixed(4)}gb`;
     };
-    const computeTableRow = (row: R2CostsRow, opts: { total: boolean }) => {
-        const { total } = opts;
+    const computeTableRow = (row: R2CostsRow, opts: { summary?: string, onlyCosts?: boolean } = {}) => {
+        const { summary, onlyCosts } = opts;
         return [
-            total ? 'total' : row.date,
-            row.classAOperations,
+            summary ?? row.date,
+            onlyCosts ? '' : row.classAOperations,
             `$${row.classAOperationsCost.toFixed(2)}`,
-            row.classBOperations,
+            onlyCosts ? '' : row.classBOperations,
             `$${row.classBOperationsCost.toFixed(2)}`,
-            computeEgressText(row),
+            onlyCosts ? '' : computeEgressText(row),
             `$0.00`,
-            total ? '' : `${row.storageGb.toFixed(2)}gb`,
+            summary ? '' : `${row.storageGb.toFixed(2)}gb`,
             `$${row.storageCost.toFixed(2)}`,
             `$${row.totalCost.toFixed(2)}`,
         ];
     };
     for (const row of table.rows) {
-        tableRows.push(computeTableRow(row, { total: false }));
+        tableRows.push(computeTableRow(row));
     }
 
     if (table.totalRow) {
         tableRows.push(Array(10).fill(''));
-        tableRows.push(computeTableRow(table.totalRow, { total: true }));
+        tableRows.push(computeTableRow(table.totalRow, { summary: 'total' }));
+    }
+
+    if (table.estimated30DayRow) {
+        tableRows.push(computeTableRow(table.estimated30DayRow, { summary: 'est 30-day' }));
+    }
+    if (table.estimated30DayRowMinusFree && !bucketName) {
+        tableRows.push(computeTableRow(table.estimated30DayRowMinusFree, { summary: 'minus free', onlyCosts: true }));
     }
 
     dumpTable(tableRows);

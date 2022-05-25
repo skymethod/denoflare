@@ -50,9 +50,11 @@ export async function computeR2CostsTable(client: CfGqlClient, opts: { lookbackD
         }
         const { sumSuccessfulRequests: classAOperations, sumSuccessfulResponseObjectSize: classAEgress } = operationsA.rows.filter(v => v.date === date && v.bucketName === bucketName)[0] || { sumSuccessfulRequests: 0, sumSuccessfulResponseObjectSize: 0 };
         const { sumSuccessfulRequests: classBOperations, sumSuccessfulResponseObjectSize: classBEgress } = operationsB.rows.filter(v => v.date === date && v.bucketName === bucketName)[0] || { sumSuccessfulRequests: 0, sumSuccessfulResponseObjectSize: 0 };
+        
+        const storageGb = (maxMetadataSize + maxPayloadSize) / 1024 / 1024 / 1024;
 
-        const { classAOperationsCost, classBOperationsCost, storageGb, storageGbMo, storageCost, totalCost } = 
-            computeCosts({ classAOperations, classBOperations, maxMetadataSize, maxPayloadSize, excludeFreeUsage: false });
+        const { classAOperationsCost, classBOperationsCost, storageGbMo, storageCost, totalCost } = 
+            computeCosts({ classAOperations, classBOperations, storageGb, excludeFreeUsage: false });
 
         const row: R2CostsRow = {
             date,
@@ -76,14 +78,18 @@ export async function computeR2CostsTable(client: CfGqlClient, opts: { lookbackD
     for (const [ bucketName, rows] of Object.entries(rowsByBucket)) {
         const bucket = buckets.find(v => v.name === bucketName);
         const totalRow = computeTotalRow('', rows);
-        bucketTables[bucketName] = { rows, totalRow, bucket };
+        const estimated30DayRow = computeEstimated30DayRow(rows, { excludeFreeUsage: false });
+        const estimated30DayRowMinusFree = computeEstimated30DayRow(rows, { excludeFreeUsage: true });
+        bucketTables[bucketName] = { rows, totalRow, estimated30DayRow, estimated30DayRowMinusFree, bucket };
     }
     const accountRows: R2CostsRow[] = [];
     for (const [ date, dateRows] of Object.entries(rowsByDate)) {
         accountRows.push(computeTotalRow(date, dateRows));
     }
     const totalRow = computeTotalRow('', accountRows);
-    const accountTable: R2DailyCostsTable = { rows: accountRows, totalRow, bucket: undefined };
+    const estimated30DayRow = computeEstimated30DayRow(accountRows, { excludeFreeUsage: false });
+    const estimated30DayRowMinusFree = computeEstimated30DayRow(accountRows, { excludeFreeUsage: true });
+    const accountTable: R2DailyCostsTable = { rows: accountRows, totalRow, estimated30DayRow, estimated30DayRowMinusFree, bucket: undefined };
     return { accountTable, bucketTables, gqlResultInfos };
 }
 
@@ -96,6 +102,8 @@ export interface R2CostsTable {
 export interface R2DailyCostsTable {
     readonly rows: readonly R2CostsRow[];
     readonly totalRow: R2CostsRow;
+    readonly estimated30DayRow: R2CostsRow | undefined;
+    readonly estimated30DayRowMinusFree: R2CostsRow | undefined;
     readonly bucket: Bucket | undefined;
 }
 
@@ -118,22 +126,20 @@ export interface R2CostsRow {
     readonly totalCost: number;
 }
 
-//
-
-function computeCosts(input: { classAOperations: number, classBOperations: number, maxMetadataSize: number, maxPayloadSize: number
-        excludeFreeUsage: boolean }) {
-    const { classAOperations, classBOperations, maxMetadataSize, maxPayloadSize, excludeFreeUsage } = input;
+export function computeCosts(input: { classAOperations: number, classBOperations: number, storageGb: number, excludeFreeUsage: boolean }) {
+    const { classAOperations, classBOperations, storageGb, excludeFreeUsage } = input;
 
     const classAOperationsCost = (excludeFreeUsage ? Math.max(classAOperations - 1000000, 0) : classAOperations) / 1000000 * 4.50; // $4.50 / million requests, 1,000,000 included per month
-    const classBOperationsCost = (excludeFreeUsage ? Math.max(classBOperations - 10000000, 0): classBOperations) / 1000000 * 4.50; // $0.36 / million requests, 10,000,000 included per month
-    const storageGb = (maxMetadataSize + maxPayloadSize) / 1024 / 1024 / 1024;
+    const classBOperationsCost = (excludeFreeUsage ? Math.max(classBOperations - 10000000, 0): classBOperations) / 1000000 * 0.36; // $0.36 / million requests, 10,000,000 included per month
     const storageGbMo = storageGb / 30;
     let storageCost = storageGbMo * 0.015; // $0.015 per 1 GB-month of storage
     if (excludeFreeUsage) storageCost = Math.max(0, storageCost - 0.15); // 10 GB-month = $0.15 free
     const totalCost = classAOperationsCost + classBOperationsCost + storageCost;
 
-    return { classAOperationsCost, classBOperationsCost, storageGb, storageGbMo, storageCost, totalCost };
+    return { classAOperationsCost, classBOperationsCost, storageGbMo, storageCost, totalCost };
 }
+
+//
 
 async function tryListBuckets(profile: Profile): Promise<readonly Bucket[]> {
     try {
@@ -161,6 +167,41 @@ function computeTotalRow(date: string, rows: R2CostsRow[]): R2CostsRow {
         totalCost: lhs.totalCost + rhs.totalCost,
     }));
     return rt;
+}
+
+function computeEstimated30DayRow(rows: R2CostsRow[], opts: { excludeFreeUsage: boolean } ): R2CostsRow | undefined {
+    const { excludeFreeUsage } = opts;
+    if (rows.length <= 1) return undefined;
+    
+    const fullDays = rows.slice(0, -1); // remove the most recent day, since it's always partial
+    const sumRow = computeTotalRow('', fullDays);
+
+    const multiplyBy = 30 / fullDays.length;
+
+    const classAOperations = Math.round(sumRow.classAOperations * multiplyBy);
+    const classBOperations = Math.round(sumRow.classBOperations * multiplyBy);
+    const storageGb = sumRow.storageGb * multiplyBy;
+    
+    const { classAOperationsCost, classBOperationsCost, storageGbMo, storageCost, totalCost } = computeCosts({ classAOperations, classBOperations, storageGb, excludeFreeUsage });
+
+    const classAEgress = sumRow.classAEgress * multiplyBy;
+    const classBEgress = sumRow.classBEgress * multiplyBy;
+
+    return {
+        date: '',
+        classAOperations,
+        classAOperationsCost,
+        classAEgress,
+        classBOperations,
+        classBOperationsCost,
+        classBEgress,
+        objectCount: 0,
+        uploadCount: 0,
+        storageGb,
+        storageGbMo,
+        storageCost,
+        totalCost,
+    };
 }
 
 function utcCurrentDate(): string {
