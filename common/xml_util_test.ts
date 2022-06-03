@@ -1,4 +1,4 @@
-import { assertEquals } from 'https://deno.land/std@0.140.0/testing/asserts.ts';
+import { assertEquals } from 'https://deno.land/std@0.142.0/testing/asserts.ts';
 
 import { decodeXml, encodeXml } from './xml_util.ts';
 
