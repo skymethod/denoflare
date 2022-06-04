@@ -3,10 +3,11 @@ import { parseNameValuePairsOption } from './cli_common.ts';
 import { denoBundle } from './deno_bundle.ts';
 import { toFileUrl } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
+import { Bytes } from '../common/bytes.ts';
 
 export type BundleBackend = 'builtin' | 'process' | 'module';
 
-export type BundleOpts = { backend?: BundleBackend, compilerOptions?: { lib?: string[] } };
+export type BundleOpts = { backend?: BundleBackend, createSourceMap?: boolean, compilerOptions?: { lib?: string[] } };
 
 export function commandOptionsForBundle(command: CliCommand<unknown>) {
     return command
@@ -24,8 +25,8 @@ export function parseBundleOpts(options: Record<string, unknown>): BundleOpts | 
     return { backend: backend as BundleBackend };
 }
 
-export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Promise<{ code: string, backend: BundleBackend }> {
-    const { backend, compilerOptions } = opts;
+export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Promise<{ code: string, sourceMap?: string, backend: BundleBackend }> {
+    const { backend, createSourceMap, compilerOptions } = opts;
     
     // deno-lint-ignore no-explicit-any
     const deno = Deno as any;
@@ -43,13 +44,18 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         }
         const bundleJs = result.files['deno:///bundle.js'];
         if (typeof bundleJs !== 'string') throw new Error(`bundle.js not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
-        return { code: bundleJs, backend: 'builtin' };
+        const bundleJsMap = result.files['deno:///bundle.js.map'];
+        if (createSourceMap) {
+            if (typeof bundleJsMap !== 'string') throw new Error(`bundle.js.map not found in bundle output files: ${Object.keys(result.files).join(', ')}`);
+        }
+        const sourceMap = createSourceMap ? bundleJsMap : undefined;
+        return { code: bundleJs, sourceMap, backend: 'builtin' };
     }
 
     // 1.22+
     // Deno.emit is gone
 
-    if (backend === 'module') {
+    if (backend === 'module' || createSourceMap) {
         // the new deno_emit module is the official replacement, but is not nearly as functional as Deno.emit
         //  - no type checking, and none planned: https://github.com/denoland/deno_emit/issues/27
         //  - fails with some remote imports: https://github.com/denoland/deno_emit/issues/17
@@ -73,10 +79,14 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         // currently unable to disable inline source maps
         // https://github.com/denoland/deno_emit/issues/25
         const i = code.indexOf('\n//# sourceMappingURL=');
+        let sourceMap: string | undefined;
         if (i > 0) {
+            const sourceMapDataUrl = code.substring(i + '\n//# sourceMappingURL='.length);
+            if (!sourceMapDataUrl.startsWith('data:application/json;base64,')) throw new Error(`Unsupported source map`);
+            sourceMap = Bytes.ofBase64(sourceMapDataUrl.substring('data:application/json;base64,'.length)).utf8();
             code = code.substring(0, i);
         }
-        return { code, backend: 'module' };
+        return { code, sourceMap, backend: 'module' };
     }
 
     // default: spawn 'deno bundle' process
