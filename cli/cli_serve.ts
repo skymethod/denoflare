@@ -28,6 +28,8 @@ export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a Cloudflare work
     .option('certPem', 'string', `(required for https) Path to certificate file in pem format (contents start with -----BEGIN CERTIFICATE-----)`, { hint: 'path' })
     .option('keyPem', 'string', `(required for https) Path to private key file in pem format (contents start with -----BEGIN PRIVATE KEY-----)`, { hint: 'path' })
     .option('name', 'string', `Explicit script name to use from config file`)
+    .option('watchInclude', 'strings', 'Watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
+
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
@@ -37,7 +39,7 @@ export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a Cloudflare work
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
     if (SERVE_COMMAND.dumpHelp(args, options)) return;
 
-    const { scriptSpec, verbose, port: portOpt, certPem: certPemOpt, keyPem: keyPemOpt, name: nameOpt } = SERVE_COMMAND.parse(args, options);
+    const { scriptSpec, verbose, port: portOpt, certPem: certPemOpt, keyPem: keyPemOpt, name: nameOpt, watchInclude } = SERVE_COMMAND.parse(args, options);
 
     if (verbose) {
         // in cli
@@ -52,7 +54,6 @@ export async function serve(args: (string | number)[], options: Record<string, u
         LocalWebSockets.VERBOSE = verbose;
     }
 
-    const watchIncludes = typeof options.watch === 'string' ? options.watch.split(',').map(v => v.trim()) : [];
 
     const start = Date.now();
     const config = await loadConfig(options);
@@ -167,7 +168,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                         consoleError('Error recompiling script', e.stack || e);
                     }
                 };
-                const _moduleWatcher = new ModuleWatcher(rootSpecifier, tryRunScript, watchIncludes);
+                const _moduleWatcher = new ModuleWatcher(rootSpecifier, tryRunScript, watchInclude);
             }
             return workerManager;
         }

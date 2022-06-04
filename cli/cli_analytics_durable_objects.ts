@@ -5,7 +5,7 @@ import { computeDurableObjectsCostsTable } from '../common/analytics/durable_obj
 import { denoflareCliCommand } from './cli_common.ts';
 import { dumpTable } from './cli_analytics.ts';
 import { Bytes } from '../common/bytes.ts';
-import { DurableObjectsNamespace } from "../common/cloudflare_api.ts";
+import { DurableObjectsNamespace } from '../common/cloudflare_api.ts';
 
 export const ANALYTICS_DURABLE_OBJECTS_COMMAND = denoflareCliCommand(['analytics', 'durable-objects'], 'Dump durable objects stats via the Cloudflare GraphQL Analytics API')
     .option('namespaceId', 'string', 'Filter to single Durable Objects namespace id')
