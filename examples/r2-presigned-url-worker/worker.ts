@@ -8,7 +8,7 @@ export default {
         try {
             return await computeResponse(request, env);
         } catch (e) {
-            if (typeof e === 'object' && e.message === 'The requested range is not satisfiable') {
+            if (typeof e === 'object' && tryParseMessageCode(e.message) === 10039) { // The requested range is not satisfiable (10039)
                 return new Response(e.message, { status: 416 });
             }
             return new Response(`${e.stack || e}`, { status: 500 });
@@ -36,6 +36,12 @@ interface Credential {
 //
 
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
+
+function tryParseMessageCode(message: unknown): number | undefined {
+    // The requested range is not satisfiable (10039)
+    const m = /^.*?\((\d+)\)$/.exec(typeof message === 'string' ? message : '');
+    return m ? parseInt(m[1]) : undefined;
+}
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
     const { bucket } = env;
