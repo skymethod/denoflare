@@ -12,6 +12,10 @@ export const PUT_OBJECT_COMMAND = denoflareCliCommand(['r2', 'put-object'], 'Put
     .option('contentType', 'string', 'A standard MIME type describing the format of the contents')
     .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
     .option('custom', 'name-value-pairs', 'Custom metadata for the object')
+    .option('ifMatch', 'string', 'Put the object only if its entity tag (ETag) is the same as the one specified')
+    .option('ifNoneMatch', 'string', 'Put the object only if its entity tag (ETag) is different from the one specified')
+    .option('ifModifiedSince', 'string', 'Put the object only if it has been modified since the specified time')
+    .option('ifUnmodifiedSince', 'string', 'Put the object only if it has not been modified since the specified time')
     .include(commandOptionsForLoadBodyFromOptions)
     .include(commandOptionsForR2())
     .docsLink('/cli/r2#put-object')
@@ -20,7 +24,7 @@ export const PUT_OBJECT_COMMAND = denoflareCliCommand(['r2', 'put-object'], 'Put
 export async function putObject(args: (string | number)[], options: Record<string, unknown>) {
     if (PUT_OBJECT_COMMAND.dumpHelp(args, options)) return;
 
-    const { bucket, key, verbose, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentType, expires, custom: customMetadata } = PUT_OBJECT_COMMAND.parse(args, options);
+    const { bucket, key, verbose, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentType, expires, custom: customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = PUT_OBJECT_COMMAND.parse(args, options);
 
     if (verbose) {
         R2.DEBUG = true;
@@ -30,7 +34,7 @@ export async function putObject(args: (string | number)[], options: Record<strin
 
     const { body, contentMd5 } = await loadBodyFromOptions(options, context.unsignedPayload);
 
-    await putObjectR2({ bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata }, context);
+    await putObjectR2({ bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince }, context);
     const millis = Date.now() - CliStats.launchTime;
     console.log(`put ${computeAwsCallBodyLength(body)} bytes in ${millis}ms`);
 }

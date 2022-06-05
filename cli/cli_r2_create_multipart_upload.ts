@@ -12,6 +12,10 @@ export const CREATE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'creat
     .option('contentType', 'string', 'A standard MIME type describing the format of the contents')
     .option('expires', 'string', 'The date and time at which the object is no longer cacheable')
     .option('custom', 'name-value-pairs', 'Custom metadata for the object')
+    .option('ifMatch', 'string', 'Put the object only if its entity tag (ETag) is the same as the one specified')
+    .option('ifNoneMatch', 'string', 'Put the object only if its entity tag (ETag) is different from the one specified')
+    .option('ifModifiedSince', 'string', 'Put the object only if it has been modified since the specified time')
+    .option('ifUnmodifiedSince', 'string', 'Put the object only if it has not been modified since the specified time')
     .include(commandOptionsForR2())
     .docsLink('/cli/r2#create-multipart-upload')
     ;
@@ -19,7 +23,7 @@ export const CREATE_MULTIPART_UPLOAD_COMMAND = denoflareCliCommand(['r2', 'creat
 export async function createMultipartUpload(args: (string | number)[], options: Record<string, unknown>) {
     if (CREATE_MULTIPART_UPLOAD_COMMAND.dumpHelp(args, options)) return;
 
-    const { bucket, key, verbose, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentType, expires, custom: customMetadata } = CREATE_MULTIPART_UPLOAD_COMMAND.parse(args, options);
+    const { bucket, key, verbose, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentType, expires, custom: customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = CREATE_MULTIPART_UPLOAD_COMMAND.parse(args, options);
 
     if (verbose) {
         R2.DEBUG = true;
@@ -28,7 +32,7 @@ export async function createMultipartUpload(args: (string | number)[], options: 
     const { origin, region, context, urlStyle } = await loadR2Options(options);
 
     const result = await createMultipartUploadR2({ 
-        bucket, key, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, 
+        bucket, key, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince
     }, context);
     console.log(JSON.stringify(result, undefined, 2));
 

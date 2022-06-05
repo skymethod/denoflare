@@ -3,10 +3,12 @@ import { KnownElement } from './known_element.ts';
 import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type CreateMultipartUploadOpts = { bucket: string, key: string, origin: string, region: string, urlStyle?: UrlStyle, 
-    cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentType?: string, customMetadata?: Record<string, string> };
+    cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentType?: string, customMetadata?: Record<string, string>,
+    ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string
+};
 
 export async function createMultipartUpload(opts: CreateMultipartUploadOpts, context: AwsCallContext): Promise<InitiateMultipartUploadResult> {
-    const { bucket, key, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, urlStyle } = opts;
+    const { bucket, key, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = opts;
     const method = 'POST';
     const url = computeBucketUrl({ origin, bucket, key, urlStyle, subresource: 'uploads' });
     const headers = new Headers();
@@ -19,6 +21,10 @@ export async function createMultipartUpload(opts: CreateMultipartUploadOpts, con
     for (const [ name, value ] of Object.entries(customMetadata || {})) {
         headers.set(`x-amz-meta-${name}`, value);
     }
+    if (typeof ifMatch === 'string') headers.set('if-match', ifMatch);
+    if (typeof ifNoneMatch === 'string') headers.set('if-none-match', ifNoneMatch);
+    if (typeof ifModifiedSince === 'string') headers.set('if-modified-since', ifModifiedSince);
+    if (typeof ifUnmodifiedSince === 'string') headers.set('if-unmodified-since', ifUnmodifiedSince);
 
     const res = await s3Fetch({ method, url, headers, region, context });
     await throwIfUnexpectedStatus(res, 200);
