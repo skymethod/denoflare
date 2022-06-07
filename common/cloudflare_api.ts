@@ -39,6 +39,29 @@ export interface DurableObjectsNamespace {
     readonly class: string | undefined;
 }
 
+export async function listDurableObjects(accountId: string, namespaceId: string, apiToken: string, opts: { limit?: number, cursor?: string } = {}): Promise<{ objects: readonly DurableObject[], cursor?: string }> {
+    const { limit, cursor } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${namespaceId}/objects`);
+    if (typeof limit === 'number') url.searchParams.set('limit', String(limit));
+    if (typeof cursor === 'string') url.searchParams.set('cursor', cursor);
+    const { result, result_info } = await execute('listDurableObjects', 'GET', url.toString(), apiToken) as ListDurableObjectsResponse;
+    const resultCursor = result_info.cursor !== '' ? result_info.cursor : undefined;
+    return { objects: result, cursor: resultCursor };
+}
+
+export interface ListDurableObjectsResponse extends CloudflareApiResponse {
+    readonly result: readonly DurableObject[];
+    readonly result_info: {
+        readonly count: number;
+        readonly cursor: string;
+    }
+}
+
+export interface DurableObject {
+    readonly id: string;
+    readonly hasStorageData: boolean;
+}
+
 //#endregion
 
 //#region Worker scripts

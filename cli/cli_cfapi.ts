@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getUser, getWorkerAccountSettings, listAccounts, listFlags, listMemberships, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getUser, getWorkerAccountSettings, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -173,9 +173,25 @@ function cfapiCommand() {
         console.log(value);
     });
 
+    add(apiCommand('list-durable-objects-namespaces', 'List Durable Objects namespaces')
+    , async (accountId, apiToken) => {
+        const value = await listDurableObjectsNamespaces(accountId, apiToken);
+        console.log(value);
+    });
+
+    add(apiCommand('list-durable-objects', 'List Durable Objects for a given namespace')
+        .arg('durableObjectsNamespaceId', 'string', 'Durable Objects namespace ID to list')
+        .option('limit', 'integer', 'Max number of results to return (must be fairly high)')
+        .option('cursor', 'string', 'Continue from a previous call')
+    , async (accountId, apiToken, opts) => {
+        const { durableObjectsNamespaceId, limit, cursor } = opts;
+        const { objects, cursor: resultCursor } = await listDurableObjects(accountId, durableObjectsNamespaceId, apiToken, { limit, cursor });
+        console.log(objects);
+        if (resultCursor) console.log(resultCursor);
+    });
+
     return rt;
 }
-
 
 function makeSubcommandHandler<T>(cliCommand: CliCommand<T>, apiHandler: ApiHandler<T>): SubcommandHandler {
     return async (args, options) => {
