@@ -765,7 +765,7 @@ export class WebtailAppVM {
         const includeUserAgent = this.extraFields.includes('user-agent');
         const includeReferer = this.extraFields.includes('referer');
         if (includeIpAddress || includeUserAgent || includeReferer) {
-            if (!isTailMessageCronEvent(message.event)) {
+            if (message.event !== null && !isTailMessageCronEvent(message.event)) {
                 if (includeIpAddress) {
                     const ipAddress = message.event.request.headers['cf-connecting-ip'] || undefined;
                     if (ipAddress) rt.push(computeAdditionalLogForExtraField('IP address', ipAddress));

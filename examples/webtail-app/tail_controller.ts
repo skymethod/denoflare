@@ -30,12 +30,12 @@ export class TailController {
         this.inactiveTailSeconds = opts.inactiveTailSeconds;
 
         // deno-lint-ignore no-explicit-any
-        const navigatorAsAny = window.navigator as any;
+        const navigatorAsAny = globalThis.navigator as any;
         if (typeof navigatorAsAny.onLine === 'boolean') {
             this.setOnline(navigatorAsAny.onLine);
         }
-        window.addEventListener('online', () => this.setOnline(true));
-        window.addEventListener('offline', () => this.setOnline(false));
+        globalThis.addEventListener('online', () => this.setOnline(true));
+        globalThis.addEventListener('offline', () => this.setOnline(false));
     }
 
     setTailOptions(tailOptions: TailOptions) {

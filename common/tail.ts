@@ -49,8 +49,8 @@ export interface TailMessage {
     readonly scriptName: null;
     readonly exceptions: readonly TailMessageException[];
     readonly logs: readonly TailMessageLog[];
-    readonly eventTimestamp: number; // epoch millis
-    readonly event: TailMessageEvent;
+    readonly eventTimestamp: number; // epoch millis (null for DO alarm callbacks, filled in client-side)
+    readonly event: TailMessageEvent | null; // null for DO alarm callbacks
 }
 
 export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent;
@@ -69,6 +69,10 @@ export function parseTailMessage(obj: unknown): TailMessage {
     if (scriptName !== null) throw new Error(`Bad scriptName: expected null, found ${JSON.stringify(scriptName)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);
+    if (eventTimestamp === null && objAsAny.event === null) {
+        // DO alarm
+        return { outcome, scriptName, exceptions, logs, eventTimestamp: Date.now(), event: null };
+    }
     if (!(typeof eventTimestamp === 'number' && eventTimestamp > 0)) throw new Error(`Bad eventTimestamp: expected positive number, found ${JSON.stringify(eventTimestamp)}`);
     const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : parseTailMessageCronEvent(objAsAny.event);
     return { outcome, scriptName, exceptions, logs, eventTimestamp, event };

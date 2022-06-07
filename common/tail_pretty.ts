@@ -15,7 +15,7 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
         const colo = props.colo || '???';
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
-        const { method, url, cf } = message.event.request;
+        const { method, url, cf } = message.event === null ? { method: undefined, url: undefined, cf: undefined } : message.event.request;
         const unredactedUrl = typeof props.url === 'string' ? props.url : url;
         const colo = cf?.colo || props.colo || '???';
         if (cf === undefined) {
@@ -39,8 +39,14 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
                 doTemplates.push(`%cDO%c`);
                 doStyles.push('color: gray', '');
             }
-            logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ${method} %c${unredactedUrl}`, 
-                'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles, 'color: red; font-style: bold;');
+            if (message.event === null) {
+                // DO alarm
+                logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ALARM`, 
+                    'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles);
+            } else {
+                logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ${method} %c${unredactedUrl}`, 
+                    'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles, 'color: red; font-style: bold;');
+            }
         } else {
             logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] ${method} %c${unredactedUrl}`, 
                 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
@@ -57,7 +63,7 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
     for (const { name, message: exceptionMessage } of message.exceptions) {
         logger(` %c|%c [%c${name}%c] %c${exceptionMessage}`, 'color: gray', '', `color: red; font-style: bold`, '', 'color: red');
     }
-    if (!isTailMessageCronEvent(message.event)) {
+    if (message.event !== null && !isTailMessageCronEvent(message.event)) {
         const response = message.event.response;
         if (response) {
             logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');

@@ -107,7 +107,9 @@ type Format = 'json' | 'pretty' | 'compact';
 
 function dumpMessageCompact(message: TailMessage) {
     const time = new Date(message.eventTimestamp).toISOString();
-    if (isTailMessageCronEvent(message.event)) {
+    if (message.event === null) {
+        console.log(` alarm: ${time}`);
+    } else if (isTailMessageCronEvent(message.event)) {
         const scheduledTime = new Date(message.event.scheduledTime).toISOString();
         console.log(` cron: ${time} ${message.event.cron} ${scheduledTime}`);
     } else {
