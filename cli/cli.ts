@@ -2,7 +2,7 @@ import { serve, SERVE_COMMAND } from './cli_serve.ts';
 import { tail, TAIL_COMMAND } from './cli_tail.ts';
 import { push, PUSH_COMMAND } from './cli_push.ts';
 import { site, SITE_COMMAND } from './cli_site.ts';
-import { parseFlags } from './deps_cli.ts';
+import { parseFlags } from './flag_parser.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { analytics, ANALYTICS_COMMAND } from './cli_analytics.ts';
 import { cfapi, CFAPI_COMMAND } from './cli_cfapi.ts';
@@ -11,7 +11,7 @@ import { auth } from './cli_auth.ts';
 import { CliCommand } from './cli_command.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 
-const args = parseFlags(Deno.args);
+const { args, options } = parseFlags(Deno.args);
 
 const VERSION_COMMAND = denoflareCliCommand('version', 'Dump cli version');
 
@@ -26,4 +26,4 @@ export const DENOFLARE_COMMAND = CliCommand.of(['denoflare'], undefined, { versi
     .subcommand(VERSION_COMMAND, () => console.log(CLI_VERSION))
     ;
 
-await DENOFLARE_COMMAND.routeSubcommand(args._, args, { auth });
+await DENOFLARE_COMMAND.routeSubcommand(args, options, { auth });
