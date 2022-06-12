@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createR2Bucket, deleteR2Bucket, deleteWorkersDomain, getKeyMetadata, getKeyValue, getUser, getWorkerAccountSettings, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getUser, getWorkerAccountSettings, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, revokePubsubCredentials, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -190,6 +190,64 @@ function cfapiCommand() {
         if (resultCursor) console.log(resultCursor);
     });
 
+    rt.subcommandGroup();
+
+    add(apiCommand('list-pubsub-namespaces', 'List Pub/Sub namespaces'), async (accountId, apiToken) => {
+        const value = await listPubsubNamespaces(accountId, apiToken);
+        console.log(value);
+    });
+
+    add(apiCommand('create-pubsub-namespace', 'Create a Pub/Sub namespace').arg('name', 'string', 'Name of the namespace'), async (accountId, apiToken, opts) => {
+        const { name } = opts;
+        const value = await createPubsubNamespace(accountId, apiToken, { name });
+        console.log(value);
+    });
+
+    add(apiCommand('delete-pubsub-namespace', 'Delete a Pub/Sub namespace').arg('name', 'string', 'Name of the namespace'), async (accountId, apiToken, opts) => {
+        const { name } = opts;
+        await deletePubsubNamespace(accountId, apiToken, name);
+    });
+
+    add(apiCommand('list-pubsub-brokers', 'List Pub/Sub brokers').arg('name', 'string', 'Name of the namespace'), async (accountId, apiToken, opts) => {
+        const { name } = opts;
+        const value = await listPubsubBrokers(accountId, apiToken, name);
+        console.log(value);
+    });
+
+    add(apiCommand('create-pubsub-broker', 'Create a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
+        const { name, brokerName } = opts;
+        const value = await createPubsubBroker(accountId, apiToken, name, { name: brokerName, authType: 'TOKEN' });
+        console.log(value);
+    });
+
+    add(apiCommand('delete-pubsub-broker', 'Delete a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
+        const { name, brokerName } = opts;
+        await deletePubsubBroker(accountId, apiToken, name, brokerName);
+    });
+
+    add(apiCommand('generate-pubsub-credentials', 'Generate credentials for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('number', 'integer', 'Number of credentials to generate'), async (accountId, apiToken, opts) => {
+        const { name, brokerName, number = 1 } = opts;
+        const value = await generatePubsubCredentials(accountId, apiToken, name, brokerName, { number, type: 'TOKEN', topicAcl: '#' });
+        console.log(JSON.stringify(value, undefined, 2));
+    });
+
+    add(apiCommand('revoke-pubsub-credentials', 'Revoke credentials for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('jti', 'strings', 'JWT ids'), async (accountId, apiToken, opts) => {
+        const { name, brokerName, jti = [] } = opts;
+        await revokePubsubCredentials(accountId, apiToken, name, brokerName, ...jti);
+    });
+
+    add(apiCommand('list-pubsub-revocations', 'List revocations for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
+        const { name, brokerName } = opts;
+        const value = await listPubsubRevocations(accountId, apiToken, name, brokerName);
+        console.log(JSON.stringify(value, undefined, 2));
+    });
+
+    add(apiCommand('delete-pubsub-revocations', 'Delete revocations for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('jti', 'strings', 'JWT ids'), async (accountId, apiToken, opts) => {
+        const { name, brokerName, jti = [] } = opts;
+        const value = await deletePubsubRevocations(accountId, apiToken, name, brokerName, ...jti);
+        console.log(JSON.stringify(value, undefined, 2));
+    });
+
     return rt;
 }
 
@@ -201,6 +259,7 @@ function makeSubcommandHandler<T>(cliCommand: CliCommand<T>, apiHandler: ApiHand
         await apiHandler(accountId, apiToken, cliCommand.parse(args, options), options);
     };
 }
+
 async function loadApiCredentials(options: Record<string, unknown>): Promise<{ accountId: string, apiToken: string }> {
     const config = await loadConfig(options);
     const { accountId, apiToken: apiTokenFromProfile } = await resolveProfile(config, options);

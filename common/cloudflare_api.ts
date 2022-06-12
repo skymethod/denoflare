@@ -772,6 +772,113 @@ export interface User {
 
 //#endregion
 
+//#region Pub/Sub
+
+export async function listPubsubNamespaces(accountId: string, apiToken: string): Promise<PubsubNamespace[]> {
+    const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces`;
+    return (await execute('listPubsubNamespaces', 'GET', url, apiToken) as ListPubsubNamespacesResponse).result;
+}
+
+export interface ListPubsubNamespacesResponse extends CloudflareApiResponse {
+    readonly result: PubsubNamespace[];
+}
+
+export async function createPubsubNamespace(accountId: string, apiToken: string, payload: { name: string }): Promise<PubsubNamespace> {
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces`;
+    return (await execute('createPubsubNamespace', 'POST', url, apiToken, payload) as CreatePubsubNamespaceResponse).result;
+}
+
+export interface CreatePubsubNamespaceResponse extends CloudflareApiResponse {
+    readonly result: PubsubNamespace;
+}
+
+export interface PubsubNamespace {
+    readonly id: string;
+    readonly name: string;
+    readonly description: string;
+    readonly created_on: string;
+    readonly modified_on: string;
+}
+
+export async function deletePubsubNamespace(accountId: string, apiToken: string, namespaceName: string): Promise<void> {
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}`;
+    await execute('deletePubsubNamespace', 'DELETE', url, apiToken);
+    // 200, result = null
+}
+
+export async function listPubsubBrokers(accountId: string, apiToken: string, namespaceName: string): Promise<unknown> {
+    const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces/${namespaceName}/brokers`;
+    return (await execute('listPubsubBrokers', 'GET', url, apiToken) as ListPubsubBrokersResponse).result;
+}
+
+export interface ListPubsubBrokersResponse extends CloudflareApiResponse {
+    readonly result: PubsubBroker[];
+}
+
+export interface PubsubBroker {
+    readonly id: string;
+    readonly name: string;
+    readonly auth_type: string; // TOKEN
+    readonly created_on: string;
+    readonly modified_on: string;
+    readonly expiration: null;
+    readonly endpoint: string; // mqtts://<broker-name>.<namespace-name>.cloudflarepubsub.com:8883
+}
+
+export async function createPubsubBroker(accountId: string, apiToken: string, namespaceName: string, payload: { name: string, authType: string }): Promise<PubsubBroker> {
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers`;
+    return (await execute('createPubsubBroker', 'POST', url, apiToken, payload) as CreatePubsubBrokerResponse).result;
+}
+
+export interface CreatePubsubBrokerResponse extends CloudflareApiResponse {
+    readonly result: PubsubBroker;
+}
+
+export async function deletePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<void> {
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
+    await execute('deletePubsubBroker', 'DELETE', url, apiToken);
+    // 200, result = null
+}
+
+export async function generatePubsubCredentials(accountId: string, apiToken: string, namespaceName: string, brokerName: string, payload: { number: number, type: string, topicAcl: string }): Promise<Record<string, string>> {
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/credentials`);
+    url.searchParams.set('number', String(payload.number));
+    url.searchParams.set('type', payload.type);
+    url.searchParams.set('topicAcl', payload.topicAcl);
+    return (await execute('generatePubsubCredentials', 'GET', url.toString(), apiToken) as GeneratePubsubCredentialsResponse).result;
+}
+
+export interface GeneratePubsubCredentialsResponse extends CloudflareApiResponse {
+    readonly result: Record<string, string>;
+}
+
+export async function revokePubsubCredentials(accountId: string, apiToken: string, namespaceName: string, brokerName: string, ...jwtIds: string[]): Promise<void> {
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`);
+    if (jwtIds.length === 0) throw new Error(`Must include at least one JWT id to revoke`);
+    url.searchParams.set('jti', jwtIds.join(','));
+    await execute('revokePubsubCredentials', 'POST', url.toString(), apiToken);
+    // 200, result = null
+}
+
+
+export async function listPubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<unknown> {
+    const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`;
+    return (await execute('listPubsubRevocations', 'GET', url, apiToken) as ListPubsubRevocationsResponse).result;
+}
+
+export interface ListPubsubRevocationsResponse extends CloudflareApiResponse {
+    readonly result: string[]; // JWT ids
+}
+
+export async function deletePubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string, ...jwtIds: string[]): Promise<void> {
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`);
+    url.searchParams.set('jti', jwtIds.join(','));
+    await execute('deletePubsubRevocations', 'DELETE', url.toString(), apiToken);
+    // 200, result = null
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
