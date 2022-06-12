@@ -1,9 +1,9 @@
 import { basename, dirname, join, fromFileUrl, resolve, ModuleWatcher, Bytes, parseFlags, bundle } from './deps_cli.ts';
 
-const args = parseFlags(Deno.args);
+const { args, options } = parseFlags(Deno.args);
 
-if (args._.length > 0) {
-    await webtail(args._, args);
+if (args.length > 0) {
+    await webtail(args, options);
     Deno.exit(0);
 }
 
