@@ -5,6 +5,7 @@ import { commandOptionsForPubsub, parsePubsubOptions } from './cli_pubsub.ts';
 
 export const PUBLISH_COMMAND = denoflareCliCommand(['pubsub', 'publish'], 'Publish a message to a Pub/Sub broker')
     .option('text', 'string', 'Plaintext message payload')
+    .option('topic', 'required-string', 'Topic on which to publish the message')
     .include(commandOptionsForPubsub())
     .docsLink('/cli/pubsub#publish')
     ;
@@ -12,7 +13,7 @@ export const PUBLISH_COMMAND = denoflareCliCommand(['pubsub', 'publish'], 'Publi
 export async function publish(args: (string | number)[], options: Record<string, unknown>) {
     if (PUBLISH_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, text } = PUBLISH_COMMAND.parse(args, options);
+    const { verbose, text, topic } = PUBLISH_COMMAND.parse(args, options);
 
     if (typeof text !== 'string') throw new Error(`Specify a payload with --text`);
 
@@ -28,6 +29,65 @@ export async function publish(args: (string | number)[], options: Record<string,
     const hostname = `${brokerName}.${namespaceName}.cloudflarepubsub.com`;
     const port = parseInt(portStr);
     const conn = await Deno.connectTls({ hostname, port });
+
+    const sendPacket = async (controlPacketType: number, controlPacketName: string, opts: { controlPacketFlags?: number, variableHeader: number[], payload?: number[] | Uint8Array }) => {
+        const { controlPacketFlags = 0, variableHeader, payload = [] } = opts;
+
+        const remainingLength = variableHeader.length + payload.length;
+        console.log({ remainingLength, variableHeaderLength: variableHeader.length, payloadLength: payload.length });
+        const fixedHeader = [ (controlPacketType << 4) | controlPacketFlags, ...encodeLength(remainingLength) ];
+         
+        if (DEBUG) console.log(`fixedHeader: ${new Bytes(new Uint8Array(fixedHeader)).hex()}`);
+        if (DEBUG) console.log(`variableHeader: ${new Bytes(new Uint8Array(variableHeader)).hex()}`);
+        if (DEBUG) console.log(`payloadhex: ${new Bytes(new Uint8Array(payload)).hex()}`);
+        const connect = new Uint8Array([ ...fixedHeader, ...variableHeader, ...payload ]);
+        console.log(`Sending ${controlPacketName}`);
+        if (DEBUG) console.log(connect);
+        await conn.write(connect);
+    };
+
+    const sendConnect = async () => {
+        const userName = "user"; // ignored
+
+        const variableHeader = [ 
+            ...encodeUtf8('MQTT'), // protocol name
+            0x05, // protocol version
+            0xC0, // connect flags: username, password
+            0x00, 0x0A, // keep alive = 10 seconds
+            ...encodeLength(0), // properties = none
+        ];
+    
+        const payload = [
+            ...encodeUtf8(clientId),
+            ...encodeUtf8(userName),
+            ...encodeUtf8(password),
+        ];
+        
+        await sendPacket(1, 'CONNECT', { variableHeader, payload });
+    };
+
+    const sendPublish = async () => {
+        const properties = [ 0x01, 1 ] // Payload is UTF-8 Encoded Character Data
+        const variableHeader = [ 
+            ...encodeUtf8(topic),
+            ...encodeLength(properties.length),
+            ...properties,
+        ];
+    
+        const payload = Bytes.ofUtf8(text).array();
+        
+        await sendPacket(3, 'PUBLISH', { controlPacketFlags: 0 /* !dup, qos=0, !retain*/, variableHeader, payload });
+
+        sendDisconnect();
+    };
+
+    const sendDisconnect = async () => {
+        const variableHeader = [ 
+            0x00, // normal disconnection
+        ];
+
+        await sendPacket(14, 'DISCONNECT', { variableHeader });
+    };
 
     const processPacket = (packet: Uint8Array) => {
         console.log('processPacket', packet.length + ' bytes');
@@ -109,6 +169,8 @@ export async function publish(args: (string | number)[], options: Record<string,
                     throw new Error(`Unsupported propertyId: ${propertyId}`);
                 }
             }
+
+            sendPublish();
         } else if (controlPacketType === 14) {
             // DISCONNECT
 
@@ -161,33 +223,7 @@ export async function publish(args: (string | number)[], options: Record<string,
     // deno-lint-ignore no-explicit-any
     .then(() => console.log('read loop done'), (e: any) => console.log(`unhandled read loop error: ${e.stack || e}`));
 
-    const userName = "user"; // anything
-
-    const variableHeader = [ 
-        ...encodeUtf8('MQTT'), // protocol name
-        0x05, // protocol version
-        0xC0, // connect flags: username, password
-        0x00, 0x0A, // keep alive = 10 seconds
-        ...encodeLength(0), // properties = none
-    ];
-
-    const payload = [
-        ...encodeUtf8(clientId),
-        ...encodeUtf8(userName),
-        ...encodeUtf8(password),
-    ];
-    
-    const remainingLength = variableHeader.length + payload.length;
-    console.log({ remainingLength, variableHeaderLength: variableHeader.length, payloadLength: payload.length });
-    const fixedHeader = [ 0x01 << 4, ...encodeLength(remainingLength) ];
-     
-    if (DEBUG) console.log(`fixedHeader: ${new Bytes(new Uint8Array(fixedHeader)).hex()}`);
-    if (DEBUG) console.log(`variableHeader: ${new Bytes(new Uint8Array(variableHeader)).hex()}`);
-    if (DEBUG) console.log(`payloadhex: ${new Bytes(new Uint8Array(payload)).hex()}`);
-    const connect = new Uint8Array([ ...fixedHeader, ...variableHeader, ...payload ]);
-    console.log('Sending CONNECT');
-    if (DEBUG) console.log(connect);
-    await conn.write(connect);
+    sendConnect();
     return rt;
 }
 
