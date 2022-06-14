@@ -1,5 +1,6 @@
 import { Bytes } from '../common/bytes.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { Mqtt } from '../common/mqtt/mqtt.ts';
 import { MqttClient } from '../common/mqtt/mqtt_client.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForPubsub, parsePubsubOptions } from './cli_pubsub.ts';
@@ -16,7 +17,7 @@ export async function subscribe(args: (string | number)[], options: Record<strin
     const { verbose, topic } = SUBSCRIBE_COMMAND.parse(args, options);
 
     if (verbose) {
-        MqttClient.DEBUG = true;
+        Mqtt.DEBUG = true;
     }
 
     const { endpoint, clientId, password } = parsePubsubOptions(options);
@@ -36,6 +37,9 @@ export async function subscribe(args: (string | number)[], options: Record<strin
     client.onConnectionAcknowledged = opts => {
         console.log('connection acknowledged', opts);
         if (opts.reason?.code === 0) {
+            client.onSubscriptionAcknowledged = opts => {
+                console.log('subscribed', opts);
+            };
             console.log('subscribing');
             client.subscribe({ topic });
         } else {

@@ -1,4 +1,5 @@
 import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { Mqtt } from '../common/mqtt/mqtt.ts';
 import { MqttClient } from '../common/mqtt/mqtt_client.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForPubsub, parsePubsubOptions } from './cli_pubsub.ts';
@@ -18,7 +19,7 @@ export async function publish(args: (string | number)[], options: Record<string,
     if (typeof text !== 'string') throw new Error(`Specify a payload with --text`);
 
     if (verbose) {
-        MqttClient.DEBUG = true;
+        Mqtt.DEBUG = true;
     }
 
     const { endpoint, clientId, password } = parsePubsubOptions(options);
