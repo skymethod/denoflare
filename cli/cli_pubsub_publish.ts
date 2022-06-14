@@ -24,12 +24,13 @@ export async function publish(args: (string | number)[], options: Record<string,
 
     const { endpoint, clientId, password } = parsePubsubOptions(options);
 
-    const [ _, brokerName, namespaceName, portStr] = checkMatchesReturnMatcher('endpoint', endpoint, /^mqtts:\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
+    const [ _, protocol, brokerName, namespaceName, portStr] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
 
     const hostname = `${brokerName}.${namespaceName}.cloudflarepubsub.com`;
     const port = parseInt(portStr);
+    if (protocol !== 'mqtts' && protocol !== 'wss') throw new Error(`Unsupported protocol: ${protocol}`);
 
-    const client = await MqttClient.create({ hostname, port });
+    const client = await MqttClient.create({ hostname, port, protocol });
 
     client.onConnectionAcknowledged = opts => {
         console.log('connection acknowledged', opts);

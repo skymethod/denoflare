@@ -1,6 +1,7 @@
 import { Bytes } from '../bytes.ts';
 import { checkEqual } from '../check.ts';
 import { encodeUtf8, encodeVariableByteInteger, Mqtt } from './mqtt.ts';
+import { DenoTcpConnection, MqttConnection, WebSocketConnection } from './mqtt_connection.ts';
 import { CONNACK, DISCONNECT, PINGRESP, PUBLISH, Reader, readMessage, SUBACK } from './mqtt_messages.ts';
 
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
@@ -49,9 +50,9 @@ export class MqttClient {
     onSubscriptionAcknowledged?: (opts: SubscriptionAcknowledgedOpts) => void;
     onPublish?: (opts: PublishOpts) => void;
 
-    private readonly connection: Deno.TlsConn;
+    private readonly connection: MqttConnection;
 
-    private constructor(hostname: string, port: number, connection: Deno.TlsConn) {
+    private constructor(hostname: string, port: number, connection: MqttConnection) {
         this.hostname = hostname;
         this.port = port;
         this.connection = connection;
@@ -60,30 +61,17 @@ export class MqttClient {
 
     private initReadLoop(): Promise<void> {
         const { DEBUG } = Mqtt;
-        return (async () => {
-            while (true) {
-                const buffer = new Uint8Array(8 * 1024);
-                if (DEBUG) console.log('before read');
-                const result = await this.connection.read(buffer);
-                if (result === null) {
-                    if (DEBUG) console.log('EOF');
-                    return;
-                }
-                if (DEBUG) console.log(`Received ${result} bytes`);
-                try {
-                    this.processPacket(buffer.slice(0, result));
-                } catch (e) {
-                    console.log(`error processing packet: ${e.stack || e}`);
-                }
-            }
-        })()
-        // deno-lint-ignore no-explicit-any
-        .then(() => { if (DEBUG) console.log('read loop done'); this.clearPing(); }, (e: any) => { console.log(`unhandled read loop error: ${e.stack || e}`); this.clearPing(); });
+        this.connection.onRead = bytes => {
+            this.processPacket(bytes);
+        }
+        return this.connection.completionPromise
+            // deno-lint-ignore no-explicit-any
+            .then(() => { if (DEBUG) console.log('read loop done'); this.clearPing(); }, (e: any) => { console.log(`unhandled read loop error: ${e.stack || e}`); this.clearPing(); });
     }
 
-    static async create(opts: { hostname: string, port: number }): Promise<MqttClient> {
-        const { hostname, port } = opts;
-        const connection = await Deno.connectTls({ hostname, port });
+    static async create(opts: { hostname: string, port: number, protocol: 'mqtts' | 'wss' }): Promise<MqttClient> {
+        const { hostname, port, protocol } = opts;
+        const connection = protocol === 'mqtts' ? await DenoTcpConnection.create({ hostname, port }) : await WebSocketConnection.create({ hostname, port });
         return new MqttClient(hostname, port, connection);
     }
 
