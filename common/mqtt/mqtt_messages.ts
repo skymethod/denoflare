@@ -1,5 +1,8 @@
 import { check, checkEqual } from '../check.ts';
-import { decodeUtf8, decodeVariableByteInteger, Mqtt } from './mqtt.ts';
+import { decodeUtf8, decodeVariableByteInteger, encodeUtf8, encodeVariableByteInteger, hex, Mqtt } from './mqtt.ts';
+
+export type MqttMessage = ConnectMessage | ConnackMessage | PublishMessage | SubscribeMessage | SubackMessage | PingreqMessage | PingrespMessage | DisconnectMessage;
+export type ControlPacketType = CONNECT | CONNACK | PUBLISH | SUBSCRIBE | SUBACK | PINGREQ | PINGRESP | DISCONNECT;
 
 export function readMessage(reader: Reader): MqttMessage {
     // fixed header
@@ -11,14 +14,68 @@ export function readMessage(reader: Reader): MqttMessage {
 
     const messageReader = new Reader(remainingBytes, 0);
     if (controlPacketType === CONNACK) return readConnack(messageReader, controlPacketFlags);
-    if (controlPacketType === DISCONNECT) return readDisconnect(messageReader, controlPacketFlags, remainingLength);
+    if (controlPacketType === PUBLISH) return readPublish(messageReader, controlPacketFlags);
     if (controlPacketType === SUBACK) return readSuback(messageReader, controlPacketFlags);
     if (controlPacketType === PINGRESP) return readPingresp(messageReader, controlPacketFlags);
-    if (controlPacketType === PUBLISH) return readPublish(messageReader, controlPacketFlags);
+    if (controlPacketType === DISCONNECT) return readDisconnect(messageReader, controlPacketFlags, remainingLength);
     throw new Error(`readMessage: Unsupported controlPacketType: ${controlPacketType}`);
 }
 
-export type MqttMessage = ConnackMessage | DisconnectMessage | SubackMessage | PingrespMessage | PublishMessage;
+export function encodeMessage(message: MqttMessage): Uint8Array {
+    if (message.type === CONNECT) return encodeConnect(message);
+    if (message.type === PUBLISH) return encodePublish(message);
+    if (message.type === SUBSCRIBE) return encodeSubscribe(message);
+    if (message.type === PINGREQ) return encodePingreq(message);
+    if (message.type === DISCONNECT) return encodeDisconnect(message);
+    throw new Error(`encodeMessage: Unsupported controlPacketType: ${message.type}`);
+}
+
+export function computeControlPacketTypeName(type: ControlPacketType): string {
+    if (type === CONNECT) return 'CONNECT';
+    if (type === CONNACK) return 'CONNACK';
+    if (type === PUBLISH) return 'PUBLISH';
+    if (type === SUBSCRIBE) return 'SUBSCRIBE';
+    if (type === SUBACK) return 'SUBACK';
+    if (type === PINGREQ) return 'PINGREQ';
+    if (type === PINGRESP) return 'PINGRESP';
+    if (type === DISCONNECT) return 'DISCONNECT';
+    throw new Error(`computeControlPacketTypeName: Unsupported controlPacketType: ${type}`);
+}
+
+//#region CONNECT
+
+export const CONNECT = 1; type CONNECT = 1;
+
+export interface ConnectMessage {
+    readonly type: CONNECT;
+    readonly keepAlive: number;
+    readonly clientId: string;
+    readonly username?: string;
+    readonly password: string;
+}
+
+export function encodeConnect(message: ConnectMessage): Uint8Array {
+    const { type, keepAlive, clientId, username, password } = message;
+
+    const connectFlags = ((username ? 1 : 0) << 7) | (1 << 6);
+    const variableHeader = [ 
+        ...encodeUtf8('MQTT'), // protocol name
+        0x05, // protocol version
+        connectFlags,
+        ...encodeUint16(keepAlive),
+        ...encodeVariableByteInteger(0), // properties = none
+    ];
+
+    const payload = [
+        ...encodeUtf8(clientId),
+        ...(username ? encodeUtf8(username) : []),
+        ...encodeUtf8(password),
+    ];
+
+    return encodePacket(type, { variableHeader, payload });
+}
+
+//#endregion
 
 //#region CONNACK
 
@@ -115,40 +172,121 @@ const CONNACK_REASONS: Record<number, [string, string]> = {
 
 //#endregion
 
-//#region DISCONNECT
+//#region PUBLISH
 
-export const DISCONNECT = 14; type DISCONNECT = 14;
+export const PUBLISH = 3; type PUBLISH = 3;
 
-export interface DisconnectMessage {
-    readonly type: DISCONNECT;
-    readonly reason?: Reason;
+export interface PublishMessage {
+    readonly type: PUBLISH;
+    readonly dup: boolean;
+    readonly qosLevel: 0 | 1 | 2;
+    readonly retain: boolean;
+    readonly topic: string;
+    readonly packetId?: number;
+    readonly payloadFormatIndicator?: 0 | 1;
+    readonly payload: Uint8Array;
+    readonly contentType?: string;
 }
 
-export function readDisconnect(reader: Reader, controlPacketFlags: number, remainingLength: number): DisconnectMessage {
+export function readPublish(reader: Reader, controlPacketFlags: number): PublishMessage {
+    const { DEBUG } = Mqtt;
     checkEqual('controlPacketFlags', controlPacketFlags, 0);
+    
+    const dup = (controlPacketFlags & 8) === 8;
+    const qosLevel = (controlPacketFlags & 6) >> 1;
+    const retain = (controlPacketFlags & 1) === 1;
 
-    let rt: DisconnectMessage = { type: DISCONNECT };
+    if (DEBUG) console.log({ dup, qosLevel, retain});
+    if (qosLevel !== 0 && qosLevel !== 1 && qosLevel !== 2) throw new Error(`Bad qosLevel: ${qosLevel}`);
 
-    if (remainingLength > 0) {
-        rt = { ...rt, reason: readReason(reader, DISCONNECT_REASONS) };
+    const topic = reader.readUtf8();
+
+    let rt: PublishMessage = { type: PUBLISH, dup, qosLevel, retain, topic, payload: EMPTY_BYTES };
+
+    if (qosLevel === 1 || qosLevel === 2) {
+        rt = { ...rt, packetId: reader.readUint16() };
     }
 
-    if (remainingLength > 1) {
-        readProperties(reader, propertyId => {
-            throw new Error(`Unsupported propertyId: ${propertyId}`); 
-        });
-    }
+    readProperties(reader, propertyId => {
+        if (propertyId === 1) {
+            // 3.3.2.3.2 Payload Format Indicator
+            const payloadFormatIndicator = reader.readUint8();
+            if (DEBUG) console.log({ payloadFormatIndicator });
+            check('payloadFormatIndicator', payloadFormatIndicator, payloadFormatIndicator === 0 || payloadFormatIndicator === 1);
+            rt = { ...rt, payloadFormatIndicator };
+        } else if (propertyId === 3) {
+            // 3.3.2.3.9 Content Type
+            const contentType = reader.readUtf8();
+            if (DEBUG) console.log({ contentType });
+            rt = { ...rt, contentType };
+        } else {
+            throw new Error(`Unsupported propertyId: ${propertyId}`);
+        }
+    });
 
-    checkEqual('remaining', reader.remaining(), 0);
+    rt = { ...rt, payload: reader.readBytes(reader.remaining()) };
 
     return rt;
 }
 
-const DISCONNECT_REASONS: Record<number, [string, string]> = {
-    // 3.14.2.1 Disconnect Reason Code
-    0: [ 'Normal disconnection', 'Close the connection normally. Do not send the Will Message.' ],
-    141: [ 'Keep Alive timeout', 'The Connection is closed because no packet has been received for 1.5 times the Keepalive time.' ],
-};
+export function encodePublish(message: PublishMessage): Uint8Array {
+    const { payloadFormatIndicator, topic, payload, type, dup, qosLevel, retain, packetId, contentType } = message;
+
+    if (qosLevel === 1 || qosLevel === 2) {
+        if (packetId === undefined) throw new Error(`Missing packetId: required with qosLevel ${qosLevel}`);
+    } else if (qosLevel === 0) {
+        if (packetId !== undefined) throw new Error(`Bad packetId: not applicable with qosLevel 0`);
+    } else {
+        throw new Error(`Bad qosLevel: ${qosLevel}`);
+    }
+    
+    const controlPacketFlags = (dup ? (1 << 3) : 0) | (qosLevel % 4 << 1) | (retain ? 1 : 0);
+
+    const properties = [
+        ...(payloadFormatIndicator === undefined ? [] : [ 1, payloadFormatIndicator ]), // 3.3.2.3.2 Payload Format Indicator
+        ...(contentType === undefined ? [] : [ 3, ...encodeUtf8(contentType) ]), // 3.3.2.3.9 Content Type
+    ];
+    
+    const variableHeader = [ 
+        ...encodeUtf8(topic),
+        ...(packetId === undefined ? [] : encodeUint16(packetId)),
+        ...encodeVariableByteInteger(properties.length),
+        ...properties,
+    ];
+
+    return encodePacket(type, { controlPacketFlags, variableHeader, payload });
+}
+
+//#endregion
+
+//#region SUBSCRIBE
+
+export const SUBSCRIBE = 8; type SUBSCRIBE = 8;
+
+export interface SubscribeMessage {
+    readonly type: SUBSCRIBE;
+    readonly packetId: number;
+    readonly subscriptions: Subscription[];
+}
+
+export interface Subscription {
+    readonly topicFilter: string;
+}
+
+export function encodeSubscribe(message: SubscribeMessage): Uint8Array {
+    const { type, packetId, subscriptions } = message;
+
+    const controlPacketFlags = 2; // 0,0,1,0 constants
+
+    const variableHeader = [ 
+        ...encodeUint16(packetId),
+        ...encodeVariableByteInteger(0), // properties = none
+    ];
+
+    const payload = subscriptions.flatMap(v => [ ...encodeUtf8(v.topicFilter), 0 /* qos 0, no no-local, no retain as published, retain handling = Send retained messages at the time of the subscribe */ ]);
+
+    return encodePacket(type, { controlPacketFlags, variableHeader, payload });
+}
 
 //#endregion
 
@@ -185,6 +323,22 @@ const SUBACK_REASONS: Record<number, [string, string]> = {
 
 //#endregion
 
+//#region PINGREQ
+
+export const PINGREQ = 12; type PINGREQ = 12;
+
+export interface PingreqMessage {
+    readonly type: PINGREQ;
+}
+
+export function encodePingreq(message: PingreqMessage): Uint8Array {
+    const { type } = message;
+
+    return encodePacket(type);
+}
+
+//#endregion
+
 //#region PINGRESP
 
 export const PINGRESP = 13; type PINGRESP = 13;
@@ -203,58 +357,50 @@ export function readPingresp(reader: Reader, controlPacketFlags: number): Pingre
 
 //#endregion
 
-//#region PUBLISH
+//#region DISCONNECT
 
-export const PUBLISH = 3; type PUBLISH = 3;
+export const DISCONNECT = 14; type DISCONNECT = 14;
 
-export interface PublishMessage {
-    readonly type: PUBLISH;
-    readonly topic: string;
-    readonly packetId?: number;
-    readonly payloadFormatIndicator?: 0 | 1;
-    readonly payload: Uint8Array;
-    readonly contentType?: string;
+export interface DisconnectMessage {
+    readonly type: DISCONNECT;
+    readonly reason?: Reason;
 }
 
-export function readPublish(reader: Reader, controlPacketFlags: number): PublishMessage {
-    const { DEBUG } = Mqtt;
+export function readDisconnect(reader: Reader, controlPacketFlags: number, remainingLength: number): DisconnectMessage {
     checkEqual('controlPacketFlags', controlPacketFlags, 0);
-    
-    const dup = (controlPacketFlags & 8) === 8;
-    const qosLevel = (controlPacketFlags & 6) >> 1;
-    const retain = (controlPacketFlags & 1) === 1;
 
-    if (DEBUG) console.log({ dup, qosLevel, retain});
-    if (qosLevel === 3) throw new Error(`Bad qosLevel: ${qosLevel}`);
+    let rt: DisconnectMessage = { type: DISCONNECT };
 
-    const topic = reader.readUtf8();
-
-    let rt: PublishMessage = { type: PUBLISH, topic, payload: EMPTY_BYTES };
-
-    if (qosLevel === 1 || qosLevel === 2) {
-        rt = { ...rt, packetId: reader.readUint16() };
+    if (remainingLength > 0) {
+        rt = { ...rt, reason: readReason(reader, DISCONNECT_REASONS) };
     }
 
-    readProperties(reader, propertyId => {
-        if (propertyId === 1) {
-            // 3.3.2.3.2 Payload Format Indicator
-            const payloadFormatIndicator = reader.readUint8();
-            if (DEBUG) console.log({ payloadFormatIndicator });
-            check('payloadFormatIndicator', payloadFormatIndicator, payloadFormatIndicator === 0 || payloadFormatIndicator === 1);
-            rt = { ...rt, payloadFormatIndicator };
-        } else if (propertyId === 3) {
-            // 3.3.2.3.9 Content Type
-            const contentType = reader.readUtf8();
-            if (DEBUG) console.log({ contentType });
-            rt = { ...rt, contentType };
-        } else {
-            throw new Error(`Unsupported propertyId: ${propertyId}`);
-        }
-    });
+    if (remainingLength > 1) {
+        readProperties(reader, propertyId => {
+            throw new Error(`Unsupported propertyId: ${propertyId}`); 
+        });
+    }
 
-    rt = { ...rt, payload: reader.readBytes(reader.remaining()) };
+    checkEqual('remaining', reader.remaining(), 0);
 
     return rt;
+}
+
+const DISCONNECT_REASONS: Record<number, [string, string]> = {
+    // 3.14.2.1 Disconnect Reason Code
+    0: [ 'Normal disconnection', 'Close the connection normally. Do not send the Will Message.' ],
+    141: [ 'Keep Alive timeout', 'The Connection is closed because no packet has been received for 1.5 times the Keepalive time.' ],
+};
+
+export function encodeDisconnect(message: DisconnectMessage): Uint8Array {
+    const { type, reason } = message;
+
+    const reasonCode = reason?.code ?? 0 /* normal disconnection */;
+    const variableHeader = [ 
+        reasonCode,
+    ];
+
+    return encodePacket(type, { variableHeader });
 }
 
 //#endregion
@@ -296,6 +442,28 @@ function readBooleanProperty(name: string, reader: Reader): boolean {
     if (DEBUG) console.log(Object.fromEntries([[ name, value ]]));
     check(name, value, value === 0 || value === 1);
     return value === 1;
+}
+
+function encodeUint16(value: number): Uint8Array {
+    const buffer = new ArrayBuffer(2);
+    const view = new DataView(buffer);
+    view.setUint16(0, value);
+    return new Uint8Array(buffer);
+}
+
+function encodePacket(controlPacketType: ControlPacketType, opts: { controlPacketFlags?: number, variableHeader?: number[], payload?: number[] | Uint8Array } = {}): Uint8Array {
+    const { DEBUG } = Mqtt;
+    const { controlPacketFlags = 0, variableHeader = [], payload = [] } = opts;
+    const remainingLength = variableHeader.length + payload.length;
+
+    if (DEBUG) console.log({ remainingLength, variableHeaderLength: variableHeader.length, payloadLength: payload.length });
+    const fixedHeader = [ (controlPacketType << 4) | controlPacketFlags, ...encodeVariableByteInteger(remainingLength) ];
+    if (DEBUG) console.log(`fixedHeader: ${hex(fixedHeader)}`);
+    if (DEBUG) console.log(`variableHeader: ${hex(variableHeader)}`);
+    if (DEBUG) console.log(`payload: ${hex(payload)}`);
+    const packet = new Uint8Array([ ...fixedHeader, ...variableHeader, ...payload ]);
+    if (DEBUG) console.log(`packet: ${hex(packet)}`);
+    return packet;
 }
 
 //

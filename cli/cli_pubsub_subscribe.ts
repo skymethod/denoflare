@@ -42,7 +42,7 @@ export async function subscribe(args: (string | number)[], options: Record<strin
                 console.log('subscribed', opts);
             };
             console.log('subscribing');
-            client.subscribe({ topic });
+            client.subscribe({ topicFilter: topic });
         } else {
             console.log('disconnecting');
             client.disconnect();

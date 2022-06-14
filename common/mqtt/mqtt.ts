@@ -1,3 +1,5 @@
+import { Bytes } from '../bytes.ts';
+
 export class Mqtt {
     static DEBUG = false;
 }
@@ -43,6 +45,10 @@ export function decodeUtf8(buffer: Uint8Array, startIndex: number): { text: stri
     const text = decoder.decode(bytes);
 
     return { text, bytesUsed: length + 2 };
+}
+
+export function hex(bytes: number[] | Uint8Array): string {
+    return new Bytes(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)).hex();
 }
 
 //
