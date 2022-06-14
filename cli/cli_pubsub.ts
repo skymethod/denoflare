@@ -1,9 +1,11 @@
 import { denoflareCliCommand, parseRequiredStringOption } from './cli_common.ts';
 import { CliCommandModifier } from './cli_command.ts';
 import { publish, PUBLISH_COMMAND } from './cli_pubsub_publish.ts';
+import { subscribe, SUBSCRIBE_COMMAND } from './cli_pubsub_subscribe.ts';
 
 export const PUBSUB_COMMAND = denoflareCliCommand('pubsub', 'Publish or subscribe to a Cloudflare Pub/Sub broker')
     .subcommand(PUBLISH_COMMAND, publish)
+    .subcommand(SUBSCRIBE_COMMAND, subscribe)
 
     .docsLink('/cli/pubsub')
     ;
