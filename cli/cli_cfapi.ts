@@ -220,9 +220,9 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    add(apiCommand('update-pubsub-broker', 'Update a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('expiration', 'integer', 'Expiration').option('onPublishUrl', 'string', 'Public URL to your worker'), async (accountId, apiToken, opts) => {
-        const { name, brokerName, expiration: expirationInput, onPublishUrl: onPublishUrlStr } = opts;
-        const expiration = expirationInput === 0 ? null : typeof expirationInput === 'number' ? expirationInput : undefined;
+    add(apiCommand('update-pubsub-broker', 'Update a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('expirationSeconds', 'integer', 'Expiration').option('onPublishUrl', 'string', 'Public URL to your worker'), async (accountId, apiToken, opts) => {
+        const { name, brokerName, expirationSeconds, onPublishUrl: onPublishUrlStr } = opts;
+        const expiration = typeof expirationSeconds === 'number' ? expirationSeconds * 1_000_000_000 : undefined;
         const onPublishUrl = onPublishUrlStr === 'null' ? null : typeof onPublishUrlStr === 'string' ? onPublishUrlStr : undefined;
         await updatePubsubBroker(accountId, apiToken, name, brokerName, { expiration, onPublishUrl });
     });

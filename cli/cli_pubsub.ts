@@ -7,6 +7,7 @@ import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_lo
 import { generatePubsubCredentials } from '../common/cloudflare_api.ts';
 import { Protocol } from '../common/mqtt/mqtt_client.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
+import { Mqtt } from '../common/mqtt/mqtt.ts';
 
 const JWT_COMMAND = denoflareCliCommand(['pubsub', 'jwt'], `Parse a JWT token, and output its claims`)
     .arg('token', 'string', 'JWT token string')
@@ -67,11 +68,13 @@ export function parseCloudflareEndpoint(endpoint: string): { protocol: Protocol,
 //
 
 async function generatePubsubCredential(options: Record<string, unknown>, endpoint: string): Promise<string> {
+    const { DEBUG } = Mqtt;
     console.log('generating credential');
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
     const { namespaceName, brokerName } = parseCloudflareEndpoint(endpoint);
     const results = await generatePubsubCredentials(accountId, apiToken, namespaceName, brokerName, { number: 1, type: 'TOKEN', topicAcl: '#' });
     for (const [ _clientId, token ] of Object.entries(results)) {
+        if (DEBUG) console.log({ token });
         return token;
     }
     throw new Error(`generatePubsubCredentials returned no results`);
