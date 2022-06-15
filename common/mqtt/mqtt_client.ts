@@ -18,17 +18,21 @@ export class MqttClient {
     private readonly packetIds = new Array<boolean>(256 * 256);
     private readonly pendingSubscribes: Record<number, Signal> = {};
     private readonly savedBytes: number[] = [];
+    private readonly maxMessagesPerSecond?: number;
 
     private connection?: MqttConnection;
     private pingTimeout = 0;
     private pendingConnect?: Signal;
     private connectionCompletion?: Promise<void>;
+    private lastSentMessageTime = 0;
+    private receivedDisconnect = false;
 
-    constructor(opts: { hostname: string, port: number, protocol: Protocol }) {
-        const { hostname, port, protocol = 'mqtts' } = opts;
+    constructor(opts: { hostname: string, port: number, protocol: Protocol, maxMessagesPerSecond?: number }) {
+        const { hostname, port, protocol = 'mqtts', maxMessagesPerSecond } = opts;
         this.hostname = hostname;
         this.port = port;
         this.protocol = protocol;
+        this.maxMessagesPerSecond = maxMessagesPerSecond;
     }
 
     completion(): Promise<void> {
@@ -149,6 +153,7 @@ export class MqttClient {
                     this.pendingConnect = undefined;
                 }
             } else if (message.type === DISCONNECT) {
+                this.receivedDisconnect = true;
                 if (this.connection) {
                     this.connection.close();
                     this.connection = undefined;
@@ -194,12 +199,24 @@ export class MqttClient {
 
     private async sendMessage(message: MqttMessage): Promise<void> {
         const { DEBUG } = Mqtt;
-        const { connection } = this;
-        if (DEBUG) console.log(`Sending ${computeControlPacketTypeName(message.type)}`);
-        if (!connection) throw new Error(`sendMessage: not connected`);
+        const { connection, maxMessagesPerSecond } = this;
+        const diff =  Date.now() - this.lastSentMessageTime;
+        const intervalMillis = 1000 / (maxMessagesPerSecond ?? 1);
+        const waitMillis = maxMessagesPerSecond !== undefined && diff < intervalMillis ? intervalMillis - diff : 0;
+        if (DEBUG) console.log(`Sending ${computeControlPacketTypeName(message.type)}${waitMillis > 0 ? ` (waiting ${waitMillis}ms)` : ''}`);
+        if (waitMillis > 0) await sleep(waitMillis);
+        if (this.receivedDisconnect) throw new Error(`sendMessage: received disconnect`);
+        if (!connection) throw new Error(`sendMessage: no connection`);
         await connection.write(encodeMessage(message));
+        this.lastSentMessageTime = Date.now();
     }
 
+}
+
+//
+
+function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 //

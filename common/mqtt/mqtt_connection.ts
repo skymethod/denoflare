@@ -15,6 +15,8 @@ export class DenoTcpConnection implements MqttConnection {
 
     private readonly conn: Deno.TlsConn;
 
+    private closed = false;
+
     private constructor(conn: Deno.TlsConn) {
         this.conn = conn;
         this.completionPromise = this.initCompletionPromise();
@@ -26,7 +28,7 @@ export class DenoTcpConnection implements MqttConnection {
             while (true) {
                 const buffer = new Uint8Array(8 * 1024);
                 if (DEBUG) console.log('before read');
-                const result = await this.conn.read(buffer);
+                const result = await this.read(buffer);
                 if (result === null) {
                     if (DEBUG) console.log('EOF');
                     return;
@@ -35,6 +37,15 @@ export class DenoTcpConnection implements MqttConnection {
                 this.onRead(buffer.slice(0, result));
             }
         })();
+    }
+
+    private async read(buffer: Uint8Array): Promise<number|null> {
+        try {
+            return await this.conn.read(buffer);
+        } catch (e) {
+            if (this.closed) return null; // BadResource: Bad resource ID
+            throw e;
+        }
     }
 
     static async create(opts: { hostname: string, port: number }): Promise<DenoTcpConnection> {
@@ -48,6 +59,7 @@ export class DenoTcpConnection implements MqttConnection {
     }
 
     close() {
+        this.closed = true;
         this.conn.close();
     }
 
