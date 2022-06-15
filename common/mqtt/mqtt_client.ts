@@ -6,11 +6,16 @@ import { computeControlPacketTypeName, CONNACK, CONNECT, DISCONNECT, encodeMessa
 
 export type Protocol = 'mqtts' | 'wss';
 
+const DEFAULT_KEEP_ALIVE_SECONDS = 10;
+
 export class MqttClient {
 
     readonly hostname: string;
     readonly port: number;
     readonly protocol: Protocol;
+
+    get clientId(): string | undefined { return this.clientIdInternal; }
+    get keepAlive(): number | undefined { return this.keepAliveSeconds; }
 
     onMqttMessage?: (message: MqttMessage) => void;
     onReceive?: (opts: { topic: string, payload: string | Uint8Array, contentType?: string }) => void;
@@ -22,10 +27,12 @@ export class MqttClient {
 
     private connection?: MqttConnection;
     private pingTimeout = 0;
+    private keepAliveSeconds = DEFAULT_KEEP_ALIVE_SECONDS;
     private pendingConnect?: Signal;
     private connectionCompletion?: Promise<void>;
     private lastSentMessageTime = 0;
     private receivedDisconnect = false;
+    private clientIdInternal: string | undefined;
 
     constructor(opts: { hostname: string, port: number, protocol: Protocol, maxMessagesPerSecond?: number }) {
         const { hostname, port, protocol = 'mqtts', maxMessagesPerSecond } = opts;
@@ -45,7 +52,7 @@ export class MqttClient {
 
     async connect(opts: { clientId?: string, username?: string, password: string, keepAlive?: number }): Promise<void> {
         const { DEBUG } = Mqtt;
-        const { clientId = '', username, password, keepAlive = 10 } = opts;
+        const { clientId = '', username, password, keepAlive = DEFAULT_KEEP_ALIVE_SECONDS } = opts;
 
         const { protocol, hostname, port } = this;
         if (!this.connection) {
@@ -66,6 +73,8 @@ export class MqttClient {
         }
         
         this.pendingConnect = new Signal();
+        this.keepAliveSeconds = keepAlive;
+        this.clientIdInternal = clientId;
         await this.sendMessage({ type: CONNECT, clientId, username, password, keepAlive });
         return this.pendingConnect.promise;  // wait for CONNACK
     }
@@ -146,6 +155,9 @@ export class MqttClient {
             if (message.type === CONNACK) {
                 if (this.pendingConnect) {
                     if ((message.reason?.code ?? 0) < 0x80) {
+                        this.clientIdInternal = message.assignedClientIdentifier ?? this.clientIdInternal;
+                        this.keepAliveSeconds = message.serverKeepAlive ?? this.keepAliveSeconds;
+                        this.reschedulePing();
                         this.pendingConnect.resolve();
                     } else {
                         this.pendingConnect.reject(JSON.stringify(message.reason));
@@ -170,7 +182,7 @@ export class MqttClient {
                     }
                     delete this.pendingSubscribes[packetId];
                 }
-                this.reschedulePing();
+                
             } else if (message.type === PINGRESP) {
                 // noop
             } else if (message.type === PUBLISH) {
@@ -194,7 +206,7 @@ export class MqttClient {
         this.pingTimeout = setTimeout(async () => {
             await this.ping();
             this.reschedulePing();
-        }, 10_000);
+        }, this.keepAliveSeconds * 1000);
     }
 
     private async sendMessage(message: MqttMessage): Promise<void> {

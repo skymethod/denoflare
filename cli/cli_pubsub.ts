@@ -1,4 +1,4 @@
-import { denoflareCliCommand, parseOptionalBooleanOption, parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
+import { denoflareCliCommand, parseOptionalBooleanOption, parseOptionalIntegerOption, parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
 import { CliCommandModifier } from './cli_command.ts';
 import { publish, PUBLISH_COMMAND } from './cli_pubsub_publish.ts';
 import { subscribe, SUBSCRIBE_COMMAND } from './cli_pubsub_subscribe.ts';
@@ -20,16 +20,18 @@ export function commandOptionsForPubsub(): CliCommandModifier {
         .option('endpoint', 'required-string', 'MQTT endpoint') // e.g. mqtts://<broker-name>.<namespace-name>.cloudflarepubsub.com:8883
         .option('clientId', 'string', 'Client ID')
         .option('password', 'required-string', 'Password')
+        .option('keepAlive', 'integer', 'Keep alive rate (in seconds)')
         .option('debug', 'boolean', '')
         ;
 }
 
-export function parsePubsubOptions(options: Record<string, unknown>): { endpoint: string, clientId?: string, password: string, debug?: boolean } {
+export function parsePubsubOptions(options: Record<string, unknown>): { endpoint: string, clientId?: string, password: string, keepAlive?: number, debug?: boolean } {
     const endpoint = parseRequiredStringOption('endpoint', options);
     const clientId = parseOptionalStringOption('client-id', options);
     const password = parseRequiredStringOption('password', options);
+    const keepAlive = parseOptionalIntegerOption('keep-alive', options); // cloudflare found min = 10, max = 3600
     const debug = parseOptionalBooleanOption('debug', options);
-    return { endpoint, clientId, password, debug };
+    return { endpoint, clientId, password, keepAlive, debug };
 }
 
 //

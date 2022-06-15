@@ -2,6 +2,7 @@ import { Bytes } from '../common/bytes.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { Mqtt } from '../common/mqtt/mqtt.ts';
 import { MqttClient } from '../common/mqtt/mqtt_client.ts';
+import { DISCONNECT } from '../common/mqtt/mqtt_messages.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForPubsub, parsePubsubOptions } from './cli_pubsub.ts';
 
@@ -20,7 +21,7 @@ export async function subscribe(args: (string | number)[], options: Record<strin
         Mqtt.DEBUG = true;
     }
 
-    const { endpoint, clientId, password, debug } = parsePubsubOptions(options);
+    const { endpoint, clientId, password, keepAlive, debug } = parsePubsubOptions(options);
 
     const [ _, protocol, brokerName, namespaceName, portStr] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
 
@@ -29,8 +30,12 @@ export async function subscribe(args: (string | number)[], options: Record<strin
     if (protocol !== 'mqtts' && protocol !== 'wss') throw new Error(`Unsupported protocol: ${protocol}`);
 
     const client = new MqttClient({ hostname, port, protocol });
-
-    if (debug) client.onMqttMessage = message => console.log(JSON.stringify(message, undefined, 2));
+    client.onMqttMessage = message => {
+        if (debug) console.log(JSON.stringify(message, undefined, 2));
+        if (message.type === DISCONNECT) {
+            console.log('disconnect', message.reason);
+        }
+    };
 
     client.onReceive = opts => {
         const { topic, payload, contentType } = opts;
@@ -39,7 +44,11 @@ export async function subscribe(args: (string | number)[], options: Record<strin
     };
 
     console.log('connecting');
-    await client.connect({ clientId, password });
+    await client.connect({ clientId, password, keepAlive });
+    {
+        const { clientId, keepAlive } = client;
+        console.log('connected', { clientId, keepAlive });
+    }
 
     console.log('subscribing');
     await client.subscribe({ topicFilter: topic });

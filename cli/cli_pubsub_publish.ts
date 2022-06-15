@@ -27,9 +27,9 @@ export async function publish(args: (string | number)[], options: Record<string,
         Mqtt.DEBUG = true;
     }
 
-    const { endpoint, clientId, password, debug } = parsePubsubOptions(options);
+    const { endpoint, clientId, password, keepAlive, debug } = parsePubsubOptions(options);
 
-    const [ _, protocol, brokerName, namespaceName, portStr] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
+    const [ _, protocol, brokerName, namespaceName, portStr ] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
 
     const hostname = `${brokerName}.${namespaceName}.cloudflarepubsub.com`;
     const port = parseInt(portStr);
@@ -44,7 +44,11 @@ export async function publish(args: (string | number)[], options: Record<string,
     };
 
     console.log('connecting');
-    await client.connect({ clientId, password });
+    await client.connect({ clientId, password, keepAlive });
+    {
+        const { clientId, keepAlive } = client;
+        console.log('connected', { clientId, keepAlive });
+    }
 
     for (let i = 0; i < (n ?? 1); i++) {
         console.log(`publishing${n ? ` ${i + 1} of ${n}` : ''}`);
