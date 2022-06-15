@@ -35,7 +35,7 @@ export async function subscribe(args: (string | number)[], options: Record<strin
     client.onReceive = opts => {
         const { topic, payload, contentType } = opts;
         const display = typeof payload === 'string' ? payload : `(${payload.length} bytes)${payload.length < 1000 ? ` ${new Bytes(payload).utf8()}` : ''}`;
-        console.log(`[${topic}]${contentType ? ` [content-type: ${contentType}]` : ''} ${display}`);
+        console.log(`[topic: ${topic}]${contentType ? ` [content-type: ${contentType}]` : ''} ${display}`);
     };
 
     console.log('connecting');

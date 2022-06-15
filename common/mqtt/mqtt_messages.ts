@@ -6,13 +6,18 @@ import { decodeUtf8, decodeVariableByteInteger, encodeUtf8, encodeVariableByteIn
 export type MqttMessage = ConnectMessage | ConnackMessage | PublishMessage | SubscribeMessage | SubackMessage | PingreqMessage | PingrespMessage | DisconnectMessage;
 export type ControlPacketType = CONNECT | CONNACK | PUBLISH | SUBSCRIBE | SUBACK | PINGREQ | PINGRESP | DISCONNECT;
 
-export function readMessage(reader: Reader): MqttMessage {
+export function readMessage(reader: Reader): MqttMessage | { needsMoreBytes: number } {
+    const { DEBUG } = Mqtt;
+
     // fixed header
+    if (reader.remaining() < 2) return { needsMoreBytes: 2 };
     const first = reader.readUint8();
     const controlPacketType = first >> 4;
     const controlPacketFlags = first & 0x0f;
     const remainingLength = reader.readVariableByteInteger();
+    if (reader.remaining() < remainingLength) return { needsMoreBytes: remainingLength };
     const remainingBytes = reader.readBytes(remainingLength);
+    if (DEBUG) console.log(`readMessage: ${hex([first, ...encodeVariableByteInteger(remainingLength), ...remainingBytes])}`);
 
     const messageReader = new Reader(remainingBytes, 0);
     if (controlPacketType === CONNACK) return readConnack(messageReader, controlPacketFlags);
@@ -112,64 +117,86 @@ export function readConnack(reader: Reader, controlPacketFlags: number): Connack
 
     rt = { ...rt, reason: readReason(reader, CONNACK_REASONS) };
 
-    readProperties(reader, propertyId => {
-        if (propertyId === 17) {
-            // 3.2.2.3.2 Session Expiry Interval
-            const sessionExpiryInterval = reader.readUint32();
-            if (DEBUG) console.log({ sessionExpiryInterval });
-            rt = { ...rt, sessionExpiryInterval };
-        } else if (propertyId === 36) {
-            // 3.2.2.3.4 Maximum QoS
-            const maximumQos = reader.readUint8();
-            if (DEBUG) console.log({ maximumQos });
-            check('maximumQos', maximumQos, maximumQos === 0 || maximumQos === 1);
-            rt = { ...rt, maximumQos };
-        } else if (propertyId === 37) {
-            // 3.2.2.3.5 Retain Available
-            rt = { ...rt, retainAvailable: readBooleanProperty('retainAvailable', reader) };
-        } else if (propertyId === 39) {
-            // 3.2.2.3.6 Maximum Packet Size
-            const maximumPacketSize = reader.readUint32();
-            if (DEBUG) console.log({ maximumPacketSize });
-            rt = { ...rt, maximumPacketSize };
-        } else if (propertyId === 34) {
-            // 3.2.2.3.8 Topic Alias Maximum
-            const topicAliasMaximum = reader.readUint16();
-            if (DEBUG) console.log({ topicAliasMaximum });
-            rt = { ...rt, topicAliasMaximum };
-        } else if (propertyId === 40) {
-            // 3.2.2.3.11 Wildcard Subscription Available
-            rt = { ...rt, wildcardSubscriptionAvailable: readBooleanProperty('wildcardSubscriptionAvailable', reader) };
-        } else if (propertyId === 41) {
-            // 3.2.2.3.12 Subscription Identifiers Available
-            rt = { ...rt, subscriptionIdentifiersAvailable: readBooleanProperty('subscriptionIdentifiersAvailable', reader) };
-        } else if (propertyId === 42) {
-            // 3.2.2.3.13 Shared Subscription Available
-            rt = { ...rt, sharedSubscriptionAvailable: readBooleanProperty('sharedSubscriptionAvailable', reader) };
-        } else if (propertyId === 19) {
-            // 3.2.2.3.14 Server Keep Alive
-            const serverKeepAlive = reader.readUint16();
-            if (DEBUG) console.log({ serverKeepAlive });
-            rt = { ...rt, serverKeepAlive };
-        } else if (propertyId === 18) {
-            // 3.2.2.3.7 Assigned Client Identifier
-            const assignedClientIdentifier = reader.readUtf8();
-            if (DEBUG) console.log({ assignedClientIdentifier });
-            rt = { ...rt, assignedClientIdentifier };
-        }  else {
-            throw new Error(`Unsupported propertyId: ${propertyId}`);
-        }
-    });
+    if (reader.remaining() > 0) {
+        readProperties(reader, propertyId => {
+            if (propertyId === 17) {
+                // 3.2.2.3.2 Session Expiry Interval
+                const sessionExpiryInterval = reader.readUint32();
+                if (DEBUG) console.log({ sessionExpiryInterval });
+                rt = { ...rt, sessionExpiryInterval };
+            } else if (propertyId === 36) {
+                // 3.2.2.3.4 Maximum QoS
+                const maximumQos = reader.readUint8();
+                if (DEBUG) console.log({ maximumQos });
+                check('maximumQos', maximumQos, maximumQos === 0 || maximumQos === 1);
+                rt = { ...rt, maximumQos };
+            } else if (propertyId === 37) {
+                // 3.2.2.3.5 Retain Available
+                rt = { ...rt, retainAvailable: readBooleanProperty('retainAvailable', reader) };
+            } else if (propertyId === 39) {
+                // 3.2.2.3.6 Maximum Packet Size
+                const maximumPacketSize = reader.readUint32();
+                if (DEBUG) console.log({ maximumPacketSize });
+                rt = { ...rt, maximumPacketSize };
+            } else if (propertyId === 34) {
+                // 3.2.2.3.8 Topic Alias Maximum
+                const topicAliasMaximum = reader.readUint16();
+                if (DEBUG) console.log({ topicAliasMaximum });
+                rt = { ...rt, topicAliasMaximum };
+            } else if (propertyId === 40) {
+                // 3.2.2.3.11 Wildcard Subscription Available
+                rt = { ...rt, wildcardSubscriptionAvailable: readBooleanProperty('wildcardSubscriptionAvailable', reader) };
+            } else if (propertyId === 41) {
+                // 3.2.2.3.12 Subscription Identifiers Available
+                rt = { ...rt, subscriptionIdentifiersAvailable: readBooleanProperty('subscriptionIdentifiersAvailable', reader) };
+            } else if (propertyId === 42) {
+                // 3.2.2.3.13 Shared Subscription Available
+                rt = { ...rt, sharedSubscriptionAvailable: readBooleanProperty('sharedSubscriptionAvailable', reader) };
+            } else if (propertyId === 19) {
+                // 3.2.2.3.14 Server Keep Alive
+                const serverKeepAlive = reader.readUint16();
+                if (DEBUG) console.log({ serverKeepAlive });
+                rt = { ...rt, serverKeepAlive };
+            } else if (propertyId === 18) {
+                // 3.2.2.3.7 Assigned Client Identifier
+                const assignedClientIdentifier = reader.readUtf8();
+                if (DEBUG) console.log({ assignedClientIdentifier });
+                rt = { ...rt, assignedClientIdentifier };
+            }  else {
+                throw new Error(`Unsupported propertyId: ${propertyId}`);
+            }
+        });
+    }
 
     checkEqual('remaining', reader.remaining(), 0);
 
     return rt;
 }
 
-const CONNACK_REASONS: Record<number, [string, string]> = {
+const CONNACK_REASONS: ReasonTable = {
     // 3.2.2.2 Connect Reason Code
     0: [ 'Success', 'The Connection is accepted.' ],
+    128: [ 'Unspecified error', 'The Server does not wish to reveal the reason for the failure, or none of the other Reason Codes apply.' ],
+    129: [ 'Malformed Packet', 'Data within the CONNECT packet could not be correctly parsed.' ],
+    130: [ 'Protocol Error', 'Data in the CONNECT packet does not conform to this specification.' ],
+    131: [ 'Implementation specific error', 'The CONNECT is valid but is not accepted by this Server.' ],
+    132: [ 'Unsupported Protocol Version', 'The Server does not support the version of the MQTT protocol requested by the Client.' ],
+    133: [ 'Client Identifier not valid', 'The Client Identifier is a valid string but is not allowed by the Server.' ],
+    134: [ 'Bad User Name or Password', 'The Server does not accept the User Name or Password specified by the Client' ],
     135: [ 'Not authorized', 'The Client is not authorized to connect.' ],
+    136: [ 'Server unavailable', 'The MQTT Server is not available.' ],
+    137: [ 'Server busy', 'The Server is busy. Try again later.' ],
+    138: [ 'Banned', 'This Client has been banned by administrative action. Contact the server administrator.' ],
+    140: [ 'Bad authentication method', 'The authentication method is not supported or does not match the authentication method currently in use.' ],
+    144: [ 'Topic Name invalid', 'The Will Topic Name is not malformed, but is not accepted by this Server.' ],
+    149: [ 'Packet too large', 'The CONNECT packet exceeded the maximum permissible size.' ],
+    151: [ 'Quota exceeded', 'An implementation or administrative imposed limit has been exceeded.' ],
+    153: [ 'Payload format invalid', 'The Will Payload does not match the specified Payload Format Indicator.' ],
+    154: [ 'Retain not supported', 'The Server does not support retained messages, and Will Retain was set to 1.' ],
+    155: [ 'QoS not supported', 'The Server does not support the QoS set in Will QoS.' ],
+    156: [ 'Use another server', 'The Client should temporarily use another server.' ],
+    157: [ 'Server moved', 'The Client should permanently use another server.' ],
+    159: [ 'Connection rate exceeded', 'The connection rate limit has been exceeded.' ],
 };
 
 //#endregion
@@ -318,9 +345,20 @@ export function readSuback(reader: Reader, controlPacketFlags: number): SubackMe
     return rt;
 }
 
-const SUBACK_REASONS: Record<number, [string, string]> = {
+const SUBACK_REASONS: ReasonTable = {
     // 3.9.3 SUBACK Payload
     0: [ 'Granted QoS 0', 'The subscription is accepted and the maximum QoS sent will be QoS 0. This might be a lower QoS than was requested.' ],
+    1: [ 'Granted QoS 1', 'The subscription is accepted and the maximum QoS sent will be QoS 1. This might be a lower QoS than was requested.' ],
+    2: [ 'Granted QoS 2', 'The subscription is accepted and any received QoS will be sent to this subscription.' ],
+    128: [ 'Unspecified error', 'The subscription is not accepted and the Server either does not wish to reveal the reason or none of the other Reason Codes apply.' ],
+    131: [ 'Implementation specific error', 'The SUBSCRIBE is valid but the Server does not accept it.' ],
+    135: [ 'Not authorized', 'The Client is not authorized to make this subscription.' ],
+    143: [ 'Topic Filter invalid', 'The Topic Filter is correctly formed but is not allowed for this Client.' ],
+    145: [ 'Packet Identifier in use', 'The specified Packet Identifier is already in use.' ],
+    151: [ 'Quota exceeded', 'An implementation or administrative imposed limit has been exceeded.' ],
+    158: [ 'Shared Subscriptions not supported', 'The Server does not support Shared Subscriptions for this Client.' ],
+    161: [ 'Subscription Identifiers not supported', 'The Server does not support Subscription Identifiers; the subscription is not accepted.' ],
+    162: [ 'Wildcard Subscriptions not supported', 'The Server does not support Wildcard Subscriptions; the subscription is not accepted.' ],
 };
 
 //#endregion
@@ -388,10 +426,37 @@ export function readDisconnect(reader: Reader, controlPacketFlags: number, remai
     return rt;
 }
 
-const DISCONNECT_REASONS: Record<number, [string, string]> = {
+const DISCONNECT_REASONS: ReasonTable = {
     // 3.14.2.1 Disconnect Reason Code
     0: [ 'Normal disconnection', 'Close the connection normally. Do not send the Will Message.' ],
+    4: [ 'Disconnect with Will Message', 'The Client wishes to disconnect but requires that the Server also publishes its Will Message.' ],
+    128: [ 'Unspecified error', 'The Connection is closed but the sender either does not wish to reveal the reason, or none of the other Reason Codes apply.' ],
+    129: [ 'Malformed Packet', 'The received packet does not conform to this specification.' ],
+    130: [ 'Protocol Error', 'An unexpected or out of order packet was received.' ],
+    131: [ 'Implementation specific error', 'The packet received is valid but cannot be processed by this implementation.' ],
+    135: [ 'Not authorized', 'The request is not authorized.' ],
+    137: [ 'Server busy', 'The Server is busy and cannot continue processing requests from this Client.' ],
+    139: [ 'Server shutting down', 'The Server is shutting down.' ],
     141: [ 'Keep Alive timeout', 'The Connection is closed because no packet has been received for 1.5 times the Keepalive time.' ],
+    142: [ 'Session taken over', 'Another Connection using the same ClientID has connected causing this Connection to be closed.' ],
+    143: [ 'Topic Filter invalid', 'The Topic Filter is correctly formed, but is not accepted by this Sever.' ],
+    144: [ 'Topic Name invalid', 'The Topic Name is correctly formed, but is not accepted by this Client or Server.' ],
+    147: [ 'Receive Maximum exceeded', 'The Client or Server has received more than Receive Maximum publication for which it has not sent PUBACK or PUBCOMP.' ],
+    148: [ 'Topic Alias invalid', 'The Client or Server has received a PUBLISH packet containing a Topic Alias which is greater than the Maximum Topic Alias it sent in the CONNECT or CONNACK packet.' ],
+    149: [ 'Packet too large', 'The packet size is greater than Maximum Packet Size for this Client or Server.' ],
+    150: [ 'Message rate too high', 'The received data rate is too high.' ],
+    151: [ 'Quota exceeded', 'An implementation or administrative imposed limit has been exceeded.' ],
+    152: [ 'Administrative action', 'The Connection is closed due to an administrative action.' ],
+    153: [ 'Payload format invalid', 'The payload format does not match the one specified by the Payload Format Indicator.' ],
+    154: [ 'Retain not supported', 'The Server has does not support retained messages.' ],
+    155: [ 'QoS not supported', 'The Client specified a QoS greater than the QoS specified in a Maximum QoS in the CONNACK.' ],
+    156: [ 'Use another server', 'The Client should temporarily change its Server.' ],
+    157: [ 'Server moved', 'The Server is moved and the Client should permanently change its server location.' ],
+    158: [ 'Shared Subscriptions not supported', 'The Server does not support Shared Subscriptions.' ],
+    159: [ 'Connection rate exceeded', 'This connection is closed because the connection rate is too high.' ],
+    160: [ 'Maximum connect time', 'The maximum connection time authorized for this connection has been exceeded.' ],
+    161: [ 'Subscription Identifiers not supported', 'The Server does not support Subscription Identifiers; the subscription is not accepted.' ],
+    162: [ 'Wildcard Subscriptions not supported', 'The Server does not support Wildcard Subscriptions; the subscription is not accepted.' ],
 };
 
 export function encodeDisconnect(message: DisconnectMessage): Uint8Array {
@@ -483,41 +548,54 @@ export class Reader {
     }
 
     remaining(): number {
-        return this.view.byteLength - this.position;
+        return this.bytes.length - this.position;
     }
 
     readUint8(): number {
+        this.ensureCapacity(1);
         return this.view.getUint8(this.position++);
     }
 
     readUint32(): number {
+        this.ensureCapacity(4);
         const rt = this.view.getUint32(this.position);
         this.position += 4;
         return rt;
     }
 
     readUint16(): number {
+        this.ensureCapacity(2);
         const rt = this.view.getUint16(this.position);
         this.position += 2;
         return rt;
     }
 
     readVariableByteInteger() {
+        this.ensureCapacity(1); // hmm
         const { value, bytesUsed } = decodeVariableByteInteger(this.bytes, this.position);
         this.position += bytesUsed;
         return value;
     }
 
     readUtf8(): string {
+        this.ensureCapacity(2); // hmm
         const { text, bytesUsed } = decodeUtf8(this.bytes, this.position);
         this.position += bytesUsed;
         return text;
     }
 
     readBytes(length: number): Uint8Array {
+        this.ensureCapacity(length);
         const rt = this.bytes.slice(this.position, this.position + length);
         this.position += length;
         return rt;
+    }
+
+    //
+
+    private ensureCapacity(length: number) {
+        const remaining = this.remaining();
+        if (remaining < length) throw new Error(`reader needs ${length} bytes, has ${remaining} remaining`);
     }
 
 }

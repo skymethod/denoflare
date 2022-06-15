@@ -6,6 +6,7 @@ import { commandOptionsForPubsub, parsePubsubOptions } from './cli_pubsub.ts';
 
 export const PUBLISH_COMMAND = denoflareCliCommand(['pubsub', 'publish'], 'Publish a message to a Pub/Sub broker')
     .option('text', 'string', 'Plaintext message payload')
+    .option('file', 'string', 'Path to file with the message payload')
     .option('topic', 'required-string', 'Topic on which to publish the message')
     .include(commandOptionsForPubsub())
     .docsLink('/cli/pubsub#publish')
@@ -14,9 +15,10 @@ export const PUBLISH_COMMAND = denoflareCliCommand(['pubsub', 'publish'], 'Publi
 export async function publish(args: (string | number)[], options: Record<string, unknown>) {
     if (PUBLISH_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, text, topic } = PUBLISH_COMMAND.parse(args, options);
+    const { verbose, text, file, topic } = PUBLISH_COMMAND.parse(args, options);
 
-    if (typeof text !== 'string') throw new Error(`Specify a payload with --text`);
+    if ((text ?? file) === undefined) throw new Error(`Specify a payload with --text or --file`);
+    const payload = text ? text : await Deno.readFile(file!);
 
     if (verbose) {
         Mqtt.DEBUG = true;
@@ -37,7 +39,9 @@ export async function publish(args: (string | number)[], options: Record<string,
     await client.connect({ clientId, password });
 
     console.log('publishing');
-    await client.publish({ topic, payload: text });
+    await client.publish({ topic, payload });
+
+    await client.completion();
 
     console.log('disconnecting');
     await client.disconnect();

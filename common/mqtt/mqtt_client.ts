@@ -17,6 +17,7 @@ export class MqttClient {
 
     private readonly packetIds = new Array<boolean>(256 * 256);
     private readonly pendingSubscribes: Record<number, Signal> = {};
+    private readonly savedBytes: number[] = [];
 
     private connection?: MqttConnection;
     private pingTimeout = 0;
@@ -34,6 +35,10 @@ export class MqttClient {
         return this.connectionCompletion ?? Promise.resolve();
     }
 
+    connected(): boolean {
+        return this.connection !== undefined;
+    }
+
     async connect(opts: { clientId?: string, username?: string, password: string, keepAlive?: number }): Promise<void> {
         const { DEBUG } = Mqtt;
         const { clientId = '', username, password, keepAlive = 10 } = opts;
@@ -45,8 +50,15 @@ export class MqttClient {
                 this.processBytes(bytes);
             }
             this.connectionCompletion = this.connection.completionPromise
+                .then(() => { 
+                    if (DEBUG) console.log('read loop done'); 
+                    this.clearPing(); 
+                    this.connection = undefined;
                 // deno-lint-ignore no-explicit-any
-                .then(() => { if (DEBUG) console.log('read loop done'); this.clearPing(); }, (e: any) => { console.log(`unhandled read loop error: ${e.stack || e}`); this.clearPing(); });
+                }, (e: any) => { 
+                    console.log(`unhandled read loop error: ${e.stack || e}`); 
+                    this.clearPing(); 
+                });
         }
         
         this.pendingConnect = new Signal();
@@ -112,12 +124,21 @@ export class MqttClient {
 
     private processBytes(bytes: Uint8Array) {
         const { DEBUG } = Mqtt;
+        if (this.savedBytes.length > 0) {
+            bytes = new Uint8Array([...this.savedBytes, ...bytes]);
+            this.savedBytes.splice(0);
+        }
         if (DEBUG) console.log('processBytes', bytes.length + ' bytes');
         if (DEBUG) console.log(hex(bytes));
 
         const reader = new Reader(bytes, 0);
         while (reader.remaining() > 0) {
+            const start = reader.position;
             const message = readMessage(reader);
+            if ('needsMoreBytes' in message) {
+                this.savedBytes.push(...bytes.slice(start));
+                return;
+            }
             if (message.type === CONNACK) {
                 if (this.pendingConnect) {
                     if ((message.reason?.code ?? 0) < 0x80) {
