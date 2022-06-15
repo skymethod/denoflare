@@ -1,9 +1,8 @@
-import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { Mqtt } from '../common/mqtt/mqtt.ts';
 import { MqttClient } from '../common/mqtt/mqtt_client.ts';
 import { DISCONNECT } from '../common/mqtt/mqtt_messages.ts';
 import { denoflareCliCommand } from './cli_common.ts';
-import { commandOptionsForPubsub, parsePubsubOptions } from './cli_pubsub.ts';
+import { commandOptionsForPubsub, parseCloudflareEndpoint, parsePubsubOptions } from './cli_pubsub.ts';
 
 export const PUBLISH_COMMAND = denoflareCliCommand(['pubsub', 'publish'], 'Publish a message to a Pub/Sub broker')
     .option('text', 'string', 'Plaintext message payload')
@@ -27,14 +26,10 @@ export async function publish(args: (string | number)[], options: Record<string,
         Mqtt.DEBUG = true;
     }
 
-    const { endpoint, clientId, password, keepAlive, debugMessages } = parsePubsubOptions(options);
+    const { endpoint, clientId, password, keepAlive, debugMessages } = await parsePubsubOptions(options);
 
-    const [ _, protocol, brokerName, namespaceName, portStr ] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
-
-    const hostname = `${brokerName}.${namespaceName}.cloudflarepubsub.com`;
-    const port = parseInt(portStr);
-    if (protocol !== 'mqtts' && protocol !== 'wss') throw new Error(`Unsupported protocol: ${protocol}`);
-
+    const { hostname, port, protocol } = parseCloudflareEndpoint(endpoint);
+   
     const client = new MqttClient({ hostname, port, protocol, maxMessagesPerSecond }); 
     client.onMqttMessage = message => {
         if (debugMessages) console.log(JSON.stringify(message, undefined, 2));
