@@ -21,7 +21,7 @@ export async function subscribe(args: (string | number)[], options: Record<strin
         Mqtt.DEBUG = true;
     }
 
-    const { endpoint, clientId, password, keepAlive, debug } = parsePubsubOptions(options);
+    const { endpoint, clientId, password, keepAlive, debugMessages } = parsePubsubOptions(options);
 
     const [ _, protocol, brokerName, namespaceName, portStr] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
 
@@ -31,7 +31,7 @@ export async function subscribe(args: (string | number)[], options: Record<strin
 
     const client = new MqttClient({ hostname, port, protocol });
     client.onMqttMessage = message => {
-        if (debug) console.log(JSON.stringify(message, undefined, 2));
+        if (debugMessages) console.log(JSON.stringify(message, undefined, 2));
         if (message.type === DISCONNECT) {
             console.log('disconnect', message.reason);
         }

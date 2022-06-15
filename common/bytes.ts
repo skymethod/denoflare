@@ -60,8 +60,8 @@ export class Bytes {
         return base64Encode(this._bytes);
     }
 
-    public static ofBase64(base64: string): Bytes {
-        return new Bytes(base64Decode(base64));
+    public static ofBase64(base64: string, opts: { urlSafe: boolean } = { urlSafe: false }): Bytes {
+        return new Bytes(base64Decode(base64, opts.urlSafe));
     }
 
     public static async ofStream(stream: ReadableStream): Promise<Bytes> {
@@ -108,7 +108,8 @@ function base64Encode(buf: Uint8Array): string {
     return btoa(string);
 }
 
-function base64Decode(str: string): Uint8Array {
+function base64Decode(str: string, urlSafe: boolean): Uint8Array {
+    if (urlSafe) str = str.replace(/_/g, '/').replace(/-/g, '+');
     str = atob(str);
     const
         length = str.length,
