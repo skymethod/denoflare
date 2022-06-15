@@ -46,7 +46,7 @@ export type Outcome = 'ok' | 'exception' | 'exceededCpu' | 'canceled' | 'unknown
 
 export interface TailMessage {
     readonly outcome: Outcome;
-    readonly scriptName: null;
+    readonly scriptName: string | null; // found string script name (of the current script) when called from pubsub
     readonly exceptions: readonly TailMessageException[];
     readonly logs: readonly TailMessageLog[];
     readonly eventTimestamp: number; // epoch millis (null for DO alarm callbacks, filled in client-side)
@@ -66,7 +66,7 @@ export function parseTailMessage(obj: unknown): TailMessage {
     const objAsAny = obj as any;
     const { outcome, scriptName, eventTimestamp } = objAsAny;
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[...KNOWN_OUTCOMES].join(', ')}], found ${JSON.stringify(outcome)}`);
-    if (scriptName !== null) throw new Error(`Bad scriptName: expected null, found ${JSON.stringify(scriptName)}`);
+    if (scriptName !== null && typeof scriptName !== 'string') throw new Error(`Bad scriptName: expected string or null, found ${JSON.stringify(scriptName)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);
     if (eventTimestamp === null && objAsAny.event === null) {

@@ -823,6 +823,7 @@ export interface PubsubBroker {
     readonly modified_on: string;
     readonly expiration: null;
     readonly endpoint: string; // mqtts://<broker-name>.<namespace-name>.cloudflarepubsub.com:8883
+    readonly on_publish?: { url: string };
 }
 
 export async function createPubsubBroker(accountId: string, apiToken: string, namespaceName: string, payload: { name: string, authType: string }): Promise<PubsubBroker> {
@@ -830,12 +831,38 @@ export async function createPubsubBroker(accountId: string, apiToken: string, na
     return (await execute('createPubsubBroker', 'POST', url, apiToken, payload) as CreatePubsubBrokerResponse).result;
 }
 
-export async function updatePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string, payload: { expiration?: number }): Promise<void> {
-    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
-    await execute('updatePubsubBroker', 'PATCH', url, apiToken, payload);
+export interface CreatePubsubBrokerResponse extends CloudflareApiResponse {
+    readonly result: PubsubBroker;
 }
 
-export interface CreatePubsubBrokerResponse extends CloudflareApiResponse {
+export async function updatePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string, opts: { expiration?: number | null, onPublishUrl?: string | null }): Promise<void> {
+    const { expiration, onPublishUrl } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
+    const payload: Record<string, unknown> = {};
+    if (expiration !== undefined) payload.expiration = expiration;
+    if (onPublishUrl === null || typeof onPublishUrl === 'string') payload.on_publish = { url: onPublishUrl };
+    await execute('updatePubsubBroker', 'PATCH', url.toString(), apiToken, payload);
+}
+
+export async function listPubsubBrokerPublicKeys(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<PubsubBrokerPublicKeys> {
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/publickeys`;
+    return (await execute('listPubsubBrokerPublicKeys', 'GET', url, apiToken) as ListPubsubBrokerPublicKeysResponse).result;
+}
+
+export interface ListPubsubBrokerPublicKeysResponse extends CloudflareApiResponse {
+    readonly result: PubsubBrokerPublicKeys;
+}
+
+export interface PubsubBrokerPublicKeys {
+    readonly keys: Record<string, string>[];
+}
+
+export async function getPubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<PubsubBroker> {
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
+    return (await execute('getPubsubBroker', 'GET', url, apiToken) as GetPubsubBrokerResponse).result;
+}
+
+export interface GetPubsubBrokerResponse extends CloudflareApiResponse {
     readonly result: PubsubBroker;
 }
 
