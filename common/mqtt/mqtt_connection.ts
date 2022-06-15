@@ -4,6 +4,7 @@ export interface MqttConnection {
     write(bytes: Uint8Array): Promise<number>;
     onRead: (bytes: Uint8Array) => void;
     readonly completionPromise: Promise<void>;
+    close(): void;
 }
 
 export class DenoTcpConnection implements MqttConnection {
@@ -44,6 +45,10 @@ export class DenoTcpConnection implements MqttConnection {
 
     async write(bytes: Uint8Array): Promise<number> {
         return await this.conn.write(bytes);
+    }
+
+    close() {
+        this.conn.close();
     }
 
 }
@@ -104,6 +109,10 @@ export class WebSocketConnection implements MqttConnection {
     write(bytes: Uint8Array): Promise<number> {
         this.ws.send(bytes);
         return Promise.resolve(bytes.length);
+    }
+    
+    close() {
+        this.ws.close();
     }
 
 }

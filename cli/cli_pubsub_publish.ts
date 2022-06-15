@@ -22,7 +22,7 @@ export async function publish(args: (string | number)[], options: Record<string,
         Mqtt.DEBUG = true;
     }
 
-    const { endpoint, clientId, password } = parsePubsubOptions(options);
+    const { endpoint, clientId, password, debug } = parsePubsubOptions(options);
 
     const [ _, protocol, brokerName, namespaceName, portStr] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
 
@@ -30,19 +30,17 @@ export async function publish(args: (string | number)[], options: Record<string,
     const port = parseInt(portStr);
     if (protocol !== 'mqtts' && protocol !== 'wss') throw new Error(`Unsupported protocol: ${protocol}`);
 
-    const client = await MqttClient.create({ hostname, port, protocol });
+    const client = new MqttClient({ hostname, port, protocol });
+    if (debug) client.onMqttMessage = message => console.log(JSON.stringify(message, undefined, 2));
 
-    client.onConnectionAcknowledged = opts => {
-        console.log('connection acknowledged', opts);
-        if (opts.reason?.code === 0) {
-            console.log('publishing');
-            client.publish({ topic, payload: text });
-        }
-        console.log('disconnecting');
-        client.disconnect();
-    };
+    console.log('connecting');
+    await client.connect({ clientId, password });
 
-    await client.connect({ clientId, username: 'ignored', password });
-    
-    return client.readLoop.then(() => console.log('disconnected'));
+    console.log('publishing');
+    await client.publish({ topic, payload: text });
+
+    console.log('disconnecting');
+    await client.disconnect();
+
+    console.log('disconnected');
 }

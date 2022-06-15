@@ -20,7 +20,7 @@ export async function subscribe(args: (string | number)[], options: Record<strin
         Mqtt.DEBUG = true;
     }
 
-    const { endpoint, clientId, password } = parsePubsubOptions(options);
+    const { endpoint, clientId, password, debug } = parsePubsubOptions(options);
 
     const [ _, protocol, brokerName, namespaceName, portStr] = checkMatchesReturnMatcher('endpoint', endpoint, /^(mqtts|wss):\/\/(.*?)\.(.*?)\.cloudflarepubsub\.com:(\d+)$/);
 
@@ -28,28 +28,23 @@ export async function subscribe(args: (string | number)[], options: Record<strin
     const port = parseInt(portStr);
     if (protocol !== 'mqtts' && protocol !== 'wss') throw new Error(`Unsupported protocol: ${protocol}`);
 
-    const client = await MqttClient.create({ hostname, port, protocol });
+    const client = new MqttClient({ hostname, port, protocol });
 
-    client.onPublish = opts => {
-        const { topic, payloadFormatIndicator, payload } = opts;
-        const display = payloadFormatIndicator === 1 ? new Bytes(payload).utf8() : `(${payload.length} bytes)${payload.length < 1000 ? ` ${new Bytes(payload).utf8()}` : ''}`;
-        console.log(`[${topic}] ${display}`);
-    };
-    client.onConnectionAcknowledged = opts => {
-        console.log('connection acknowledged', opts);
-        if (opts.reason?.code === 0) {
-            client.onSubscriptionAcknowledged = opts => {
-                console.log('subscribed', opts);
-            };
-            console.log('subscribing');
-            client.subscribe({ topicFilter: topic });
-        } else {
-            console.log('disconnecting');
-            client.disconnect();
-        }
+    if (debug) client.onMqttMessage = message => console.log(JSON.stringify(message, undefined, 2));
+
+    client.onReceive = opts => {
+        const { topic, payload, contentType } = opts;
+        const display = typeof payload === 'string' ? payload : `(${payload.length} bytes)${payload.length < 1000 ? ` ${new Bytes(payload).utf8()}` : ''}`;
+        console.log(`[${topic}]${contentType ? ` [content-type: ${contentType}]` : ''} ${display}`);
     };
 
-    await client.connect({ clientId, username: 'ignored', password });
-    
-    return client.readLoop.then(() => console.log('disconnected'));
+    console.log('connecting');
+    await client.connect({ clientId, password });
+
+    console.log('subscribing');
+    await client.subscribe({ topicFilter: topic });
+
+    console.log('listening');
+    await client.completion();
+    console.log('completed');
 }

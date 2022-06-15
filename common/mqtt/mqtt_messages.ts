@@ -1,6 +1,8 @@
 import { check, checkEqual } from '../check.ts';
 import { decodeUtf8, decodeVariableByteInteger, encodeUtf8, encodeVariableByteInteger, hex, Mqtt } from './mqtt.ts';
 
+// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
+
 export type MqttMessage = ConnectMessage | ConnackMessage | PublishMessage | SubscribeMessage | SubackMessage | PingreqMessage | PingrespMessage | DisconnectMessage;
 export type ControlPacketType = CONNECT | CONNACK | PUBLISH | SUBSCRIBE | SUBACK | PINGREQ | PINGRESP | DISCONNECT;
 

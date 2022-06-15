@@ -4,88 +4,59 @@ import { hex, Mqtt } from './mqtt.ts';
 import { DenoTcpConnection, MqttConnection, WebSocketConnection } from './mqtt_connection.ts';
 import { computeControlPacketTypeName, CONNACK, CONNECT, DISCONNECT, encodeMessage, MqttMessage, PINGREQ, PINGRESP, PUBLISH, Reader, readMessage, SUBACK, SUBSCRIBE } from './mqtt_messages.ts';
 
-// https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
-
-export type ConnectionAcknowledgedOpts = { 
-    reason?: Reason,
-    sessionPresent: boolean,
-    sessionExpiryInterval?: number, 
-    maximumQos?: 0 | 1, 
-    retainAvailable?: boolean, 
-    maximumPacketSize?: number, 
-    topicAliasMaximum?: number, 
-    wildcardSubscriptionAvailable?: boolean, 
-    subscriptionIdentifiersAvailable?: boolean, 
-    sharedSubscriptionAvailable?: boolean,
-    serverKeepAlive?: number,
-    assignedClientIdentifier?: string,
-};
-
-export type Reason = { code: number, name?: string, description?: string };
-
-export type DisconnectedOpts = {
-    reason?: Reason,
-};
-
-// deno-lint-ignore ban-types
-export type SubscriptionAcknowledgedOpts = { 
-    
-};
-
-export type PublishOpts = {
-    topic: string,
-    payloadFormatIndicator?: number,
-    payload: Uint8Array,
-    contentType?: string,
-};
+export type Protocol = 'mqtts' | 'wss';
 
 export class MqttClient {
 
     readonly hostname: string;
     readonly port: number;
-    readonly readLoop: Promise<void>;
+    readonly protocol: Protocol;
 
-    onConnectionAcknowledged?: (opts: ConnectionAcknowledgedOpts) => void;
-    onDisconnected?: (opts: DisconnectedOpts) => void;
-    onSubscriptionAcknowledged?: (opts: SubscriptionAcknowledgedOpts) => void;
-    onPublish?: (opts: PublishOpts) => void;
+    onMqttMessage?: (message: MqttMessage) => void;
+    onReceive?: (opts: { topic: string, payload: string | Uint8Array, contentType?: string }) => void;
 
-    private readonly connection: MqttConnection;
     private readonly packetIds = new Array<boolean>(256 * 256);
-    
-    private pingTimeout = 0;
+    private readonly pendingSubscribes: Record<number, Signal> = {};
 
-    private constructor(hostname: string, port: number, connection: MqttConnection) {
+    private connection?: MqttConnection;
+    private pingTimeout = 0;
+    private pendingConnect?: Signal;
+    private connectionCompletion?: Promise<void>;
+
+    constructor(opts: { hostname: string, port: number, protocol: Protocol }) {
+        const { hostname, port, protocol = 'mqtts' } = opts;
         this.hostname = hostname;
         this.port = port;
-        this.connection = connection;
-        this.readLoop = this.initReadLoop();
+        this.protocol = protocol;
     }
 
-    private initReadLoop(): Promise<void> {
+    completion(): Promise<void> {
+        return this.connectionCompletion ?? Promise.resolve();
+    }
+
+    async connect(opts: { clientId?: string, username?: string, password: string, keepAlive?: number }): Promise<void> {
         const { DEBUG } = Mqtt;
-        this.connection.onRead = bytes => {
-            this.processBytes(bytes);
+        const { clientId = '', username, password, keepAlive = 10 } = opts;
+
+        const { protocol, hostname, port } = this;
+        if (!this.connection) {
+            this.connection = protocol === 'mqtts' ? await DenoTcpConnection.create({ hostname, port }) : await WebSocketConnection.create({ hostname, port });
+            this.connection.onRead = bytes => {
+                this.processBytes(bytes);
+            }
+            this.connectionCompletion = this.connection.completionPromise
+                // deno-lint-ignore no-explicit-any
+                .then(() => { if (DEBUG) console.log('read loop done'); this.clearPing(); }, (e: any) => { console.log(`unhandled read loop error: ${e.stack || e}`); this.clearPing(); });
         }
-        return this.connection.completionPromise
-            // deno-lint-ignore no-explicit-any
-            .then(() => { if (DEBUG) console.log('read loop done'); this.clearPing(); }, (e: any) => { console.log(`unhandled read loop error: ${e.stack || e}`); this.clearPing(); });
-    }
-
-    static async create(opts: { hostname: string, port: number, protocol: 'mqtts' | 'wss' }): Promise<MqttClient> {
-        const { hostname, port, protocol } = opts;
-        const connection = protocol === 'mqtts' ? await DenoTcpConnection.create({ hostname, port }) : await WebSocketConnection.create({ hostname, port });
-        return new MqttClient(hostname, port, connection);
-    }
-
-    async connect(opts: { clientId: string, username?: string, password: string, keepAlive?: number }): Promise<void> {
-        const { clientId, username, password, keepAlive = 10 } = opts;
-
+        
+        this.pendingConnect = new Signal();
         await this.sendMessage({ type: CONNECT, clientId, username, password, keepAlive });
+        return this.pendingConnect.promise;  // wait for CONNACK
     }
 
     async disconnect(): Promise<void> {
         await this.sendMessage({ type: DISCONNECT, reason: { code: 0x00 /* normal disconnection */ } });
+        this.connection = undefined;
     }
 
     async publish(opts: { topic: string, payload: string | Uint8Array, contentType?: string }): Promise<void> {
@@ -94,7 +65,8 @@ export class MqttClient {
         const payloadFormatIndicator = typeof inputPayload === 'string' ? 1 : 0;
         const payload = typeof inputPayload === 'string' ? Bytes.ofUtf8(inputPayload).array() : inputPayload;
 
-        await this.sendMessage({ type: PUBLISH, dup: false, qosLevel: 0, retain: false, topic, payload, payloadFormatIndicator, contentType })
+        await this.sendMessage({ type: PUBLISH, dup: false, qosLevel: 0, retain: false, topic, payload, payloadFormatIndicator, contentType });
+        // we only support qos for now, so no need to wait for ack
     }
 
     async subscribe(opts: { topicFilter: string }): Promise<void> {
@@ -102,14 +74,19 @@ export class MqttClient {
 
         const packetId = this.obtainPacketId();
 
-        await this.sendMessage({ type: SUBSCRIBE, packetId, subscriptions: [ { topicFilter } ] })
-    }
+        const signal = new Signal();
+        this.pendingSubscribes[packetId] = signal;
 
-    async ping(): Promise<void> {
-        await this.sendMessage({ type: PINGREQ });
+        await this.sendMessage({ type: SUBSCRIBE, packetId, subscriptions: [ { topicFilter } ] }); 
+
+        return signal.promise; // wait for SUBACK
     }
 
     //
+
+    private async ping(): Promise<void> {
+        await this.sendMessage({ type: PINGREQ });
+    }
 
     private obtainPacketId(): number {
         const { DEBUG } = Mqtt;
@@ -133,12 +110,6 @@ export class MqttClient {
         packetIds[packetId] = false;
     }
 
-    private async sendMessage(message: MqttMessage): Promise<void> {
-        const { DEBUG } = Mqtt;
-        if (DEBUG) console.log(`Sending ${computeControlPacketTypeName(message.type)}`);
-        await this.connection.write(encodeMessage(message));
-    }
-
     private processBytes(bytes: Uint8Array) {
         const { DEBUG } = Mqtt;
         if (DEBUG) console.log('processBytes', bytes.length + ' bytes');
@@ -148,21 +119,42 @@ export class MqttClient {
         while (reader.remaining() > 0) {
             const message = readMessage(reader);
             if (message.type === CONNACK) {
-                if (this.onConnectionAcknowledged) this.onConnectionAcknowledged(message);
+                if (this.pendingConnect) {
+                    if ((message.reason?.code ?? 0) < 0x80) {
+                        this.pendingConnect.resolve();
+                    } else {
+                        this.pendingConnect.reject(JSON.stringify(message.reason));
+                    }
+                    this.pendingConnect = undefined;
+                }
             } else if (message.type === DISCONNECT) {
-                if (this.onDisconnected) this.onDisconnected(message);
+                if (this.connection) {
+                    this.connection.close();
+                    this.connection = undefined;
+                }
             } else if (message.type === SUBACK) {
-                this.releasePacketId(message.packetId);
-                if (this.onSubscriptionAcknowledged) this.onSubscriptionAcknowledged(message);
+                const { packetId, reasons } = message;
+                this.releasePacketId(packetId);
+                const signal = this.pendingSubscribes[packetId];
+                if (signal) {
+                    if (reasons.some(v => v.code >= 0x80)) {
+                        signal.reject(JSON.stringify(reasons));
+                    } else {
+                        signal.resolve();
+                    }
+                    delete this.pendingSubscribes[packetId];
+                }
                 this.reschedulePing();
             } else if (message.type === PINGRESP) {
                 // noop
             } else if (message.type === PUBLISH) {
-                if (typeof message.packetId === 'number') console.log('SERVER PACKET ID', message.packetId);
-                if (this.onPublish) this.onPublish(message);
+                const { topic, payload: messagePayload, payloadFormatIndicator, contentType } = message;
+                const payload = payloadFormatIndicator === 1 ? new Bytes(messagePayload).utf8() : messagePayload;
+                if (this.onReceive) this.onReceive({ topic, payload, contentType });
             } else {
                 throw new Error(`processPacket: Unsupported message type: ${message}`);
             }
+            if (this.onMqttMessage) this.onMqttMessage(message);
         }
         checkEqual('reader.remaining', reader.remaining(), 0);
     }
@@ -177,6 +169,40 @@ export class MqttClient {
             await this.ping();
             this.reschedulePing();
         }, 10_000);
+    }
+
+    private async sendMessage(message: MqttMessage): Promise<void> {
+        const { DEBUG } = Mqtt;
+        const { connection } = this;
+        if (DEBUG) console.log(`Sending ${computeControlPacketTypeName(message.type)}`);
+        if (!connection) throw new Error(`sendMessage: not connected`);
+        await connection.write(encodeMessage(message));
+    }
+
+}
+
+//
+
+class Signal {
+
+    readonly promise: Promise<void>;
+
+    private resolve_!: (value: void | PromiseLike<void>) => void;
+    private reject_!: (reason: unknown) => void;
+
+    constructor() {
+        this.promise = new Promise((resolve, reject) => {
+            this.resolve_ = resolve;
+            this.reject_ = reject;
+        });
+    }
+
+    resolve() {
+        this.resolve_();
+    }
+
+    reject(reason: unknown) {
+        this.reject_(reason);
     }
 
 }
