@@ -830,6 +830,11 @@ export async function createPubsubBroker(accountId: string, apiToken: string, na
     return (await execute('createPubsubBroker', 'POST', url, apiToken, payload) as CreatePubsubBrokerResponse).result;
 }
 
+export async function updatePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string, payload: { expiration?: number }): Promise<void> {
+    const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
+    await execute('updatePubsubBroker', 'PATCH', url, apiToken, payload);
+}
+
 export interface CreatePubsubBrokerResponse extends CloudflareApiResponse {
     readonly result: PubsubBroker;
 }
@@ -904,13 +909,13 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'text?'): Promise<string | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'empty'): Promise<undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text?' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'text?'): Promise<string | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'empty'): Promise<undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text?' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | undefined;

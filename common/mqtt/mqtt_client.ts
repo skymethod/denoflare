@@ -7,6 +7,7 @@ import { computeControlPacketTypeName, CONNACK, CONNECT, DISCONNECT, encodeMessa
 export type Protocol = 'mqtts' | 'wss';
 
 const DEFAULT_KEEP_ALIVE_SECONDS = 10;
+const MAX_PACKET_IDS = 256 * 256;
 
 export class MqttClient {
 
@@ -20,7 +21,7 @@ export class MqttClient {
     onMqttMessage?: (message: MqttMessage) => void;
     onReceive?: (opts: { topic: string, payload: string | Uint8Array, contentType?: string }) => void;
 
-    private readonly packetIds = new Array<boolean>(256 * 256);
+    private readonly obtainedPacketIds: number[] = [];
     private readonly pendingSubscribes: Record<number, Signal> = {};
     private readonly savedBytes: number[] = [];
     private readonly maxMessagesPerSecond?: number;
@@ -33,6 +34,7 @@ export class MqttClient {
     private lastSentMessageTime = 0;
     private receivedDisconnect = false;
     private clientIdInternal: string | undefined;
+    private nextPacketId = 1;
 
     constructor(opts: { hostname: string, port: number, protocol: Protocol, maxMessagesPerSecond?: number }) {
         const { hostname, port, protocol = 'mqtts', maxMessagesPerSecond } = opts;
@@ -115,12 +117,14 @@ export class MqttClient {
 
     private obtainPacketId(): number {
         const { DEBUG } = Mqtt;
-        const { packetIds } = this;
-        for (let packetId = 1; packetId < packetIds.length; packetId++) {
-            if (!packetIds[packetId]) {
-                packetIds[packetId] = true;
-                if (DEBUG) console.log(`Obtained packetId: ${packetId}`);
-                return packetId;
+        const { nextPacketId, obtainedPacketIds } = this;
+        for (let i = 0; i < MAX_PACKET_IDS; i++) {
+            const candidate = (nextPacketId + i) % MAX_PACKET_IDS;
+            if (candidate !== 0 && !obtainedPacketIds.includes(candidate)) {
+                obtainedPacketIds.push(candidate);
+                if (DEBUG) console.log(`Obtained packetId: ${candidate}`);
+                this.nextPacketId = (candidate + 1) % MAX_PACKET_IDS;
+                return candidate;
             }
         }
         throw new Error(`obtainPacketId: Unable to obtain a packet id`);
@@ -128,11 +132,12 @@ export class MqttClient {
 
     private releasePacketId(packetId: number) {
         const { DEBUG } = Mqtt;
-        const { packetIds } = this;
-        if (packetId < 1 || packetId >= packetIds.length) throw new Error(`releasePacketId: Bad packetId: ${packetId}`);
-        if (!packetIds[packetId]) throw new Error(`releasePacketId: Unobtained packetId: ${packetId}`);
+        const { obtainedPacketIds } = this;
+        if (packetId < 1 || packetId >= MAX_PACKET_IDS) throw new Error(`releasePacketId: Bad packetId: ${packetId}`);
+        const i = obtainedPacketIds.indexOf(packetId);
+        if (i < 0) throw new Error(`releasePacketId: Unobtained packetId: ${packetId}`);
+        obtainedPacketIds.splice(i, 1);
         if (DEBUG) console.log(`Released packetId: ${packetId}`);
-        packetIds[packetId] = false;
     }
 
     private processBytes(bytes: Uint8Array) {
