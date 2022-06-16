@@ -8,7 +8,6 @@ import { analytics, ANALYTICS_COMMAND } from './cli_analytics.ts';
 import { cfapi, CFAPI_COMMAND } from './cli_cfapi.ts';
 import { r2, R2_COMMAND } from './cli_r2.ts';
 import { pubsub, PUBSUB_COMMAND } from './cli_pubsub.ts';
-import { auth } from './cli_auth.ts';
 import { CliCommand } from './cli_command.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 
@@ -28,4 +27,6 @@ export const DENOFLARE_COMMAND = CliCommand.of(['denoflare'], undefined, { versi
     .subcommand(VERSION_COMMAND, () => console.log(CLI_VERSION))
     ;
 
-await DENOFLARE_COMMAND.routeSubcommand(args, options, { auth });
+if (import.meta.main) {
+    await DENOFLARE_COMMAND.routeSubcommand(args, options);
+}

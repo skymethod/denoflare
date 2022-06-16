@@ -1,8 +1,9 @@
 import { computeOauthObtainTokenRequest, computeOauthPkce, computeOauthRefreshTokenRequest, computeOauthUserAuthorizationUrl } from '../common/oauth.ts';
-import { serve } from './deps_cli.ts';
-import { denoflareCliCommand, parseOptionalStringOption, parseRequiredStringOption } from './cli_common.ts';
+import { serve } from './deps.ts';
+import { parseOptionalStringOption, parseRequiredStringOption } from '../cli/cli_common.ts';
+import { CliCommand } from '../cli/cli_command.ts';
 
-const AUTH_COMMAND = denoflareCliCommand('auth', 'Authentication');
+export const AUTH_COMMAND = CliCommand.of([ 'denoflaredev', 'auth' ]);
 
 export async function auth(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     await AUTH_COMMAND.routeSubcommand(args, options, { tmp });

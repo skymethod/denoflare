@@ -2,7 +2,7 @@ import { listObjects, LIST_OBJECTS_COMMAND } from './cli_r2_list_objects.ts';
 import { listObjectsV1, LIST_OBJECTS_V1_COMMAND } from './cli_r2_list_objects_v1.ts';
 import { getObject, GET_OBJECT_COMMAND, headObject, HEAD_OBJECT_COMMAND } from './cli_r2_get_head_object.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { AwsCallBody, AwsCallContext, AwsCredentials, R2, R2_REGION_AUTO, UrlStyle } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCallContext, AwsCredentials, R2_REGION_AUTO, UrlStyle } from '../common/r2/r2.ts';
 import { Bytes } from '../common/bytes.ts';
 import { listBuckets, LIST_BUCKETS_COMMAND } from './cli_r2_list_buckets.ts';
 import { headBucket, HEAD_BUCKET_COMMAND } from './cli_r2_head_bucket.ts';
@@ -25,7 +25,6 @@ import { putLargeObject } from './cli_r2_put_large_object.ts';
 import { CLI_USER_AGENT, denoflareCliCommand, parseOptionalBooleanOption, parseOptionalStringOption } from './cli_common.ts';
 import { computeMd5, computeStreamingMd5, computeStreamingSha256 } from './wasm_crypto.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
-import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
 import { CliCommand, CliCommandModifier } from './cli_command.ts';
 import { generateCredentials, GENERATE_CREDENTIALS_COMMAND } from './cli_r2_generate_credentials.ts';
@@ -64,7 +63,7 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage Cloudflare R2 storag
     ;
 
 export async function r2(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    await R2_COMMAND.routeSubcommand(args, options, { putLargeObject, tmp });
+    await R2_COMMAND.routeSubcommand(args, options, { putLargeObject });
 }
 
 export function commandOptionsForR2(opts: { hideUrlStyle?: boolean } = {}): CliCommandModifier {
@@ -180,25 +179,4 @@ export async function loadBodyFromOptions(options: Record<string, unknown>, unsi
     }
     console.log(`prep took ${prepMillis}ms`);
     return { body, contentMd5 };
-}
-
-//
-
-async function tmp(args: (string | number)[], options: Record<string, unknown>) {
-    const [ bucketName, key ] = args;
-    if (typeof bucketName !== 'string') throw new Error();
-    if (typeof key !== 'string') throw new Error();
-
-    const verbose = !!options.verbose;
-    if (verbose) {
-        R2.DEBUG = true;
-    }
-    
-    const config = await loadConfig(options);
-    const profile = await resolveProfile(config, options);
-    const bucket = await ApiR2Bucket.ofProfile(profile, bucketName, CLI_USER_AGENT);
-    const { body } = await fetch('https://yahoo.com');
-    const res = await bucket.put(key, body);
-    console.log(res);
-    // if (res) console.log(await res.text());
 }

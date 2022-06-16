@@ -10,6 +10,9 @@
 			"path": "cli-webworker"
 		},
 		{
+			"path": "devcli"
+		},
+		{
 			"path": "examples/webtail-worker",
 			"name": "examples/webtail-worker"
 		},

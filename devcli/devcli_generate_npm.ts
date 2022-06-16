@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { fromFileUrl, resolve, basename } from './deps_cli.ts';
+import { fromFileUrl, resolve, basename } from './deps.ts';
 
 // Requires Deno 1.21.3 or below (RIP Deno.emit)
 
