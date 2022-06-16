@@ -1,10 +1,15 @@
 export declare type Protocol = 'mqtts' | 'wss';
+export declare type ProtocolHandler = (opts: {
+    hostname: string;
+    port: number;
+}) => Promise<MqttConnection>;
 /**
  * Lightweight MQTT v5 client.
  *
  * Supports MQTT over WebSockets (wss) in the browser and Node, and also over TCP (mqtts) in Deno.
  */
 export declare class MqttClient {
+    static readonly protocolHandlers: Record<Protocol, ProtocolHandler>;
     /** MQTT endpoint hostname. */
     readonly hostname: string;
     readonly port: number;
@@ -41,7 +46,6 @@ export declare class MqttClient {
         topicFilter: string;
     }): Promise<void>;
 }
-
 
 
 export declare type MqttMessage = ConnectMessage | ConnackMessage | PublishMessage | SubscribeMessage | SubackMessage | PingreqMessage | PingrespMessage | DisconnectMessage;
@@ -125,3 +129,11 @@ export declare type Reason = {
     name?: string;
     description?: string;
 };
+
+
+export interface MqttConnection {
+    write(bytes: Uint8Array): Promise<number>;
+    onRead: (bytes: Uint8Array) => void;
+    readonly completionPromise: Promise<void>;
+    close(): void;
+}

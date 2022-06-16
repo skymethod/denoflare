@@ -1,7 +1,7 @@
 import { bundle } from '../cli/bundle.ts';
 import { fromFileUrl, resolve, basename, walk } from './deps.ts';
 import { transform, stop } from 'https://deno.land/x/esbuild@v0.14.43/mod.js';
-import { parseOptionalBooleanOption } from "../cli/cli_common.ts";
+import { parseOptionalBooleanOption } from '../cli/cli_common.ts';
 
 export async function generateNpm(_args: (string | number)[], options: Record<string, unknown>) {
     const verbose = parseOptionalBooleanOption('verbose', options);
@@ -35,7 +35,9 @@ async function generateMainTypes(opts: { verbose?: boolean } = {}) {
     
     // use tsc in the meantime
 
-    const files = [ resolveRelativeFile('../../common/mqtt/mqtt_client.ts'), resolveRelativeFile('../../common/mqtt/mqtt_messages.ts') ];
+    // const files = [ resolveRelativeFile('../../common/mqtt/mqtt_client.ts'), resolveRelativeFile('../../common/mqtt/mqtt_messages.ts') ];
+    const files = [ 'mqtt_client.ts', 'mqtt_messages.ts', 'mqtt_connection.ts' ].map(v => resolveRelativeFile(`../../common/mqtt/${v}`));
+
     const compilerOptions = {
         declaration: true,
         emitDeclarationOnly: true,
@@ -49,8 +51,9 @@ async function generateMainTypes(opts: { verbose?: boolean } = {}) {
 
     const client = result.output['mqtt_client.d.ts'].replaceAll(/import .*?;\n/g, '');
     const messages = result.output['mqtt_messages.d.ts'];
+    const connection = result.output['mqtt_connection.d.ts'];
 
-    await saveContentsIfChanged('../../npm/denoflare-mqtt/main.d.ts', [ client, messages].join('\n\n\n')); 
+    await saveContentsIfChanged('../../npm/denoflare-mqtt/main.d.ts', [ client, messages, connection ].join('\n\n')); 
 
     // const tsconfigRaw = JSON.stringify({ compilerOptions2: { emitDeclarationOnly: true, removeComments: false } });
     // console.log(tsconfigRaw);
@@ -73,7 +76,7 @@ async function generateBundleContents(opts: { format: 'cjs' | 'esm', target?: st
     const { code } = await bundle(resolveRelativeFile('../../common/mqtt/mod_iso.ts')); // deno bundle does not support 'target' as a compilerOption
 
     // try to use wasm instead of bundled esbuild binary
-    // await initialize({ wasmURL: 'https://unpkg.com/esbuild-wasm@0.14.43/esbuild.wasm' }); // Error: The "wasmURL" option only works in the browser
+    // await initialize({ wasmURL: 'https://unpkg.com/esbuild-wasm@0.14.43/esbuild.wasm' }); // Error: The 'wasmURL' option only works in the browser
 
     // this doesn't work either
     // https://github.com/evanw/esbuild/issues/2323

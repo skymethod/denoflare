@@ -215,122 +215,6 @@ function hex(bytes) {
 }
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-class DenoTcpConnection {
-  constructor(conn) {
-    __publicField(this, "completionPromise");
-    __publicField(this, "onRead", () => {
-    });
-    __publicField(this, "conn");
-    __publicField(this, "closed", false);
-    this.conn = conn;
-    this.completionPromise = this.initCompletionPromise();
-  }
-  initCompletionPromise() {
-    const { DEBUG } = Mqtt;
-    return (async () => {
-      while (true) {
-        const buffer = new Uint8Array(8 * 1024);
-        if (DEBUG)
-          console.log("before read");
-        const result = await this.read(buffer);
-        if (result === null) {
-          if (DEBUG)
-            console.log("EOF");
-          return;
-        }
-        if (DEBUG)
-          console.log(`Received ${result} bytes`);
-        this.onRead(buffer.slice(0, result));
-      }
-    })();
-  }
-  async read(buffer) {
-    try {
-      return await this.conn.read(buffer);
-    } catch (e) {
-      if (this.closed)
-        return null;
-      throw e;
-    }
-  }
-  static async create(opts) {
-    const { hostname, port } = opts;
-    const connection = await Deno.connectTls({
-      hostname,
-      port
-    });
-    return new DenoTcpConnection(connection);
-  }
-  async write(bytes) {
-    return await this.conn.write(bytes);
-  }
-  close() {
-    this.closed = true;
-    this.conn.close();
-  }
-}
-class WebSocketConnection {
-  constructor(ws) {
-    __publicField(this, "completionPromise");
-    __publicField(this, "onRead", () => {
-    });
-    __publicField(this, "ws");
-    const { DEBUG } = Mqtt;
-    this.ws = ws;
-    this.completionPromise = new Promise((resolve, reject) => {
-      ws.addEventListener("close", (event) => {
-        if (DEBUG)
-          console.log("ws close", event);
-        resolve();
-      });
-      ws.addEventListener("error", (event) => {
-        var _a;
-        if (DEBUG)
-          console.log("ws error", event);
-        reject((_a = event.message) != null ? _a : event);
-      });
-    });
-    ws.addEventListener("message", async (event) => {
-      if (DEBUG)
-        console.log("ws message", typeof event.data, event.data);
-      if (event.data instanceof Blob) {
-        const bytes = new Uint8Array(await event.data.arrayBuffer());
-        this.onRead(bytes);
-      }
-    });
-  }
-  static create(opts) {
-    const { DEBUG } = Mqtt;
-    const { hostname, port } = opts;
-    const ws = new WebSocket(`wss://${hostname}:${port}`);
-    return new Promise((resolve, reject) => {
-      let resolved = false;
-      ws.addEventListener("open", (event) => {
-        if (resolved)
-          return;
-        if (DEBUG)
-          console.log("ws open", event);
-        resolved = true;
-        resolve(new WebSocketConnection(ws));
-      });
-      ws.addEventListener("error", (event) => {
-        if (resolved)
-          return;
-        if (DEBUG)
-          console.log("ws error", event);
-        resolved = true;
-        reject(event);
-      });
-    });
-  }
-  write(bytes) {
-    this.ws.send(bytes);
-    return Promise.resolve(bytes.length);
-  }
-  close() {
-    this.ws.close();
-  }
-}
 function readMessage(reader) {
   const { DEBUG } = Mqtt;
   if (reader.remaining() < 2)
@@ -1099,8 +983,70 @@ class Reader {
       throw new Error(`reader needs ${length} bytes, has ${remaining} remaining`);
   }
 }
+class WebSocketConnection {
+  constructor(ws) {
+    __publicField(this, "completionPromise");
+    __publicField(this, "onRead", () => {
+    });
+    __publicField(this, "ws");
+    const { DEBUG } = Mqtt;
+    this.ws = ws;
+    this.completionPromise = new Promise((resolve, reject) => {
+      ws.addEventListener("close", (event) => {
+        if (DEBUG)
+          console.log("ws close", event);
+        resolve();
+      });
+      ws.addEventListener("error", (event) => {
+        var _a;
+        if (DEBUG)
+          console.log("ws error", event);
+        reject((_a = event.message) != null ? _a : event);
+      });
+    });
+    ws.addEventListener("message", async (event) => {
+      if (DEBUG)
+        console.log("ws message", typeof event.data, event.data);
+      if (event.data instanceof Blob) {
+        const bytes = new Uint8Array(await event.data.arrayBuffer());
+        this.onRead(bytes);
+      }
+    });
+  }
+  static create(opts) {
+    const { DEBUG } = Mqtt;
+    const { hostname, port } = opts;
+    const ws = new WebSocket(`wss://${hostname}:${port}`);
+    return new Promise((resolve, reject) => {
+      let resolved = false;
+      ws.addEventListener("open", (event) => {
+        if (resolved)
+          return;
+        if (DEBUG)
+          console.log("ws open", event);
+        resolved = true;
+        resolve(new WebSocketConnection(ws));
+      });
+      ws.addEventListener("error", (event) => {
+        if (resolved)
+          return;
+        if (DEBUG)
+          console.log("ws error", event);
+        resolved = true;
+        reject(event);
+      });
+    });
+  }
+  write(bytes) {
+    this.ws.send(bytes);
+    return Promise.resolve(bytes.length);
+  }
+  close() {
+    this.ws.close();
+  }
+}
 const MAX_PACKET_IDS = 256 * 256;
-class MqttClient {
+const _MqttClient = class {
   constructor(opts) {
     __publicField(this, "hostname");
     __publicField(this, "port");
@@ -1144,10 +1090,7 @@ class MqttClient {
     const { clientId = "", username, password, keepAlive = 10 } = opts;
     const { protocol, hostname, port } = this;
     if (!this.connection) {
-      this.connection = protocol === "mqtts" ? await DenoTcpConnection.create({
-        hostname,
-        port
-      }) : await WebSocketConnection.create({
+      this.connection = await _MqttClient.protocolHandlers[protocol]({
         hostname,
         port
       });
@@ -1345,7 +1288,14 @@ class MqttClient {
     await connection.write(encodeMessage(message));
     this.lastSentMessageTime = Date.now();
   }
-}
+};
+let MqttClient = _MqttClient;
+__publicField(MqttClient, "protocolHandlers", {
+  "mqtts": () => {
+    throw new Error(`The 'mqtts' protocol is not supported in this environment`);
+  },
+  "wss": WebSocketConnection.create
+});
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

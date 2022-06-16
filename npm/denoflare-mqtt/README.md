@@ -108,7 +108,7 @@ You don't need this NPM package or to install anything, just remote-import `mqtt
 
 `example.ts`
 ```ts
-import { MqttClient, DISCONNECT } from 'https://raw.githubusercontent.com/skymethod/denoflare/TODO/common/mqtt/mqtt_client.ts';
+import { MqttClient, DISCONNECT } from 'https://raw.githubusercontent.com/skymethod/denoflare/TODO/common/mqtt/mod_deno.ts';
 
 const protocol = 'wss';
 const hostname = 'broker.example.com';

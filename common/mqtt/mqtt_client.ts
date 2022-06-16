@@ -1,10 +1,12 @@
 import { Bytes } from '../bytes.ts';
 import { checkEqual } from '../check.ts';
 import { hex, Mqtt } from './mqtt.ts';
-import { DenoTcpConnection, MqttConnection, WebSocketConnection } from './mqtt_connection.ts';
+import { MqttConnection } from './mqtt_connection.ts';
 import { computeControlPacketTypeName, CONNACK, CONNECT, DISCONNECT, encodeMessage, MqttMessage, PINGREQ, PINGRESP, PUBLISH, Reader, readMessage, SUBACK, SUBSCRIBE } from './mqtt_messages.ts';
+import { WebSocketConnection } from './web_socket_connection.ts';
 
 export type Protocol = 'mqtts' | 'wss';
+export type ProtocolHandler = (opts: { hostname: string, port: number }) => Promise<MqttConnection>;
 
 const DEFAULT_KEEP_ALIVE_SECONDS = 10;
 const MAX_PACKET_IDS = 256 * 256;
@@ -15,6 +17,11 @@ const MAX_PACKET_IDS = 256 * 256;
  * Supports MQTT over WebSockets (wss) in the browser and Node, and also over TCP (mqtts) in Deno.
  */
 export class MqttClient {
+
+    static readonly protocolHandlers: Record<Protocol, ProtocolHandler> = {
+        'mqtts': () => { throw new Error(`The 'mqtts' protocol is not supported in this environment`); },
+        'wss': WebSocketConnection.create,
+    };
 
     /** MQTT endpoint hostname. */
     readonly hostname: string;
@@ -64,7 +71,7 @@ export class MqttClient {
 
         const { protocol, hostname, port } = this;
         if (!this.connection) {
-            this.connection = protocol === 'mqtts' ? await DenoTcpConnection.create({ hostname, port }) : await WebSocketConnection.create({ hostname, port });
+            this.connection = await MqttClient.protocolHandlers[protocol]({ hostname, port });
             this.connection.onRead = bytes => {
                 this.processBytes(bytes);
             }

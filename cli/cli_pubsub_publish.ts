@@ -1,5 +1,5 @@
 import { Mqtt } from '../common/mqtt/mqtt.ts';
-import { MqttClient } from '../common/mqtt/mqtt_client.ts';
+import { MqttClient } from '../common/mqtt/mod_deno.ts';
 import { DISCONNECT } from '../common/mqtt/mqtt_messages.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForPubsub, parseCloudflareEndpoint, parsePubsubOptions } from './cli_pubsub.ts';
