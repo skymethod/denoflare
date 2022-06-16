@@ -8,6 +8,7 @@ import { generatePubsubCredentials } from '../common/cloudflare_api.ts';
 import { Protocol } from '../common/mqtt/mqtt_client.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { Mqtt } from '../common/mqtt/mqtt.ts';
+import { generateNpm } from './cli_pubsub_generate_npm.ts';
 
 const JWT_COMMAND = denoflareCliCommand(['pubsub', 'jwt'], `Parse a JWT token, and output its claims`)
     .arg('token', 'string', 'JWT token string')
@@ -23,7 +24,7 @@ export const PUBSUB_COMMAND = denoflareCliCommand('pubsub', 'Publish or subscrib
     ;
 
 export async function pubsub(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    await PUBSUB_COMMAND.routeSubcommand(args, options, { tmp });
+    await PUBSUB_COMMAND.routeSubcommand(args, options, { tmp, generateNpm });
 }
 
 export function commandOptionsForPubsub(): CliCommandModifier {

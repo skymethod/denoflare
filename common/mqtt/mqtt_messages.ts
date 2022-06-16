@@ -6,6 +6,7 @@ import { decodeUtf8, decodeVariableByteInteger, encodeUtf8, encodeVariableByteIn
 export type MqttMessage = ConnectMessage | ConnackMessage | PublishMessage | SubscribeMessage | SubackMessage | PingreqMessage | PingrespMessage | DisconnectMessage;
 export type ControlPacketType = CONNECT | CONNACK | PUBLISH | SUBSCRIBE | SUBACK | PINGREQ | PINGRESP | DISCONNECT;
 
+/** @internal1 */
 export function readMessage(reader: Reader): MqttMessage | { needsMoreBytes: number } {
     const { DEBUG } = Mqtt;
 
@@ -28,6 +29,7 @@ export function readMessage(reader: Reader): MqttMessage | { needsMoreBytes: num
     throw new Error(`readMessage: Unsupported controlPacketType: ${controlPacketType}`);
 }
 
+/** @internal */
 export function encodeMessage(message: MqttMessage): Uint8Array {
     if (message.type === CONNECT) return encodeConnect(message);
     if (message.type === PUBLISH) return encodePublish(message);
@@ -37,6 +39,7 @@ export function encodeMessage(message: MqttMessage): Uint8Array {
     throw new Error(`encodeMessage: Unsupported controlPacketType: ${message.type}`);
 }
 
+/** Returns the control packet type name. */
 export function computeControlPacketTypeName(type: ControlPacketType): string {
     if (type === CONNECT) return 'CONNECT';
     if (type === CONNACK) return 'CONNACK';
@@ -51,7 +54,7 @@ export function computeControlPacketTypeName(type: ControlPacketType): string {
 
 //#region CONNECT
 
-export const CONNECT = 1; type CONNECT = 1;
+export const CONNECT = 1; export type CONNECT = 1;
 
 export interface ConnectMessage {
     readonly type: CONNECT;
@@ -61,6 +64,7 @@ export interface ConnectMessage {
     readonly password: string;
 }
 
+/** @internal */
 export function encodeConnect(message: ConnectMessage): Uint8Array {
     const { type, keepAlive, clientId, username, password } = message;
 
@@ -86,7 +90,7 @@ export function encodeConnect(message: ConnectMessage): Uint8Array {
 
 //#region CONNACK
 
-export const CONNACK = 2; type CONNACK = 2;
+export const CONNACK = 2; export type CONNACK = 2;
 
 export interface ConnackMessage {
     readonly type: CONNACK;
@@ -104,6 +108,7 @@ export interface ConnackMessage {
     readonly assignedClientIdentifier?: string;
 }
 
+/** @internal */
 export function readConnack(reader: Reader, controlPacketFlags: number): ConnackMessage {
     const { DEBUG } = Mqtt;
     checkEqual('controlPacketFlags', controlPacketFlags, 0);
@@ -203,7 +208,7 @@ const CONNACK_REASONS: ReasonTable = {
 
 //#region PUBLISH
 
-export const PUBLISH = 3; type PUBLISH = 3;
+export const PUBLISH = 3; export type PUBLISH = 3;
 
 export interface PublishMessage {
     readonly type: PUBLISH;
@@ -217,6 +222,7 @@ export interface PublishMessage {
     readonly contentType?: string;
 }
 
+/** @internal */
 export function readPublish(reader: Reader, controlPacketFlags: number): PublishMessage {
     const { DEBUG } = Mqtt;
     checkEqual('controlPacketFlags', controlPacketFlags, 0);
@@ -258,6 +264,7 @@ export function readPublish(reader: Reader, controlPacketFlags: number): Publish
     return rt;
 }
 
+/** @internal */
 export function encodePublish(message: PublishMessage): Uint8Array {
     const { payloadFormatIndicator, topic, payload, type, dup, qosLevel, retain, packetId, contentType } = message;
 
@@ -290,7 +297,7 @@ export function encodePublish(message: PublishMessage): Uint8Array {
 
 //#region SUBSCRIBE
 
-export const SUBSCRIBE = 8; type SUBSCRIBE = 8;
+export const SUBSCRIBE = 8; export type SUBSCRIBE = 8;
 
 export interface SubscribeMessage {
     readonly type: SUBSCRIBE;
@@ -302,6 +309,7 @@ export interface Subscription {
     readonly topicFilter: string;
 }
 
+/** @internal */
 export function encodeSubscribe(message: SubscribeMessage): Uint8Array {
     const { type, packetId, subscriptions } = message;
 
@@ -321,7 +329,7 @@ export function encodeSubscribe(message: SubscribeMessage): Uint8Array {
 
 //#region SUBACK
 
-export const SUBACK = 9; type SUBACK = 9;
+export const SUBACK = 9; export type SUBACK = 9;
 
 export interface SubackMessage {
     readonly type: SUBACK;
@@ -329,6 +337,7 @@ export interface SubackMessage {
     readonly reasons: Reason[];
 }
 
+/** @internal */
 export function readSuback(reader: Reader, controlPacketFlags: number): SubackMessage {
     checkEqual('controlPacketFlags', controlPacketFlags, 0);
 
@@ -365,12 +374,13 @@ const SUBACK_REASONS: ReasonTable = {
 
 //#region PINGREQ
 
-export const PINGREQ = 12; type PINGREQ = 12;
+export const PINGREQ = 12; export type PINGREQ = 12;
 
 export interface PingreqMessage {
     readonly type: PINGREQ;
 }
 
+/** @internal */
 export function encodePingreq(message: PingreqMessage): Uint8Array {
     const { type } = message;
 
@@ -381,12 +391,13 @@ export function encodePingreq(message: PingreqMessage): Uint8Array {
 
 //#region PINGRESP
 
-export const PINGRESP = 13; type PINGRESP = 13;
+export const PINGRESP = 13; export type PINGRESP = 13;
 
 export interface PingrespMessage {
     readonly type: PINGRESP;
 }
 
+/** @internal */
 export function readPingresp(reader: Reader, controlPacketFlags: number): PingrespMessage {
     checkEqual('controlPacketFlags', controlPacketFlags, 0);
 
@@ -399,13 +410,14 @@ export function readPingresp(reader: Reader, controlPacketFlags: number): Pingre
 
 //#region DISCONNECT
 
-export const DISCONNECT = 14; type DISCONNECT = 14;
+export const DISCONNECT = 14; export type DISCONNECT = 14;
 
 export interface DisconnectMessage {
     readonly type: DISCONNECT;
     readonly reason?: Reason;
 }
 
+/** @internal */
 export function readDisconnect(reader: Reader, controlPacketFlags: number, remainingLength: number): DisconnectMessage {
     checkEqual('controlPacketFlags', controlPacketFlags, 0);
 
@@ -459,6 +471,7 @@ const DISCONNECT_REASONS: ReasonTable = {
     162: [ 'Wildcard Subscriptions not supported', 'The Server does not support Wildcard Subscriptions; the subscription is not accepted.' ],
 };
 
+/** @internal */
 export function encodeDisconnect(message: DisconnectMessage): Uint8Array {
     const { type, reason } = message;
 
@@ -535,6 +548,7 @@ function encodePacket(controlPacketType: ControlPacketType, opts: { controlPacke
 
 //
 
+/** @internalclass */
 export class Reader {
     private readonly bytes: Uint8Array;
     private readonly view: DataView;

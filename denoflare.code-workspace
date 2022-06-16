@@ -36,6 +36,10 @@
 		{
 			"path": "examples/r2-presigned-url-worker",
 			"name": "examples/r2-presigned-url-worker"
+		},
+		{
+			"path": "npm/denoflare-mqtt",
+			"name": "npm/denoflare-mqtt"
 		}
 	],
 	"settings": {

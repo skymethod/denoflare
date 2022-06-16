@@ -9,6 +9,11 @@ export type Protocol = 'mqtts' | 'wss';
 const DEFAULT_KEEP_ALIVE_SECONDS = 10;
 const MAX_PACKET_IDS = 256 * 256;
 
+/**
+ * Lightweight MQTT v5 client.
+ * 
+ * Supports MQTT over WebSockets (wss) in the browser and Node, and also over TCP (mqtts) in Deno.
+ */
 export class MqttClient {
 
     readonly hostname: string;

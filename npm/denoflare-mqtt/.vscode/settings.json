@@ -1,0 +1,9 @@
+{
+    "files.exclude": {
+        "**/.DS_Store": true,
+        "**/node_modules": true,
+        "cjs": true,
+        "esm": true,
+        "main.d.ts": true,
+    },
+}
