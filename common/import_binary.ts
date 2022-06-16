@@ -5,7 +5,7 @@ import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.142.0/p
  * Call in the global scope like a standard esm import.
  * 
  * However, when using `denoflare push`, calls to: 
- *   `const buffer = importBuffer(import.meta.url, './whatever.png');`
+ *   `const buffer = await importBinary(import.meta.url, './whatever.png');`
  *   are rewritten to
  *   `import buffer from "./relative/path/to/whatever.png";`
  *   prior to Cloudflare upload, so that it works properly in Cloudflare as well.

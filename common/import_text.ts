@@ -5,7 +5,7 @@ import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.142.0/p
  * Call in the global scope like a standard esm import.
  * 
  * However, when using `denoflare push`, calls to: 
- *   `const text = importText(import.meta.url, './whatever.txt');`
+ *   `const text = await importText(import.meta.url, './whatever.txt');`
  *   are rewritten to
  *   `import text from "./relative/path/to/whatever.txt";`
  *   prior to Cloudflare upload, so that it works properly in Cloudflare as well.

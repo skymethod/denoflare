@@ -36,7 +36,7 @@ export class WebSocketConnection implements MqttConnection {
         const { DEBUG } = Mqtt;
         const { hostname, port } = opts;
 
-        const ws = new WebSocket(`wss://${hostname}:${port}`);
+        const ws = new WebSocket(`wss://${hostname}:${port}`, 'mqtt');
         return new Promise((resolve, reject) => {
             let resolved = false;
             ws.addEventListener('open', event => {

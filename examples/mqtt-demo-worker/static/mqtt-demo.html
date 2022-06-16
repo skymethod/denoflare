@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>denoflare-mqtt demo</title>
+
+<style>
+
+html {
+   background-color: rgb(18, 18, 18);
+   color: rgba(255, 255, 255, 0.87);
+   font-family: Menlo, Consolas, ui-monospace, monospace;
+}
+
+body {
+   margin: 0;
+}
+
+body > * {
+   margin-left: auto;
+   margin-right: auto;
+   max-width: 40rem;
+}
+
+form {
+   display: grid;
+   row-gap: 0.5rem;
+   column-gap: 0.5rem;
+}
+
+input {
+   font-family: Menlo, Consolas, ui-monospace, monospace;
+   padding: 0.2rem;
+}
+
+button {
+   font-family: Menlo, Consolas, ui-monospace, monospace;
+   padding: 0.5rem;
+}
+
+#connection {
+   grid-template-columns: 8rem 1fr 1fr;
+}
+
+#connection button {
+   margin-top: 0.5rem;
+}
+
+#composition {
+   grid-template-columns: 1fr 8rem;
+   margin: 1rem 0;
+}
+
+output {
+   background-color: gray;
+   height: calc(100vh - 24rem);
+   overflow-y: auto;
+   display: block;
+}
+
+footer {
+   font-size: 0.75rem;
+}
+</style>
+
+<script type="module" src="/mqtt-demo.js"></script>
+
+</head>
+<body>
+   <header><h3>denoflare-mqtt demo</h3></header>
+   <main>
+      <form id="connection">
+         Broker: <input id="broker" type="text" placeholder="broker.namespace" spellcheck="false" autocomplete="off" autofocus /><span>.cloudflarepubsub.com</span>
+         Topic: <input id="topic" type="text" placeholder="my-topic" spellcheck="false" autocomplete="off" /><span></span>
+         Password: <input id="password" type="text" placeholder="jwt token" spellcheck="false" autocomplete="off" /><span></span>
+         <span></span><button id="connect">Connect</button><span></span>
+      </form>
+
+      <form id="composition">
+         <input id="message" type="text" placeholder="My message" spellcheck="false" autocomplete="off" /><button id="send">Send</button>
+      </form>
+      <output>
+         asdf
+      </output>
+   </main>
+   <footer>
+      <p>MQTT connections are made with client-side JavaScript</p>
+      <p>The static content worker source code is available as a <a href="#">Denoflare example</a>.</p>
+   </footer>
+</body>
+</html>

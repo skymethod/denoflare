@@ -5,7 +5,7 @@ import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.142.0/p
  * Call in the global scope like a standard esm import.
  * 
  * However, when using `denoflare push`, calls to: 
- *   `const module = importWasm(import.meta.url, './whatever.wasm');`
+ *   `const module = await importWasm(import.meta.url, './whatever.wasm');`
  *   are rewritten to
  *   `import module from "./relative/path/to/whatever.wasm";`
  *   prior to Cloudflare upload, so that wasm works properly in Cloudflare as well.
