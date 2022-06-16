@@ -65,9 +65,10 @@ export class Bytes {
     }
 
     public static async ofStream(stream: ReadableStream): Promise<Bytes> {
-        // works, but not great when Response is redefined
+        // clever: works, but not when Response is redefined
         // return new Bytes(new Uint8Array(await (new Response(stream)).arrayBuffer()));
 
+        // more traditional approach
         const chunks: Uint8Array[] = [];
         for await (const chunk of stream) {
             chunks.push(chunk);

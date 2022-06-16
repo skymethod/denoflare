@@ -1,7 +1,9 @@
 import { bundle } from '../cli/bundle.ts';
-import { fromFileUrl, resolve, basename, walk } from './deps.ts';
+import { fromFileUrl, resolve, basename } from './deps.ts';
 import { transform, stop } from 'https://deno.land/x/esbuild@v0.14.43/mod.js';
 import { parseOptionalBooleanOption } from '../cli/cli_common.ts';
+import { runTsc } from './tsc.ts';
+import { Bytes } from '../common/bytes.ts';
 
 export async function generateNpm(_args: (string | number)[], options: Record<string, unknown>) {
     const verbose = parseOptionalBooleanOption('verbose', options);
@@ -18,6 +20,12 @@ export async function generateNpm(_args: (string | number)[], options: Record<st
 
 async function generateEsmMainJs() {
     const contents = await generateBundleContents({ format: 'esm', target: 'es2019' }); // remove optional chaining for esm too, to support folks using modules, but still on older environments
+    const bytes = Bytes.ofUtf8(contents);
+    const uncompressedSize = computeBytesString(bytes.length);
+    const compressedSize = computeBytesString((await gzip(bytes)).length);
+    // unminified: { uncompressedSize: "36.84kb", compressedSize: "8.41kb" }
+    // minified:   { uncompressedSize: "21.77kb", compressedSize: "6.85kb" } -1.56kb -23%
+    console.log({ uncompressedSize, compressedSize });
     await saveContentsIfChanged('../../npm/denoflare-mqtt/esm/main.js', contents);
 }
 
@@ -70,8 +78,8 @@ async function generateMainTypes(opts: { verbose?: boolean } = {}) {
     // }
 }
 
-async function generateBundleContents(opts: { format: 'cjs' | 'esm', target?: string }): Promise<string> {
-    const { format, target } = opts;
+async function generateBundleContents(opts: { format: 'cjs' | 'esm', target?: string, minify?: boolean }): Promise<string> {
+    const { format, target, minify } = opts;
 
     const { code } = await bundle(resolveRelativeFile('../../common/mqtt/mod_iso.ts')); // deno bundle does not support 'target' as a compilerOption
 
@@ -84,40 +92,8 @@ async function generateBundleContents(opts: { format: 'cjs' | 'esm', target?: st
     // console.log({ wasmModule });
     // await initialize({ wasmModule, worker: false }); 
 
-    const { code: code2 } = await transform(code, {  format,  target });
+    const { code: code2 } = await transform(code, { format,  target, minify });
     return code2;
-}
-
-type TscResult = { status: { success: boolean, code: number }, out: string, err: string, output: Record<string, string> };
-
-async function runTsc(opts: { files: string[], compilerOptions: Record<string, unknown> }): Promise<TscResult> {
-    const { files, compilerOptions } = opts;
-    const tsconfigFile = await Deno.makeTempFile({ prefix: 'run-tsc-tsconfig', suffix: '.json'});
-    const outDir = await Deno.makeTempDir({ prefix: 'run-tsc-outdir', suffix: '.json'});
-    compilerOptions.outDir = outDir;
-    try {
-        await Deno.writeTextFile(tsconfigFile, JSON.stringify({ files, compilerOptions }, undefined, 2));
-        const { status, stdout, stderr } = await Deno.spawn('/usr/local/bin/tsc', {
-            args: [
-                '--project', tsconfigFile,
-            ],
-            env: {
-                NO_COLOR: '1', // to make parsing the output easier
-            }
-        });
-        const out = new TextDecoder().decode(stdout);
-        const err = new TextDecoder().decode(stderr);
-        const output: Record<string, string> = {};
-        for await (const entry of walk(outDir, { maxDepth: 1 })) {
-            if (!entry.isFile) continue;
-            const { name, path } = entry;
-            output[name] = await Deno.readTextFile(path);
-        }
-        return { status, out, err, output };
-    } finally {
-        await Deno.remove(tsconfigFile);
-        await Deno.remove(outDir, { recursive: true });
-    }
 }
 
 function resolveRelativeFile(relativePath: string): string {
@@ -147,3 +123,20 @@ async function tryReadTextFile(path: string): Promise<string | undefined> {
         throw e;
     }
 }
+
+async function gzip(bytes: Bytes): Promise<Bytes> {
+    const gzipStream = new Blob([ bytes.array() ]).stream().pipeThrough(new CompressionStream('gzip'));
+    return await Bytes.ofStream(gzipStream);
+}
+
+function computeBytesString(bytes: number): string {
+    if (bytes < 1024) return '';
+    let amount = bytes / 1024;
+    for (const unit of ['kb', 'mb', 'gb']) {
+        if (amount < 1024) return `${MAX_TWO_DECIMALS.format(amount)}${unit}`;
+        amount = amount / 1024;
+    }
+    return `${MAX_TWO_DECIMALS.format(amount)}tb`;    
+}
+
+const MAX_TWO_DECIMALS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
