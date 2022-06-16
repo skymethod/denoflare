@@ -6,7 +6,7 @@ import { decodeUtf8, decodeVariableByteInteger, encodeUtf8, encodeVariableByteIn
 export type MqttMessage = ConnectMessage | ConnackMessage | PublishMessage | SubscribeMessage | SubackMessage | PingreqMessage | PingrespMessage | DisconnectMessage;
 export type ControlPacketType = CONNECT | CONNACK | PUBLISH | SUBSCRIBE | SUBACK | PINGREQ | PINGRESP | DISCONNECT;
 
-/** @internal1 */
+/** @internal */
 export function readMessage(reader: Reader): MqttMessage | { needsMoreBytes: number } {
     const { DEBUG } = Mqtt;
 
@@ -548,7 +548,7 @@ function encodePacket(controlPacketType: ControlPacketType, opts: { controlPacke
 
 //
 
-/** @internalclass */
+/** @internal */
 export class Reader {
     private readonly bytes: Uint8Array;
     private readonly view: DataView;

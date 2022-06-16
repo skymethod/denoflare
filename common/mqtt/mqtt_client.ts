@@ -16,6 +16,7 @@ const MAX_PACKET_IDS = 256 * 256;
  */
 export class MqttClient {
 
+    /** MQTT endpoint hostname. */
     readonly hostname: string;
     readonly port: number;
     readonly protocol: Protocol;
@@ -26,20 +27,20 @@ export class MqttClient {
     onMqttMessage?: (message: MqttMessage) => void;
     onReceive?: (opts: { topic: string, payload: string | Uint8Array, contentType?: string }) => void;
 
-    private readonly obtainedPacketIds: number[] = [];
-    private readonly pendingSubscribes: Record<number, Signal> = {};
-    private readonly savedBytes: number[] = [];
-    private readonly maxMessagesPerSecond?: number;
+    /** @internal */ private readonly obtainedPacketIds: number[] = [];
+    /** @internal */ private readonly pendingSubscribes: Record<number, Signal> = {};
+    /** @internal */ private readonly savedBytes: number[] = [];
+    /** @internal */ private readonly maxMessagesPerSecond?: number;
 
-    private connection?: MqttConnection;
-    private pingTimeout = 0;
-    private keepAliveSeconds = DEFAULT_KEEP_ALIVE_SECONDS;
-    private pendingConnect?: Signal;
-    private connectionCompletion?: Promise<void>;
-    private lastSentMessageTime = 0;
-    private receivedDisconnect = false;
-    private clientIdInternal: string | undefined;
-    private nextPacketId = 1;
+    /** @internal */ private connection?: MqttConnection;
+    /** @internal */ private pingTimeout = 0;
+    /** @internal */ private keepAliveSeconds = DEFAULT_KEEP_ALIVE_SECONDS;
+    /** @internal */ private pendingConnect?: Signal;
+    /** @internal */ private connectionCompletion?: Promise<void>;
+    /** @internal */ private lastSentMessageTime = 0;
+    /** @internal */ private receivedDisconnect = false;
+    /** @internal */ private clientIdInternal: string | undefined;
+    /** @internal */ private nextPacketId = 1;
 
     constructor(opts: { hostname: string, port: number, protocol: Protocol, maxMessagesPerSecond?: number }) {
         const { hostname, port, protocol = 'mqtts', maxMessagesPerSecond } = opts;
@@ -116,10 +117,12 @@ export class MqttClient {
 
     //
 
+    /** @internal */ 
     private async ping(): Promise<void> {
         await this.sendMessage({ type: PINGREQ });
     }
 
+    /** @internal */ 
     private obtainPacketId(): number {
         const { DEBUG } = Mqtt;
         const { nextPacketId, obtainedPacketIds } = this;
@@ -135,6 +138,7 @@ export class MqttClient {
         throw new Error(`obtainPacketId: Unable to obtain a packet id`);
     }
 
+    /** @internal */ 
     private releasePacketId(packetId: number) {
         const { DEBUG } = Mqtt;
         const { obtainedPacketIds } = this;
@@ -145,6 +149,7 @@ export class MqttClient {
         if (DEBUG) console.log(`Released packetId: ${packetId}`);
     }
 
+    /** @internal */ 
     private processBytes(bytes: Uint8Array) {
         const { DEBUG } = Mqtt;
         if (this.savedBytes.length > 0) {
@@ -207,10 +212,12 @@ export class MqttClient {
         checkEqual('reader.remaining', reader.remaining(), 0);
     }
 
+    /** @internal */ 
     private clearPing() {
         clearTimeout(this.pingTimeout);
     }
 
+    /** @internal */ 
     private reschedulePing() {
         this.clearPing();
         this.pingTimeout = setTimeout(async () => {
@@ -219,6 +226,7 @@ export class MqttClient {
         }, this.keepAliveSeconds * 1000);
     }
 
+    /** @internal */ 
     private async sendMessage(message: MqttMessage): Promise<void> {
         const { DEBUG } = Mqtt;
         const { connection, maxMessagesPerSecond } = this;

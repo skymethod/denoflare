@@ -5,6 +5,7 @@ export declare type Protocol = 'mqtts' | 'wss';
  * Supports MQTT over WebSockets (wss) in the browser and Node, and also over TCP (mqtts) in Deno.
  */
 export declare class MqttClient {
+    /** MQTT endpoint hostname. */
     readonly hostname: string;
     readonly port: number;
     readonly protocol: Protocol;
