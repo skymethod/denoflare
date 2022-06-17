@@ -1,6 +1,9 @@
 import { Bytes } from '../bytes.ts';
 
+/** Static constants for debugging MqttClient. */
 export class Mqtt {
+
+    /** Enable debug-level logging throughout MqttClient and its dependencies. */
     static DEBUG = false;
 }
 

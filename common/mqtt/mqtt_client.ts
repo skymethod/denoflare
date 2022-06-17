@@ -5,7 +5,21 @@ import { MqttConnection } from './mqtt_connection.ts';
 import { computeControlPacketTypeName, CONNACK, CONNECT, DISCONNECT, encodeMessage, MqttMessage, PINGREQ, PINGRESP, PUBLISH, Reader, readMessage, SUBACK, SUBSCRIBE } from './mqtt_messages.ts';
 import { WebSocketConnection } from './web_socket_connection.ts';
 
+/** 
+ * Protocols supported by MqttClient.
+ * 
+ * - 'wss' (MQTT over WebSockets) should be supported in every environment.
+ * - 'mqtts' needs TCP access, and is supported on Deno.
+ * 
+ * You can provide a custom implementation for a given protocol using `MqttClient.protocolHandlers`.
+ */
 export type Protocol = 'mqtts' | 'wss';
+
+/**
+ * Contract for providing a custom handler for 'wss' or 'mqtts'.
+ * 
+ * Register your custom implementation using `MqttClient.protocolHandlers`.
+ */
 export type ProtocolHandler = (opts: { hostname: string, port: number }) => Promise<MqttConnection>;
 
 const DEFAULT_KEEP_ALIVE_SECONDS = 10;
@@ -15,9 +29,16 @@ const MAX_PACKET_IDS = 256 * 256;
  * Lightweight MQTT v5 client.
  * 
  * Supports MQTT over WebSockets (wss) in the browser and Node, and also over TCP (mqtts) in Deno.
+ * 
+ * Only supports MQTTv5, and only the features currently implemented by [Cloudflare Pub/Sub](https://developers.cloudflare.com/pub-sub/).
  */
 export class MqttClient {
 
+    /**
+     * Register a custom implementation for one of the supported protocols.
+     * 
+     * e.g. you could write your own 'mqtts' TCP implementation for Node and plug it in here.
+     */
     static readonly protocolHandlers: Record<Protocol, ProtocolHandler> = {
         'mqtts': () => { throw new Error(`The 'mqtts' protocol is not supported in this environment`); },
         'wss': WebSocketConnection.create,
@@ -25,13 +46,39 @@ export class MqttClient {
 
     /** MQTT endpoint hostname. */
     readonly hostname: string;
+
+    /** MQTT endpoint port. */
     readonly port: number;
+
+    /** MQTT endpoint protocol. */
     readonly protocol: Protocol;
 
+    /** 
+     * Returns the session client id negotiated during initial connection. 
+     * 
+     * This will be the one provided explicitiy in `connect`, unless the server assigns one when it acknowledges the connection.
+    */
     get clientId(): string | undefined { return this.clientIdInternal; }
+
+    /** 
+     * Returns the session keep-alive negotiated during initial connection.
+     * 
+     * MqttClient will automatically send underlying MQTT pings on this interval.
+     */
     get keepAlive(): number | undefined { return this.keepAliveSeconds; }
 
+    /** 
+     * Called when any underlying MQTT protocol message is received.
+     * 
+     * Useful for debugging, or responding to DISCONNECT.
+     */
     onMqttMessage?: (message: MqttMessage) => void;
+
+    /** 
+     * Called when a message is received for one of your subscriptions made with `subscribe`. 
+     * 
+     * The payload will be a string if the sender indicated a UTF-8 format, otherwise a Uint8Array.
+    */
     onReceive?: (opts: { topic: string, payload: string | Uint8Array, contentType?: string }) => void;
 
     /** @internal */ private readonly obtainedPacketIds: number[] = [];
@@ -49,22 +96,48 @@ export class MqttClient {
     /** @internal */ private clientIdInternal: string | undefined;
     /** @internal */ private nextPacketId = 1;
 
+    /** 
+     * Creates a new MqttClient.
+     * 
+     * - `hostname`: MQTT endpoint hostname.  e.g. my-broker.my-namespace.cloudflarepubsub.com
+     * - `port`: MQTT endpoint port.  e.g. 8884 for web sockets
+     * - `protocol`: MQTT endpoint protocol.  e.g. 'wss' for web sockets
+     * - `maxMessagesPerSecond`: Optional, but can be used to rate limit outgoing messages if needed by the endpoint.
+     * 
+     * Once created, call `connect` to connect.
+     */
     constructor(opts: { hostname: string, port: number, protocol: Protocol, maxMessagesPerSecond?: number }) {
-        const { hostname, port, protocol = 'mqtts', maxMessagesPerSecond } = opts;
+        const { hostname, port, protocol, maxMessagesPerSecond } = opts;
         this.hostname = hostname;
         this.port = port;
         this.protocol = protocol;
         this.maxMessagesPerSecond = maxMessagesPerSecond;
     }
 
+    /** 
+     * When connected, resolves when the underlying connection is closed.
+     * 
+     * Useful to await when wanting to listen "forever" to a subscription without exiting your program.
+     */
     completion(): Promise<void> {
         return this.connectionCompletion ?? Promise.resolve();
     }
 
+    /** Returns whether or not this client is connected. */
     connected(): boolean {
         return this.connection !== undefined;
     }
 
+    /** 
+     * Connect and authenticate with the server.
+     * 
+     * Resolves when the server acknowledges a successful connection, otherwise rejects.
+     * 
+     * - `clientId`: Optional if the server assigns a client id (e.g. based on the password).
+     * - `username`: Optional for some servers.
+     * - `password`: The password to use when initiating the connection.
+     * - `keepAlive`: Desired keep-alive, in seconds.  Note the server can override this, the resolved value is available in `keepAlive` once connected.
+     */
     async connect(opts: { clientId?: string, username?: string, password: string, keepAlive?: number }): Promise<void> {
         const { DEBUG } = Mqtt;
         const { clientId = '', username, password, keepAlive = DEFAULT_KEEP_ALIVE_SECONDS } = opts;
@@ -94,11 +167,23 @@ export class MqttClient {
         return this.pendingConnect.promise;  // wait for CONNACK
     }
 
+    /** 
+     * Disconnect from the server.
+     * 
+     * Resolves after the disconnect request is sent.
+     */
     async disconnect(): Promise<void> {
         await this.sendMessage({ type: DISCONNECT, reason: { code: 0x00 /* normal disconnection */ } });
         this.connection = undefined;
     }
 
+    /** 
+     * Send a message for a given topic.
+     * 
+     * - `topic`: Required name of the topic on which the post the message.
+     * - `payload`: Use a string to send a text payload, else a Uint8Array to send arbitrary bytes.
+     * - `contentType`: Optional MIME type of the payload.
+     */
     async publish(opts: { topic: string, payload: string | Uint8Array, contentType?: string }): Promise<void> {
         const { topic, payload: inputPayload, contentType } = opts;
 
@@ -109,6 +194,15 @@ export class MqttClient {
         // we only support qos for now, so no need to wait for ack
     }
 
+    /** 
+     * Subscribe to receive messages for a given topic.
+     * 
+     * Resolves when the subscription is acknowledged by the server, else rejects.
+     * 
+     * Once subscribed, messages will arrive via the `onReceive` handler.
+     * 
+     * - `topicFilter`: Topic name to listen to.
+     */
     async subscribe(opts: { topicFilter: string }): Promise<void> {
         const { topicFilter } = opts;
 

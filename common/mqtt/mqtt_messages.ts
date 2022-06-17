@@ -3,7 +3,10 @@ import { decodeUtf8, decodeVariableByteInteger, encodeUtf8, encodeVariableByteIn
 
 // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html
 
+/** Supported MQTT protocol messages as strongly-typed, parsed objects. */
 export type MqttMessage = ConnectMessage | ConnackMessage | PublishMessage | SubscribeMessage | SubackMessage | PingreqMessage | PingrespMessage | DisconnectMessage;
+
+/** Supported MQTT control packet types. */
 export type ControlPacketType = CONNECT | CONNACK | PUBLISH | SUBSCRIBE | SUBACK | PINGREQ | PINGRESP | DISCONNECT;
 
 /** @internal */
@@ -39,7 +42,7 @@ export function encodeMessage(message: MqttMessage): Uint8Array {
     throw new Error(`encodeMessage: Unsupported controlPacketType: ${message.type}`);
 }
 
-/** Returns the control packet type name. */
+/** Returns the control packet type name for a given type. */
 export function computeControlPacketTypeName(type: ControlPacketType): string {
     if (type === CONNECT) return 'CONNECT';
     if (type === CONNACK) return 'CONNACK';
@@ -54,8 +57,9 @@ export function computeControlPacketTypeName(type: ControlPacketType): string {
 
 //#region CONNECT
 
-export const CONNECT = 1; export type CONNECT = 1;
+/** MQTT CONNECT (constant) */ export const CONNECT = 1; /** MQTT CONNECT (type) */ export type CONNECT = 1;
 
+/** Parsed MQTT CONNECT message. */
 export interface ConnectMessage {
     readonly type: CONNECT;
     readonly keepAlive: number;
@@ -90,8 +94,9 @@ export function encodeConnect(message: ConnectMessage): Uint8Array {
 
 //#region CONNACK
 
-export const CONNACK = 2; export type CONNACK = 2;
+/** MQTT CONNACK (constant) */ export const CONNACK = 2; /** MQTT CONNACK (type) */ export type CONNACK = 2;
 
+/** Parsed MQTT CONNACK message. */
 export interface ConnackMessage {
     readonly type: CONNACK;
     readonly reason?: Reason;
@@ -208,8 +213,9 @@ const CONNACK_REASONS: ReasonTable = {
 
 //#region PUBLISH
 
-export const PUBLISH = 3; export type PUBLISH = 3;
+/** MQTT PUBLISH (constant) */ export const PUBLISH = 3; /** MQTT PUBLISH (type) */ export type PUBLISH = 3;
 
+/** Parsed MQTT PUBLISH message. */
 export interface PublishMessage {
     readonly type: PUBLISH;
     readonly dup: boolean;
@@ -297,14 +303,16 @@ export function encodePublish(message: PublishMessage): Uint8Array {
 
 //#region SUBSCRIBE
 
-export const SUBSCRIBE = 8; export type SUBSCRIBE = 8;
+/** MQTT SUBSCRIBE (constant) */ export const SUBSCRIBE = 8; /** MQTT SUBSCRIBE (type) */ export type SUBSCRIBE = 8;
 
+/** Parsed MQTT SUBSCRIBE message. */
 export interface SubscribeMessage {
     readonly type: SUBSCRIBE;
     readonly packetId: number;
     readonly subscriptions: Subscription[];
 }
 
+/** Single subscription information. */
 export interface Subscription {
     readonly topicFilter: string;
 }
@@ -329,8 +337,9 @@ export function encodeSubscribe(message: SubscribeMessage): Uint8Array {
 
 //#region SUBACK
 
-export const SUBACK = 9; export type SUBACK = 9;
+/** MQTT SUBACK (constant) */ export const SUBACK = 9; /** MQTT SUBACK (type) */ export type SUBACK = 9;
 
+/** Parsed MQTT SUBACK message. */
 export interface SubackMessage {
     readonly type: SUBACK;
     readonly packetId: number;
@@ -374,8 +383,9 @@ const SUBACK_REASONS: ReasonTable = {
 
 //#region PINGREQ
 
-export const PINGREQ = 12; export type PINGREQ = 12;
+/** MQTT PINGREQ (constant) */ export const PINGREQ = 12; /** MQTT PINGREQ (type) */ export type PINGREQ = 12;
 
+/** Parsed MQTT PINGREQ message. */
 export interface PingreqMessage {
     readonly type: PINGREQ;
 }
@@ -391,8 +401,9 @@ export function encodePingreq(message: PingreqMessage): Uint8Array {
 
 //#region PINGRESP
 
-export const PINGRESP = 13; export type PINGRESP = 13;
+/** MQTT PINGRESP (constant) */ export const PINGRESP = 13; /** MQTT PINGRESP (type) */ export type PINGRESP = 13;
 
+/** Parsed MQTT PINGRESP message. */
 export interface PingrespMessage {
     readonly type: PINGRESP;
 }
@@ -410,8 +421,9 @@ export function readPingresp(reader: Reader, controlPacketFlags: number): Pingre
 
 //#region DISCONNECT
 
-export const DISCONNECT = 14; export type DISCONNECT = 14;
+/** MQTT DISCONNECT (constant) */ export const DISCONNECT = 14; /** MQTT DISCONNECT (type) */ export type DISCONNECT = 14;
 
+/** Parsed MQTT DISCONNECT message. */
 export interface DisconnectMessage {
     readonly type: DISCONNECT;
     readonly reason?: Reason;
@@ -487,6 +499,7 @@ export function encodeDisconnect(message: DisconnectMessage): Uint8Array {
 
 //#region Reason
 
+/** Parsed reason code with name and description, if known. */
 export type Reason = { code: number, name?: string, description?: string };
 
 type ReasonTable = Record<number, [string, string]>;

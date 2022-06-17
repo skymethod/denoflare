@@ -1079,7 +1079,7 @@ const _MqttClient = class {
     __publicField(this, "receivedDisconnect", false);
     __publicField(this, "clientIdInternal");
     __publicField(this, "nextPacketId", 1);
-    const { hostname, port, protocol = "mqtts", maxMessagesPerSecond } = opts;
+    const { hostname, port, protocol, maxMessagesPerSecond } = opts;
     this.hostname = hostname;
     this.port = port;
     this.protocol = protocol;
