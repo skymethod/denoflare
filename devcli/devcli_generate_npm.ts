@@ -44,7 +44,7 @@ async function generateMainTypes(opts: { verbose?: boolean } = {}) {
     // use tsc in the meantime
 
     // const files = [ resolveRelativeFile('../../common/mqtt/mqtt_client.ts'), resolveRelativeFile('../../common/mqtt/mqtt_messages.ts') ];
-    const files = [ 'mqtt_client.ts', 'mqtt_messages.ts', 'mqtt_connection.ts' ].map(v => resolveRelativeFile(`../../common/mqtt/${v}`));
+    const files = [ 'mqtt_client.ts', 'mqtt_messages.ts', 'mqtt_connection.ts', 'mqtt.ts' ].map(v => resolveRelativeFile(`../../common/mqtt/${v}`));
 
     const compilerOptions = {
         declaration: true,
@@ -60,8 +60,9 @@ async function generateMainTypes(opts: { verbose?: boolean } = {}) {
     const client = result.output['mqtt_client.d.ts'].replaceAll(/import .*?;\n/g, '');
     const messages = result.output['mqtt_messages.d.ts'];
     const connection = result.output['mqtt_connection.d.ts'];
+    const mqtt = result.output['mqtt.d.ts'];
 
-    await saveContentsIfChanged('../../npm/denoflare-mqtt/main.d.ts', [ client, messages, connection ].join('\n\n')); 
+    await saveContentsIfChanged('../../npm/denoflare-mqtt/main.d.ts', [ client, messages, connection, mqtt ].join('\n\n')); 
 
     // const tsconfigRaw = JSON.stringify({ compilerOptions2: { emitDeclarationOnly: true, removeComments: false } });
     // console.log(tsconfigRaw);

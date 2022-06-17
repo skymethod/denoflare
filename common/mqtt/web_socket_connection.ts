@@ -28,7 +28,20 @@ export class WebSocketConnection implements MqttConnection {
             if (event.data instanceof Blob) {
                 const bytes = new Uint8Array(await event.data.arrayBuffer());
                 this.onRead(bytes);
+            } else if (event.data instanceof Uint8Array) {
+                let bytes = event.data;
+                if (bytes.constructor.name === 'Buffer') {
+                    // node workaround: a Node Buffer implements Uint8Array, but shared, so doesn't work with DataView
+                    // let's turn it into a real Uint8Array
+                    bytes = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+                }
+                this.onRead(bytes);
+            } else {
+                throw new Error(`Unsupported event.data: ${event.data.constructor.name}`);
             }
+        });
+        ws.addEventListener('open', event => {
+            if (DEBUG) console.log('ws open', event);
         });
     }
 

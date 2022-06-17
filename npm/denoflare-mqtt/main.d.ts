@@ -137,3 +137,8 @@ export interface MqttConnection {
     readonly completionPromise: Promise<void>;
     close(): void;
 }
+
+
+export declare class Mqtt {
+    static DEBUG: boolean;
+}

@@ -4,6 +4,7 @@ export class Mqtt {
     static DEBUG = false;
 }
 
+/** @internal */
 export function encodeVariableByteInteger(value: number): number[] {
     const rt = [];
     do {
@@ -17,6 +18,7 @@ export function encodeVariableByteInteger(value: number): number[] {
     return rt;
 }
 
+/** @internal */
 export function decodeVariableByteInteger(buffer: Uint8Array, startIndex: number): { value: number, bytesUsed: number } {
     let i = startIndex;
     let encodedByte = 0;
@@ -31,6 +33,7 @@ export function decodeVariableByteInteger(buffer: Uint8Array, startIndex: number
     return { value, bytesUsed: i - startIndex };
 }
 
+/** @internal */
 export function encodeUtf8(value: string): number[] {
     const arr = encoder.encode(value);
     // https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_UTF-8_Encoded_String
@@ -39,6 +42,7 @@ export function encodeUtf8(value: string): number[] {
     return [ ...lengthBytes, ...arr ];
 }
 
+/** @internal */
 export function decodeUtf8(buffer: Uint8Array, startIndex: number): { text: string, bytesUsed: number } {
     const length = (buffer[startIndex] << 8) + buffer[startIndex + 1];
     const bytes = buffer.slice(startIndex + 2, startIndex + 2 + length);
@@ -47,6 +51,7 @@ export function decodeUtf8(buffer: Uint8Array, startIndex: number): { text: stri
     return { text, bytesUsed: length + 2 };
 }
 
+/** @internal */
 export function hex(bytes: number[] | Uint8Array): string {
     return new Bytes(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)).hex();
 }

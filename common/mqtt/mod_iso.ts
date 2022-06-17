@@ -1,6 +1,7 @@
 export { MqttClient } from './mqtt_client.ts';
 export type { Protocol } from './mqtt_client.ts';
 export type { MqttConnection } from './mqtt_connection.ts';
+export { Mqtt } from './mqtt.ts';
 
 export { 
     computeControlPacketTypeName,

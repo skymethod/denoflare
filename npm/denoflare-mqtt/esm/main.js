@@ -980,7 +980,19 @@ class WebSocketConnection {
       if (event.data instanceof Blob) {
         const bytes = new Uint8Array(await event.data.arrayBuffer());
         this.onRead(bytes);
+      } else if (event.data instanceof Uint8Array) {
+        let bytes = event.data;
+        if (bytes.constructor.name === "Buffer") {
+          bytes = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        }
+        this.onRead(bytes);
+      } else {
+        throw new Error(`Unsupported event.data: ${event.data.constructor.name}`);
       }
+    });
+    ws.addEventListener("open", (event) => {
+      if (DEBUG)
+        console.log("ws open", event);
     });
   }
   static create(opts) {
@@ -1290,6 +1302,7 @@ export {
   CONNACK,
   CONNECT,
   DISCONNECT,
+  Mqtt,
   MqttClient,
   PINGREQ,
   PINGRESP,
