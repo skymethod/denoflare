@@ -17,7 +17,7 @@ The `MqttClient` class in [mqtt_client.ts](https://github.com/skymethod/denoflar
 
 In the Deno runtime, remote-import the Deno module [mod_deno.ts](https://github.com/skymethod/denoflare/blob/master/common/mqtt/mod_deno.ts) - which includes both 'wss' and 'mqtts' (tcp) protocol support.
 ```ts
-import { MqttClient } from 'https://raw.githubusercontent.com/skymethod/denoflare/fea73037518899e40d0413c4294e9e48d6af705f/common/mqtt/mod_deno.ts';
+import { MqttClient } from 'https://raw.githubusercontent.com/skymethod/denoflare/denoflare-mqtt-v0.0.1/common/mqtt/mod_deno.ts';
 ```
 
 ### ESM bundle
@@ -26,7 +26,7 @@ The isomorphic Deno module [mod_iso.ts](https://github.com/skymethod/denoflare/b
 
 For convenience, we bundle the isomorphic Deno module into a single-file [standard ESM JavaScript module](https://github.com/skymethod/denoflare/blob/master/npm/denoflare-mqtt/esm/main.js) which can be module-imported inside browsers.
 ```js
-import { MqttClient } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@fea73037518899e40d0413c4294e9e48d6af705f/npm/denoflare-mqtt/esm/main.js';
+import { MqttClient } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@denoflare-mqtt-v0.0.1/npm/denoflare-mqtt/esm/main.js';
 // esm module from npm package source served from jsdelivr with the correct mime type for browsers
 ```
 

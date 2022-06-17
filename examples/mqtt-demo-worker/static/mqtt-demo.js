@@ -1,4 +1,4 @@
-import { MqttClient, DISCONNECT, PUBLISH } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@b082a9d039716765437aee28a55b64ab297e1c7b/npm/denoflare-mqtt/esm/main.js'; // served with the correct mime type for browsers
+import { MqttClient, DISCONNECT, PUBLISH } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@denoflare-mqtt-v0.0.1/npm/denoflare-mqtt/esm/main.js'; // served with the correct mime type for browsers
 
 let client;
 
@@ -22,6 +22,7 @@ globalThis.addEventListener('DOMContentLoaded', (_event) => {
         connectButton.disabled = !enable;
         connectButton.textContent = connected ? 'Disconnect' : 'Connect';
     };
+    updateConnectButton();
 
     const updateConnectionInputs = () => {
         const enable = !connected;
