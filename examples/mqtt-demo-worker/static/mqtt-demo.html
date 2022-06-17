@@ -141,12 +141,12 @@ code.long {
          <p>The library only implements MQTTv5, and only the features currently implemented by <a href="https://developers.cloudflare.com/pub-sub/" target="_blank">Cloudflare Pub/Sub</a>.</p>
          <details>
             <summary>Browser import (ESM)</summary>
-            <code class="long">import { MqttClient } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@b082a9d039716765437aee28a55b64ab297e1c7b/npm/denoflare-mqtt/esm/main.js';</code>
+            <code class="long">import { MqttClient } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@fea73037518899e40d0413c4294e9e48d6af705f/npm/denoflare-mqtt/esm/main.js';</code>
             <code>// esm module from npm package source served from jsdelivr with the correct mime type for browsers</code>
          </details>
          <details>
             <summary>Deno import (also supports 'mqtts' over tcp!)</summary>
-            <code class="long">import { MqttClient } from 'https://raw.githubusercontent.com/skymethod/denoflare/master/common/mqtt/mod_deno.ts';</code>
+            <code class="long">import { MqttClient } from 'https://raw.githubusercontent.com/skymethod/denoflare/fea73037518899e40d0413c4294e9e48d6af705f/common/mqtt/mod_deno.ts';</code>
          </details>
          <details>
             <summary>NPM</summary>
@@ -155,14 +155,22 @@ code.long {
          <details>
             <summary>Usage example</summary>
             <pre>
+// connect, publish a message, then disconnect
+
 const protocol = 'wss'; // also supports 'mqtts' in Deno
 const hostname = 'my-broker.my-namespace.cloudflarepubsub.com';
-const port = 8884; // 8883 for 'mqtts'
+const port = 8884; // 8883 for 'mqtts' in Deno
+const maxMessagesPerSecond = 10; // current pub/sub beta limitation
 
 const topic = 'my-topic';
 const payload = 'hello world!';
 
-const client = new MqttClient({ hostname, port, protocol });
+const password = 'MY_JWT_TOKEN';
+
+const client = new MqttClient({ 
+   hostname, port, protocol, 
+   maxMessagesPerSecond 
+});
 
 client.onMqttMessage = message => {
    if (message.type === DISCONNECT) {
@@ -171,7 +179,7 @@ client.onMqttMessage = message => {
 };
 
 console.log('connecting');
-await client.connect({ clientId, password, keepAlive });
+await client.connect({ password });
 
 const { clientId, keepAlive } = client;
 console.log('connected', { clientId, keepAlive });

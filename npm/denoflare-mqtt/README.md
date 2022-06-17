@@ -4,7 +4,7 @@ A [Denoflare](https://denoflare.dev) subproject.
 
 Carefully packaged so that it can be used from either newer-style ESM-based or older-style CommonJS-based Node projects.
 
-Written using Deno, so also can be used via remote importing without this NPM package at all (see Deno example below).
+Written using Deno, so also can be used via remote importing without this NPM package at all (see the [source module documentation](https://github.com/skymethod/denoflare/tree/master/common/mqtt)).
 
 ## Features
 - Isomorphic, use in the browser, Node, or Deno
@@ -19,6 +19,7 @@ These are also used to generate [TypeScript typings for this NPM package](https:
 
 This package is a convenience for Node environments.  It is not necessary at all in Deno or client-side via module-imports in the browser, since both support remote importing modules by url.
 
+## More information
 See the [source module documentation](https://github.com/skymethod/denoflare/tree/master/common/mqtt) for more info.
 
 ## Example usage in an ESM-based Node project
@@ -50,6 +51,10 @@ const port = 8884;
 const topic = 'my-topic';
 const payload = 'hello world!';
 
+const clientId = 'my-client-id'; // optional
+const username = 'my-user-name'; // optional
+const password = 'MY_PASSWORD';
+
 const client = new MqttClient({ hostname, port, protocol });
 
 client.onMqttMessage = message => {
@@ -59,10 +64,10 @@ client.onMqttMessage = message => {
 };
 
 console.log('connecting');
-await client.connect({ clientId, password, keepAlive });
+await client.connect({ clientId, username, password });
 
-const { clientId, keepAlive } = client;
-console.log('connected', { clientId, keepAlive });
+const { keepAlive } = client;
+console.log('connected', { keepAlive });
 
 console.log(`publishing`);
 await client.publish({ topic, payload });
@@ -103,6 +108,10 @@ async function run() {
     const topic = 'my-topic';
     const payload = 'hello world!';
 
+    const clientId = 'my-client-id'; // optional
+    const username = 'my-user-name'; // optional
+    const password = 'MY_PASSWORD';
+
     const client = new MqttClient({ hostname, port, protocol });
 
     client.onMqttMessage = message => {
@@ -112,10 +121,10 @@ async function run() {
     };
 
     console.log('connecting');
-    await client.connect({ clientId, password, keepAlive });
+    await client.connect({ clientId, username, password });
 
-    const { clientId, keepAlive } = client;
-    console.log('connected', { clientId, keepAlive });
+    const { keepAlive } = client;
+    console.log('connected', { keepAlive });
 
     console.log(`publishing`);
     await client.publish({ topic, payload });
