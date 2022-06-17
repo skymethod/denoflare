@@ -47,46 +47,154 @@ button {
    margin-top: 0.5rem;
 }
 
+#connect-status {
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   text-align: center;
+}
+
 #composition {
    grid-template-columns: 1fr 8rem;
    margin: 1rem 0;
+   visibility: hidden;
+}
+
+#welcome, output {
+   height: calc(100vh - 24rem);
+   overflow-y: auto;
+   padding: 0.5rem 0.75rem;
+}
+
+#welcome {
+   /* background-color: rebeccapurple; */
 }
 
 output {
-   background-color: gray;
-   height: calc(100vh - 24rem);
-   overflow-y: auto;
-   display: block;
+   background-color: rgba(40.95, 40.95, 40.95);
+   
+   font-size: 0.75rem;
+   display: none;
+}
+
+output > * {
+   padding: 0.15rem 0;
 }
 
 footer {
    font-size: 0.75rem;
 }
+
+a {
+   color: rgb(187, 134, 252);
+   text-underline-offset: 0.2rem;
+   text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+p {
+   line-height: 1.4rem;
+}
+
+details {
+   margin: 1rem 0;
+}
+
+summary {
+   margin-bottom: 0.5rem;
+   cursor: pointer;
+}
+
+code {
+   margin: 0.5rem 0;
+   display: block;
+}
+
+code.long {
+   word-break: break-all;
+}
+
 </style>
 
 <script type="module" src="/mqtt-demo.js"></script>
 
 </head>
 <body>
-   <header><h3>denoflare-mqtt demo</h3></header>
+   <header><h3><a href="https://github.com/skymethod/denoflare/tree/master/common/mqtt" target="_blank">denoflare-mqtt</a> demo</h3></header>
    <main>
       <form id="connection">
          Broker: <input id="broker" type="text" placeholder="broker.namespace" spellcheck="false" autocomplete="off" autofocus /><span>.cloudflarepubsub.com</span>
          Topic: <input id="topic" type="text" placeholder="my-topic" spellcheck="false" autocomplete="off" /><span></span>
          Password: <input id="password" type="text" placeholder="jwt token" spellcheck="false" autocomplete="off" /><span></span>
-         <span></span><button id="connect">Connect</button><span></span>
+         <span></span><button id="connect">Connect</button><span id="connect-status"></span>
       </form>
 
       <form id="composition">
          <input id="message" type="text" placeholder="My message" spellcheck="false" autocomplete="off" /><button id="send">Send</button>
       </form>
-      <output>
-         asdf
-      </output>
+      <div id="welcome">
+         <p>This is a demo of <a href="https://github.com/skymethod/denoflare/tree/master/common/mqtt" target="_blank">denoflare-mqtt</a>, a tiny isomorphic MQTTv5 client running in the browser.</p>
+         <p>Subscribe and publish to a topic on your broker from standard JavaScript.</p>
+         <p>The library only implements MQTTv5, and only the features currently implemented by <a href="https://developers.cloudflare.com/pub-sub/" target="_blank">Cloudflare Pub/Sub</a>.</p>
+         <p>Small enough to be used inside a Cloudflare Worker. 🤯 🤯 🤯</p>
+         <details>
+            <summary>Browser import (ESM)</summary>
+            <code class="long">import { MqttClient } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@b082a9d039716765437aee28a55b64ab297e1c7b/npm/denoflare-mqtt/esm/main.js';</code>
+            <code>// esm module from npm package source served from jsdelivr with the correct mime type for browsers</code>
+         </details>
+         <details>
+            <summary>Deno import (also supports 'mqtts' over tcp!)</summary>
+            <code class="long">import { MqttClient } from 'https://raw.githubusercontent.com/skymethod/denoflare/master/common/mqtt/mod_deno.ts';</code>
+         </details>
+         <details>
+            <summary>NPM</summary>
+            <code>See the <a href="https://www.npmjs.com/package/denoflare-mqtt">denoflare-mqtt NPM package readme</a></code>
+         </details>
+         <details>
+            <summary>Usage example</summary>
+            <pre>
+const protocol = 'wss'; // also supports 'mqtts' in Deno
+const hostname = 'my-broker.my-namespace.cloudflarepubsub.com';
+const port = 8884; // 8883 for 'mqtts'
+
+const topic = 'my-topic';
+const payload = 'hello world!';
+
+const client = new MqttClient({ hostname, port, protocol });
+
+client.onMqttMessage = message => {
+   if (message.type === DISCONNECT) {
+      console.log('disconnect', message.reason);
+   }
+};
+
+console.log('connecting');
+await client.connect({ clientId, password, keepAlive });
+
+const { clientId, keepAlive } = client;
+console.log('connected', { clientId, keepAlive });
+
+console.log(`publishing`);
+await client.publish({ topic, payload });
+
+console.log('disconnecting');
+await client.disconnect();
+
+console.log('disconnected');
+         </pre>
+         </details>
+         <pre>
+
+</pre>
+      </div>
+      <output id="messages"></output>
    </main>
    <footer>
-      <p>MQTT connections are made with client-side JavaScript</p>
-      <p>The static content worker source code is available as a <a href="#">Denoflare example</a>.</p>
+      <p>MQTT over WSS connections are made with client-side JavaScript for this demo.</p>
+      <p>The static content worker source code is available as a <a href="https://github.com/skymethod/denoflare/tree/master/examples/mqtt-demo-worker" target="_blank">Denoflare example</a>.</p>
    </footer>
 </body>
 </html>
