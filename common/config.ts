@@ -87,7 +87,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -149,6 +149,11 @@ export interface R2BucketBinding {
     readonly bucketName: string;
 }
 
+export interface AnalyticsEngineBinding {
+
+    /** The Analytics Engine dataset name */
+    readonly dataset: string;
+}
 
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
@@ -207,4 +212,9 @@ export function isServiceBinding(binding: Binding): binding is ServiceBinding {
 export function isR2BucketBinding(binding: Binding): binding is R2BucketBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).bucketName === 'string';
+}
+
+export function isAnalyticsEngineBinding(binding: Binding): binding is AnalyticsEngineBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).dataset === 'string';
 }

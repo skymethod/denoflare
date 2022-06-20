@@ -19,6 +19,7 @@ import { LocalWebSockets } from './local_web_sockets.ts';
 import { RpcStubWebSockets } from './rpc_stub_web_sockets.ts';
 import { makeRpcStubDurableObjectStorageProvider } from './rpc_stub_durable_object_storage.ts';
 import { RpcR2Bucket } from './rpc_r2_bucket.ts';
+import { NoopAnalyticsEngine } from './noop_analytics_engine.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -67,6 +68,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
                 return objects.resolveDoNamespace(doNamespace)
             },
             r2BucketProvider: bucketName => new RpcR2Bucket(bucketName, channel, makeBodyResolverOverRpc(channel), bodies),
+            analyticsEngineProvider: NoopAnalyticsEngine.provider,
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });
     });

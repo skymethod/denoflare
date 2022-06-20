@@ -70,6 +70,9 @@ export interface IncomingRequestCfProperties {
     /** City of the incoming request, e.g. "Austin". */
     readonly city: string | null;
 
+    /** Accept-Encoding of the incoming request, e.g. gzip, deflate, br */
+    readonly clientAcceptEncoding?: string; 
+
     /** Continent of the incoming request, e.g. "NA". */
     readonly continent: string | null;
 
@@ -97,7 +100,6 @@ export interface IncomingRequestCfProperties {
     // undocumented
 
     readonly edgeRequestKeepAliveStatus: number; // e.g. 1
-    readonly clientAcceptEncoding: string; // e.g. gzip, deflate, br
     readonly clientTcpRtt: number; // e.g. 35
     readonly weight: string; // e.g. "UNDEFINED"  (free only?)
     readonly tlsExportedAuthenticator: TlsExportedAuthenticator;
@@ -832,5 +834,25 @@ export type R2Range =
   | { offset: number; length?: number }
   | { offset?: number; length: number }
   | { suffix: number };
+
+//#endregion
+
+//#region Analytics Engine
+
+export interface AnalyticsEngine {
+    writeEvent(event?: AnalyticsEngineEvent): void;
+    logEvent(event?: AnalyticsEngineEvent): void;
+}
+  
+export interface AnalyticsEngineEvent {
+    // deno-lint-ignore no-explicit-any
+    accountId?: any;
+    // deno-lint-ignore no-explicit-any
+    indexId?: any;
+    // deno-lint-ignore no-explicit-any
+    version?: any;
+    doubles?: number[];
+    blobs?: (ArrayBuffer | string | null)[];
+}
 
 //#endregion

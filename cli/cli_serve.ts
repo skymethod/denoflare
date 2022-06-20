@@ -19,6 +19,7 @@ import { FetchUtil } from '../common/fetch_util.ts';
 import { LocalWebSockets } from '../common/local_web_sockets.ts';
 import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_types.d.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
+import { NoopAnalyticsEngine } from '../common/noop_analytics_engine.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -120,6 +121,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             const localWebSockets = new LocalWebSockets();
             const bindings = await bindingsProvider();
             const r2BucketProvider = await computeR2BucketProvider(profile, bindings, CLI_USER_AGENT);
+            const analyticsEngineProvider = NoopAnalyticsEngine.provider;
             
             const callbacks: WorkerExecutionCallbacks = {
                 onModuleWorkerInfo: moduleWorkerInfo => { 
@@ -135,6 +137,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                     return objects.resolveDoNamespace(doNamespace);
                 },
                 r2BucketProvider,
+                analyticsEngineProvider,
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
            
