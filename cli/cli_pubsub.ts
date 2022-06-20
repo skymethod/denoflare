@@ -47,7 +47,7 @@ export async function parsePubsubOptions(options: Record<string, unknown>): Prom
     const debugMessages = parseOptionalBooleanOption('debug-messages', options);
     const debugJwt = parseOptionalBooleanOption('debug-jwt', options);
 
-    const password = passwordOpt ?? await generatePubsubCredential(options, endpoint);
+    const password = passwordOpt ?? await generatePubsubCredential(options, endpoint, clientId);
 
     if (debugJwt) {
         dumpJwt(password);
@@ -67,12 +67,12 @@ export function parseCloudflareEndpoint(endpoint: string): { protocol: Protocol,
 
 //
 
-async function generatePubsubCredential(options: Record<string, unknown>, endpoint: string): Promise<string> {
+async function generatePubsubCredential(options: Record<string, unknown>, endpoint: string, clientId: string | undefined): Promise<string> {
     const { DEBUG } = Mqtt;
     console.log('generating credential');
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
     const { namespaceName, brokerName } = parseCloudflareEndpoint(endpoint);
-    const results = await generatePubsubCredentials(accountId, apiToken, namespaceName, brokerName, { number: 1, type: 'TOKEN', topicAcl: '#' });
+    const results = await generatePubsubCredentials(accountId, apiToken, namespaceName, brokerName, { number: 1, type: 'TOKEN', topicAcl: '#', clientIds: clientId ? [ clientId ] : undefined });
     for (const [ _clientId, token ] of Object.entries(results)) {
         if (DEBUG) console.log({ token });
         return token;
