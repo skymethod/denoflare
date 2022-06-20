@@ -37,7 +37,7 @@ async function runDenoBundle(rootSpecifier: string, opts: { noCheck?: boolean, c
     const { status, stdout, stderr } = await Deno.spawn(Deno.execPath(), {
         args: [
             'bundle',
-            ...(noCheck ? ['--no-check'] : []),
+            ...(noCheck ? ['--no-check'] : []), // type-checking is still the default in `deno bundle` in 1.23.0, the first release where it is not the default in `deno run`
             ...(config ? ['--config', config] : []),
             rootSpecifier,
         ],
