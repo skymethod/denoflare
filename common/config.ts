@@ -149,6 +149,7 @@ export interface R2BucketBinding {
     readonly bucketName: string;
 }
 
+/** Analytics Engine environment variable binding */
 export interface AnalyticsEngineBinding {
 
     /** The Analytics Engine dataset name */

@@ -95,6 +95,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Analytics Engine environment variable binding",
+                                            "required": [ "dataset" ],
+                                            "properties": {
+                                                "dataset": {
+                                                    "description": "The Analytics Engine dataset name",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }
