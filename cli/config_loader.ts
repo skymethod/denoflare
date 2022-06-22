@@ -5,6 +5,7 @@ import { join, resolve } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand } from './cli_command.ts';
+import { listAccounts } from '../common/cloudflare_api.ts';
 
 export function commandOptionsForConfig(command: CliCommand<unknown>) {
     return command
@@ -81,13 +82,13 @@ export async function resolveBinding(binding: Binding, localPort: number | undef
 }
 
 export async function resolveProfile(config: Config, options: Record<string, unknown>): Promise<Profile> {
-    const profile = findProfile(config, options);
+    const profile = await findProfile(config, options);
     if (profile === undefined) throw new Error(`Unable to find profile, no profiles in config`);
     return await resolveProfileComponents(profile);
 }
 
 export async function resolveProfileOpt(config: Config, options: Record<string, unknown>): Promise<Profile | undefined> {
-    const profile = findProfile(config, options);
+    const profile = await findProfile(config, options);
     if (profile === undefined) return undefined;
     return await resolveProfileComponents(profile);
 }
@@ -135,13 +136,26 @@ async function findConfigFilePath(verbose: boolean): Promise<string | undefined>
     }
 }
 
-function findProfile(config: Config, options: Record<string, unknown>): Profile | undefined {
+async function findProfile(config: Config, options: Record<string, unknown>): Promise<Profile|undefined> {
     const accountId = parseOptionalStringOption('account-id', options);
     const apiToken = parseOptionalStringOption('api-token', options);
-    if (typeof accountId === 'string' && accountId.length > 0 && typeof apiToken === 'string' && apiToken.length > 0) {
+    if (typeof apiToken === 'string' && apiToken.length > 0) {
         const verbose = !!options.verbose;
-        if (verbose) console.log('Using account-id and api-token from options');
-        return { accountId, apiToken };
+        if (typeof accountId === 'string' && accountId.length > 0) {
+            if (verbose) console.log('Using account-id and api-token from options');
+            return { accountId, apiToken };
+        }
+        try {
+            const accounts = (await listAccounts(apiToken)).map(v => ({ id: v.id, name: v.name }));
+            if (accounts.length === 0) throw new Error('Unable to locate account-id for that api-token');
+            if (accounts.length > 1) throw new Error(`Found multiple accounts for that api-token, try again with an explicit --account-id. Accounts: ${JSON.stringify(accounts)}`);
+            const accountId = accounts[0].id;
+            if (verbose) console.log(`Using api-token from options, and located corresponding account-id: ${accountId}`);
+            return { accountId, apiToken };
+        } catch (e) {
+            console.warn(`Error calling listAccounts: ${e.stack || e}`);
+            throw new Error(`Failed locating account-id from api-token`, { cause: e });
+        }
     }
     const profiles = config.profiles || {};
     const { profile: optionProfileName } = options;

@@ -3,7 +3,7 @@ import { Binding, Config, Script } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { CliCommand } from './cli_command.ts';
 import { CLI_VERSION } from './cli_version.ts';
-import { basename, extname } from './deps_cli.ts';
+import { basename, extname, dirname, resolve } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 
 const launchTime = Date.now();
@@ -139,9 +139,18 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
 //
 
 function computeScriptNameFromPath(path: string) {
-    const base = basename(path);
-    const ext = extname(path);
-    return base.endsWith(ext) ? base.substring(0, base.length - ext.length) : base;
+    const compute = (p: string) => {
+        const base = basename(p);
+        const ext = extname(p);
+        return base.endsWith(ext) ? base.substring(0, base.length - ext.length) : base;
+    };
+    let rt = compute(path);
+    if (/^(worker|index|mod)$/.test(rt)) {
+        let dir = dirname(path);
+        if (dir === '.' || dir === '..') dir = resolve(Deno.cwd(), dir);
+        rt = compute(dir);
+    }
+    return rt;
 }
 
 function parseNameValue(str: string): { name: string, value: string} {
