@@ -244,9 +244,9 @@ function cfapiCommand() {
         await deletePubsubBroker(accountId, apiToken, name, brokerName);
     });
 
-    add(apiCommand('generate-pubsub-credentials', 'Generate credentials for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('number', 'integer', 'Number of credentials to generate').option('clientId', 'strings', 'Explicit clientId (otherwise generated)'), async (accountId, apiToken, opts) => {
-        const { name, brokerName, number = 1, clientId: clientIds } = opts;
-        const value = await generatePubsubCredentials(accountId, apiToken, name, brokerName, { number, type: 'TOKEN', topicAcl: '#', clientIds });
+    add(apiCommand('generate-pubsub-credentials', 'Generate credentials for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('number', 'integer', 'Number of credentials to generate').option('clientId', 'strings', 'Explicit clientId (otherwise generated)').option('expiration', 'integer', 'Expiration for the generated credentials (in seconds)'), async (accountId, apiToken, opts) => {
+        const { name, brokerName, number = 1, clientId: clientIds, expiration } = opts;
+        const value = await generatePubsubCredentials(accountId, apiToken, name, brokerName, { number, type: 'TOKEN', topicAcl: '#', clientIds, expiration });
         console.log(JSON.stringify(value, undefined, 2));
     });
 

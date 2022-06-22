@@ -4,7 +4,7 @@ import { publish, PUBLISH_COMMAND } from './cli_pubsub_publish.ts';
 import { subscribe, SUBSCRIBE_COMMAND } from './cli_pubsub_subscribe.ts';
 import { decodeJwt } from '../common/jwt.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { generatePubsubCredentials } from '../common/cloudflare_api.ts';
+import { CloudflareApi, generatePubsubCredentials } from '../common/cloudflare_api.ts';
 import { Protocol } from '../common/mqtt/mqtt_client.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { Mqtt } from '../common/mqtt/mqtt.ts';
@@ -33,6 +33,7 @@ export function commandOptionsForPubsub(): CliCommandModifier {
         .option('clientId', 'string', 'Client ID')
         .option('password', 'string', 'Password')
         .option('keepAlive', 'integer', 'Keep alive rate (in seconds)')
+        .option('expiration', 'integer', 'Expiration (in seconds) when auto-generating credential')
         .option('debugMessages', 'boolean', 'Dump all received mqtt messages')
         .option('debugJwt', 'boolean', 'If the password is a jwt token, dump the claims')
         .include(commandOptionsForConfig)
@@ -44,10 +45,11 @@ export async function parsePubsubOptions(options: Record<string, unknown>): Prom
     const clientId = parseOptionalStringOption('client-id', options);
     const passwordOpt = parseOptionalStringOption('password', options);
     const keepAlive = parseOptionalIntegerOption('keep-alive', options); // cloudflare found min = 10, max = 3600
+    const expiration = parseOptionalIntegerOption('expiration', options);
     const debugMessages = parseOptionalBooleanOption('debug-messages', options);
     const debugJwt = parseOptionalBooleanOption('debug-jwt', options);
 
-    const password = passwordOpt ?? await generatePubsubCredential(options, endpoint, clientId);
+    const password = passwordOpt ?? await generatePubsubCredential(options, endpoint, clientId, expiration);
 
     if (debugJwt) {
         dumpJwt(password);
@@ -67,12 +69,13 @@ export function parseCloudflareEndpoint(endpoint: string): { protocol: Protocol,
 
 //
 
-async function generatePubsubCredential(options: Record<string, unknown>, endpoint: string, clientId: string | undefined): Promise<string> {
+async function generatePubsubCredential(options: Record<string, unknown>, endpoint: string, clientId: string | undefined, expiration: number | undefined): Promise<string> {
     const { DEBUG } = Mqtt;
+    if (DEBUG) CloudflareApi.DEBUG = true;
     console.log('generating credential');
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
     const { namespaceName, brokerName } = parseCloudflareEndpoint(endpoint);
-    const results = await generatePubsubCredentials(accountId, apiToken, namespaceName, brokerName, { number: 1, type: 'TOKEN', topicAcl: '#', clientIds: clientId ? [ clientId ] : undefined });
+    const results = await generatePubsubCredentials(accountId, apiToken, namespaceName, brokerName, { number: 1, type: 'TOKEN', topicAcl: '#', clientIds: clientId ? [ clientId ] : undefined, expiration });
     for (const [ _clientId, token ] of Object.entries(results)) {
         if (DEBUG) console.log({ token });
         return token;

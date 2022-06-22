@@ -878,12 +878,13 @@ export async function deletePubsubBroker(accountId: string, apiToken: string, na
     // 200, result = null
 }
 
-export async function generatePubsubCredentials(accountId: string, apiToken: string, namespaceName: string, brokerName: string, payload: { number: number, type: string, topicAcl: string, clientIds?: string[] }): Promise<Record<string, string>> {
-    const { number, type, topicAcl, clientIds } = payload;
+export async function generatePubsubCredentials(accountId: string, apiToken: string, namespaceName: string, brokerName: string, payload: { number: number, type: string, topicAcl: string, clientIds?: string[], expiration?: number }): Promise<Record<string, string>> {
+    const { number, type, topicAcl, clientIds, expiration } = payload;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/credentials`);
     url.searchParams.set('number', String(number));
     url.searchParams.set('type', type);
     url.searchParams.set('topicAcl', topicAcl);
+    if (typeof expiration === 'number') url.searchParams.set('expiration', String(expiration));
     (clientIds ?? []).forEach(v => url.searchParams.append('clientid', v));
     return (await execute('generatePubsubCredentials', 'GET', url.toString(), apiToken) as GeneratePubsubCredentialsResponse).result;
 }
