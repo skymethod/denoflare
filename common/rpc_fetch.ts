@@ -66,7 +66,7 @@ export async function packResponse(response: Response, bodies: Bodies, webSocket
         } else if (response.bodyInit instanceof ArrayBuffer) {
             const bodyBytes = new Uint8Array(new Uint8Array(response.bodyInit)); // fast way to copy an arraybuffer
             return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes, bodyNull: false, webSocketId, url, redirected };
-        } else if (response.bodyInit === null) {
+        } else if (response.bodyInit === null || response.bodyInit === undefined) {
             return { status, headers, bodyId: undefined, bodyText: undefined, bodyBytes: undefined, bodyNull: true, webSocketId, url, redirected };
         } else {
             throw new Error(`packResponse: DenoflareResponse bodyInit=${response.bodyInit}`);
