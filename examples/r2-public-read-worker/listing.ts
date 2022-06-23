@@ -1,7 +1,7 @@
 import { encodeXml, R2Objects } from './deps.ts';
 
-export function computeDirectoryListingHtml(objects: R2Objects, opts: { prefix: string, cursor?: string }): string {
-    const { prefix, cursor } = opts;
+export function computeDirectoryListingHtml(objects: R2Objects, opts: { prefix: string, cursor?: string, directoryListingLimitParam?: string }): string {
+    const { prefix, cursor, directoryListingLimitParam } = opts;
     const lines = ['<!DOCTYPE html>', '<html>', '<head>', '<style>', STYLE, '</style>', '</head>', '<body>'];
 
     lines.push('<div id="contents">');
@@ -18,7 +18,7 @@ export function computeDirectoryListingHtml(objects: R2Objects, opts: { prefix: 
     }
     if (cursor) {
         lines.push('<div class="full">&nbsp;</div>');
-        lines.push(`<div class="full"><a href="?cursor=${encodeXml(cursor)}">next ➜</a></div>`);
+        lines.push(`<div class="full"><a href="?${directoryListingLimitParam ? `directoryListingLimit=${directoryListingLimitParam}&` : ''}cursor=${encodeXml(cursor)}">next ➜</a></div>`);
     }
     lines.push('</div>');
 

@@ -121,17 +121,20 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
             prefix += '/';
             redirect = true;
         }
+        const directoryListingLimitParam = searchParams.get('directoryListingLimit') || undefined;
         const limit = (() => {
-            if (typeof directoryListingLimit === 'string') {
-                try {
-                    const limit = parseInt(directoryListingLimit);
-                    if (String(limit) === directoryListingLimit && limit >= 1 && limit <= 1000) return limit;
-                } catch {
-                    // noop
+            for (const [ name, value ] of Object.entries({ directoryListingLimitParam, directoryListingLimitEnv: directoryListingLimit })) {
+                if (typeof value === 'string') {
+                    try {
+                        const limit = parseInt(value);
+                        if (limit >= 1 && limit <= 1000) return limit;
+                    } catch {
+                        // noop
+                    }
+                    console.log(`Bad ${name}: ${value}, expected integer between 1 to 1000`)
                 }
-                console.log(`Bad directoryListingLimit: ${directoryListingLimit}, expected integer between 1 to 1000`)
             }
-            return 1000; // r2 bug: default limit to the max limit due to the delimitedPrefixes and truncated bug
+            return 20;  // sane default
         })();
         const options: R2ListOptions = { delimiter: '/', limit, prefix: prefix === '' ? undefined : prefix, cursor: searchParams.get('cursor') || undefined }; 
         console.log(`list: ${JSON.stringify(options)}`);
@@ -139,7 +142,7 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         if (objects.delimitedPrefixes.length > 0 || objects.objects.length > 0) {
             const { cursor } = objects;
             console.log({ numPrefixes: objects.delimitedPrefixes.length, numObjects: objects.objects.length, truncated: objects.truncated, cursor });
-            return redirect ? temporaryRedirect({ location: '/' + prefix }) : new Response(computeDirectoryListingHtml(objects, { prefix, cursor }), { headers: { 'content-type': TEXT_HTML_UTF8 } });
+            return redirect ? temporaryRedirect({ location: '/' + prefix }) : new Response(computeDirectoryListingHtml(objects, { prefix, cursor, directoryListingLimitParam }), { headers: { 'content-type': TEXT_HTML_UTF8 } });
         }
     }
 
