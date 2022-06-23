@@ -80,8 +80,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const enableAlarms = scriptContentsStr.includes('.setAlarm('); // TODO not ideal - make this an explicit cli option?
-        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2, enableAlarms });
+        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2 });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
        
         if (doNamespaces.hasPendingUpdates()) {

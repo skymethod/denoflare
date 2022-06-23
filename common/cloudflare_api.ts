@@ -75,8 +75,8 @@ export interface ListScriptsResponse extends CloudflareApiResponse {
     readonly result: readonly Script[];
 }
 
-export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', enableR2?: boolean, enableAlarms?: boolean }): Promise<Script> {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2, enableAlarms } = opts;
+export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', enableR2?: boolean }): Promise<Script> {
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2 } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -86,10 +86,6 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
     };
     if (enableR2) {
         metadata['compatibility_date'] = '2022-05-11';
-    }
-    if (enableAlarms) {
-        metadata['compatibility_flags'] = [ 'durable_object_alarms' ];
-        metadata['compatibility_date'] = '2022-06-07';
     }
 
     if (isModule) {
