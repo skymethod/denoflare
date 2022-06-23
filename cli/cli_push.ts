@@ -62,7 +62,6 @@ export async function push(args: (string | number)[], options: Record<string, un
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const usageModel = script?.usageModel;
         const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
-        const enableR2 = bindings.some(v => v.type === 'r2_bucket');
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
         // only perform migrations on first upload, not on subsequent --watch uploads
@@ -80,7 +79,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel, enableR2 });
+        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
        
         if (doNamespaces.hasPendingUpdates()) {
