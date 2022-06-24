@@ -184,6 +184,14 @@ function computeCustomMetadataFromHeaders(headers: Headers): Record<string, stri
     return Object.fromEntries([...headers.keys()].filter(v => v.startsWith('x-amz-meta-')).map(v => [v.substring(11), headers.get(v)!]));
 }
 
+function computeR2RangeFromContentRange(contentRange: string | undefined): R2Range | undefined {
+    if (typeof contentRange !== 'string') return undefined;
+    const [ _, start, end, _size ] = checkMatchesReturnMatcher('content-range', contentRange, /^(\d+)-(\d+)\/(\d+)$/);
+    const offset = parseInt(start);
+    const length = parseInt(end) - offset + 1;
+    return { offset, length };
+}
+
 //
 
 class ListBucketResultItemBasedR2Object implements R2Object {
@@ -221,6 +229,7 @@ class HeadersBasedR2Object implements R2Object {
     readonly uploaded: Date;
     readonly httpMetadata: R2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
+    readonly range?: R2Range;
 
     constructor(headers: Headers, key: string) {
         this.key = key;
@@ -240,6 +249,7 @@ class HeadersBasedR2Object implements R2Object {
             cacheExpiry: cacheExpiryStr ? new Date(cacheExpiryStr) : undefined,
         }
         this.customMetadata = computeCustomMetadataFromHeaders(headers);
+        this.range = computeR2RangeFromContentRange(headers.get('content-range') || undefined);
 
         // placeholder values, don't throw on prop access
         this.version = this.etag;
