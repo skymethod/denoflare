@@ -805,6 +805,7 @@ export interface R2Object {
     readonly uploaded: Date;
     readonly httpMetadata: R2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
+    readonly range?: R2Range;
     writeHttpMetadata(headers: Headers): void;
 }
 
