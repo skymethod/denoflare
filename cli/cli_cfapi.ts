@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getUser, getWorkerAccountSettings, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, revokePubsubCredentials, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getUser, getWorkerAccountSettings, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -265,6 +265,16 @@ function cfapiCommand() {
         const { name, brokerName, jti = [] } = opts;
         const value = await deletePubsubRevocations(accountId, apiToken, name, brokerName, ...jti);
         console.log(JSON.stringify(value, undefined, 2));
+    });
+
+    add(apiCommand('query-analytics-engine', '').arg('sql', 'string', 'Query'), async (accountId, apiToken, opts) => {
+        const { sql } = opts;
+        const result = await queryAnalyticsEngine(accountId, apiToken, sql);
+        if (result.startsWith('{')) {
+            console.log(JSON.stringify(JSON.parse(result), undefined, 2));
+        } else {
+            console.log(result);
+        }
     });
 
     return rt;

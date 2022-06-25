@@ -841,19 +841,12 @@ export type R2Range =
 //#region Analytics Engine
 
 export interface AnalyticsEngine {
-    writeEvent(event?: AnalyticsEngineEvent): void;
-    logEvent(event?: AnalyticsEngineEvent): void;
+    writeDataPoint(event: AnalyticsEngineEvent): void;
 }
   
 export interface AnalyticsEngineEvent {
-    // deno-lint-ignore no-explicit-any
-    accountId?: any;
-    // deno-lint-ignore no-explicit-any
-    indexId?: any;
-    // deno-lint-ignore no-explicit-any
-    version?: any;
-    doubles?: number[];
-    blobs?: (ArrayBuffer | string | null)[];
+    readonly doubles?: number[];
+    readonly blobs?: (ArrayBuffer | string | null)[];
 }
 
 //#endregion

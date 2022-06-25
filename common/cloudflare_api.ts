@@ -894,7 +894,6 @@ export async function revokePubsubCredentials(accountId: string, apiToken: strin
     // 200, result = null
 }
 
-
 export async function listPubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<unknown> {
     const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`;
     return (await execute('listPubsubRevocations', 'GET', url, apiToken) as ListPubsubRevocationsResponse).result;
@@ -909,6 +908,15 @@ export async function deletePubsubRevocations(accountId: string, apiToken: strin
     url.searchParams.set('jti', jwtIds.join(','));
     await execute('deletePubsubRevocations', 'DELETE', url.toString(), apiToken);
     // 200, result = null
+}
+
+//#endregion
+
+//#region Analytics Engine
+
+export async function queryAnalyticsEngine(accountId: string, apiToken: string, query: string): Promise<string> {
+    const url = `${computeAccountBaseUrl(accountId)}/analytics_engine/sql`;
+    return await execute('queryAnalyticsEngine', 'POST', url, apiToken, query, 'text');
 }
 
 //#endregion
@@ -941,10 +949,10 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'text?'): Promise<string | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'text'): Promise<string>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'empty'): Promise<undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text?' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | undefined;
@@ -971,7 +979,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | '
         const buffer = await fetchResponse.arrayBuffer();
         return new Uint8Array(buffer);
     }
-    if (responseType === 'text?' && contentType.startsWith('text/')) {
+    if (responseType === 'text') {
         return await fetchResponse.text();
     }
     if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType)) {
