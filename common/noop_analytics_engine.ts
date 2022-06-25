@@ -8,12 +8,8 @@ export class NoopAnalyticsEngine implements AnalyticsEngine {
         this.dataset = dataset;
     }
 
-    writeEvent(event?: AnalyticsEngineEvent): void {
-        console.log(`${this.dataset}.writeEvent (no-op)`, event);
-    }
-
-    logEvent(event?: AnalyticsEngineEvent): void {
-        console.log(`${this.dataset}.logEvent (no-op)`, event);
+    writeDataPoint(event: AnalyticsEngineEvent): void {
+        console.log(`${this.dataset}.writeDataPoint (no-op)`, event);
     }
 
     static provider: AnalyticsEngineProvider = dataset => new NoopAnalyticsEngine(dataset);

@@ -1,9 +1,10 @@
-import { Bytes, IncomingRequestCf, ModuleWorkerContext, encodeXml } from './deps_worker.ts';
-import { WEBTAIL_APP_B64, WEBTAIL_APP_HASH } from './webtail_data.ts';
+import { Bytes, IncomingRequestCf, ModuleWorkerContext, encodeXml, importText } from './deps_worker.ts';
 import { FAVICON_SVG, FAVICON_ICO_B64, FAVICON_VERSION } from './favicons.ts';
 import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
+const webtailAppJs = await importText(import.meta.url, './static/webtail_app.js');
+const webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex();
 
 export default {
 
@@ -126,12 +127,11 @@ function isFetchAllowed(method: string, url: URL): boolean {
 }
 
 function computeAppJsPath(): string {
-    return `/app.${WEBTAIL_APP_HASH}.js`;
+    return `/app.${webtailAppJsSha1}.js`;
 }
 
 function computeAppResponse(): Response {
-    const array = Bytes.ofBase64(WEBTAIL_APP_B64).array();
-    return new Response(array, { headers: computeHeaders('text/javascript; charset=utf-8', { immutable: true }) });
+    return new Response(webtailAppJs, { headers: computeHeaders('text/javascript; charset=utf-8', { immutable: true }) });
 }
 
 const ICONS_MANIFEST_AND_THEME_COLORS = `

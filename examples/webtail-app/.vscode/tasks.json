@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "deno",
+            "command": "bundle",
+            "problemMatcher": [
+                "$deno"
+            ],
+            "args": [
+                "--config",
+                "deno.jsonc",
+                "--watch",
+                "webtail_app.ts",
+                "../webtail-worker/static/webtail_app.js"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "label": "deno: bundle webtail_app.ts"
+        }
+    ]
+}
