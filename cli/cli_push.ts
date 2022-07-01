@@ -4,7 +4,7 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
@@ -302,6 +302,8 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         return { type: 'r2_bucket', name, bucket_name: binding.bucketName };
     } else if (isAnalyticsEngineBinding(binding)) {
         return { type: 'analytics_engine', name, dataset: binding.dataset };
+    } else if (isD1DatabaseBinding(binding)) {
+        return { type: 'd1', name, id: binding.d1DatabaseUuid };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

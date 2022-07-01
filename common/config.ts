@@ -87,7 +87,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -156,6 +156,13 @@ export interface AnalyticsEngineBinding {
     readonly dataset: string;
 }
 
+/** D1 database environment variable binding */
+export interface D1DatabaseBinding {
+
+    /** The D1 database uuid */
+    readonly d1DatabaseUuid: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -219,3 +226,9 @@ export function isAnalyticsEngineBinding(binding: Binding): binding is Analytics
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).dataset === 'string';
 }
+
+export function isD1DatabaseBinding(binding: Binding): binding is D1DatabaseBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).d1DatabaseUuid === 'string';
+}
+

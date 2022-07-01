@@ -107,7 +107,7 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
     return (await execute('putScript', 'PUT', url, apiToken, formData) as PutScriptResponse).result;
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -156,6 +156,12 @@ export interface AnalyticsEngineBinding {
     readonly type: 'analytics_engine';
     readonly name: string;
     readonly dataset: string;
+}
+
+export interface D1DatabaseBinding {
+    readonly type: 'd1';
+    readonly name: string;
+    readonly id: string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least

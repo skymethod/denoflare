@@ -106,6 +106,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "D1 database environment variable binding",
+                                            "required": [ "d1DatabaseUuid" ],
+                                            "properties": {
+                                                "d1DatabaseUuid": {
+                                                    "description": "The D1 database uuid",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }
