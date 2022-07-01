@@ -921,6 +921,58 @@ export async function queryAnalyticsEngine(accountId: string, apiToken: string, 
 
 //#endregion
 
+//#region D1
+
+export async function createD1Database(accountId: string, apiToken: string, databaseName: string): Promise<D1Database> {
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
+    return (await execute('createD1Database', 'POST', url, apiToken, { name: databaseName }) as CreateD1DatabaseResponse).result;
+}
+
+export interface CreateD1DatabaseResponse extends CloudflareApiResponse {
+    readonly result: D1Database;
+}
+
+export async function listD1Databases(accountId: string, apiToken: string): Promise<D1Database[]> {
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
+    return (await execute('listD1Databases', 'GET', url, apiToken) as ListD1DatabasesResponse).result;
+}
+
+export interface ListD1DatabasesResponse extends CloudflareApiResponse {
+    readonly result: D1Database[];
+    readonly result_info: ResultInfo;
+}
+
+export interface D1Database {
+    readonly uuid: string; // dashed v4 guid
+    readonly name: string;
+}
+
+export async function deleteD1Database(accountId: string, apiToken: string, databaseUuid: string): Promise<void> {
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}`;
+    await execute('deleteD1Database', 'DELETE', url.toString(), apiToken);
+    // 200 result: null
+}
+
+export async function queryD1Database(accountId: string, apiToken: string, databaseUuid: string, sql: string, params: (null | number | string | ArrayBuffer)[] = []): Promise<D1QueryResult[]> {
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/query`;
+    const payload = { sql, params };
+    return (await execute('queryD1Database', 'POST', url, apiToken, payload) as QueryD1DatabaseResponse).result;
+}
+
+export interface QueryD1DatabaseResponse extends CloudflareApiResponse {
+    readonly result: D1QueryResult[];
+}
+
+export interface D1QueryResult {
+    readonly results: Record<string, unknown>;
+    readonly duration: number; // duration of the operation in milliseconds, e.g. 0.04996099999999615
+    readonly lastRowId: number | null; // the rowid of the last row inserted or null if it doesn't apply, see https://www.sqlite.org/c3ref/last_insert_rowid.html
+    readonly changes: number | null; // total # of rows that were inserted/updated/deleted, or 0 if read-only
+    readonly success: boolean;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
@@ -946,22 +998,24 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json'): Promise<CloudflareApiResponse>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes'): Promise<Uint8Array>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'text'): Promise<string>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType?: 'empty'): Promise<undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: string | Record<string, unknown> | FormData, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
+type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData;
+
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json'): Promise<CloudflareApiResponse>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes'): Promise<Uint8Array>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'text'): Promise<string>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'empty'): Promise<undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
-    let bodyObj: Record<string, unknown> | undefined;
+    let bodyObj: Record<string, unknown> | Record<string, unknown>[] | undefined;
     if (typeof body === 'string') {
         headers.set('Content-Type', TEXT_PLAIN_UTF8);
-    } else if (isStringRecord(body)) {
+    } else if (isStringRecord(body) || Array.isArray(body)) {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
         bodyObj = body;
-        body = JSON.stringify(body);
+        body = JSON.stringify(body, undefined, 2);
     }
     if (CloudflareApi.DEBUG) console.log([...headers].map(v => v.join(': ')).join('\n'));
     if (CloudflareApi.DEBUG && bodyObj) console.log(bodyObj);

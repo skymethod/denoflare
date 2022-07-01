@@ -17,7 +17,7 @@ async function tmp(_args: (string | number)[], options: Record<string, unknown>)
     const tokenUrl = 'https://dash.cloudflare.com/oauth2/token';
     const clientId = parseRequiredStringOption('client-id', options);
     const redirectUri = `http://localhost:${port}/oauth/callback`;
-    const scopes = [ 'workers_scripts:write', 'zone:read', 'account:read', 'user:read', 'offline_access' ];
+    const scopes = [ 'workers_scripts:write', 'zone:read', 'account:read', 'user:read', 'd1:write', 'offline_access' ];
     const oauthRequestId = { time: Date.now(), nonce: crypto.randomUUID().toLowerCase().split('-').pop()! };
     const state = [oauthRequestId.time, oauthRequestId.nonce].join(':');
     const { codeVerifier, codeChallenge, codeChallengeMethod } = await computeOauthPkce();

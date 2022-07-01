@@ -10,6 +10,7 @@ import { r2, R2_COMMAND } from './cli_r2.ts';
 import { pubsub, PUBSUB_COMMAND } from './cli_pubsub.ts';
 import { CliCommand } from './cli_command.ts';
 import { denoflareCliCommand } from './cli_common.ts';
+import { d1, D1_COMMAND } from './cli_d1.ts';
 
 const { args, options } = parseFlags(Deno.args);
 
@@ -24,6 +25,7 @@ export const DENOFLARE_COMMAND = CliCommand.of(['denoflare'], undefined, { versi
     .subcommand(CFAPI_COMMAND, cfapi)
     .subcommand(R2_COMMAND, r2)
     .subcommand(PUBSUB_COMMAND, pubsub)
+    .subcommand(D1_COMMAND, d1)
     .subcommand(VERSION_COMMAND, () => console.log(CLI_VERSION))
     ;
 
