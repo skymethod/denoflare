@@ -108,8 +108,8 @@ function checkScript(name: string, script: any): Script {
 // deno-lint-ignore no-explicit-any
 function checkBinding(name: string, binding: any) {
     checkObject(name, binding);
-    const { value, secret, kvNamespace, doNamespace, wasmModule, bucketName, dataset } = binding;
-    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, bucketName, dataset ].filter(v => v !== undefined).length;
+    const { value, secret, kvNamespace, doNamespace, wasmModule, bucketName, dataset, d1DatabaseUuid } = binding;
+    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, bucketName, dataset, d1DatabaseUuid ].filter(v => v !== undefined).length;
     if (definedCount === 1) {
         if (value !== undefined && typeof value !== 'string') throw new Error(`Bad ${name}.value: expected string, found ${typeof value}`);
         else if (secret !== undefined && typeof secret !== 'string') throw new Error(`Bad ${name}.secret: expected string, found ${typeof secret}`);
@@ -118,6 +118,7 @@ function checkBinding(name: string, binding: any) {
         else if (wasmModule !== undefined && typeof wasmModule !== 'string') throw new Error(`Bad ${name}.wasmModule: expected string, found ${typeof wasmModule}`);
         else if (bucketName !== undefined && typeof bucketName !== 'string') throw new Error(`Bad ${name}.bucketName: expected string, found ${typeof bucketName}`);
         else if (dataset !== undefined && typeof dataset !== 'string') throw new Error(`Bad ${name}.dataset: expected string, found ${typeof dataset}`);
+        else if (d1DatabaseUuid !== undefined && typeof d1DatabaseUuid !== 'string') throw new Error(`Bad ${name}.d1DatabaseUuid: expected string, found ${typeof d1DatabaseUuid}`);
     } else {
         throw new Error(`Bad ${name}: ${binding}`);
     }
