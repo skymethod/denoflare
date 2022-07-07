@@ -2,34 +2,22 @@
 
 export async function listDurableObjectsNamespaces(accountId: string, apiToken: string): Promise<readonly DurableObjectsNamespace[]> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
-    return (await execute('listDurableObjectsNamespaces', 'GET', url, apiToken) as ListDurableObjectsNamespacesResponse).result;
-}
-
-export interface ListDurableObjectsNamespacesResponse extends CloudflareApiResponse {
-    readonly result: readonly DurableObjectsNamespace[];
+    return (await execute<readonly DurableObjectsNamespace[]>('listDurableObjectsNamespaces', 'GET', url, apiToken)).result;
 }
 
 export async function createDurableObjectsNamespace(accountId: string, apiToken: string, payload: { name: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
-    return (await execute('createDurableObjectsNamespace', 'POST', url, apiToken, payload) as CreateDurableObjectsNamespaceResponse).result;
-}
-
-export interface CreateDurableObjectsNamespaceResponse extends CloudflareApiResponse {
-    readonly result: DurableObjectsNamespace;
+    return (await execute<DurableObjectsNamespace>('createDurableObjectsNamespace', 'POST', url, apiToken, payload)).result;
 }
 
 export async function updateDurableObjectsNamespace(accountId: string, apiToken: string, payload: { id: string, name?: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${payload.id}`;
-    return (await execute('updateDurableObjectsNamespace', 'PUT', url, apiToken, payload) as UpdateDurableObjectsNamespaceResponse).result;
-}
-
-export interface UpdateDurableObjectsNamespaceResponse extends CloudflareApiResponse {
-    readonly result: DurableObjectsNamespace;
+    return (await execute<DurableObjectsNamespace>('updateDurableObjectsNamespace', 'PUT', url, apiToken, payload)).result;
 }
 
 export async function deleteDurableObjectsNamespace(accountId: string, apiToken: string, namespaceId: string): Promise<void> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${namespaceId}`;
-    await execute('deleteDurableObjectsNamespace', 'DELETE', url, apiToken) as CloudflareApiResponse;
+    await execute('deleteDurableObjectsNamespace', 'DELETE', url, apiToken);
 }
 
 export interface DurableObjectsNamespace {
@@ -49,7 +37,7 @@ export async function listDurableObjects(accountId: string, namespaceId: string,
     return { objects: result, cursor: resultCursor };
 }
 
-export interface ListDurableObjectsResponse extends CloudflareApiResponse {
+export interface ListDurableObjectsResponse extends CloudflareApiResponse<readonly DurableObject[]> {
     readonly result: readonly DurableObject[];
     readonly result_info: {
         readonly count: number;
@@ -68,11 +56,7 @@ export interface DurableObject {
 
 export async function listScripts(accountId: string, apiToken: string): Promise<readonly Script[]> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts`;
-    return (await execute('listScripts', 'GET', url, apiToken) as ListScriptsResponse).result;
-}
-
-export interface ListScriptsResponse extends CloudflareApiResponse {
-    readonly result: readonly Script[];
+    return (await execute<readonly Script[]>('listScripts', 'GET', url, apiToken)).result;
 }
 
 export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound' }): Promise<Script> {
@@ -104,7 +88,7 @@ export async function putScript(accountId: string, scriptName: string, apiToken:
     for (const { name, value, fileName } of (parts || [])) {
         formData.set(name, value, fileName);
     }
-    return (await execute('putScript', 'PUT', url, apiToken, formData) as PutScriptResponse).result;
+    return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
 }
 
 export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding;
@@ -177,17 +161,9 @@ export interface Part {
     readonly valueBytes?: Uint8Array;
 }
 
-export interface PutScriptResponse extends CloudflareApiResponse {
-    readonly result: Script;
-}
-
 export async function deleteScript(accountId: string, scriptName: string, apiToken: string): Promise<DeleteScriptResult> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
-    return (await execute('deleteScript', 'DELETE', url, apiToken) as DeleteScriptResponse).result;
-}
-
-export interface DeleteScriptResponse extends CloudflareApiResponse {
-    readonly result: DeleteScriptResult;
+    return (await execute<DeleteScriptResult>('deleteScript', 'DELETE', url, apiToken)).result;
 }
 
 export interface DeleteScriptResult {
@@ -211,17 +187,31 @@ export interface NamedHandler {
 
 //#endregion
 
+//#region Workers Subdomain
+
+export async function getWorkersSubdomain(opts: { accountId: string, apiToken: string }): Promise<string> {
+    const { accountId, apiToken } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/subdomain`;
+    return (await execute<WorkersSubdomainResult>('getWorkersSubdomain', 'GET', url, apiToken)).result.subdomain;
+}
+
+export interface WorkersSubdomainResult {
+    readonly subdomain: string;
+}
+
+//#endregion
+
 //#region Worker Account Settings
 
 export async function getWorkerAccountSettings(accountId: string, apiToken: string): Promise<WorkerAccountSettings> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/account-settings`;
-    return (await execute('getWorkerAccountSettings', 'GET', url, apiToken) as WorkerAccountSettingsResponse).result;
+    return (await execute<WorkerAccountSettings>('getWorkerAccountSettings', 'GET', url, apiToken)).result;
 }
 
 export async function putWorkerAccountSettings(accountId: string, apiToken: string, opts: { defaultUsageModel: 'bundled' | 'unbound' }): Promise<WorkerAccountSettings> {
     const { defaultUsageModel: default_usage_model } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/account-settings`;
-    return (await execute('putWorkerAccountSettings', 'PUT', url, apiToken, { default_usage_model }) as WorkerAccountSettingsResponse).result;
+    return (await execute<WorkerAccountSettings>('putWorkerAccountSettings', 'PUT', url, apiToken, { default_usage_model })).result;
 }
 
 export interface WorkerAccountSettings {
@@ -229,8 +219,21 @@ export interface WorkerAccountSettings {
     readonly 'green_compute': boolean,
 }
 
-export interface WorkerAccountSettingsResponse extends CloudflareApiResponse {
-    readonly result: WorkerAccountSettings;
+//#endregion
+
+//#region Worker Service Subdomain Enabled
+
+export async function getWorkerServiceSubdomainEnabled(opts: { accountId: string, apiToken: string, scriptName: string, environment?: string }): Promise<boolean> {
+    const { accountId, apiToken, scriptName, environment = 'production' } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/services/${scriptName}/environments/${environment}/subdomain`;
+    return (await execute<{ enabled: boolean }>('getWorkerServiceSubdomainEnabled', 'GET', url, apiToken)).result.enabled;
+}
+
+export async function setWorkerServiceSubdomainEnabled(opts: { accountId: string, apiToken: string, scriptName: string, environment?: string, enabled: boolean }): Promise<void> {
+    const { accountId, apiToken, scriptName, environment = 'production', enabled } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/services/${scriptName}/environments/${environment}/subdomain`;
+    await execute('setWorkerServiceSubdomainEnabled', 'POST', url, apiToken, { enabled });
+    // result: null
 }
 
 //#endregion
@@ -244,12 +247,8 @@ export async function getKeyValue(accountId: string, namespaceId: string, key: s
 
 export async function getKeyMetadata(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Record<string, string> | undefined> {
     const url = `${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/metadata/${key}`;
-    const res = await execute('getKeyMetadata', 'GET', url, apiToken, undefined, 'json?');
-    return res ? (res as GetKeyMetadataResponse).result : undefined;
-}
-
-export interface GetKeyMetadataResponse extends CloudflareApiResponse {
-    readonly result: Record<string, string>;
+    const res = await execute<Record<string, string>>('getKeyMetadata', 'GET', url, apiToken, undefined, 'json?');
+    return res?.result;
 }
 
 /**
@@ -286,7 +285,7 @@ export async function putKeyValue(accountId: string, namespaceId: string, key: s
  */
 export async function listTails(accountId: string, scriptName: string, apiToken: string): Promise<readonly Tail[]> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
-    return (await execute('listTails', 'GET', url, apiToken) as ListTailsResponse).result;
+    return (await execute<readonly Tail[]>('listTails', 'GET', url, apiToken)).result;
 }
 
 /**
@@ -297,7 +296,7 @@ export async function listTails(accountId: string, scriptName: string, apiToken:
  */
 export async function createTail(accountId: string, scriptName: string, apiToken: string): Promise<Tail> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
-    return (await execute('createTail', 'POST', url, apiToken) as CreateTailResponse).result;
+    return (await execute<Tail>('createTail', 'POST', url, apiToken)).result;
 }
 
 /**
@@ -306,7 +305,7 @@ export async function createTail(accountId: string, scriptName: string, apiToken
  */
 export async function sendTailHeartbeat(accountId: string, scriptName: string, tailId: string, apiToken: string): Promise<Tail> {
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails/${tailId}/heartbeat`;
-    return (await execute('sendTailHeartbeat', 'POST', url, apiToken) as SendTailHeartbeatResponse).result;
+    return (await execute<Tail>('sendTailHeartbeat', 'POST', url, apiToken)).result;
 }
 
 /**
@@ -318,22 +317,10 @@ export async function deleteTail(accountId: string, scriptName: string, tailId: 
     await execute('deleteTail', 'DELETE', url, apiToken); // result = null
 }
 
-export interface CreateTailResponse extends CloudflareApiResponse {
-    readonly result: Tail;
-}
-
 export interface Tail {
     readonly id: string; // cf id
     readonly url: string // e.g. wss://tail.developers.workers.dev/<tail-id>
     readonly 'expires_at': string; // e.g. 2021-08-20T23:45:17Z  (4-6 hrs from creation)
-}
-
-export interface ListTailsResponse extends CloudflareApiResponse {
-    readonly result: readonly Tail[];
-}
-
-export interface SendTailHeartbeatResponse extends CloudflareApiResponse {
-    readonly result: Tail;
 }
 
 //#endregion
@@ -345,11 +332,11 @@ export interface SendTailHeartbeatResponse extends CloudflareApiResponse {
  */
 export async function listR2Buckets(accountId: string, apiToken: string): Promise<readonly Bucket[]> {
     const url = `${computeAccountBaseUrl(accountId)}/r2/buckets`;
-    return (await execute('listR2Buckets', 'GET', url, apiToken) as ListR2BucketsResponse).result.buckets;
+    return (await execute<ListR2BucketsResult>('listR2Buckets', 'GET', url, apiToken)).result.buckets;
 }
 
-export interface ListR2BucketsResponse extends CloudflareApiResponse {
-    readonly result: { buckets: readonly Bucket[]; };
+export interface ListR2BucketsResult {
+    readonly buckets: readonly Bucket[];
 }
 
 export interface Bucket {
@@ -388,14 +375,10 @@ export async function deleteR2Bucket(accountId: string, bucketName: string, apiT
  */
 export async function listFlags(accountId: string, apiToken: string): Promise<FlagsResult> {
     const url = `${computeAccountBaseUrl(accountId)}/flags`;
-    return (await execute('listFlags', 'GET', url, apiToken) as ListFlagsResponse).result;
+    return (await execute<FlagsResult>('listFlags', 'GET', url, apiToken)).result;
 }
 
 export type FlagsResult = Record<string, Record<string, unknown>>;
-
-export interface ListFlagsResponse extends CloudflareApiResponse {
-    readonly result: FlagsResult;
-}
 
 //#endregion
 
@@ -405,22 +388,14 @@ export async function listWorkersDomains(accountId: string, apiToken: string, op
     const { hostname } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/domains`);
     if (hostname) url.searchParams.set('hostname', hostname);
-    return (await execute('listWorkersDomains', 'GET', url.toString(), apiToken) as ListWorkersDomainsResponse).result;
-}
-
-export interface ListWorkersDomainsResponse extends CloudflareApiResponse {
-    readonly result: readonly WorkersDomain[];
+    return (await execute<readonly WorkersDomain[]>('listWorkersDomains', 'GET', url.toString(), apiToken)).result;
 }
 
 export async function putWorkersDomain(accountId: string, apiToken: string, opts: { hostname: string, zoneId: string, service: string, environment: string }): Promise<WorkersDomain> {
     const { hostname, zoneId, service, environment } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/domains`);
 
-    return (await execute('putWorkersDomain', 'PUT', url.toString(), apiToken, { hostname, zone_id: zoneId, service, environment }) as PutWorkersDomainResponse).result;
-}
-
-export interface PutWorkersDomainResponse extends CloudflareApiResponse {
-    readonly result: WorkersDomain;
+    return (await execute<WorkersDomain>('putWorkersDomain', 'PUT', url.toString(), apiToken, { hostname, zone_id: zoneId, service, environment })).result;
 }
 
 export async function deleteWorkersDomain(accountId: string, apiToken: string, opts: { workersDomainId: string }): Promise<void> {
@@ -504,8 +479,7 @@ export async function listZones(accountId: string, apiToken: string, opts: ListZ
     return (await execute('listZones', 'GET', url.toString(), apiToken) as ListZonesResponse).result;
 }
 
-export interface ListZonesResponse extends CloudflareApiResponse {
-    readonly result: readonly Zone[];
+export interface ListZonesResponse extends CloudflareApiResponse<readonly Zone[]> {
     readonly result_info: ResultInfo;
 }
 
@@ -563,11 +537,7 @@ export interface Zone {
 
 export async function verifyToken(apiToken: string): Promise<VerifyTokenResult> {
     const url = `${computeBaseUrl()}/user/tokens/verify`;
-    return (await execute('verifyToken', 'GET', url, apiToken) as VerifyTokenResponse).result;
-}
-
-export interface VerifyTokenResponse extends CloudflareApiResponse {
-    readonly result: VerifyTokenResult;
+    return (await execute<VerifyTokenResult>('verifyToken', 'GET', url, apiToken)).result;
 }
 
 export interface VerifyTokenResult {
@@ -631,8 +601,7 @@ export async function listMemberships(apiToken: string, opts: ListMembershipsOpt
     return (await execute('listMemberships', 'GET', url.toString(), apiToken) as ListMembershipsResponse).result;
 }
 
-export interface ListMembershipsResponse extends CloudflareApiResponse {
-    readonly result: readonly Membership[];
+export interface ListMembershipsResponse extends CloudflareApiResponse<readonly Membership[]> {
     readonly result_info: ResultInfo;
 }
 
@@ -707,8 +676,7 @@ export async function listAccounts(apiToken: string, opts: ListAccountsOpts = {}
     return (await execute('listAccounts', 'GET', url.toString(), apiToken) as ListAccountsResponse).result;
 }
 
-export interface ListAccountsResponse extends CloudflareApiResponse {
-    readonly result: readonly Account[];
+export interface ListAccountsResponse extends CloudflareApiResponse<readonly Account[]> {
     readonly result_info: ResultInfo;
 }
 
@@ -742,11 +710,7 @@ export interface Account {
 
 export async function getUser(apiToken: string): Promise<User> {
     const url = `${computeBaseUrl()}/user`;
-    return (await execute('getUser', 'GET', url, apiToken) as UserResponse).result;
-}
-
-export interface UserResponse extends CloudflareApiResponse {
-    readonly result: User;
+    return (await execute<User>('getUser', 'GET', url, apiToken)).result;
 }
 
 export interface User {
@@ -779,22 +743,14 @@ export interface User {
 
 //#region Pub/Sub
 
-export async function listPubsubNamespaces(accountId: string, apiToken: string): Promise<PubsubNamespace[]> {
+export async function listPubsubNamespaces(accountId: string, apiToken: string): Promise<readonly PubsubNamespace[]> {
     const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces`;
-    return (await execute('listPubsubNamespaces', 'GET', url, apiToken) as ListPubsubNamespacesResponse).result;
-}
-
-export interface ListPubsubNamespacesResponse extends CloudflareApiResponse {
-    readonly result: PubsubNamespace[];
+    return (await execute<readonly PubsubNamespace[]>('listPubsubNamespaces', 'GET', url, apiToken)).result;
 }
 
 export async function createPubsubNamespace(accountId: string, apiToken: string, payload: { name: string }): Promise<PubsubNamespace> {
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces`;
-    return (await execute('createPubsubNamespace', 'POST', url, apiToken, payload) as CreatePubsubNamespaceResponse).result;
-}
-
-export interface CreatePubsubNamespaceResponse extends CloudflareApiResponse {
-    readonly result: PubsubNamespace;
+    return (await execute<PubsubNamespace>('createPubsubNamespace', 'POST', url, apiToken, payload)).result;
 }
 
 export interface PubsubNamespace {
@@ -811,13 +767,9 @@ export async function deletePubsubNamespace(accountId: string, apiToken: string,
     // 200, result = null
 }
 
-export async function listPubsubBrokers(accountId: string, apiToken: string, namespaceName: string): Promise<unknown> {
+export async function listPubsubBrokers(accountId: string, apiToken: string, namespaceName: string): Promise<readonly PubsubBroker[]> {
     const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces/${namespaceName}/brokers`;
-    return (await execute('listPubsubBrokers', 'GET', url, apiToken) as ListPubsubBrokersResponse).result;
-}
-
-export interface ListPubsubBrokersResponse extends CloudflareApiResponse {
-    readonly result: PubsubBroker[];
+    return (await execute<readonly PubsubBroker[]>('listPubsubBrokers', 'GET', url, apiToken)).result;
 }
 
 export interface PubsubBroker {
@@ -833,11 +785,7 @@ export interface PubsubBroker {
 
 export async function createPubsubBroker(accountId: string, apiToken: string, namespaceName: string, payload: { name: string, authType: string }): Promise<PubsubBroker> {
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers`;
-    return (await execute('createPubsubBroker', 'POST', url, apiToken, payload) as CreatePubsubBrokerResponse).result;
-}
-
-export interface CreatePubsubBrokerResponse extends CloudflareApiResponse {
-    readonly result: PubsubBroker;
+    return (await execute<PubsubBroker>('createPubsubBroker', 'POST', url, apiToken, payload)).result;
 }
 
 export async function updatePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string, opts: { expiration?: number | null, onPublishUrl?: string | null }): Promise<void> {
@@ -851,11 +799,7 @@ export async function updatePubsubBroker(accountId: string, apiToken: string, na
 
 export async function listPubsubBrokerPublicKeys(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<PubsubBrokerPublicKeys> {
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/publickeys`;
-    return (await execute('listPubsubBrokerPublicKeys', 'GET', url, apiToken) as ListPubsubBrokerPublicKeysResponse).result;
-}
-
-export interface ListPubsubBrokerPublicKeysResponse extends CloudflareApiResponse {
-    readonly result: PubsubBrokerPublicKeys;
+    return (await execute<PubsubBrokerPublicKeys>('listPubsubBrokerPublicKeys', 'GET', url, apiToken)).result;
 }
 
 export interface PubsubBrokerPublicKeys {
@@ -864,11 +808,7 @@ export interface PubsubBrokerPublicKeys {
 
 export async function getPubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<PubsubBroker> {
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
-    return (await execute('getPubsubBroker', 'GET', url, apiToken) as GetPubsubBrokerResponse).result;
-}
-
-export interface GetPubsubBrokerResponse extends CloudflareApiResponse {
-    readonly result: PubsubBroker;
+    return (await execute<PubsubBroker>('getPubsubBroker', 'GET', url, apiToken)).result;
 }
 
 export async function deletePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<void> {
@@ -885,11 +825,7 @@ export async function generatePubsubCredentials(accountId: string, apiToken: str
     url.searchParams.set('topicAcl', topicAcl);
     if (typeof expiration === 'number') url.searchParams.set('expiration', String(expiration));
     (clientIds ?? []).forEach(v => url.searchParams.append('clientid', v));
-    return (await execute('generatePubsubCredentials', 'GET', url.toString(), apiToken) as GeneratePubsubCredentialsResponse).result;
-}
-
-export interface GeneratePubsubCredentialsResponse extends CloudflareApiResponse {
-    readonly result: Record<string, string>;
+    return (await execute<Record<string, string>>('generatePubsubCredentials', 'GET', url.toString(), apiToken)).result;
 }
 
 export async function revokePubsubCredentials(accountId: string, apiToken: string, namespaceName: string, brokerName: string, ...jwtIds: string[]): Promise<void> {
@@ -900,13 +836,9 @@ export async function revokePubsubCredentials(accountId: string, apiToken: strin
     // 200, result = null
 }
 
-export async function listPubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<unknown> {
+export async function listPubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<readonly string[]> { // jwt ids
     const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`;
-    return (await execute('listPubsubRevocations', 'GET', url, apiToken) as ListPubsubRevocationsResponse).result;
-}
-
-export interface ListPubsubRevocationsResponse extends CloudflareApiResponse {
-    readonly result: string[]; // JWT ids
+    return (await execute<readonly string[]>('listPubsubRevocations', 'GET', url, apiToken)).result;
 }
 
 export async function deletePubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string, ...jwtIds: string[]): Promise<void> {
@@ -931,20 +863,15 @@ export async function queryAnalyticsEngine(accountId: string, apiToken: string, 
 
 export async function createD1Database(accountId: string, apiToken: string, databaseName: string): Promise<D1Database> {
     const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
-    return (await execute('createD1Database', 'POST', url, apiToken, { name: databaseName }) as CreateD1DatabaseResponse).result;
+    return (await execute<D1Database>('createD1Database', 'POST', url, apiToken, { name: databaseName })).result;
 }
 
-export interface CreateD1DatabaseResponse extends CloudflareApiResponse {
-    readonly result: D1Database;
-}
-
-export async function listD1Databases(accountId: string, apiToken: string): Promise<D1Database[]> {
+export async function listD1Databases(accountId: string, apiToken: string): Promise<readonly D1Database[]> {
     const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
     return (await execute('listD1Databases', 'GET', url, apiToken) as ListD1DatabasesResponse).result;
 }
 
-export interface ListD1DatabasesResponse extends CloudflareApiResponse {
-    readonly result: D1Database[];
+export interface ListD1DatabasesResponse extends CloudflareApiResponse<readonly D1Database[]> {
     readonly result_info: ResultInfo;
 }
 
@@ -959,14 +886,10 @@ export async function deleteD1Database(accountId: string, apiToken: string, data
     // 200 result: null
 }
 
-export async function queryD1Database(accountId: string, apiToken: string, databaseUuid: string, sql: string, params: (null | number | string | ArrayBuffer)[] = []): Promise<D1QueryResult[]> {
+export async function queryD1Database(accountId: string, apiToken: string, databaseUuid: string, sql: string, params: (null | number | string | ArrayBuffer)[] = []): Promise<readonly D1QueryResult[]> {
     const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/query`;
     const payload = { sql, params };
-    return (await execute('queryD1Database', 'POST', url, apiToken, payload) as QueryD1DatabaseResponse).result;
-}
-
-export interface QueryD1DatabaseResponse extends CloudflareApiResponse {
-    readonly result: D1QueryResult[];
+    return (await execute<readonly D1QueryResult[]>('queryD1Database', 'POST', url, apiToken, payload)).result;
 }
 
 export interface D1QueryResult {
@@ -1006,13 +929,13 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
 
 type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData;
 
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json'): Promise<CloudflareApiResponse>;
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json'): Promise<CloudflareApiResponse<Result>>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes'): Promise<Uint8Array>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'text'): Promise<string>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json?'): Promise<CloudflareApiResponse | undefined>;
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json?'): Promise<CloudflareApiResponse<Result> | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'empty'): Promise<undefined>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' = 'json'): Promise<CloudflareApiResponse | Uint8Array | string | undefined> {
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' = 'json'): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | Record<string, unknown>[] | undefined;
@@ -1045,7 +968,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | '
     if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType)) {
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
     }
-    const apiResponse = await fetchResponse.json() as CloudflareApiResponse;
+    const apiResponse = await fetchResponse.json() as CloudflareApiResponse<Result>;
     if (CloudflareApi.DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
         if (fetchResponse.status === 404 && ['bytes?', 'json?'].includes(responseType)) return undefined;
@@ -1072,7 +995,8 @@ export interface Message {
     readonly message: string;
 }
 
-export interface CloudflareApiResponse {
+export interface CloudflareApiResponse<Result> {
+    readonly result: Result;
     readonly success: boolean;
     readonly errors: readonly Message[];
     readonly messages?: readonly Message[];

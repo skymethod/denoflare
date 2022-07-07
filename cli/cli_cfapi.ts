@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getUser, getWorkerAccountSettings, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getUser, getWorkerAccountSettings, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -29,6 +29,11 @@ function cfapiCommand() {
     , async (accountId, apiToken) => {
         const value = await listScripts(accountId, apiToken);
         console.log(value);
+    });
+
+    add(apiCommand('get-workers-subdomain', 'Get the name of your account-level workers.dev subdomain'), async (accountId, apiToken) => {
+        const subdomain = await getWorkersSubdomain({ accountId, apiToken });
+        console.log(subdomain);
     });
 
     add(apiCommand('get-worker-account-settings', 'Get worker account settings'), async (accountId, apiToken) => {
@@ -98,6 +103,30 @@ function cfapiCommand() {
         }
     });
     
+    rt.subcommandGroup();
+
+    add(apiCommand('get-worker-service-subdomain-enabled', 'Get whether or not the workers.dev route is enabled for a given worker service')
+        .arg('scriptName', 'string', 'Worker script name (service name)')
+        .option('environment', 'string', 'Service environment name (default: production)')
+    , async (accountId, apiToken, { scriptName, environment }) => {
+        const enabled = await getWorkerServiceSubdomainEnabled({ accountId, apiToken, scriptName, environment });
+        console.log({ enabled });
+    });
+
+    add(apiCommand('enable-worker-service-subdomain', 'Enable the workers.dev route for a given worker service')
+        .arg('scriptName', 'string', 'Worker script name (service name)')
+        .option('environment', 'string', 'Service environment name (default: production)')
+    , async (accountId, apiToken, { scriptName, environment }) => {
+        await setWorkerServiceSubdomainEnabled({ accountId, apiToken, scriptName, environment, enabled: true });
+    });
+
+    add(apiCommand('disable-worker-service-subdomain', 'Disable the workers.dev route for a given worker service')
+        .arg('scriptName', 'string', 'Worker script name (service name)')
+        .option('environment', 'string', 'Service environment name (default: production)')
+    , async (accountId, apiToken, { scriptName, environment }) => {
+        await setWorkerServiceSubdomainEnabled({ accountId, apiToken, scriptName, environment, enabled: false });
+    });
+
     rt.subcommandGroup();
 
     add(apiCommand('list-workers-domains', 'List Workers domains').option('hostname', 'string', 'Hostname filter'), async (accountId, apiToken, opts) => {

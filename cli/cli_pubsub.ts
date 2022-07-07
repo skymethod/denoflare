@@ -14,7 +14,7 @@ const JWT_COMMAND = denoflareCliCommand(['pubsub', 'jwt'], `Parse a JWT token, a
     .docsLink('/cli/pubsub#jwt')
     ;
 
-export const PUBSUB_COMMAND = denoflareCliCommand('pubsub', 'Publish or subscribe to a Cloudflare Pub/Sub broker')
+export const PUBSUB_COMMAND = denoflareCliCommand('pubsub', '') // until public beta
     .subcommand(PUBLISH_COMMAND, publish)
     .subcommand(SUBSCRIBE_COMMAND, subscribe)
     .subcommand(JWT_COMMAND, jwt)

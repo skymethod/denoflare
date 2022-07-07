@@ -27,7 +27,7 @@ const QUERY_COMMAND = denoflareCliCommand(['d1', 'query'], `Query a database`)
     .docsLink('/cli/d1#query')
     ;
     
-export const D1_COMMAND = denoflareCliCommand('d1', 'Interact with D1')
+export const D1_COMMAND = denoflareCliCommand('d1', '') // until public beta
     .subcommand(LIST_COMMAND, list)
     .subcommand(DROP_COMMAND, drop)
     .subcommand(CREATE_COMMAND, create)
