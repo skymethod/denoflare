@@ -1092,19 +1092,23 @@ LitElement.render = render;
 LitElement.shadowRootOptions = {
     mode: "open"
 };
-async function listDurableObjectsNamespaces(accountId, apiToken) {
+async function listDurableObjectsNamespaces(opts) {
+    const { accountId , apiToken  } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
     return (await execute('listDurableObjectsNamespaces', 'GET', url, apiToken)).result;
 }
-async function listScripts(accountId, apiToken) {
+async function listScripts(opts) {
+    const { accountId , apiToken  } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts`;
     return (await execute('listScripts', 'GET', url, apiToken)).result;
 }
-async function listTails(accountId, scriptName, apiToken) {
+async function listTails(opts) {
+    const { accountId , apiToken , scriptName  } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
     return (await execute('listTails', 'GET', url, apiToken)).result;
 }
-async function createTail(accountId, scriptName, apiToken) {
+async function createTail(opts) {
+    const { accountId , apiToken , scriptName  } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
     return (await execute('createTail', 'POST', url, apiToken)).result;
 }
@@ -1130,10 +1134,10 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
     let bodyObj;
     if (typeof body === 'string') {
         headers.set('Content-Type', TEXT_PLAIN_UTF8);
-    } else if (isStringRecord(body)) {
+    } else if (isStringRecord(body) || Array.isArray(body)) {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
         bodyObj = body;
-        body = JSON.stringify(body);
+        body = JSON.stringify(body, undefined, 2);
     }
     if (CloudflareApi.DEBUG) console.log([
         ...headers
@@ -2371,7 +2375,7 @@ function computeCosts(input) {
 }
 async function tryListDurableObjectsNamespaces(profile) {
     try {
-        return await listDurableObjectsNamespaces(profile.accountId, profile.apiToken);
+        return await listDurableObjectsNamespaces(profile);
     } catch (e) {
         console.warn(e);
         return [];
@@ -3005,7 +3009,11 @@ class TailController {
         if (!record.tail || Date.now() > new Date(record.tail.expires_at).getTime() - 1000 * 60 * 5) {
             const tailCreatingTime = Date.now();
             this.callbacks.onTailCreating(accountId, scriptId);
-            const tail = await createTail(accountId, scriptId, apiToken);
+            const tail = await createTail({
+                accountId,
+                scriptName: scriptId,
+                apiToken
+            });
             record.tail = tail;
             this.callbacks.onTailCreated(accountId, scriptId, Date.now() - tailCreatingTime, tail);
         }
@@ -4104,7 +4112,10 @@ class WebtailAppVM {
             const { accountId , apiToken  } = profile;
             this.verboseWithPrefix(`Finding scripts for ${profile.name.toUpperCase()}...`);
             const start = Date.now();
-            const scripts = await listScripts(accountId, apiToken);
+            const scripts = await listScripts({
+                accountId,
+                apiToken
+            });
             if (!this.demoMode) this.verboseWithPrefix(`Found ${scripts.length} scripts in ${Date.now() - start}ms`);
             this._scripts.splice(0);
             for (const script of scripts){
@@ -4310,7 +4321,11 @@ function saveState(state) {
 }
 async function computeCanListTails(accountId, apiToken) {
     try {
-        await listTails(accountId, '', apiToken);
+        await listTails({
+            accountId,
+            scriptName: '',
+            apiToken
+        });
         return true;
     } catch (e) {
         if (e instanceof CloudflareApiError && e.status === 404) {
@@ -5444,7 +5459,7 @@ const NAMESPACES_HTML = (table, renderCosts)=>html`
     })}
     </table>
 `;
-const COSTS_HTML = (table, namespaceId)=>html`
+const COSTS_HTML = (table, _namespaceId)=>html`
     <table>
         <tr>
             <th>UTC Day</th><th class="spacer"></th>

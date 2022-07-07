@@ -27,7 +27,7 @@ function cfapiCommand() {
     add(apiCommand('list-scripts', 'List Worker scripts')
         .include(commandOptionsForParsePagingOptions)
     , async (accountId, apiToken) => {
-        const value = await listScripts(accountId, apiToken);
+        const value = await listScripts({ accountId, apiToken });
         console.log(value);
     });
 
@@ -37,18 +37,18 @@ function cfapiCommand() {
     });
 
     add(apiCommand('get-worker-account-settings', 'Get worker account settings'), async (accountId, apiToken) => {
-        const settings = await getWorkerAccountSettings(accountId, apiToken);
+        const settings = await getWorkerAccountSettings({ accountId, apiToken });
         console.log(settings);
     });
 
     add(apiCommand('put-worker-account-settings', 'Set worker account settings').option('defaultUsageModel', 'required-enum', 'Usage model', { value: 'bundled' }, { value: 'unbound' }), async (accountId, apiToken, opts) => {
         const defaultUsageModel = opts.defaultUsageModel as 'bundled' | 'unbound';
-        const success = await putWorkerAccountSettings(accountId, apiToken, { defaultUsageModel });
+        const success = await putWorkerAccountSettings({ accountId, apiToken, defaultUsageModel });
         console.log(success);
     });
 
     add(apiCommand('list-flags', 'List account-level flags'), async (accountId, apiToken) => {
-        const value = await listFlags(accountId, apiToken);
+        const value = await listFlags({ accountId, apiToken });
         console.log(value);
     });
 
@@ -64,7 +64,7 @@ function cfapiCommand() {
         const status = opts.status as 'active' | 'pending' | 'initializing' | 'moved' | 'deleted' | 'deactivated' | 'read only';
         const { name } = opts;
         const { page, perPage, direction } = parsePagingOptions(options);
-        const value = await listZones(accountId, apiToken, { match, name, order, page, perPage, status, direction });
+        const value = await listZones({ accountId, apiToken, match, name, order, page, perPage, status, direction });
         console.log(value);
     });
 
@@ -86,7 +86,7 @@ function cfapiCommand() {
             throw new Error(`Provide 'value' or 'file' options for the key value.`);
         })();
         check('value', value, typeof value === 'string');
-        await putKeyValue(accountId, namespaceId, key, value, apiToken, { expiration, expirationTtl, metadata: metadataJson ? JSON.parse(metadataJson) : undefined });
+        await putKeyValue({ accountId, namespaceId, key, value, apiToken, expiration, expirationTtl, metadata: metadataJson ? JSON.parse(metadataJson) : undefined });
     });
 
     add(apiCommand('get-key-value', 'Get KV value')
@@ -95,7 +95,7 @@ function cfapiCommand() {
         .option('metadata', 'boolean', 'If set, also get metadata')
     , async (accountId, apiToken, opts) => {
         const { namespaceId, key, metadata } = opts;
-        const value = await getKeyValue(accountId, namespaceId, key, apiToken);
+        const value = await getKeyValue({ accountId, namespaceId, key, apiToken });
         console.log(value ? new Bytes(value).utf8() : value);
         if (metadata) {
             const metadata = await getKeyMetadata(accountId, namespaceId, key, apiToken);
@@ -131,7 +131,7 @@ function cfapiCommand() {
 
     add(apiCommand('list-workers-domains', 'List Workers domains').option('hostname', 'string', 'Hostname filter'), async (accountId, apiToken, opts) => {
         const { hostname } = opts;
-        const value = await listWorkersDomains(accountId, apiToken, { hostname });
+        const value = await listWorkersDomains({ accountId, apiToken, hostname });
         console.log(value);
     });
 
@@ -142,36 +142,36 @@ function cfapiCommand() {
         .option('environment', 'string', `Worker script environment name (default: production)`)
     , async (accountId, apiToken, opts) => {
         const { hostname, zoneId, service, environment } = opts;
-        const value = await putWorkersDomain(accountId, apiToken, { hostname, zoneId, service, environment: environment ?? 'production' });
+        const value = await putWorkersDomain({ accountId, apiToken, hostname, zoneId, service, environment: environment ?? 'production' });
         console.log(value);
     });
 
     add(apiCommand('delete-workers-domain', 'Delete a Worker domain').arg('workersDomainId', 'string', 'ID of the Workers domain'), async (accountId, apiToken, opts) => {
         const { workersDomainId } = opts;
-        await deleteWorkersDomain(accountId, apiToken, { workersDomainId });
+        await deleteWorkersDomain({ accountId, apiToken, workersDomainId });
     });
 
     rt.subcommandGroup();
 
     add(apiCommand('list-buckets', 'List R2 buckets'), async (accountId, apiToken) => {
-        const value = await listR2Buckets(accountId, apiToken);
+        const value = await listR2Buckets({ accountId, apiToken });
         console.log(value);
     });
 
     add(apiCommand('create-bucket', 'Create a new R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
         const { bucketName } = opts;
-        await createR2Bucket(accountId, bucketName, apiToken);
+        await createR2Bucket({ accountId, bucketName, apiToken });
     });
 
     add(apiCommand('delete-bucket', 'Delete a R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
         const { bucketName } = opts;
-        await deleteR2Bucket(accountId, bucketName, apiToken);
+        await deleteR2Bucket({ accountId, bucketName, apiToken });
     });
 
     rt.subcommandGroup();
 
     add(apiCommand('verify-token', 'Verify an api token'), async (_, apiToken) => {
-        const value = await verifyToken(apiToken);
+        const value = await verifyToken({ apiToken });
         console.log(value);
     });
 
@@ -183,7 +183,7 @@ function cfapiCommand() {
         const order = opts.order as 'id' | 'status' | 'account.name';
         const status = opts.status as 'accepted' | 'pending' | 'rejected';
         const { page, perPage, direction } = parsePagingOptions(options);
-        const value = await listMemberships(apiToken, { order, page, perPage, status, direction });
+        const value = await listMemberships({ apiToken, order, page, perPage, status, direction });
         console.log(value);
     });
 
@@ -193,18 +193,18 @@ function cfapiCommand() {
     , async (_accountId, apiToken, opts, options) => {
         const { name } = opts;
         const { page, perPage, direction } = parsePagingOptions(options);
-        const value = await listAccounts(apiToken, { page, perPage, name, direction });
+        const value = await listAccounts({ apiToken, page, perPage, name, direction });
         console.log(value);
     });
 
     add(apiCommand('get-user', 'Get user info'), async (_accountId, apiToken) => {
-        const value = await getUser(apiToken);
+        const value = await getUser({ apiToken });
         console.log(value);
     });
 
     add(apiCommand('list-durable-objects-namespaces', 'List Durable Objects namespaces')
     , async (accountId, apiToken) => {
-        const value = await listDurableObjectsNamespaces(accountId, apiToken);
+        const value = await listDurableObjectsNamespaces({ accountId, apiToken });
         console.log(value);
     });
 
@@ -213,8 +213,8 @@ function cfapiCommand() {
         .option('limit', 'integer', 'Max number of results to return (must be fairly high)')
         .option('cursor', 'string', 'Continue from a previous call')
     , async (accountId, apiToken, opts) => {
-        const { durableObjectsNamespaceId, limit, cursor } = opts;
-        const { objects, cursor: resultCursor } = await listDurableObjects(accountId, durableObjectsNamespaceId, apiToken, { limit, cursor });
+        const { durableObjectsNamespaceId: namespaceId, limit, cursor } = opts;
+        const { objects, cursor: resultCursor } = await listDurableObjects({ accountId, namespaceId, apiToken, limit, cursor });
         console.log(objects);
         if (resultCursor) console.log(resultCursor);
     });
@@ -222,83 +222,83 @@ function cfapiCommand() {
     rt.subcommandGroup();
 
     add(apiCommand('list-pubsub-namespaces', 'List Pub/Sub namespaces'), async (accountId, apiToken) => {
-        const value = await listPubsubNamespaces(accountId, apiToken);
+        const value = await listPubsubNamespaces({ accountId, apiToken });
         console.log(value);
     });
 
     add(apiCommand('create-pubsub-namespace', 'Create a Pub/Sub namespace').arg('name', 'string', 'Name of the namespace'), async (accountId, apiToken, opts) => {
         const { name } = opts;
-        const value = await createPubsubNamespace(accountId, apiToken, { name });
+        const value = await createPubsubNamespace({ accountId, apiToken, name });
         console.log(value);
     });
 
     add(apiCommand('delete-pubsub-namespace', 'Delete a Pub/Sub namespace').arg('name', 'string', 'Name of the namespace'), async (accountId, apiToken, opts) => {
-        const { name } = opts;
-        await deletePubsubNamespace(accountId, apiToken, name);
+        const { name: namespaceName } = opts;
+        await deletePubsubNamespace({ accountId, apiToken, namespaceName });
     });
 
     add(apiCommand('list-pubsub-brokers', 'List Pub/Sub brokers').arg('name', 'string', 'Name of the namespace'), async (accountId, apiToken, opts) => {
-        const { name } = opts;
-        const value = await listPubsubBrokers(accountId, apiToken, name);
+        const { name: namespaceName } = opts;
+        const value = await listPubsubBrokers({ accountId, apiToken, namespaceName });
         console.log(value);
     });
 
     add(apiCommand('create-pubsub-broker', 'Create a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
-        const { name, brokerName } = opts;
-        const value = await createPubsubBroker(accountId, apiToken, name, { name: brokerName, authType: 'TOKEN' });
+        const { name: namespaceName, brokerName } = opts;
+        const value = await createPubsubBroker({ accountId, apiToken, namespaceName, brokerName, authType: 'TOKEN' });
         console.log(value);
     });
 
     add(apiCommand('update-pubsub-broker', 'Update a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('expirationSeconds', 'integer', 'Expiration').option('onPublishUrl', 'string', 'Public URL to your worker'), async (accountId, apiToken, opts) => {
-        const { name, brokerName, expirationSeconds, onPublishUrl: onPublishUrlStr } = opts;
+        const { name: namespaceName, brokerName, expirationSeconds, onPublishUrl: onPublishUrlStr } = opts;
         const expiration = typeof expirationSeconds === 'number' ? expirationSeconds * 1_000_000_000 : undefined;
         const onPublishUrl = onPublishUrlStr === 'null' ? null : typeof onPublishUrlStr === 'string' ? onPublishUrlStr : undefined;
-        await updatePubsubBroker(accountId, apiToken, name, brokerName, { expiration, onPublishUrl });
+        await updatePubsubBroker({ accountId, apiToken, namespaceName, brokerName, expiration, onPublishUrl });
     });
 
     add(apiCommand('list-pubsub-broker-public-keys', 'List the public keys for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
-        const { name, brokerName } = opts;
-        const value = await listPubsubBrokerPublicKeys(accountId, apiToken, name, brokerName);
+        const { name: namespaceName, brokerName } = opts;
+        const value = await listPubsubBrokerPublicKeys({ accountId, apiToken, namespaceName, brokerName });
         console.log(JSON.stringify(value, undefined, 2));
     });
 
     add(apiCommand('get-pubsub-broker', 'Get a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
-        const { name, brokerName } = opts;
-        const value = await getPubsubBroker(accountId, apiToken, name, brokerName);
+        const { name: namespaceName, brokerName } = opts;
+        const value = await getPubsubBroker({ accountId, apiToken, namespaceName, brokerName });
         console.log(JSON.stringify(value, undefined, 2));
     });
 
     add(apiCommand('delete-pubsub-broker', 'Delete a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
-        const { name, brokerName } = opts;
-        await deletePubsubBroker(accountId, apiToken, name, brokerName);
+        const { name: namespaceName, brokerName } = opts;
+        await deletePubsubBroker({ accountId, apiToken, namespaceName, brokerName });
     });
 
     add(apiCommand('generate-pubsub-credentials', 'Generate credentials for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('number', 'integer', 'Number of credentials to generate').option('clientId', 'strings', 'Explicit clientId (otherwise generated)').option('expiration', 'integer', 'Expiration for the generated credentials (in seconds)'), async (accountId, apiToken, opts) => {
-        const { name, brokerName, number = 1, clientId: clientIds, expiration } = opts;
-        const value = await generatePubsubCredentials(accountId, apiToken, name, brokerName, { number, type: 'TOKEN', topicAcl: '#', clientIds, expiration });
+        const { name: namespaceName, brokerName, number = 1, clientId: clientIds, expiration } = opts;
+        const value = await generatePubsubCredentials({ accountId, apiToken, namespaceName, brokerName, number, type: 'TOKEN', topicAcl: '#', clientIds, expiration });
         console.log(JSON.stringify(value, undefined, 2));
     });
 
     add(apiCommand('revoke-pubsub-credentials', 'Revoke credentials for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('jti', 'strings', 'JWT ids'), async (accountId, apiToken, opts) => {
-        const { name, brokerName, jti = [] } = opts;
-        await revokePubsubCredentials(accountId, apiToken, name, brokerName, ...jti);
+        const { name: namespaceName, brokerName, jti: jwtIds = [] } = opts;
+        await revokePubsubCredentials({ accountId, apiToken, namespaceName, brokerName, jwtIds });
     });
 
     add(apiCommand('list-pubsub-revocations', 'List revocations for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker'), async (accountId, apiToken, opts) => {
-        const { name, brokerName } = opts;
-        const value = await listPubsubRevocations(accountId, apiToken, name, brokerName);
+        const { name: namespaceName, brokerName } = opts;
+        const value = await listPubsubRevocations({ accountId, apiToken, namespaceName, brokerName });
         console.log(JSON.stringify(value, undefined, 2));
     });
 
     add(apiCommand('delete-pubsub-revocations', 'Delete revocations for a Pub/Sub broker').arg('name', 'string', 'Name of the namespace').arg('brokerName', 'string', 'Name of the broker').option('jti', 'strings', 'JWT ids'), async (accountId, apiToken, opts) => {
-        const { name, brokerName, jti = [] } = opts;
-        const value = await deletePubsubRevocations(accountId, apiToken, name, brokerName, ...jti);
+        const { name: namespaceName, brokerName, jti: jwtIds = [] } = opts;
+        const value = await deletePubsubRevocations({ accountId, apiToken, namespaceName, brokerName, jwtIds });
         console.log(JSON.stringify(value, undefined, 2));
     });
 
     add(apiCommand('query-analytics-engine', '').arg('sql', 'string', 'Query'), async (accountId, apiToken, opts) => {
-        const { sql } = opts;
-        const result = await queryAnalyticsEngine(accountId, apiToken, sql);
+        const { sql: query } = opts;
+        const result = await queryAnalyticsEngine({ accountId, apiToken, query });
         if (result.startsWith('{')) {
             console.log(JSON.stringify(JSON.parse(result), undefined, 2));
         } else {

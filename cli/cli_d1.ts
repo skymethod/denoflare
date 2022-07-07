@@ -49,7 +49,7 @@ async function list(args: (string | number)[], options: Record<string, unknown>)
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
 
-    const dbs = await listD1Databases(accountId, apiToken);
+    const dbs = await listD1Databases({ accountId, apiToken });
     console.log(dbs);
 }
 
@@ -60,9 +60,9 @@ async function drop(args: (string | number)[], options: Record<string, unknown>)
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
 
-    const db = (await listD1Databases(accountId, apiToken)).find(v => v.name === databaseName);
+    const db = (await listD1Databases({ accountId, apiToken })).find(v => v.name === databaseName);
     if (!db) throw new Error(`Database not found: ${databaseName}`);
-    await deleteD1Database(accountId, apiToken, db.uuid);
+    await deleteD1Database({ accountId, apiToken, databaseUuid: db.uuid });
 }
 
 async function create(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
@@ -72,7 +72,7 @@ async function create(args: (string | number)[], options: Record<string, unknown
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
 
-    const db = await createD1Database(accountId, apiToken, databaseName);
+    const db = await createD1Database({ accountId, apiToken, databaseName });
     console.log(db);
 }
 
@@ -83,10 +83,10 @@ async function query(args: (string | number)[], options: Record<string, unknown>
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
 
-    const db = (await listD1Databases(accountId, apiToken)).find(v => v.name === databaseName);
+    const db = (await listD1Databases({ accountId, apiToken })).find(v => v.name === databaseName);
     if (!db) throw new Error(`Database not found: ${databaseName}`);
 
     if (!sql) throw new Error(`Provide a query with --sql`);
-    const queryResults = await queryD1Database(accountId, apiToken, db.uuid, sql);
+    const queryResults = await queryD1Database({ accountId, apiToken, databaseUuid: db.uuid, sql, params: param });
     console.log(JSON.stringify(queryResults, undefined, 2));
 }

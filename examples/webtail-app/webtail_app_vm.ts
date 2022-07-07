@@ -708,7 +708,7 @@ export class WebtailAppVM {
             const { accountId, apiToken } = profile;
             this.verboseWithPrefix(`Finding scripts for ${profile.name.toUpperCase()}...`);
             const start = Date.now();
-            const scripts = await listScripts(accountId, apiToken);
+            const scripts = await listScripts({ accountId, apiToken });
             if (!this.demoMode) this.verboseWithPrefix(`Found ${scripts.length} scripts in ${Date.now() - start}ms`);
             this._scripts.splice(0);
             for (const script of scripts) {
@@ -933,7 +933,7 @@ function saveState(state: State) {
 
 async function computeCanListTails(accountId: string, apiToken: string): Promise<boolean> {
     try {
-        await listTails(accountId, '' /*unlikely script name*/, apiToken);
+        await listTails({ accountId, scriptName: '' /*unlikely script name*/, apiToken });
         return true;
     } catch (e) {
         if (e instanceof CloudflareApiError && e.status === 404) {

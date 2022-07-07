@@ -205,7 +205,7 @@ const NAMESPACES_HTML = (table: DurableObjectsCostsTable, renderCosts: (namespac
     </table>
 `;
 
-const COSTS_HTML = (table: DurableObjectsDailyCostsTable, namespaceId: string | undefined) => html`
+const COSTS_HTML = (table: DurableObjectsDailyCostsTable, _namespaceId: string | undefined) => html`
     <table>
         <tr>
             <th>UTC Day</th><th class="spacer"></th>

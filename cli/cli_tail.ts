@@ -33,7 +33,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
     const { accountId, apiToken } = await resolveProfile(config, options);
     
     if (format !== 'json') console.log('creating tail...');
-    const tail = await createTail(accountId, scriptName, apiToken);
+    const tail = await createTail({ accountId, scriptName, apiToken });
     
     return new Promise((resolve, _reject) => {
         let sendHeartbeatOnExpiryTimeout = 0;
@@ -91,7 +91,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
             sendHeartbeatOnExpiryTimeout = setTimeout(async () => {
                 if (verbose) console.log('Sending heartbeat...');
                 const oldExpiry = currentTail.expires_at;
-                currentTail = await sendTailHeartbeat(accountId, scriptName, currentTail.id, apiToken);
+                currentTail = await sendTailHeartbeat({ accountId, scriptName, tailId: currentTail.id, apiToken });
                 const newExpiry = currentTail.expires_at;
                 if (verbose) console.log(`Sent heartbeat${oldExpiry === newExpiry ? '' : `, expiry changed: ${oldExpiry} -> ${newExpiry}`}`)
                 sendHeartbeatOnExpiry();

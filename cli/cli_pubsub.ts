@@ -75,7 +75,7 @@ async function generatePubsubCredential(options: Record<string, unknown>, endpoi
     console.log('generating credential');
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
     const { namespaceName, brokerName } = parseCloudflareEndpoint(endpoint);
-    const results = await generatePubsubCredentials(accountId, apiToken, namespaceName, brokerName, { number: 1, type: 'TOKEN', topicAcl: '#', clientIds: clientId ? [ clientId ] : undefined, expiration });
+    const results = await generatePubsubCredentials({ accountId, apiToken, namespaceName, brokerName, number: 1, type: 'TOKEN', topicAcl: '#', clientIds: clientId ? [ clientId ] : undefined, expiration });
     for (const [ _clientId, token ] of Object.entries(results)) {
         if (DEBUG) console.log({ token });
         return token;

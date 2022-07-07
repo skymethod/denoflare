@@ -28,7 +28,7 @@ export class ApiR2Bucket implements R2Bucket {
     static async parseAccountAndCredentials(profile: Profile | undefined): Promise<{ accountId: string, credentials: AwsCredentials }> {
         if (!profile) throw new Error('Cannot use a bucketName binding without configuring a profile to use for its credentials');
         const { accountId, apiToken } = profile;
-        const apiTokenId = (await verifyToken(apiToken)).id;
+        const apiTokenId = (await verifyToken({ apiToken })).id;
         
         const accessKey = apiTokenId;
         const secretKey = (await Bytes.ofUtf8(apiToken).sha256()).hex();

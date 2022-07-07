@@ -143,7 +143,7 @@ export function computeCosts(input: { classAOperations: number, classBOperations
 
 async function tryListBuckets(profile: Profile): Promise<readonly Bucket[]> {
     try {
-        return await listR2Buckets(profile.accountId, profile.apiToken);
+        return await listR2Buckets(profile);
     } catch (e) {
         console.warn(e);
         return [];

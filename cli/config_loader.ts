@@ -146,7 +146,7 @@ async function findProfile(config: Config, options: Record<string, unknown>): Pr
             return { accountId, apiToken };
         }
         try {
-            const accounts = (await listAccounts(apiToken)).map(v => ({ id: v.id, name: v.name }));
+            const accounts = (await listAccounts({ apiToken })).map(v => ({ id: v.id, name: v.name }));
             if (accounts.length === 0) throw new Error('Unable to locate account-id for that api-token');
             if (accounts.length > 1) throw new Error(`Found multiple accounts for that api-token, try again with an explicit --account-id. Accounts: ${JSON.stringify(accounts)}`);
             const accountId = accounts[0].id;

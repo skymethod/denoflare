@@ -127,7 +127,7 @@ export class TailController {
         if (!record.tail || Date.now() > new Date(record.tail.expires_at).getTime() - 1000 * 60 * 5) {
             const tailCreatingTime = Date.now();
             this.callbacks.onTailCreating(accountId, scriptId);
-            const tail = await createTail(accountId, scriptId, apiToken);
+            const tail = await createTail({ accountId, scriptName: scriptId, apiToken });
             record.tail = tail;
             this.callbacks.onTailCreated(accountId, scriptId, Date.now() - tailCreatingTime, tail);
         }

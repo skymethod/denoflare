@@ -1,21 +1,25 @@
 //#region Durable objects
 
-export async function listDurableObjectsNamespaces(accountId: string, apiToken: string): Promise<readonly DurableObjectsNamespace[]> {
+export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string }): Promise<readonly DurableObjectsNamespace[]> {
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
     return (await execute<readonly DurableObjectsNamespace[]>('listDurableObjectsNamespaces', 'GET', url, apiToken)).result;
 }
 
-export async function createDurableObjectsNamespace(accountId: string, apiToken: string, payload: { name: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
+export async function createDurableObjectsNamespace(opts: { accountId: string, apiToken: string, name: string, script?: string, className?: string }): Promise<DurableObjectsNamespace> {
+    const { accountId, apiToken, name, script, className } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
-    return (await execute<DurableObjectsNamespace>('createDurableObjectsNamespace', 'POST', url, apiToken, payload)).result;
+    return (await execute<DurableObjectsNamespace>('createDurableObjectsNamespace', 'POST', url, apiToken, { name, script, class: className })).result;
 }
 
-export async function updateDurableObjectsNamespace(accountId: string, apiToken: string, payload: { id: string, name?: string, script?: string, class?: string }): Promise<DurableObjectsNamespace> {
-    const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${payload.id}`;
-    return (await execute<DurableObjectsNamespace>('updateDurableObjectsNamespace', 'PUT', url, apiToken, payload)).result;
+export async function updateDurableObjectsNamespace(opts: { accountId: string, apiToken: string, id: string, name?: string, script?: string, className?: string }): Promise<DurableObjectsNamespace> {
+    const { accountId, apiToken, id, name, script, className } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${id}`;
+    return (await execute<DurableObjectsNamespace>('updateDurableObjectsNamespace', 'PUT', url, apiToken, { id, name, script, class: className })).result;
 }
 
-export async function deleteDurableObjectsNamespace(accountId: string, apiToken: string, namespaceId: string): Promise<void> {
+export async function deleteDurableObjectsNamespace(opts: { accountId: string, apiToken: string, namespaceId: string }): Promise<void> {
+    const { accountId, apiToken, namespaceId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${namespaceId}`;
     await execute('deleteDurableObjectsNamespace', 'DELETE', url, apiToken);
 }
@@ -27,8 +31,8 @@ export interface DurableObjectsNamespace {
     readonly class: string | undefined;
 }
 
-export async function listDurableObjects(accountId: string, namespaceId: string, apiToken: string, opts: { limit?: number, cursor?: string } = {}): Promise<{ objects: readonly DurableObject[], cursor?: string }> {
-    const { limit, cursor } = opts;
+export async function listDurableObjects(opts: { accountId: string, namespaceId: string, apiToken: string, limit?: number, cursor?: string }): Promise<{ objects: readonly DurableObject[], cursor?: string }> {
+    const { accountId, namespaceId, apiToken, limit, cursor } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces/${namespaceId}/objects`);
     if (typeof limit === 'number') url.searchParams.set('limit', String(limit));
     if (typeof cursor === 'string') url.searchParams.set('cursor', cursor);
@@ -54,13 +58,14 @@ export interface DurableObject {
 
 //#region Worker scripts
 
-export async function listScripts(accountId: string, apiToken: string): Promise<readonly Script[]> {
+export async function listScripts(opts: { accountId: string, apiToken: string }): Promise<readonly Script[]> {
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts`;
     return (await execute<readonly Script[]>('listScripts', 'GET', url, apiToken)).result;
 }
 
-export async function putScript(accountId: string, scriptName: string, apiToken: string, opts: { scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound' }): Promise<Script> {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel } = opts;
+export async function putScript(opts: { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound' }): Promise<Script> {
+    const { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -161,7 +166,8 @@ export interface Part {
     readonly valueBytes?: Uint8Array;
 }
 
-export async function deleteScript(accountId: string, scriptName: string, apiToken: string): Promise<DeleteScriptResult> {
+export async function deleteScript(opts: { accountId: string, scriptName: string, apiToken: string }): Promise<DeleteScriptResult> {
+    const { accountId, apiToken, scriptName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     return (await execute<DeleteScriptResult>('deleteScript', 'DELETE', url, apiToken)).result;
 }
@@ -203,13 +209,14 @@ export interface WorkersSubdomainResult {
 
 //#region Worker Account Settings
 
-export async function getWorkerAccountSettings(accountId: string, apiToken: string): Promise<WorkerAccountSettings> {
+export async function getWorkerAccountSettings(opts: { accountId: string, apiToken: string }): Promise<WorkerAccountSettings> {
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/account-settings`;
     return (await execute<WorkerAccountSettings>('getWorkerAccountSettings', 'GET', url, apiToken)).result;
 }
 
-export async function putWorkerAccountSettings(accountId: string, apiToken: string, opts: { defaultUsageModel: 'bundled' | 'unbound' }): Promise<WorkerAccountSettings> {
-    const { defaultUsageModel: default_usage_model } = opts;
+export async function putWorkerAccountSettings(opts: { accountId: string, apiToken: string, defaultUsageModel: 'bundled' | 'unbound' }): Promise<WorkerAccountSettings> {
+    const { accountId, apiToken, defaultUsageModel: default_usage_model } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/account-settings`;
     return (await execute<WorkerAccountSettings>('putWorkerAccountSettings', 'PUT', url, apiToken, { default_usage_model })).result;
 }
@@ -240,7 +247,8 @@ export async function setWorkerServiceSubdomainEnabled(opts: { accountId: string
 
 //#region Workers KV
 
-export async function getKeyValue(accountId: string, namespaceId: string, key: string, apiToken: string): Promise<Uint8Array | undefined> {
+export async function getKeyValue(opts: { accountId: string, namespaceId: string, key: string, apiToken: string }): Promise<Uint8Array | undefined> {
+    const { accountId, apiToken, namespaceId, key } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/values/${key}`;
     return await execute('getKeyValue', 'GET', url, apiToken, undefined, 'bytes?');
 }
@@ -258,8 +266,8 @@ export async function getKeyMetadata(accountId: string, namespaceId: string, key
  * Write key-value pair with metadata
  * https://api.cloudflare.com/#workers-kv-namespace-write-key-value-pair-with-metadata
  */
-export async function putKeyValue(accountId: string, namespaceId: string, key: string, value: string, apiToken: string, opts: { expiration?: number, expirationTtl?: number, metadata?: Record<string, unknown> } = {}) {
-    const { expiration, expirationTtl, metadata } = opts;
+export async function putKeyValue(opts: { accountId: string, namespaceId: string, key: string, value: string, apiToken: string, expiration?: number, expirationTtl?: number, metadata?: Record<string, unknown> }) {
+    const { accountId, namespaceId, key, value, apiToken, expiration, expirationTtl, metadata } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/values/${key}`);
     if (typeof expiration === 'number') url.searchParams.set('expiration', expiration.toString());
     if (typeof expirationTtl === 'number') url.searchParams.set('expirationTtl', expirationTtl.toString());
@@ -283,7 +291,8 @@ export async function putKeyValue(accountId: string, namespaceId: string, key: s
  * Lists all active Tail sessions for a given Worker
  * https://api.cloudflare.com/#worker-tails-list-tails
  */
-export async function listTails(accountId: string, scriptName: string, apiToken: string): Promise<readonly Tail[]> {
+export async function listTails(opts: { accountId: string, scriptName: string, apiToken: string }): Promise<readonly Tail[]> {
+    const { accountId, apiToken, scriptName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
     return (await execute<readonly Tail[]>('listTails', 'GET', url, apiToken)).result;
 }
@@ -294,7 +303,8 @@ export async function listTails(accountId: string, scriptName: string, apiToken:
  * 
  * Constrained to at most one tail per script
  */
-export async function createTail(accountId: string, scriptName: string, apiToken: string): Promise<Tail> {
+export async function createTail(opts: { accountId: string, scriptName: string, apiToken: string }): Promise<Tail> {
+    const { accountId, apiToken, scriptName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
     return (await execute<Tail>('createTail', 'POST', url, apiToken)).result;
 }
@@ -303,7 +313,8 @@ export async function createTail(accountId: string, scriptName: string, apiToken
  * Send Tail Heartbeat
  * https://api.cloudflare.com/#worker-tail-heartbeat
  */
-export async function sendTailHeartbeat(accountId: string, scriptName: string, tailId: string, apiToken: string): Promise<Tail> {
+export async function sendTailHeartbeat(opts: { accountId: string, scriptName: string, tailId: string, apiToken: string }): Promise<Tail> {
+    const { accountId, apiToken, scriptName, tailId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails/${tailId}/heartbeat`;
     return (await execute<Tail>('sendTailHeartbeat', 'POST', url, apiToken)).result;
 }
@@ -312,7 +323,8 @@ export async function sendTailHeartbeat(accountId: string, scriptName: string, t
  * Delete Tail
  * https://api.cloudflare.com/#worker-delete-tail
  */
-export async function deleteTail(accountId: string, scriptName: string, tailId: string, apiToken: string): Promise<void> {
+export async function deleteTail(opts: { accountId: string, scriptName: string, tailId: string, apiToken: string }): Promise<void> {
+    const { accountId, apiToken, scriptName, tailId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails/${tailId}`;
     await execute('deleteTail', 'DELETE', url, apiToken); // result = null
 }
@@ -330,7 +342,8 @@ export interface Tail {
 /**
  * List R2 Buckets
  */
-export async function listR2Buckets(accountId: string, apiToken: string): Promise<readonly Bucket[]> {
+export async function listR2Buckets(opts: { accountId: string, apiToken: string }): Promise<readonly Bucket[]> {
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/r2/buckets`;
     return (await execute<ListR2BucketsResult>('listR2Buckets', 'GET', url, apiToken)).result.buckets;
 }
@@ -349,7 +362,8 @@ export interface Bucket {
  * 
  * @throws if exists and owned: 409 10004 The bucket you tried to create already exists, and you own it.
  */
-export async function createR2Bucket(accountId: string, bucketName: string, apiToken: string): Promise<void> {
+export async function createR2Bucket(opts: { accountId: string, bucketName: string, apiToken: string }): Promise<void> {
+    const { accountId, apiToken, bucketName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/r2/buckets/${bucketName}`;
     await execute('createR2Bucket', 'PUT', url, apiToken);
     // result is: {}
@@ -360,7 +374,8 @@ export async function createR2Bucket(accountId: string, bucketName: string, apiT
  * 
  * @throws if not exists: 404 10006 The specified bucket does not exist.
  */
-export async function deleteR2Bucket(accountId: string, bucketName: string, apiToken: string): Promise<void> {
+export async function deleteR2Bucket(opts: { accountId: string, bucketName: string, apiToken: string }): Promise<void> {
+    const { accountId, apiToken, bucketName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/r2/buckets/${bucketName}`;
     await execute('deleteR2Bucket', 'DELETE', url, apiToken);
     // result is: {}
@@ -373,7 +388,8 @@ export async function deleteR2Bucket(accountId: string, bucketName: string, apiT
 /**
  * List Account Flags
  */
-export async function listFlags(accountId: string, apiToken: string): Promise<FlagsResult> {
+export async function listFlags(opts: { accountId: string, apiToken: string }): Promise<FlagsResult> {
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/flags`;
     return (await execute<FlagsResult>('listFlags', 'GET', url, apiToken)).result;
 }
@@ -384,22 +400,22 @@ export type FlagsResult = Record<string, Record<string, unknown>>;
 
 //#region Workers Domains
 
-export async function listWorkersDomains(accountId: string, apiToken: string, opts: { hostname?: string } = {}): Promise<readonly WorkersDomain[]> {
-    const { hostname } = opts;
+export async function listWorkersDomains(opts: { accountId: string, apiToken: string, hostname?: string }): Promise<readonly WorkersDomain[]> {
+    const { accountId, apiToken, hostname } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/domains`);
     if (hostname) url.searchParams.set('hostname', hostname);
     return (await execute<readonly WorkersDomain[]>('listWorkersDomains', 'GET', url.toString(), apiToken)).result;
 }
 
-export async function putWorkersDomain(accountId: string, apiToken: string, opts: { hostname: string, zoneId: string, service: string, environment: string }): Promise<WorkersDomain> {
-    const { hostname, zoneId, service, environment } = opts;
+export async function putWorkersDomain(opts: { accountId: string, apiToken: string, hostname: string, zoneId: string, service: string, environment: string }): Promise<WorkersDomain> {
+    const { accountId, apiToken, hostname, zoneId, service, environment } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/domains`);
 
     return (await execute<WorkersDomain>('putWorkersDomain', 'PUT', url.toString(), apiToken, { hostname, zone_id: zoneId, service, environment })).result;
 }
 
-export async function deleteWorkersDomain(accountId: string, apiToken: string, opts: { workersDomainId: string }): Promise<void> {
-    const { workersDomainId } = opts;
+export async function deleteWorkersDomain(opts: { accountId: string, apiToken: string, workersDomainId: string }): Promise<void> {
+    const { accountId, apiToken, workersDomainId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/domains/${workersDomainId}`;
 
     await execute('deleteWorkersDomain', 'DELETE', url, apiToken, undefined, 'empty');
@@ -465,8 +481,8 @@ export interface ListZonesOpts {
     readonly direction?: 'asc' | 'desc';
 }
 
-export async function listZones(accountId: string, apiToken: string, opts: ListZonesOpts = {}) {
-    const { match, name, order, page, perPage, status, direction } = opts;
+export async function listZones(opts: { accountId: string, apiToken: string } & ListZonesOpts) {
+    const { accountId, apiToken, match, name, order, page, perPage, status, direction } = opts;
     const url = new URL(`${computeBaseUrl()}/zones`);
     url.searchParams.set('account.id', accountId);
     if (match) url.searchParams.set('match', match);
@@ -535,7 +551,8 @@ export interface Zone {
 
 //#region Verify Token
 
-export async function verifyToken(apiToken: string): Promise<VerifyTokenResult> {
+export async function verifyToken(opts: { apiToken: string }): Promise<VerifyTokenResult> {
+    const { apiToken } = opts;
     const url = `${computeBaseUrl()}/user/tokens/verify`;
     return (await execute<VerifyTokenResult>('verifyToken', 'GET', url, apiToken)).result;
 }
@@ -589,8 +606,8 @@ export interface ListMembershipsOpts {
     readonly direction?: 'asc' | 'desc';
 }
 
-export async function listMemberships(apiToken: string, opts: ListMembershipsOpts = {}) {
-    const { status, accountName, order, page, perPage, direction } = opts;
+export async function listMemberships(opts: { apiToken: string } & ListMembershipsOpts) {
+    const { apiToken, status, accountName, order, page, perPage, direction } = opts;
     const url = new URL(`${computeBaseUrl()}/memberships`);
     if (status) url.searchParams.set('status', status);
     if (accountName) url.searchParams.set('account.name', accountName);
@@ -666,8 +683,8 @@ export interface ListAccountsOpts {
     readonly direction?: 'asc' | 'desc';
 }
 
-export async function listAccounts(apiToken: string, opts: ListAccountsOpts = {}) {
-    const { name, page, perPage, direction } = opts;
+export async function listAccounts(opts: { apiToken: string } & ListAccountsOpts) {
+    const { apiToken, name, page, perPage, direction } = opts;
     const url = new URL(`${computeBaseUrl()}/accounts`);
     if (name) url.searchParams.set('name', name);
     if (page) url.searchParams.set('page', String(page));
@@ -708,7 +725,8 @@ export interface Account {
 
 //#region User
 
-export async function getUser(apiToken: string): Promise<User> {
+export async function getUser(opts: { apiToken: string }): Promise<User> {
+    const { apiToken } = opts;
     const url = `${computeBaseUrl()}/user`;
     return (await execute<User>('getUser', 'GET', url, apiToken)).result;
 }
@@ -743,14 +761,16 @@ export interface User {
 
 //#region Pub/Sub
 
-export async function listPubsubNamespaces(accountId: string, apiToken: string): Promise<readonly PubsubNamespace[]> {
+export async function listPubsubNamespaces(opts: { accountId: string, apiToken: string }): Promise<readonly PubsubNamespace[]> {
+    const { accountId, apiToken } = opts;
     const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces`;
     return (await execute<readonly PubsubNamespace[]>('listPubsubNamespaces', 'GET', url, apiToken)).result;
 }
 
-export async function createPubsubNamespace(accountId: string, apiToken: string, payload: { name: string }): Promise<PubsubNamespace> {
+export async function createPubsubNamespace(opts: { accountId: string, apiToken: string, name: string }): Promise<PubsubNamespace> {
+    const { accountId, apiToken, name } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces`;
-    return (await execute<PubsubNamespace>('createPubsubNamespace', 'POST', url, apiToken, payload)).result;
+    return (await execute<PubsubNamespace>('createPubsubNamespace', 'POST', url, apiToken, { name })).result;
 }
 
 export interface PubsubNamespace {
@@ -761,13 +781,15 @@ export interface PubsubNamespace {
     readonly modified_on: string;
 }
 
-export async function deletePubsubNamespace(accountId: string, apiToken: string, namespaceName: string): Promise<void> {
+export async function deletePubsubNamespace(opts: { accountId: string, apiToken: string, namespaceName: string }): Promise<void> {
+    const { accountId, apiToken, namespaceName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}`;
     await execute('deletePubsubNamespace', 'DELETE', url, apiToken);
     // 200, result = null
 }
 
-export async function listPubsubBrokers(accountId: string, apiToken: string, namespaceName: string): Promise<readonly PubsubBroker[]> {
+export async function listPubsubBrokers(opts: { accountId: string, apiToken: string, namespaceName: string }): Promise<readonly PubsubBroker[]> {
+    const { accountId, apiToken, namespaceName } = opts;
     const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces/${namespaceName}/brokers`;
     return (await execute<readonly PubsubBroker[]>('listPubsubBrokers', 'GET', url, apiToken)).result;
 }
@@ -783,13 +805,14 @@ export interface PubsubBroker {
     readonly on_publish?: { url: string };
 }
 
-export async function createPubsubBroker(accountId: string, apiToken: string, namespaceName: string, payload: { name: string, authType: string }): Promise<PubsubBroker> {
+export async function createPubsubBroker(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string, authType: string }): Promise<PubsubBroker> {
+    const { accountId, apiToken, namespaceName, brokerName, authType } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers`;
-    return (await execute<PubsubBroker>('createPubsubBroker', 'POST', url, apiToken, payload)).result;
+    return (await execute<PubsubBroker>('createPubsubBroker', 'POST', url, apiToken, { name: brokerName, authType })).result;
 }
 
-export async function updatePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string, opts: { expiration?: number | null, onPublishUrl?: string | null }): Promise<void> {
-    const { expiration, onPublishUrl } = opts;
+export async function updatePubsubBroker(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string, expiration?: number | null, onPublishUrl?: string | null }): Promise<void> {
+    const { accountId, apiToken, namespaceName, brokerName, expiration, onPublishUrl } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
     const payload: Record<string, unknown> = {};
     if (expiration !== undefined) payload.expiration = expiration;
@@ -797,7 +820,8 @@ export async function updatePubsubBroker(accountId: string, apiToken: string, na
     await execute('updatePubsubBroker', 'PATCH', url.toString(), apiToken, payload);
 }
 
-export async function listPubsubBrokerPublicKeys(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<PubsubBrokerPublicKeys> {
+export async function listPubsubBrokerPublicKeys(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string }): Promise<PubsubBrokerPublicKeys> {
+    const { accountId, apiToken, namespaceName, brokerName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/publickeys`;
     return (await execute<PubsubBrokerPublicKeys>('listPubsubBrokerPublicKeys', 'GET', url, apiToken)).result;
 }
@@ -806,19 +830,21 @@ export interface PubsubBrokerPublicKeys {
     readonly keys: Record<string, string>[];
 }
 
-export async function getPubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<PubsubBroker> {
+export async function getPubsubBroker(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string }): Promise<PubsubBroker> {
+    const { accountId, apiToken, namespaceName, brokerName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
     return (await execute<PubsubBroker>('getPubsubBroker', 'GET', url, apiToken)).result;
 }
 
-export async function deletePubsubBroker(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<void> {
+export async function deletePubsubBroker(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string }): Promise<void> {
+    const { accountId, apiToken, namespaceName, brokerName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}`;
     await execute('deletePubsubBroker', 'DELETE', url, apiToken);
     // 200, result = null
 }
 
-export async function generatePubsubCredentials(accountId: string, apiToken: string, namespaceName: string, brokerName: string, payload: { number: number, type: string, topicAcl: string, clientIds?: string[], expiration?: number }): Promise<Record<string, string>> {
-    const { number, type, topicAcl, clientIds, expiration } = payload;
+export async function generatePubsubCredentials(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string, number: number, type: string, topicAcl: string, clientIds?: string[], expiration?: number }): Promise<Record<string, string>> {
+    const { accountId, apiToken, namespaceName, brokerName, number, type, topicAcl, clientIds, expiration } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/credentials`);
     url.searchParams.set('number', String(number));
     url.searchParams.set('type', type);
@@ -828,7 +854,8 @@ export async function generatePubsubCredentials(accountId: string, apiToken: str
     return (await execute<Record<string, string>>('generatePubsubCredentials', 'GET', url.toString(), apiToken)).result;
 }
 
-export async function revokePubsubCredentials(accountId: string, apiToken: string, namespaceName: string, brokerName: string, ...jwtIds: string[]): Promise<void> {
+export async function revokePubsubCredentials(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string, jwtIds: string[] }): Promise<void> {
+    const { accountId, apiToken, namespaceName, brokerName, jwtIds } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`);
     if (jwtIds.length === 0) throw new Error(`Must include at least one JWT id to revoke`);
     url.searchParams.set('jti', jwtIds.join(','));
@@ -836,12 +863,14 @@ export async function revokePubsubCredentials(accountId: string, apiToken: strin
     // 200, result = null
 }
 
-export async function listPubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string): Promise<readonly string[]> { // jwt ids
+export async function listPubsubRevocations(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string }): Promise<readonly string[]> { // jwt ids
+    const { accountId, apiToken, namespaceName, brokerName } = opts;
     const url = `${computeBaseUrl()}/accounts/${accountId}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`;
     return (await execute<readonly string[]>('listPubsubRevocations', 'GET', url, apiToken)).result;
 }
 
-export async function deletePubsubRevocations(accountId: string, apiToken: string, namespaceName: string, brokerName: string, ...jwtIds: string[]): Promise<void> {
+export async function deletePubsubRevocations(opts: { accountId: string, apiToken: string, namespaceName: string, brokerName: string, jwtIds: string[] }): Promise<void> {
+    const { accountId, apiToken, namespaceName, brokerName, jwtIds } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/pubsub/namespaces/${namespaceName}/brokers/${brokerName}/revocations`);
     url.searchParams.set('jti', jwtIds.join(','));
     await execute('deletePubsubRevocations', 'DELETE', url.toString(), apiToken);
@@ -852,7 +881,8 @@ export async function deletePubsubRevocations(accountId: string, apiToken: strin
 
 //#region Analytics Engine
 
-export async function queryAnalyticsEngine(accountId: string, apiToken: string, query: string): Promise<string> {
+export async function queryAnalyticsEngine(opts: { accountId: string, apiToken: string, query: string }): Promise<string> {
+    const { accountId, apiToken, query } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/analytics_engine/sql`;
     return await execute('queryAnalyticsEngine', 'POST', url, apiToken, query, 'text');
 }
@@ -861,12 +891,14 @@ export async function queryAnalyticsEngine(accountId: string, apiToken: string, 
 
 //#region D1
 
-export async function createD1Database(accountId: string, apiToken: string, databaseName: string): Promise<D1Database> {
+export async function createD1Database(opts: { accountId: string, apiToken: string, databaseName: string }): Promise<D1Database> {
+    const { accountId, apiToken, databaseName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
     return (await execute<D1Database>('createD1Database', 'POST', url, apiToken, { name: databaseName })).result;
 }
 
-export async function listD1Databases(accountId: string, apiToken: string): Promise<readonly D1Database[]> {
+export async function listD1Databases(opts: { accountId: string, apiToken: string }): Promise<readonly D1Database[]> {
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
     return (await execute('listD1Databases', 'GET', url, apiToken) as ListD1DatabasesResponse).result;
 }
@@ -880,13 +912,15 @@ export interface D1Database {
     readonly name: string;
 }
 
-export async function deleteD1Database(accountId: string, apiToken: string, databaseUuid: string): Promise<void> {
+export async function deleteD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<void> {
+    const { accountId, apiToken, databaseUuid } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}`;
     await execute('deleteD1Database', 'DELETE', url.toString(), apiToken);
     // 200 result: null
 }
 
-export async function queryD1Database(accountId: string, apiToken: string, databaseUuid: string, sql: string, params: (null | number | string | ArrayBuffer)[] = []): Promise<readonly D1QueryResult[]> {
+export async function queryD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string, sql: string, params?: (null | number | string | ArrayBuffer)[] }): Promise<readonly D1QueryResult[]> {
+    const { accountId, apiToken, databaseUuid, sql, params = [] } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/query`;
     const payload = { sql, params };
     return (await execute<readonly D1QueryResult[]>('queryD1Database', 'POST', url, apiToken, payload)).result;

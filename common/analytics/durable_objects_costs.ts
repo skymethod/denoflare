@@ -177,7 +177,7 @@ function computeCosts(input: { sumRequests: number, sumInboundWebsocketMsgCount:
 
 async function tryListDurableObjectsNamespaces(profile: Profile): Promise<readonly DurableObjectsNamespace[]> {
     try {
-        return await listDurableObjectsNamespaces(profile.accountId, profile.apiToken);
+        return await listDurableObjectsNamespaces(profile);
     } catch (e) {
         console.warn(e);
         return [];

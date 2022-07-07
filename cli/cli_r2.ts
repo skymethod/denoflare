@@ -80,7 +80,7 @@ export function commandOptionsForR2(opts: { hideUrlStyle?: boolean } = {}): CliC
 export async function loadR2Options(options: Record<string, unknown>): Promise<{ origin: string, region: string, context: AwsCallContext, urlStyle?: UrlStyle }> {
     const config = await loadConfig(options);
     const { accountId, apiToken } = await resolveProfile(config, options);
-    const apiTokenId = (await verifyToken(apiToken)).id;
+    const apiTokenId = (await verifyToken({ apiToken })).id;
 
     const credentials: AwsCredentials = {
         accessKey: apiTokenId,

@@ -79,7 +79,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        await putScript(accountId, scriptName, apiToken, { scriptContents, bindings, migrations, parts, isModule, usageModel });
+        await putScript({ accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
        
         if (doNamespaces.hasPendingUpdates()) {
@@ -93,7 +93,7 @@ export async function push(args: (string | number)[], options: Record<string, un
             const customDomains = customDomainOpt || script?.customDomains || [];
             if (customDomains.length > 0) {
                 start = Date.now();
-                const zones = await listZones(accountId, apiToken, { perPage: 1000 });
+                const zones = await listZones({ accountId, apiToken, perPage: 1000 });
                 for (const customDomain of customDomains) {
                     await ensureCustomDomainExists(customDomain, { zones, scriptName, accountId, apiToken });
                 }
@@ -137,7 +137,7 @@ async function ensureCustomDomainExists(customDomain: string, opts: { zones: rea
     checkEqual('zone.type', zone.type, 'full');
 
     // idempotent
-    await putWorkersDomain(accountId, apiToken, { hostname: customDomain, zoneId: zone.id, service: scriptName, environment: 'production' });
+    await putWorkersDomain({ accountId, apiToken, hostname: customDomain, zoneId: zone.id, service: scriptName, environment: 'production' });
 }
 
 function computeMigrations(deleteClassOpt: string[] | undefined): Migrations | undefined {
@@ -247,11 +247,12 @@ class DurableObjectNamespaces {
         const name = tokens[0];
         if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error(`Bad durable object namespace name: ${name}`);
         const className = tokens[1];
-        const namespaces = await listDurableObjectsNamespaces(this.accountId, this.apiToken);
+        const { accountId, apiToken } = this;
+        const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken });
         let namespace = namespaces.find(v => v.name === name);
         if (!namespace)  {
             console.log(`Creating new durable object namespace: ${name}`);
-            namespace = await createDurableObjectsNamespace(this.accountId, this.apiToken, { name });
+            namespace = await createDurableObjectsNamespace({ accountId, apiToken, name });
         }
         if (namespace.class !== className || namespace.script !== scriptName) {
             this.pendingUpdates.push({ id: namespace.id, name, script: scriptName, class: className });
@@ -264,9 +265,10 @@ class DurableObjectNamespaces {
     }
 
     async flushPendingUpdates() {
-        for (const payload of this.pendingUpdates) {
-            console.log(`Updating durable object namespace ${payload.name}: script=${payload.script}, class=${payload.class}`);
-            await updateDurableObjectsNamespace(this.accountId, this.apiToken, payload);
+        const { accountId, apiToken } = this;
+        for (const { id, name, script, class: className } of this.pendingUpdates) {
+            console.log(`Updating durable object namespace ${name}: script=${script}, class=${className}`);
+            await updateDurableObjectsNamespace({ accountId, apiToken, id, name, script, className });
         }
         this.pendingUpdates.splice(0);
     }
