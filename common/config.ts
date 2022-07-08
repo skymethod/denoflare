@@ -84,6 +84,9 @@ export interface Script {
      * See https://blog.cloudflare.com/custom-domains-for-workers/
      */
     readonly customDomains?: string[];
+
+    /** If specified, enable or disable the workers.dev route for this worker when deploying to Cloudflare. */
+    readonly workersDev?: boolean;
 }
 
 /** Binding definition for a worker script environment variable */

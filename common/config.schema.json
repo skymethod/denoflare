@@ -160,6 +160,10 @@
                             "items": {
                                 "type": "string"
                             }
+                        },
+                        "workersDev": {
+                            "description": "If specified, enable or disable the workers.dev route for this worker when deploying to Cloudflare.",
+                            "type": "boolean"
                         }
                     }
                 }

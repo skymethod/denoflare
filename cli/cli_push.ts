@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve, fromFileUrl, relative } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
@@ -15,6 +15,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('watch', 'boolean', 'If set, watch the local file system and automatically re-upload on script changes')
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
     .option('customDomain', 'strings', 'Bind worker to one or more Custom Domains for Workers', { hint: 'domain-or-subdomain-name' })
+    .option('workersDev', 'boolean', 'Enable or disable the worker workers.dev route')
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
@@ -26,7 +27,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (PUSH_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
+    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
 
     if (verbose) {
         // in cli
@@ -88,7 +89,7 @@ export async function push(args: (string | number)[], options: Record<string, un
             console.log(`updated durable object namespaces in ${Date.now() - start}ms`);
         }
 
-        // only perform custom domain setup on first upload, not on subsequent --watch uploads
+        // only perform custom domain and/or workers dev setup on first upload, not on subsequent --watch uploads
         if (pushNumber === 1) {
             const customDomains = customDomainOpt || script?.customDomains || [];
             if (customDomains.length > 0) {
@@ -98,6 +99,16 @@ export async function push(args: (string | number)[], options: Record<string, un
                     await ensureCustomDomainExists(customDomain, { zones, scriptName, accountId, apiToken });
                 }
                 console.log(`bound worker to ${customDomains.length === 1 ? 'custom domain' : `${customDomains.length} custom domains`} in ${Date.now() - start}ms`);
+            }
+            const workersDev = typeof workersDevOpt === 'boolean' ? workersDevOpt : script?.workersDev;
+            if (typeof workersDev === 'boolean') {
+                start = Date.now();
+                const subdomain = await getWorkersSubdomain({ accountId, apiToken });
+                const enabled = await getWorkerServiceSubdomainEnabled({ accountId, apiToken, scriptName });
+                if (enabled !== workersDev) {
+                    await setWorkerServiceSubdomainEnabled({ accountId, apiToken, scriptName, enabled: workersDev });
+                }
+                console.log(`${workersDev ? 'enabled' : 'disabled'} ${scriptName}.${subdomain}.workers.dev route in ${Date.now() - start}ms`);
             }
         }
         
