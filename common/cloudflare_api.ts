@@ -934,6 +934,41 @@ export interface D1QueryResult {
     readonly success: boolean;
 }
 
+export async function listD1Backups(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<readonly D1Backup[]> {
+    const { accountId, apiToken, databaseUuid } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/backup`);
+    // figure out paging
+    return (await execute<readonly D1Backup[]>('listD1Backups', 'GET', url.toString(), apiToken)).result;
+}
+
+export interface D1Backup {
+    readonly id: string; // dashed v4 guid
+    readonly database_id: string // dashed v4 guid
+    readonly created_at: string; // instant
+    readonly state: string; // e.g. done
+    readonly num_tables: number;
+    readonly file_size: number;
+}
+
+export async function createD1Backup(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<D1Backup> {
+    const { accountId, apiToken, databaseUuid } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/backup`;
+    return (await execute<D1Backup>('createD1Backup', 'POST', url, apiToken)).result;
+}
+
+export async function restoreD1Backup(opts: { accountId: string, apiToken: string, databaseUuid: string, backupUuid: string }): Promise<void> {
+    const { accountId, apiToken, databaseUuid, backupUuid } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/backup/${backupUuid}/restore`;
+    await execute<D1Backup>('restoreD1Backup', 'POST', url, apiToken);
+    // result: null
+}
+
+export async function downloadD1Backup(opts: { accountId: string, apiToken: string, databaseUuid: string, backupUuid: string }): Promise<Uint8Array> {
+    const { accountId, apiToken, databaseUuid, backupUuid } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/backup/${backupUuid}/download`;
+    return await execute('downloadD1Backup', 'GET', url, apiToken, undefined, 'bytes' );
+}
+
 //#endregion
 
 export class CloudflareApi {

@@ -68,9 +68,9 @@ export class CliCommand<T> {
         return this;
     }
 
-    getInfo(): { command: string, docsLink?: string, description?: string } {
+    getInfo(): { command: string[], docsLink?: string, description?: string } {
         const { command, docsLink_: docsLink, description } = this;
-        return { command: command.join('-'), docsLink, description };
+        return { command: command.slice(), docsLink, description };
     }
 
     subcommand(subcommand: CliCommand<unknown>, handler: SubcommandHandler): CliCommand<T> {

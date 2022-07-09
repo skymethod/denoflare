@@ -34,6 +34,11 @@ import { UPLOAD_PART_COMMAND } from '../cli/cli_r2_upload_part.ts';
 import { UPLOAD_PART_COPY_COMMAND } from '../cli/cli_r2_upload_part_copy.ts';
 import { GENERATE_CREDENTIALS_COMMAND } from '../cli/cli_r2_generate_credentials.ts';
 import { CliCommand } from '../cli/cli_command.ts';
+import { PRESIGN_COMMAND } from '../cli/cli_r2_presign.ts';
+import { JWT_COMMAND, PUBSUB_COMMAND } from '../cli/cli_pubsub.ts';
+import { PUBLISH_COMMAND } from '../cli/cli_pubsub_publish.ts';
+import { SUBSCRIBE_COMMAND } from '../cli/cli_pubsub_subscribe.ts';
+import { BACKUP_COMMAND, CREATE_COMMAND, D1_COMMAND, DOWNLOAD_COMMAND, DROP_COMMAND, LIST_BACKUPS_COMMAND, LIST_COMMAND, QUERY_COMMAND, RESTORE_COMMAND } from '../cli/cli_d1.ts';
 
 export const REGENERATE_DOCS_COMMAND = CliCommand.of(['denoflaredev', 'regenerate-docs'])
     .arg('docsRepoDir', 'string', '')
@@ -52,7 +57,7 @@ export async function regenerateDocs(args: (string | number)[], options: Record<
         const oldContents = await Deno.readTextFile(absPath);
         const helpContents = cliCommand.computeHelp({ includeDocsLinks: true });
         const { command, docsLink, description} = cliCommand.getInfo();
-        let newContents = oldContents.replace(new RegExp('\n' + command + '.*?```', 's'), '\n' + helpContents + '\n```');
+        let newContents = oldContents.replace(new RegExp('\n' + command.join('-') + '.*?```', 's'), '\n' + helpContents + '\n```');
         if (docsLink && !docsLink.includes('#') && description) {
             // top-level doc, except root
             newContents = newContents.replace(/\nsummary:\s+.*?\n/, `\nsummary: ${description}\n`);
@@ -102,9 +107,36 @@ export async function regenerateDocs(args: (string | number)[], options: Record<
         UPLOAD_PART_COPY_COMMAND,
         
         GENERATE_CREDENTIALS_COMMAND,
+        PRESIGN_COMMAND,
         
     ]) {
         await replace('./cli/r2.md', r2Command);
+    }
+
+    for (const pubsubCommand of [
+        PUBSUB_COMMAND, 
+
+        PUBLISH_COMMAND,
+        SUBSCRIBE_COMMAND,
+        JWT_COMMAND,
+    ]) {
+        await replace('./cli/pubsub.md', pubsubCommand);
+    }
+
+    for (const d1Command of [
+        D1_COMMAND, 
+
+        LIST_COMMAND,
+        DROP_COMMAND,
+        CREATE_COMMAND,
+        QUERY_COMMAND,
+
+        BACKUP_COMMAND,
+        RESTORE_COMMAND,
+        DOWNLOAD_COMMAND,
+        LIST_BACKUPS_COMMAND,
+    ]) {
+        await replace('./cli/d1.md', d1Command);
     }
 
     if (!madeChanges) console.log('no changes');

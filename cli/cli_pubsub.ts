@@ -9,12 +9,12 @@ import { Protocol } from '../common/mqtt/mqtt_client.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { Mqtt } from '../common/mqtt/mqtt.ts';
 
-const JWT_COMMAND = denoflareCliCommand(['pubsub', 'jwt'], `Parse a JWT token, and output its claims`)
+export const JWT_COMMAND = denoflareCliCommand(['pubsub', 'jwt'], `Parse a JWT token, and output its claims`)
     .arg('token', 'string', 'JWT token string')
     .docsLink('/cli/pubsub#jwt')
     ;
 
-export const PUBSUB_COMMAND = denoflareCliCommand('pubsub', '') // until public beta
+export const PUBSUB_COMMAND = denoflareCliCommand('pubsub', 'Interact with your Cloudflare Pub/Sub broker')
     .subcommand(PUBLISH_COMMAND, publish)
     .subcommand(SUBSCRIBE_COMMAND, subscribe)
     .subcommand(JWT_COMMAND, jwt)
