@@ -96,7 +96,7 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('secretBinding', 'strings', 'Secret text environment variable binding, overrides config', { hint: 'name:secret-text'})
         .option('kvNamespaceBinding', 'strings', 'KV namespace environment variable binding, overrides config', { hint: 'name:namespace-id'})
         .option('doNamespaceBinding', 'strings', 'DO namespace environment variable binding, overrides config', { hint: 'name:namespace-name:class-name'})
-        .option('wasmModuleBinding', 'strings', 'WASM module environment variable binding, overrides config', { hint: 'name:path-to-local-wasm-file'})
+        .option('wasmModuleBinding', 'strings', 'Wasm module environment variable binding, overrides config', { hint: 'name:path-to-local-wasm-file'})
         .option('serviceBinding', 'strings', 'Service environment variable binding, overrides config', { hint: 'name:service:environment'})
         .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
         ;
