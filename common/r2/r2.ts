@@ -44,6 +44,27 @@ export async function computeExpectedAwsSignature(call: AwsCall, context: { cred
     return await sig(credentials.secretKey, amazonDate, region, service, stringToSign);
 }
 
+export async function presignAwsCallV4(call: AwsCall, opts: { credentials: AwsCredentials, expiresInSeconds: number }): Promise<URL> {
+    // https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-query-string-auth.html
+    const { method, region, service } = call;
+    const { credentials, expiresInSeconds } = opts;
+    const url = new URL(call.url.toString());
+    const amazonDate = computeAmazonDate();
+    url.searchParams.set('X-Amz-Algorithm', 'AWS4-HMAC-SHA256');
+    url.searchParams.set('X-Amz-Credential', credentials.accessKey + '/' + credentialScope(amazonDate, region, service))
+    url.searchParams.set('X-Amz-Date', amazonDate)
+    url.searchParams.set('X-Amz-Expires', String(expiresInSeconds))
+    url.searchParams.set('X-Amz-SignedHeaders', 'host');
+    const headers = new Headers(call.headers);
+    const canonicalRequest = computeCanonicalRequest(method, url, headers, 'UNSIGNED-PAYLOAD');
+    if (R2.DEBUG) console.log(`canonicalRequest=<<<${canonicalRequest.text}>>>`);
+    const stringToSign = await stringToSignFinal(amazonDate, region, service, canonicalRequest.text);
+    if (R2.DEBUG) console.log(`stringToSign=<<<${stringToSign}>>>`);
+    const signature = await sig(credentials.secretKey, amazonDate, region, service, stringToSign);
+    url.searchParams.set('X-Amz-Signature', signature);
+    return url;
+}
+
 export async function signAwsCallV4(call: AwsCall, context: AwsCallContext): Promise<{ signedHeaders: Headers, bodyInfo: BodyInfo }> {
     const { method, url, body, region, service } = call;
     const { userAgent, credentials } = context;

@@ -28,6 +28,7 @@ import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
 import { CliCommand, CliCommandModifier } from './cli_command.ts';
 import { generateCredentials, GENERATE_CREDENTIALS_COMMAND } from './cli_r2_generate_credentials.ts';
+import { presign, PRESIGN_COMMAND } from './cli_r2_presign.ts';
 
 export const R2_COMMAND = denoflareCliCommand('r2', 'Manage Cloudflare R2 storage using the S3 compatibility API')
     .subcommand(LIST_BUCKETS_COMMAND, listBuckets)
@@ -58,6 +59,7 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage Cloudflare R2 storag
 
     .subcommandGroup()
     .subcommand(GENERATE_CREDENTIALS_COMMAND, generateCredentials)
+    .subcommand(PRESIGN_COMMAND, presign)
 
     .docsLink('/cli/r2')
     ;
@@ -66,12 +68,11 @@ export async function r2(args: (string | number)[], options: Record<string, unkn
     await R2_COMMAND.routeSubcommand(args, options, { putLargeObject });
 }
 
-export function commandOptionsForR2(opts: { hideUrlStyle?: boolean } = {}): CliCommandModifier {
-    const { hideUrlStyle } = opts;
+export function commandOptionsForR2(opts: { hideUrlStyle?: boolean, hideUnsignedPayload?: boolean } = {}): CliCommandModifier {
+    const { hideUrlStyle, hideUnsignedPayload } = opts;
     return command => {
-        command
-            .optionGroup()
-            .option('unsignedPayload', 'boolean', 'If set, skip request body signing (and thus verification) for the R2 request');
+        if (!hideUnsignedPayload || !hideUrlStyle) command.optionGroup();
+        if (!hideUnsignedPayload) command.option('unsignedPayload', 'boolean', 'If set, skip request body signing (and thus verification) for the R2 request');
         if (!hideUrlStyle) command.option('urlStyle', 'enum', 'URL addressing method used in request', { value: 'path' }, { value: 'vhost', default: true }); 
         return command.include(commandOptionsForConfig);
     }
