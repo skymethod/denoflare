@@ -149,6 +149,7 @@ async function listBackups(args: (string | number)[], options: Record<string, un
         console.log(`${backup.id} ${time} state=${backup.state} tables=${backup.num_tables} size=${Bytes.formatSize(backup.file_size)}`);
         prevDay = day;
     }
+    console.log(`${backups.length} backups`)
 }
 
 async function restore(args: (string | number)[], options: Record<string, unknown>): Promise<void> {

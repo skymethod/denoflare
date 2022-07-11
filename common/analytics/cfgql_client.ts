@@ -47,7 +47,7 @@ export interface CfGqlResult<T> {
 //
 
 // deno-lint-ignore no-explicit-any
-async function query(profile: Profile, queryFn: (q: GraphqlQuery) => void, variables: Record<string, unknown>): Promise<any> {
+export async function query(profile: Profile, queryFn: (q: GraphqlQuery) => void, variables: Record<string, unknown>): Promise<any> {
     const { accountId, apiToken } = profile;
 
     const q = GraphqlQuery.create()
