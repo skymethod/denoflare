@@ -24,6 +24,7 @@ export { getBucketEncryption } from './get_bucket_encryption.ts';
 export { deleteBucketEncryption } from './delete_bucket_encryption.ts';
 export { putBucketEncryption } from './put_bucket_encryption.ts';
 export { getBucketLocation } from './get_bucket_location.ts';
+export { listMultipartUploads } from './list_multipart_uploads.ts';
 
 export const R2_REGION_AUTO = 'auto';
 
@@ -172,6 +173,12 @@ export function computeAwsCallBodyLength(body: AwsCallBody): number {
 export function checkBoolean(text: string, name: string): boolean {
     checkMatches(name, text, /^(true|false)$/);
     return text === 'true';
+}
+
+export function checkInteger(text: string, name: string): number {
+    const rt = parseInt(text);
+    if (String(rt) !== text) throw new Error(`${name}: Expected integer text`);
+    return rt;
 }
 
 export function computeAmazonDate(): string {

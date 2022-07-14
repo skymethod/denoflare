@@ -1,5 +1,5 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, BucketResultOwner, checkBoolean, computeBucketUrl, parseBucketResultOwner, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
+import { AwsCallContext, BucketResultOwner, checkBoolean, checkInteger, computeBucketUrl, parseBucketResultOwner, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
 export type ListObjectsOpts = { bucket: string, origin: string, region: string, urlStyle?: UrlStyle, maxKeys?: number, marker?: string, delimiter?: string, prefix?: string, encodingType?: string };
@@ -73,12 +73,6 @@ function parseListBucketResult(element: KnownElement): ListBucketResult {
     const commonPrefixes = element.getKnownElements('CommonPrefixes').map(parseCommonPrefixes);
     element.check();
     return { name, isTruncated, maxKeys, keyCount, contents, nextMarker, delimiter, commonPrefixes, marker, prefix, encodingType };
-}
-
-function checkInteger(text: string, name: string): number {
-    const rt = parseInt(text);
-    if (String(rt) !== text) throw new Error(`${name}: Expected integer text`);
-    return rt;
 }
 
 function parseListBucketResultItem(element: KnownElement): ListBucketResultItem {

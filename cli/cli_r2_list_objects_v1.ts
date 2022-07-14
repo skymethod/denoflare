@@ -8,7 +8,7 @@ export const LIST_OBJECTS_V1_COMMAND = denoflareCliCommand(['r2', 'list-objects-
     .option('marker', 'string', 'Start listing after this specified key, can be any key in the bucket')
     .option('prefix', 'string', 'Limit to keys that begin with the specified prefix')
     .option('delimiter', 'string', 'The character used to group keys', { hint: 'char' })
-    .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
+    .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' })
     .include(commandOptionsForR2())
     .docsLink('/cli/r2#list-objects-v1')
     ;

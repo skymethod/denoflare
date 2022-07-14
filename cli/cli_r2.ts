@@ -29,6 +29,7 @@ import { verifyToken } from '../common/cloudflare_api.ts';
 import { CliCommand, CliCommandModifier } from './cli_command.ts';
 import { generateCredentials, GENERATE_CREDENTIALS_COMMAND } from './cli_r2_generate_credentials.ts';
 import { presign, PRESIGN_COMMAND } from './cli_r2_presign.ts';
+import { LIST_MULTIPART_UPLOADS_COMMAND, listMultipartUploads } from './cli_r2_list_multipart_uploads.ts';
 
 export const R2_COMMAND = denoflareCliCommand('r2', 'Manage Cloudflare R2 storage using the S3 compatibility API')
     .subcommand(LIST_BUCKETS_COMMAND, listBuckets)
@@ -56,6 +57,7 @@ export const R2_COMMAND = denoflareCliCommand('r2', 'Manage Cloudflare R2 storag
     .subcommand(COMPLETE_MULTIPART_UPLOAD_COMMAND, completeMultipartUpload)
     .subcommand(UPLOAD_PART_COMMAND, uploadPart)
     .subcommand(UPLOAD_PART_COPY_COMMAND, uploadPartCopy)
+    .subcommand(LIST_MULTIPART_UPLOADS_COMMAND, listMultipartUploads)
 
     .subcommandGroup()
     .subcommand(GENERATE_CREDENTIALS_COMMAND, generateCredentials)

@@ -39,6 +39,7 @@ import { JWT_COMMAND, PUBSUB_COMMAND } from '../cli/cli_pubsub.ts';
 import { PUBLISH_COMMAND } from '../cli/cli_pubsub_publish.ts';
 import { SUBSCRIBE_COMMAND } from '../cli/cli_pubsub_subscribe.ts';
 import { BACKUP_COMMAND, CREATE_COMMAND, D1_COMMAND, DOWNLOAD_COMMAND, DROP_COMMAND, LIST_BACKUPS_COMMAND, LIST_COMMAND, QUERY_COMMAND, RESTORE_COMMAND } from '../cli/cli_d1.ts';
+import { LIST_MULTIPART_UPLOADS_COMMAND } from '../cli/cli_r2_list_multipart_uploads.ts';
 
 export const REGENERATE_DOCS_COMMAND = CliCommand.of(['denoflaredev', 'regenerate-docs'])
     .arg('docsRepoDir', 'string', '')
@@ -105,6 +106,7 @@ export async function regenerateDocs(args: (string | number)[], options: Record<
         COMPLETE_MULTIPART_UPLOAD_COMMAND,
         UPLOAD_PART_COMMAND,
         UPLOAD_PART_COPY_COMMAND,
+        LIST_MULTIPART_UPLOADS_COMMAND,
         
         GENERATE_CREDENTIALS_COMMAND,
         PRESIGN_COMMAND,

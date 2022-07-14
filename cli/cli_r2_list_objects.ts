@@ -9,7 +9,7 @@ export const LIST_OBJECTS_COMMAND = denoflareCliCommand(['r2', 'list-objects'], 
     .option('startAfter', 'string', 'Start listing after this specified key, can be any key in the bucket', { hint: 'key' })
     .option('prefix', 'string', 'Limit to keys that begin with the specified prefix')
     .option('delimiter', 'string', 'The character used to group keys', { hint: 'char' })
-    .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' }, { value: 'url', description: 'Url encoding'})
+    .option('encodingType', 'enum', 'Encoding used to encode keys in the response', { value: 'url', description: 'Url encoding' })
     .option('fetchOwner', 'boolean', 'If set, return the owner info for each item')
     .include(commandOptionsForR2())
     .docsLink('/cli/r2#list-objects')
