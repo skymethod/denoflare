@@ -1,5 +1,5 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
 export type GetBucketLocationOpts = { bucket: string, origin: string, region: string, urlStyle?: UrlStyle };
@@ -31,7 +31,7 @@ export interface LocationConstraint {
 
 function parseLocationConstraintXml(xml: ExtendedXmlNode): LocationConstraint {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const locationConstraint = doc.getOptionalElementText('LocationConstraint');
+    const locationConstraint = doc.getOptionalElementText('LocationConstraint', { xmlns: S3_XMLNS });
     doc.check();
     return { locationConstraint };
 }

@@ -1,6 +1,6 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type CopyObjectOpts = { 
     bucket: string, key: string, origin: string, region: string, urlStyle?: UrlStyle, cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentType?: string, customMetadata?: Record<string, string>,
@@ -55,7 +55,7 @@ export interface CopyObjectResult {
 
 function parseCopyObjectResultXml(xml: ExtendedXmlNode): CopyObjectResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseCopyObjectResult(doc.getKnownElement('CopyObjectResult'));
+    const rt = parseCopyObjectResult(doc.getKnownElement('CopyObjectResult', { xmlns: S3_XMLNS }));
     doc.check();
     return rt;
 }

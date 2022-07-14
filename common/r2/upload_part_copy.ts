@@ -1,6 +1,6 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type UploadPartCopyOpts = { 
     bucket: string, key: string, uploadId: string, partNumber: number, origin: string, region: string, urlStyle?: UrlStyle,
@@ -49,7 +49,7 @@ export interface CopyPartResult {
 
 function parseCopyPartResultXml(xml: ExtendedXmlNode): CopyPartResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseCopyPartResult(doc.getKnownElement('CopyPartResult'));
+    const rt = parseCopyPartResult(doc.getKnownElement('CopyPartResult', { xmlns: S3_XMLNS }));
     doc.check();
     return rt;
 }

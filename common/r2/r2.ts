@@ -27,6 +27,8 @@ export { getBucketLocation } from './get_bucket_location.ts';
 
 export const R2_REGION_AUTO = 'auto';
 
+export const S3_XMLNS = `http://s3.amazonaws.com/doc/2006-03-01/`;
+
 export class R2 {
     static DEBUG = false;
 }
@@ -324,7 +326,7 @@ async function stringToSignFinal(amazonDate: string, region: string, service: st
 
 function parseErrorResultXml(xml: ExtendedXmlNode): ErrorResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseErrorResult(doc.getKnownElement('Error'));
+    const rt = parseErrorResult(doc.getKnownElement('Error', { xmlns: S3_XMLNS }));
     doc.check();
     return rt;
 }

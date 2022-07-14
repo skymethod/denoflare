@@ -42,7 +42,8 @@ export class ApiR2Bucket implements R2Bucket {
 
     async head(key: string): Promise<R2Object | null> {
         const { origin, credentials, bucket, region, userAgent } = this;
-        const res = await headObject({ bucket, key, origin, region }, { credentials, userAgent });
+        const acceptEncoding = 'identity'; // otherwise no content-length, etag is returned!
+        const res = await headObject({ bucket, key, origin, region, acceptEncoding }, { credentials, userAgent });
         if (!res) return null;
         if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
         return new HeadersBasedR2Object(res.headers, key);
@@ -54,10 +55,16 @@ export class ApiR2Bucket implements R2Bucket {
         const { origin, credentials, bucket, region, userAgent } = this;
         const { ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = parseOnlyIf(options?.onlyIf);
         const range = computeRangeHeader(options?.range);
-        const res = await getObject({ bucket, key, origin, region, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, range }, { credentials, userAgent });
+        const cleanIfMatch = cleanEtagForR2(ifMatch);
+        const cleanIfNoneMatch = cleanEtagForR2(ifNoneMatch);
+        const res = await getObject({ bucket, key, origin, region, ifMatch: cleanIfMatch, ifNoneMatch: cleanIfNoneMatch, ifModifiedSince, ifUnmodifiedSince, range }, { credentials, userAgent });
         if (!res) return null;
         if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
-        if (res.status === 304 || res.status === 412) return new HeadersBasedR2Object(res.headers, key);
+        if (res.status === 304 || res.status === 412) {
+            // r2 no longer returns content-length, etag, or last-modified in this case
+            // no choice but to do another call
+            return await this.head(key);
+        }
         return new ResponseBasedR2ObjectBody(res, key);
     }
 
@@ -152,7 +159,6 @@ function parseOnlyIf(onlyIf?: R2Conditional | Headers): { ifMatch?: string, ifNo
     let ifNoneMatch: string | undefined;
     let ifModifiedSince: string | undefined;
     let ifUnmodifiedSince: string | undefined;
-
     if (onlyIf instanceof Headers) {
         ifMatch = onlyIf.get('if-match') || undefined;
         ifNoneMatch = onlyIf.get('if-none-match') || undefined;
@@ -184,12 +190,20 @@ function computeCustomMetadataFromHeaders(headers: Headers): Record<string, stri
     return Object.fromEntries([...headers.keys()].filter(v => v.startsWith('x-amz-meta-')).map(v => [v.substring(11), headers.get(v)!]));
 }
 
-function computeR2RangeFromContentRange(contentRange: string | undefined): R2Range | undefined {
+function computeR2RangeFromContentRange(contentRange: string | undefined): { range: R2Range, size?: number } | undefined {
     if (typeof contentRange !== 'string') return undefined;
-    const [ _, start, end, _size ] = checkMatchesReturnMatcher('content-range', contentRange, /^(\d+)-(\d+)\/(\d+)$/);
+    const [ _, start, end, sizeStr ] = checkMatchesReturnMatcher('content-range', contentRange, /^bytes (\d+)-(\d+)\/(\d+)$/);
     const offset = parseInt(start);
     const length = parseInt(end) - offset + 1;
-    return { offset, length };
+    const size = sizeStr !== '*' ? parseInt(sizeStr) : undefined;
+    return { range: { offset, length }, size };
+}
+
+function cleanEtagForR2(etag: string | undefined) {
+    // R2: "If-None-Match etag must be surrounded by double quotes."
+    // Also R2: ETag: W/"3493cd1f3714231393d343b2cf3d5cae"
+    const m = /^W\/(".*?")$/.exec(etag || '');
+    return m ? m[1] : etag;
 }
 
 //
@@ -222,7 +236,7 @@ class ListBucketResultItemBasedR2Object implements R2Object {
 
 class HeadersBasedR2Object implements R2Object {
     readonly key: string;
-    readonly size: number;
+    readonly _size: number | undefined; get size() { if (typeof this._size === 'number') return this._size; throw new Error(`Did not get a size in the headers response`); }
     readonly version: string;
     readonly etag: string;
     readonly httpEtag: string;
@@ -233,10 +247,14 @@ class HeadersBasedR2Object implements R2Object {
 
     constructor(headers: Headers, key: string) {
         this.key = key;
-        const size = getExpectedHeader('content-length', headers);
-        this.size = parseInt(size);
+        const parsed = computeR2RangeFromContentRange(headers.get('content-range') || undefined);
+        if (parsed) {
+            this.range = parsed.range;
+        }
+        const contentLength = headers.get('content-length') ?? undefined;
+        this._size = parsed && typeof parsed.size === 'number' ? parsed.size : contentLength ? parseInt(contentLength) : undefined;
         this.httpEtag = getExpectedHeader('etag', headers);
-        this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^"([0-9a-f]{32})"$/)[1];
+        this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^(W\/)?"([0-9a-f]{32})"$/)[1];
         const lastModified = getExpectedHeader('last-modified', headers);
         this.uploaded = new Date(lastModified);
         const cacheExpiryStr = headers.get('cache-expiry') || undefined;
@@ -249,7 +267,6 @@ class HeadersBasedR2Object implements R2Object {
             cacheExpiry: cacheExpiryStr ? new Date(cacheExpiryStr) : undefined,
         }
         this.customMetadata = computeCustomMetadataFromHeaders(headers);
-        this.range = computeR2RangeFromContentRange(headers.get('content-range') || undefined);
 
         // placeholder values, don't throw on prop access
         this.version = this.etag;

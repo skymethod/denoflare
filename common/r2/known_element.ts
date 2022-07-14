@@ -1,16 +1,24 @@
 import { checkEqual } from '../check.ts';
 import { ExtendedXmlNode, XmlNode } from '../xml_parser.ts';
 
+export type KnownElementOpts = { xmlns?: string };
+
 export class KnownElement {
     private readonly node: ExtendedXmlNode;
     private readonly unprocessedChildNames: Set<string>;
     private readonly unprocessedAttNames: Set<string>;
     private unprocessedVal: boolean;
 
-    constructor(node: XmlNode) {
+    constructor(node: XmlNode, opts: KnownElementOpts = {}) {
+        const { xmlns } = opts;
         this.node = node as ExtendedXmlNode;
         this.unprocessedChildNames = new Set(Object.keys(node.child));
         this.unprocessedAttNames = new Set(this.node.atts.keys());
+        if (xmlns) {
+            const xmlnsValue = this.node.atts.get('xmlns');
+            checkEqual('xmlns', xmlnsValue, xmlns);
+            this.unprocessedAttNames.delete('xmlns');
+        }
         this.unprocessedVal = typeof this.node.val === 'string';
     }
 
@@ -19,13 +27,18 @@ export class KnownElement {
         return this;
     }
 
+    getOptionalKnownAttribute(attName: string): string | undefined {
+        this.unprocessedAttNames.delete(attName);
+        return this.node.atts.get(attName);
+    }
+
     getOptionalKnownElement(childName: string): KnownElement | undefined {
         const node = this.getOptionalElement(childName);
         return node ? new KnownElement(node) : undefined;
     }
 
-    getKnownElement(childName: string): KnownElement {
-        return new KnownElement(this.getSingleElement(childName));
+    getKnownElement(childName: string, opts: KnownElementOpts = {}): KnownElement {
+        return new KnownElement(this.getSingleElement(childName), opts);
     }
 
     getKnownElements(childName: string): KnownElement[] {
@@ -37,19 +50,19 @@ export class KnownElement {
 
     getElementText(childName: string): string {
         const node = this.getSingleElement(childName);
-        return this.checkElementText(childName, node);
+        return this.checkElementText(node);
     }
 
     getElementTexts(childName: string): string[] {
         const value = this.node.child[childName];
         if (!value) return [];
         this.unprocessedChildNames.delete(childName);
-        return value.map(v => this.checkElementText(childName, v as ExtendedXmlNode));
+        return value.map(v => this.checkElementText(v as ExtendedXmlNode));
     }
 
-    getOptionalElementText(childName: string): string | undefined {
+    getOptionalElementText(childName: string, opts: KnownElementOpts = {}): string | undefined {
         const node = this.getOptionalElement(childName);
-        return node ? this.checkElementText(childName, node) : undefined;
+        return node ? this.checkElementText(node, opts) : undefined;
     }
 
     getCheckedElementText<T>(childName: string, checkFn: (text: string, name: string) => T): T {
@@ -75,6 +88,12 @@ export class KnownElement {
 
     //
     
+    private readElementText(): string {
+        if (this.node.val === undefined) throw new Error(`${this.node.tagname}: Expected element text`);
+        this.unprocessedVal = false;
+        return this.node.val;
+    }
+
     private getOptionalElement(childName: string): ExtendedXmlNode | undefined {
         const value = this.node.child[childName];
         if (!value || value.length == 0) return undefined;
@@ -91,15 +110,11 @@ export class KnownElement {
         throw new Error(`${this.node.tagname}: Expected single child element ${childName}, found ${value.length}`);
     }
 
-    private checkElementText(childName: string, node: ExtendedXmlNode) {
-        if (Object.keys(node.child).length > 0) {
-            throw new Error(`${childName}: Unprocessed children: ${[...Object.keys(node.child)].sort()}`);
-        }
-        if (node.atts.size > 0) {
-            throw new Error(`${childName}: Unprocessed atts: ${[...node.atts.keys()].sort()}`);
-        }
-        if (node.val === undefined) throw new Error(`${childName}: Expected element text`);
-        return node.val;
+    private checkElementText(node: ExtendedXmlNode, opts: KnownElementOpts = {}) {
+        const known = new KnownElement(node, opts);
+        const rt = known.readElementText();
+        known.check();
+        return rt;
     }
 
 }

@@ -219,8 +219,6 @@ class RpcR2ObjectBody implements R2ObjectBody {
     readonly httpMetadata: R2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
 
-    writeHttpMetadata(_headers: Headers) { throw new Error(`writeHttpMetadata not supported`); }
-
     readonly body: ReadableStream;
     get bodyUsed(): boolean { throw new Error(`bodyUsed not supported`); }
 
@@ -251,6 +249,16 @@ class RpcR2ObjectBody implements R2ObjectBody {
 
     async blob(): Promise<Blob> {
         return new Blob([ await this.arrayBuffer() ]);
+    }
+
+    writeHttpMetadata(headers: Headers) { 
+        const { contentType, contentLanguage, contentDisposition, contentEncoding, cacheControl, cacheExpiry } = this.httpMetadata;
+        if (contentType !== undefined) headers.set('content-type', contentType);
+        if (contentLanguage !== undefined) headers.set('content-language', contentLanguage);
+        if (contentDisposition !== undefined) headers.set('content-disposition', contentDisposition);
+        if (contentEncoding !== undefined) headers.set('content-encoding', contentEncoding);
+        if (cacheControl !== undefined) headers.set('cache-control', cacheControl);
+        if (cacheExpiry !== undefined) headers.set('expires', cacheExpiry.toString());
     }
 
 }

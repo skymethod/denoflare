@@ -1,5 +1,5 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
-import { AwsCallContext, BucketResultOwner, parseBucketResultOwner, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
+import { AwsCallContext, BucketResultOwner, parseBucketResultOwner, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus } from './r2.ts';
 import { KnownElement } from './known_element.ts';
 
 export type ListBucketsOpts = { origin: string, region: string };
@@ -37,7 +37,7 @@ export interface ListBucketsBucketItem {
 
 function parseListBucketsResultXml(xml: ExtendedXmlNode): ListBucketsResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseListBucketsResult(doc.getKnownElement('ListAllMyBucketsResult'));
+    const rt = parseListBucketsResult(doc.getKnownElement('ListAllMyBucketsResult', { xmlns: S3_XMLNS }));
     doc.check();
     return rt;
 }

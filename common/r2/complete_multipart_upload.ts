@@ -1,6 +1,6 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type CompleteMultipartUploadOpts = { bucket: string, key: string, uploadId: string, parts: CompletedPart[], origin: string, region: string, urlStyle?: UrlStyle };
 
@@ -50,7 +50,7 @@ export interface CompleteMultipartUploadResult {
 
 function parseCompleteMultipartUploadResultXml(xml: ExtendedXmlNode): CompleteMultipartUploadResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseCompleteMultipartUploadResult(doc.getKnownElement('CompleteMultipartUploadResult'));
+    const rt = parseCompleteMultipartUploadResult(doc.getKnownElement('CompleteMultipartUploadResult', { xmlns: S3_XMLNS }));
     doc.check();
     return rt;
 }

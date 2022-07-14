@@ -1,6 +1,6 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, checkBoolean, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
+import { AwsCallContext, checkBoolean, computeBucketUrl, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type ObjectIdentifier = { key: string, versionId?: string };
 export type DeleteObjectsOpts = { bucket: string, items: (string | ObjectIdentifier)[], origin: string, region: string, urlStyle?: UrlStyle, quiet?: boolean };
@@ -58,7 +58,7 @@ ${typeof item !== 'string' && typeof item.versionId === 'string' ? `    <Version
 
 function parseDeleteResultXml(xml: ExtendedXmlNode): DeleteResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseDeleteResult(doc.getKnownElement('DeleteResult'));
+    const rt = parseDeleteResult(doc.getKnownElement('DeleteResult', { xmlns: S3_XMLNS }));
     doc.check();
     return rt;
 }

@@ -20,6 +20,7 @@ import { LocalWebSockets } from '../common/local_web_sockets.ts';
 import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_types.d.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { NoopAnalyticsEngine } from '../common/noop_analytics_engine.ts';
+import { R2 } from '../common/r2/r2.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -53,6 +54,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         ModuleWorkerExecution.VERBOSE = verbose;
         FetchUtil.VERBOSE = verbose;
         LocalWebSockets.VERBOSE = verbose;
+        R2.DEBUG = verbose;
     }
 
 
@@ -88,12 +90,12 @@ export async function serve(args: (string | number)[], options: Record<string, u
         certPem = certPem || script.localCertPem;
         keyPem = keyPem || script.localKeyPem;
     } else {
-        if (typeof portOpt === 'number') {
-            port = portOpt;
-        }
         bindingsProvider = () => {
             return Promise.resolve(bindingsFromOptions);
         }
+    }
+    if (typeof portOpt === 'number') {
+        port = portOpt; // port option should override config script localPort
     }
     const profile = await resolveProfileOpt(config, options);
 

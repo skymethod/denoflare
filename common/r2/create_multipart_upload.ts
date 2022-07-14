@@ -1,6 +1,6 @@
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
-import { AwsCallContext, computeBucketUrl, R2, s3Fetch, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
+import { AwsCallContext, computeBucketUrl, R2, s3Fetch, S3_XMLNS, throwIfUnexpectedContentType, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
 export type CreateMultipartUploadOpts = { bucket: string, key: string, origin: string, region: string, urlStyle?: UrlStyle, 
     cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentType?: string, customMetadata?: Record<string, string>,
@@ -47,7 +47,7 @@ export interface InitiateMultipartUploadResult {
 
 function parseInitiateMultipartUploadResultXml(xml: ExtendedXmlNode): InitiateMultipartUploadResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseInitiateMultipartUploadResult(doc.getKnownElement('InitiateMultipartUploadResult'));
+    const rt = parseInitiateMultipartUploadResult(doc.getKnownElement('InitiateMultipartUploadResult', { xmlns: S3_XMLNS }));
     doc.check();
     return rt;
 }
