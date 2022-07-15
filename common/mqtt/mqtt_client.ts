@@ -153,6 +153,11 @@ export class MqttClient {
                     if (DEBUG) console.log('read loop done'); 
                     this.clearPing(); 
                     this.connection = undefined;
+
+                    if (this.pendingConnect) {
+                        this.pendingConnect.reject('Connect failed, connection closed');
+                        this.pendingConnect = undefined;
+                    }
                 // deno-lint-ignore no-explicit-any
                 }, (e: any) => { 
                     console.log(`unhandled read loop error: ${e.stack || e}`); 

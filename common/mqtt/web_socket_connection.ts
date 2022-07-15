@@ -14,7 +14,7 @@ export class WebSocketConnection implements MqttConnection {
         this.ws = ws;
         this.completionPromise = new Promise((resolve, reject) => {
             ws.addEventListener('close', event => {
-                if (DEBUG) console.log('ws close', event);
+                if (DEBUG) console.log('ws close', event, JSON.stringify(event));
                 resolve();
             });
             ws.addEventListener('error', event => {
@@ -36,6 +36,9 @@ export class WebSocketConnection implements MqttConnection {
                     bytes = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
                 }
                 this.onRead(bytes);
+            } else if (event.data instanceof ArrayBuffer) {
+                const bytes = new Uint8Array(event.data);
+                this.onRead(bytes);
             } else {
                 throw new Error(`Unsupported event.data: ${event.data.constructor.name}`);
             }
@@ -45,11 +48,28 @@ export class WebSocketConnection implements MqttConnection {
         });
     }
 
-    static create(opts: { hostname: string, port: number }): Promise<WebSocketConnection> {
+    static async create(opts: { hostname: string, port: number }): Promise<WebSocketConnection> {
         const { DEBUG } = Mqtt;
         const { hostname, port } = opts;
 
-        const ws = new WebSocket(`wss://${hostname}:${port}`, 'mqtt');
+        if ('accept' in WebSocket.prototype) {
+            if (DEBUG) console.log('Found WebSocket.accept, using Cloudflare workaround');
+            if (port !== 443) throw new Error(`Cloudflare Workers only support outgoing WebSocket requests on port 443 (https)`);
+            const url = `https://${hostname}`;
+            if (DEBUG) console.log(`Fetching ${url}`);
+            const resp = await fetch(url, { headers: { upgrade: 'websocket' } });
+            // deno-lint-ignore no-explicit-any
+            const { webSocket } = resp as any;
+            if (typeof webSocket !== 'object') throw new Error(`Cloudflare fetch response for upgrade request returned no WebSocket`);
+            if (DEBUG) console.log('Calling WebSocket.accept()');
+            webSocket.accept();
+            if (DEBUG) console.log('Accepted!');
+            return new WebSocketConnection(webSocket);
+        }
+
+        const url = `wss://${hostname}:${port}`;
+        const ws = new WebSocket(url, 'mqtt');
+        if (DEBUG) console.log(`new WebSocket('${url}', 'mqtt')`);
         return new Promise((resolve, reject) => {
             let resolved = false;
             ws.addEventListener('open', event => {
