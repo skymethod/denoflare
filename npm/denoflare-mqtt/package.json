@@ -1,6 +1,6 @@
 {
   "name": "denoflare-mqtt",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Lightweight MQTT v5 client for Deno, Node, and the browser.",
   "repository": {
     "type": "git",

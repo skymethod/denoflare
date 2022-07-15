@@ -46,11 +46,11 @@ const _Bytes = class {
     const a = Array.from(this._bytes);
     return a.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
-  static ofHex(hex1) {
-    if (hex1 === "") {
+  static ofHex(hex2) {
+    if (hex2 === "") {
       return _Bytes.EMPTY;
     }
-    return new _Bytes(new Uint8Array(hex1.match(/.{1,2}/g).map((__byte) => parseInt(__byte, 16))));
+    return new _Bytes(new Uint8Array(hex2.match(/.{1,2}/g).map((__byte) => parseInt(__byte, 16))));
   }
   utf8() {
     return new TextDecoder().decode(this._bytes);
@@ -964,7 +964,7 @@ class WebSocketConnection {
     this.completionPromise = new Promise((resolve, reject) => {
       ws.addEventListener("close", (event) => {
         if (DEBUG)
-          console.log("ws close", event);
+          console.log("ws close", event, JSON.stringify(event));
         resolve();
       });
       ws.addEventListener("error", (event) => {
@@ -981,11 +981,14 @@ class WebSocketConnection {
         const bytes = new Uint8Array(await event.data.arrayBuffer());
         this.onRead(bytes);
       } else if (event.data instanceof Uint8Array) {
-        let bytes = event.data;
-        if (bytes.constructor.name === "Buffer") {
-          bytes = new Uint8Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        let bytes1 = event.data;
+        if (bytes1.constructor.name === "Buffer") {
+          bytes1 = new Uint8Array(bytes1.buffer.slice(bytes1.byteOffset, bytes1.byteOffset + bytes1.byteLength));
         }
-        this.onRead(bytes);
+        this.onRead(bytes1);
+      } else if (event.data instanceof ArrayBuffer) {
+        const bytes2 = new Uint8Array(event.data);
+        this.onRead(bytes2);
       } else {
         throw new Error(`Unsupported event.data: ${event.data.constructor.name}`);
       }
@@ -995,10 +998,36 @@ class WebSocketConnection {
         console.log("ws open", event);
     });
   }
-  static create(opts) {
+  static async create(opts) {
     const { DEBUG } = Mqtt;
     const { hostname, port } = opts;
-    const ws = new WebSocket(`wss://${hostname}:${port}`, "mqtt");
+    if ("accept" in WebSocket.prototype) {
+      if (DEBUG)
+        console.log("Found WebSocket.accept, using Cloudflare workaround");
+      if (port !== 443)
+        throw new Error(`Cloudflare Workers only support outgoing WebSocket requests on port 443 (https)`);
+      const url = `https://${hostname}`;
+      if (DEBUG)
+        console.log(`Fetching ${url}`);
+      const resp = await fetch(url, {
+        headers: {
+          upgrade: "websocket"
+        }
+      });
+      const { webSocket } = resp;
+      if (typeof webSocket !== "object")
+        throw new Error(`Cloudflare fetch response for upgrade request returned no WebSocket`);
+      if (DEBUG)
+        console.log("Calling WebSocket.accept()");
+      webSocket.accept();
+      if (DEBUG)
+        console.log("Accepted!");
+      return new WebSocketConnection(webSocket);
+    }
+    const url1 = `wss://${hostname}:${port}`;
+    const ws = new WebSocket(url1, "mqtt");
+    if (DEBUG)
+      console.log(`new WebSocket('${url1}', 'mqtt')`);
     return new Promise((resolve, reject) => {
       let resolved = false;
       ws.addEventListener("open", (event) => {
@@ -1084,6 +1113,10 @@ const _MqttClient = class {
           console.log("read loop done");
         this.clearPing();
         this.connection = void 0;
+        if (this.pendingConnect) {
+          this.pendingConnect.reject("Connect failed, connection closed");
+          this.pendingConnect = void 0;
+        }
       }, (e) => {
         console.log(`unhandled read loop error: ${e.stack || e}`);
         this.clearPing();
