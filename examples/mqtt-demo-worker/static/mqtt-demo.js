@@ -1,4 +1,4 @@
-import { MqttClient, DISCONNECT, PUBLISH } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@denoflare-mqtt-v0.0.1/npm/denoflare-mqtt/esm/main.js'; // served with the correct mime type for browsers
+import { MqttClient, DISCONNECT, PUBLISH } from 'https://cdn.jsdelivr.net/gh/skymethod/denoflare@denoflare-mqtt-v0.0.2/npm/denoflare-mqtt/esm/main.js'; // served with the correct mime type for browsers
 
 let client;
 
