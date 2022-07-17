@@ -6,7 +6,7 @@ type DenoflareResponseInit = ResponseInit & CloudflareResponseInitExtensions & {
 export class DenoflareResponse {
     readonly _kind = 'DenoflareResponse';
 
-    readonly bodyInit?: BodyInit | null;
+    get bodyInit(): BodyInit | null | undefined { return this._bodyInit; } _bodyInit?: BodyInit | null;
     readonly init?: DenoflareResponseInit;
     readonly headers: Headers;
     readonly status: number;
@@ -16,7 +16,7 @@ export class DenoflareResponse {
 
     constructor(bodyInit?: BodyInit | null, init?: DenoflareResponseInit) {
         // console.log(`DenoflareResponse()`, arguments);
-        this.bodyInit = bodyInit;
+        this._bodyInit = bodyInit;
         this.init = init;
         this.headers = init && init.headers ? new Headers(init.headers) : new Headers();
         this.status = init && init.status !== undefined ? init.status : 200;
@@ -63,6 +63,12 @@ export class DenoflareResponse {
     }
 
     clone(): DenoflareResponse {
+        if (this.bodyInit instanceof ReadableStream) {
+            // special handling, we need to change this instance's body as well
+            const [ stream1, stream2 ] = this.bodyInit.tee();
+            this._bodyInit = stream1;
+            return new DenoflareResponse(stream2, cloneInit(this.init));
+        }
         return new DenoflareResponse(cloneBodyInit(this.bodyInit), cloneInit(this.init));
     }
 

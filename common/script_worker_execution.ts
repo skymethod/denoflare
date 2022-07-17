@@ -12,9 +12,9 @@ export class ScriptWorkerExecution {
     }
 
     static async create(scriptPath: string, bindings: Record<string, Binding>, callbacks: WorkerExecutionCallbacks): Promise<ScriptWorkerExecution> {
-        const { globalCachesProvider, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider } = callbacks;
+        const { globalCachesProvider, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider } = callbacks;
 
-        defineScriptGlobals(bindings, globalCachesProvider, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider);
+        defineScriptGlobals(bindings, globalCachesProvider, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider);
 
         let fetchListener: EventListener | undefined;
         

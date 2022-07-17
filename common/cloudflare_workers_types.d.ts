@@ -850,3 +850,11 @@ export interface AnalyticsEngineEvent {
 }
 
 //#endregion
+
+//#region D1
+
+export interface D1Database {
+    readonly fetch: typeof fetch;
+}
+
+//#endregion
