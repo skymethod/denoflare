@@ -7,26 +7,29 @@ import { Bytes } from '../common/bytes.ts';
 
 export type BundleBackend = 'builtin' | 'process' | 'module';
 
-export type BundleOpts = { backend?: BundleBackend, createSourceMap?: boolean, compilerOptions?: { lib?: string[] } };
+export type TypeCheckLevel = 'all' | 'local' | 'none';
+
+export type BundleOpts = { backend?: BundleBackend, check?: TypeCheckLevel, createSourceMap?: boolean, compilerOptions?: { lib?: string[] } };
 
 export function commandOptionsForBundle(command: CliCommand<unknown>) {
     return command
         .optionGroup()
-        .option('bundle', 'name-value-pairs', `Advanced options used when emitting javascript bundles: backend=(${computeSupportedBackends().join(', ')})`)
+        .option('bundle', 'name-value-pairs', `Advanced options used when emitting javascript bundles: backend=(${computeSupportedBackends().join('|')}), check=(${supportedChecks.join('|')})`)
         ;
 }
 
 export function parseBundleOpts(options: Record<string, unknown>): BundleOpts | undefined {
     const nvps = parseNameValuePairsOption('bundle', options);
     if (nvps === undefined) return undefined;
-    const { backend } = nvps;
+    const { backend, check } = nvps;
     const supportedBackends = computeSupportedBackends();
     if (backend && !supportedBackends.includes(backend)) throw new Error(`Bad backend: ${backend}, expected one of (${supportedBackends.join(', ')})`);
-    return { backend: backend as BundleBackend };
+    if (check && !supportedChecks.includes(check))  throw new Error(`Bad check: ${check}, expected one of (${supportedChecks.join(', ')})`);
+    return { backend: backend as BundleBackend, check: check as TypeCheckLevel };
 }
 
 export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Promise<{ code: string, sourceMap?: string, backend: BundleBackend }> {
-    const { backend, createSourceMap, compilerOptions } = opts;
+    const { backend, check, createSourceMap, compilerOptions } = opts;
     
     // deno-lint-ignore no-explicit-any
     const deno = Deno as any;
@@ -60,6 +63,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         //  - no type checking, and none planned: https://github.com/denoland/deno_emit/issues/27
         //  - fails with some remote imports: https://github.com/denoland/deno_emit/issues/17
 
+        if (check && check !== 'none') throw new Error(`Bundle ${backend} backend does not support type checking, and it probably never will. https://github.com/denoland/deno_emit/issues/27`);
         // the 'bundle' module function is closer to what we were doing with Deno.emit before
 
         // dynamic import, otherwise fails pre 1.22, and avoid typecheck failures using two lines
@@ -90,7 +94,10 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
     }
 
     // default: spawn 'deno bundle' process
-    const { code, diagnostics } = await denoBundle(rootSpecifier, { compilerOptions });
+    // deno bundle performs local type-checking by default
+    const check_ = check === 'all' ? 'all' : undefined;
+    const noCheck = check === 'none' ? true : undefined;
+    const { code, diagnostics } = await denoBundle(rootSpecifier, { compilerOptions, check: check_, noCheck });
     const blockingDiagnostics = diagnostics.filter(v => !isKnownIgnorableWarning(v))
     if (blockingDiagnostics.length > 0) {
         console.warn(blockingDiagnostics.map(formatDiagnostic).join('\n\n'));
@@ -100,6 +107,8 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
 }
 
 //
+
+const supportedChecks = [ 'all', 'local', 'none' ];
 
 function computeSupportedBackends() {
     // deno-lint-ignore no-explicit-any
