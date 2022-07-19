@@ -1,7 +1,7 @@
 import { CliCommand } from './cli_command.ts';
 import { parseNameValuePairsOption } from './cli_common.ts';
 import { denoBundle } from './deno_bundle.ts';
-import { toFileUrl } from './deps_cli.ts';
+import { resolve, toFileUrl, isAbsolute } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { Bytes } from '../common/bytes.ts';
 
@@ -73,6 +73,10 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         // new 'bundle' no longer takes abs file paths
         // https://github.com/denoland/deno_emit/issues/22
         if (!/^(file|https):\/\//.test(rootSpecifier) && await fileExists(rootSpecifier)) {
+            // also does not handle relative file paths
+            if (!isAbsolute(rootSpecifier)) {
+                rootSpecifier = resolve(Deno.cwd(), rootSpecifier);
+            }
             rootSpecifier = toFileUrl(rootSpecifier).toString();
         }
         // supposedly better, but not apparently: https://github.com/denoland/deno_emit/issues/17
