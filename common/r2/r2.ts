@@ -333,7 +333,7 @@ async function stringToSignFinal(amazonDate: string, region: string, service: st
 
 function parseErrorResultXml(xml: ExtendedXmlNode): ErrorResult {
     const doc = new KnownElement(xml).checkTagName('!xml');
-    const rt = parseErrorResult(doc.getKnownElement('Error', { xmlns: S3_XMLNS }));
+    const rt = parseErrorResult(doc.getKnownElement('Error'));
     doc.check();
     return rt;
 }
