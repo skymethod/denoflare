@@ -19,6 +19,18 @@ export class Bytes {
         return new Bytes(new Uint8Array(hash));
     }
 
+    public concat(other: Bytes): Bytes {
+        const rt = new Uint8Array(this.length + other.length);
+        rt.set(this._bytes);
+        rt.set(other._bytes, this.length);
+        return new Bytes(rt);
+    }
+
+    public async gitSha1Hex() {
+        // like git hash-object
+        return (await Bytes.ofUtf8(`blob ${this.length}\0`).concat(this).sha1()).hex();
+    }
+
     public async hmacSha1(key: Bytes): Promise<Bytes> {
         const cryptoKey = await cryptoSubtle().importKey('raw', key._bytes, { name: 'HMAC', hash: 'SHA-1' }, true, ['sign']);
         const sig = await cryptoSubtle().sign('HMAC', cryptoKey, this._bytes);
