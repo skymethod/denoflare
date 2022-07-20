@@ -1,11 +1,11 @@
-import { deploy, DeployRequest, negotiateAssets } from './deno_deploy_api.ts';
+import { deploy, DeployRequest, negotiateAssets, setEnvironmentVariables } from './deno_deploy_api.ts';
 import { Bytes } from '../common/bytes.ts';
 
 //
 
-if (import.meta.main) {
-    const [ apiToken, projectId ] = Deno.args;
-    
+async function testDeploy(opts: { projectId: string, apiToken: string }) {
+    const { projectId, apiToken } = opts;
+
     const script = `
     import { serve } from 'https://deno.land/std@0.145.0/http/server.ts';
     
@@ -38,4 +38,12 @@ if (import.meta.main) {
     for await (const message of deploy({ projectId, apiToken, request, files })) {
         console.log(JSON.stringify(message));
     }
+}
+
+if (import.meta.main) {
+    const [ apiToken, projectId ] = Deno.args;
+
+    // await testDeploy({ apiToken, projectId });
+    const result = await setEnvironmentVariables({ apiToken, projectId, variables: { foo: null } });
+    console.log({ result });
 }

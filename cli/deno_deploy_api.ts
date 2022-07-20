@@ -18,7 +18,7 @@ export async function listDeployments(opts: { projectId: string, limit?: number,
 
 export async function negotiateAssets(opts: { projectId: string, manifest: Manifest, apiToken: string, endpoint?: string }): Promise<readonly string[]> {
     const { projectId, manifest } = opts;
-    return await executeJson<readonly string[]>(`/projects/${projectId}/assets/negotiate`, { ...opts, postBody: manifest });
+    return await executeJson<readonly string[]>(`/projects/${projectId}/assets/negotiate`, { ...opts, requestBody: manifest });
 }
 
 export function deploy(opts: { projectId: string, request: DeployRequest, files: Uint8Array[], apiToken: string, endpoint?: string }): AsyncIterable<DeployMessage> {
@@ -26,19 +26,24 @@ export function deploy(opts: { projectId: string, request: DeployRequest, files:
     const form = new FormData();
     form.append('request', JSON.stringify(request));
     files.forEach(v => form.append('file', new Blob([v])));
-    return executeStream<DeployMessage>(`/projects/${projectId}/deployment_with_assets`, { ...opts, postBody: form });
+    return executeStream<DeployMessage>(`/projects/${projectId}/deployment_with_assets`, { ...opts, requestBody: form });
+}
+
+export async function setEnvironmentVariables(opts: { projectId: string, variables: Record<string, string | null>, apiToken: string, endpoint?: string }): Promise<SetEnvironmentVariablesResult> {
+    const { projectId, variables } = opts;
+    return await executeJson<SetEnvironmentVariablesResult>(`/projects/${projectId}/env`, { ...opts, method: 'PATCH', requestBody: variables  });
 }
 
 //
 
-async function executeJson<T>(pathname: string, opts: { queryParams?: Record<string, string | number | undefined>, postBody?: unknown, apiToken: string, endpoint?: string }): Promise<T> {
+async function executeJson<T>(pathname: string, opts: ApiCall): Promise<T> {
     const res = await execute(pathname, opts);
     const contentType = res.headers.get('content-type');
     if (res.status !== 200 || contentType !== 'application/json') throw new Error(`Unexpected response: ${res.status} ${contentType} ${await res.text()}`);
     return await res.json();
 }
 
-async function* executeStream<T>(pathname: string, opts: { queryParams?: Record<string, string | number | undefined>, postBody?: unknown, apiToken: string, endpoint?: string }): AsyncIterable<T> {
+async function* executeStream<T>(pathname: string, opts: ApiCall): AsyncIterable<T> {
     const res = await execute(pathname, opts);
     if (res.status !== 200 || !res.body) throw new Error(`Unexpected response: ${res.status} ${!res.body ? '(no body)' : await res.text()}`);
     const lines = res.body.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream());
@@ -48,18 +53,19 @@ async function* executeStream<T>(pathname: string, opts: { queryParams?: Record<
     }
 }
 
-async function execute(pathname: string, opts: { queryParams?: Record<string, string | number | undefined>, postBody?: unknown, apiToken: string, endpoint?: string }): Promise<Response> {
-    const { queryParams = {}, postBody, apiToken, endpoint = DEFAULT_ENDPOINT } = opts;
+type ApiCall = { queryParams?: Record<string, string | number | undefined>, requestBody?: unknown, method?: 'PATCH' | 'POST', apiToken: string, endpoint?: string };
+
+async function execute(pathname: string, call: ApiCall): Promise<Response> {
+    const { queryParams = {}, requestBody, method = requestBody ? 'POST' : 'GET', apiToken, endpoint = DEFAULT_ENDPOINT } = call;
     const url = new URL(`${endpoint}${pathname}`);
     Object.entries(queryParams).forEach(([ n, v ]) => {
         if (v !== undefined) url.searchParams.set(n, String(v));
     });
-    const method = postBody ? 'POST' : 'GET';
-    const body = postBody instanceof FormData ? postBody : postBody ? JSON.stringify(postBody) : undefined;
+    const body = requestBody instanceof FormData ? requestBody : requestBody ? JSON.stringify(requestBody) : undefined;
     return await fetch(url.toString(), { method, body, headers: { 
         accept: 'application/json', 
         authorization: `Bearer ${apiToken}`,
-        ...(postBody && !(postBody instanceof FormData) ? { 'content-type': 'application/json' } : {}),
+        ...(requestBody && !(requestBody instanceof FormData) ? { 'content-type': 'application/json' } : {}),
     } });
 }
 
@@ -181,4 +187,8 @@ export interface ErrorDeployMessage {
     readonly type: 'error';
     readonly code: string; // e.g. DeploymentFailed
     readonly ctx: string; // error message
+}
+
+export interface SetEnvironmentVariablesResult {
+    readonly result: Project;
 }
