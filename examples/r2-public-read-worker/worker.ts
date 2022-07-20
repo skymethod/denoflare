@@ -242,10 +242,10 @@ function tryParseR2Conditional(headers: Headers): R2Conditional | undefined {
     // so we need to do them by hand for now
 
     const ifNoneMatch = headers.get('if-none-match') || undefined;
-    const etagDoesNotMatch = ifNoneMatch;
+    const etagDoesNotMatch = ifNoneMatch ? stripEtagQuoting(ifNoneMatch) : undefined;
 
     const ifMatch = headers.get('if-match') || undefined;
-    const etagMatches = ifMatch;
+    const etagMatches = ifMatch ? stripEtagQuoting(ifMatch) : undefined;
 
     const ifModifiedSince = headers.get('if-modified-since') || undefined;
     // if-modified-since date format (rfc 1123) is at second resolution, uploaded is at millis resolution
@@ -256,6 +256,11 @@ function tryParseR2Conditional(headers: Headers): R2Conditional | undefined {
     const uploadedBefore = ifUnmodifiedSince ? new Date(ifUnmodifiedSince) : undefined;
 
     return etagDoesNotMatch || etagMatches || uploadedAfter || uploadedBefore ? { etagDoesNotMatch, etagMatches, uploadedAfter, uploadedBefore } : undefined;
+}
+
+function stripEtagQuoting(str: string): string {
+    const m = /^(W\/)?"(.*)"$/.exec(str);
+    return m ? m[2] : str;
 }
 
 function addingOneSecond(time: Date): Date {
