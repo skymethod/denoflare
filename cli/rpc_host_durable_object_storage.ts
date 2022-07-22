@@ -1,9 +1,11 @@
 import { DurableObjectStorage } from '../common/cloudflare_workers_types.d.ts';
-import { localDurableObjectStorageProvider } from '../common/local_durable_objects.ts';
+import { LocalDurableObjects } from '../common/local_durable_objects.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { Delete1, Delete2, DeleteAll, DurableObjectStorageReference, Get1, Get2, List, Put1, Put2 } from '../common/rpc_stub_durable_object_storage.ts';
+import { WebStorageDurableObjectStorage } from '../common/storage/web_storage_durable_object_storage.ts';
 
 export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
+    LocalDurableObjects.storageProviderFactories.set('webstorage', (className, id, options) => new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':')));
     const cache = new Map<string, DurableObjectStorage>();
     channel.addRequestHandler('do-storage', async data => {
         if (typeof data === 'object') {
@@ -97,7 +99,7 @@ function locateStorage(reference: DurableObjectStorageReference, cache: Map<stri
     const cacheKey = `${optionsKey}:${className}:${id.toString()}`;
     let storage = cache.get(cacheKey);
     if (!storage) {
-        storage = localDurableObjectStorageProvider(className, id, options);
+        storage = LocalDurableObjects.newDurableObjectStorage(className, id, options);
         console.log(`RpcHostDurableObjectStorage: created: ${cacheKey} -> ${storage}`);
         cache.set(cacheKey, storage);
     }

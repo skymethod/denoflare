@@ -5,10 +5,11 @@ import { consoleWarn } from './console.ts';
 import { Mutex } from './mutex.ts';
 import { checkMatches } from './check.ts';
 import { InMemoryDurableObjectStorage } from './storage/in_memory_durable_object_storage.ts';
-import { WebStorageDurableObjectStorage } from './storage/web_storage_durable_object_storage.ts';
 import { Sha1 } from './sha1.ts';
 
 export class LocalDurableObjects {
+    static readonly storageProviderFactories = new Map<string, DurableObjectStorageProvider>([[ 'memory', () => new InMemoryDurableObjectStorage() ]]);
+
     private readonly moduleWorkerExportedFunctions: Record<string, DurableObjectConstructor>;
     private readonly moduleWorkerEnv: Record<string, unknown>;
     private readonly durableObjects = new Map<string, Map<string, DurableObject>>(); // className -> hex id -> do
@@ -18,7 +19,7 @@ export class LocalDurableObjects {
         const { moduleWorkerExportedFunctions, moduleWorkerEnv, storageProvider } = opts;
         this.moduleWorkerExportedFunctions = moduleWorkerExportedFunctions;
         this.moduleWorkerEnv = moduleWorkerEnv || {};
-        this.storageProvider = storageProvider || localDurableObjectStorageProvider;
+        this.storageProvider = storageProvider || LocalDurableObjects.newDurableObjectStorage;
     }
 
     resolveDoNamespace(doNamespace: string): DurableObjectNamespace {
@@ -37,6 +38,13 @@ export class LocalDurableObjects {
             return new LocalDurableObjectNamespace(className, options, this.resolveDurableObject.bind(this));
         }
         return new UnimplementedDurableObjectNamespace(doNamespace);
+    }
+
+    static newDurableObjectStorage(className: string, id: DurableObjectId, options: Record<string, string>) {
+        const storage = options.storage || 'memory';
+        const rt = LocalDurableObjects.storageProviderFactories.get(storage);
+        if (rt) return rt(className, id, options);
+        throw new Error(`Bad storage: ${storage}`);
     }
 
     //
@@ -73,13 +81,6 @@ export class LocalDurableObjects {
         return rt;
     }
 
-}
-
-export function localDurableObjectStorageProvider(className: string, id: DurableObjectId, options: Record<string, string>) {
-    const storage = options.storage || 'memory';
-    if (storage === 'webstorage') return new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':'));
-    if (storage === 'memory') return new InMemoryDurableObjectStorage();
-    throw new Error(`Bad storage: ${storage}`);
 }
 
 export type DurableObjectConstructor = new (state: DurableObjectState, env: Record<string, unknown>) => DurableObject;

@@ -32,7 +32,10 @@ export class WorkerManager {
         const webworkerRootSpecifier = computeWebworkerRootSpecifier();
         consoleLog(`Compiling ${webworkerRootSpecifier} into worker contents...`);
         const start = Date.now();
-        let { code: workerJs, backend } = await bundle(webworkerRootSpecifier, opts);
+        const newOpts: BundleOpts = { ...opts };
+        if (newOpts.compilerOptions) throw new Error(`Compiler options are not settable here`);
+        newOpts.compilerOptions = { lib: [ 'deno.worker' ] };
+        let { code: workerJs, backend } = await bundle(webworkerRootSpecifier, newOpts);
         if (!canWorkerOptionsRemoveDenoNamespace()) {
             workerJs = 'delete globalThis.Deno;\n' + workerJs;
         }
