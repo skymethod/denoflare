@@ -1,3 +1,5 @@
+import { spawn } from './spawn.ts';
+
 export interface DenoBundleResult {
     readonly code: string;
     readonly diagnostics: Deno.Diagnostic[];
@@ -12,10 +14,10 @@ export async function denoBundle(rootSpecifier: string, opts: { noCheck?: boolea
             await Deno.writeTextFile(config, JSON.stringify({ compilerOptions }));
         }
     
-        const { out, err, status } = await runDenoBundle(rootSpecifier, { config, noCheck, check });
+        const { out, err, success } = await runDenoBundle(rootSpecifier, { config, noCheck, check });
         let code = out;
         let diagnostics: Deno.Diagnostic[] = [];
-        if (err.length > 0 || !status.success) {
+        if (err.length > 0 || !success) {
             diagnostics = parseDiagnostics(err);
             if (code.length === 0) {
                 const { out } = await runDenoBundle(rootSpecifier, { config, noCheck: true });
@@ -32,7 +34,7 @@ export async function denoBundle(rootSpecifier: string, opts: { noCheck?: boolea
 
 //
 
-type RunDenoBundleResult = { status: { success: boolean, code: number }, out: string, err: string };
+type RunDenoBundleResult = { code: number, success: boolean, out: string, err: string };
 
 async function runDenoBundle(rootSpecifier: string, opts: { noCheck?: boolean | string, check?: boolean | string, config?: string } = {}): Promise<RunDenoBundleResult> {
     const { noCheck, check, config } = opts;
@@ -44,7 +46,7 @@ async function runDenoBundle(rootSpecifier: string, opts: { noCheck?: boolean | 
         ...(config ? ['--config', config] : []),
         rootSpecifier,
     ];
-    const { status, stdout, stderr } = await Deno.spawn(Deno.execPath(), {
+    const { code, success, stdout, stderr } = await spawn(Deno.execPath(), {
         args,
         env: {
             NO_COLOR: '1', // to make parsing the output easier
@@ -52,7 +54,7 @@ async function runDenoBundle(rootSpecifier: string, opts: { noCheck?: boolean | 
     });
     const out = new TextDecoder().decode(stdout);
     const err = new TextDecoder().decode(stderr);
-    return { status, out, err };
+    return { code, success, out, err };
 }
 
 function parseDiagnostics(err: string): Deno.Diagnostic[] {

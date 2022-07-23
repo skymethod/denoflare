@@ -1,6 +1,7 @@
 import { walk } from 'https://deno.land/std@0.144.0/fs/mod.ts'; // isolated for sharing
+import { spawn } from '../cli/spawn.ts';
 
-export type TscResult = { status: { success: boolean, code: number }, out: string, err: string, output: Record<string, string> };
+export type TscResult = { code: number, success: boolean, out: string, err: string, output: Record<string, string> };
 
 export async function runTsc(opts: { files: string[], compilerOptions: Record<string, unknown>, tscPath?: string }): Promise<TscResult> {
     const { files, compilerOptions, tscPath = '/usr/local/bin/tsc' } = opts;
@@ -9,7 +10,7 @@ export async function runTsc(opts: { files: string[], compilerOptions: Record<st
     compilerOptions.outDir = outDir;
     try {
         await Deno.writeTextFile(tsconfigFile, JSON.stringify({ files, compilerOptions }, undefined, 2));
-        const { status, stdout, stderr } = await Deno.spawn(tscPath, {
+        const { code, success, stdout, stderr } = await spawn(tscPath, {
             args: [
                 '--project', tsconfigFile,
             ],
@@ -25,7 +26,7 @@ export async function runTsc(opts: { files: string[], compilerOptions: Record<st
             const { name, path } = entry;
             output[name] = await Deno.readTextFile(path);
         }
-        return { status, out, err, output };
+        return { code, success, out, err, output };
     } finally {
         await Deno.remove(tsconfigFile);
         await Deno.remove(outDir, { recursive: true });
