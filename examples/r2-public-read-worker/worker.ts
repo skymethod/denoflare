@@ -50,6 +50,8 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     const disallowRobots = flags.has('disallowRobots');
     const emulatePages = flags.has('emulatePages');
     const listDirectories = flags.has('listDirectories');
+    const allowCorsOrigins = stringSetFromCsv(env.allowCorsOrigins);
+    const allowCorsTypes = stringSetFromCsv(env.allowCorsTypes);
 
     const { method, url, headers } = request;
     console.log(JSON.stringify({ directoryListingLimit, flags: [...flags] }));
@@ -103,13 +105,14 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         if (obj) {
             // choose not to satisfy range requests for encoded content
             // unfortunately we don't know it's encoded until after the first request
-            if (range && computeHeaders(obj, range).has('content-encoding')) {
+            if (range && computeHeaders(obj, { range }).has('content-encoding')) {
                 console.log(`re-request without range`);
                 range = undefined;
                 obj = await bucket.get(key);
                 if (obj === null) throw new Error(`Object ${key} existed for .get with range, but not without`);
             }
-            return computeObjResponse(obj, range ? 206 : 200, range, onlyIf);
+            const accessControlAllowOrigin = computeAccessControlAllowOrigin(obj, headers.get('origin') ?? undefined, allowCorsOrigins, allowCorsTypes);
+            return computeObjResponse(obj, range ? 206 : 200, { range, onlyIf, accessControlAllowOrigin });
         }
     }
 
@@ -187,7 +190,8 @@ function isR2ObjectBody(obj: R2Object): obj is R2ObjectBody {
     return 'body' in obj;
 }
 
-function computeObjResponse(obj: R2Object, status: number, range?: R2Range, onlyIf?: R2Conditional): Response {
+function computeObjResponse(obj: R2Object, status: number, opts: { range?: R2Range, onlyIf?: R2Conditional, accessControlAllowOrigin?: string } = {}): Response {
+    const { onlyIf } = opts;
     let body: ReadableStream | undefined;
     if (isR2ObjectBody(obj)) {
         body = obj.body;
@@ -198,7 +202,7 @@ function computeObjResponse(obj: R2Object, status: number, range?: R2Range, only
         if (onlyIf.uploadedBefore) return preconditionFailed();
     }
     
-    const headers = computeHeaders(obj, range);
+    const headers = computeHeaders(obj, opts);
 
     // non-standard cloudflare ResponseInit property indicating the response is already encoded
     // required to prevent the cf frontend from double-encoding it, or serving it encoded without a content-encoding header
@@ -207,7 +211,8 @@ function computeObjResponse(obj: R2Object, status: number, range?: R2Range, only
     return new Response(body, { status, headers, encodeBody });
 }
 
-function computeHeaders(obj: R2Object, range?: R2Range): Headers {
+function computeHeaders(obj: R2Object, opts: { range?: R2Range, accessControlAllowOrigin?: string }): Headers {
+    const { range, accessControlAllowOrigin } = opts;
     const headers = new Headers();
     // writes content-type, content-encoding, content-disposition, i.e. the values from obj.httpMetadata
     obj.writeHttpMetadata(headers);
@@ -221,7 +226,25 @@ function computeHeaders(obj: R2Object, range?: R2Range): Headers {
     headers.set('last-modified', obj.uploaded.toUTCString()); // toUTCString is the http date format (rfc 1123)
 
     if (range) headers.set('content-range', computeContentRange(range, obj.size));
+    if (accessControlAllowOrigin) headers.set('access-control-allow-origin', accessControlAllowOrigin); 
     return headers;
+}
+
+function computeAccessControlAllowOrigin(obj: R2Object, requestOrigin: string | undefined, allowCorsOrigins: Set<string>, allowCorsTypes: Set<string>): string | undefined {
+    // is request origin allowed?
+    const allowedOrigin = allowCorsOrigins.size === 0 ? undefined
+        : allowCorsOrigins.has('*') ? '*'
+        : requestOrigin && allowCorsOrigins.has(requestOrigin) ? requestOrigin
+        : undefined;
+    if (!allowedOrigin) return undefined;
+
+    // is file extension or content-type allowed?
+    const extension = (obj.key.split('/').at(-1) ?? '').split('.').at(-1) ?? '';
+    const contentType = obj.httpMetadata.contentType ?? '';
+    return allowCorsTypes.size === 0 
+            || allowCorsTypes.has(`.${extension}`) 
+            || allowCorsTypes.has(contentType) ? allowedOrigin
+        : undefined;
 }
 
 function tryParseRange(headers: Headers): R2Range | undefined {
