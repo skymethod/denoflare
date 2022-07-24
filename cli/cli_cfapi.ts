@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getUser, getWorkerAccountSettings, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -166,6 +166,12 @@ function cfapiCommand() {
     add(apiCommand('delete-bucket', 'Delete a R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
         const { bucketName } = opts;
         await deleteR2Bucket({ accountId, bucketName, apiToken });
+    });
+
+    add(apiCommand('get-bucket-usage-summary', 'Get R2 Bucket usage summary').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
+        const { bucketName } = opts;
+        const value = await getR2BucketUsageSummary({ accountId, bucketName, apiToken });
+        console.log(value);
     });
 
     rt.subcommandGroup();

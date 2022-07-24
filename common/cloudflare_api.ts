@@ -381,6 +381,25 @@ export async function deleteR2Bucket(opts: { accountId: string, bucketName: stri
     // result is: {}
 }
 
+/**
+ * Get R2 Bucket usage summary
+ * 
+ * @throws if not exists: 404 10006 The specified bucket does not exist.
+ */
+ export async function getR2BucketUsageSummary(opts: { accountId: string, bucketName: string, apiToken: string }): Promise<R2BucketUsageSummary> {
+    const { accountId, apiToken, bucketName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/r2/buckets/${bucketName}/usage`;
+    return (await execute<R2BucketUsageSummary>('getR2BucketUsageSummary', 'GET', url, apiToken)).result;
+}
+
+export interface R2BucketUsageSummary {
+    readonly end: string; // e.g. 2022-07-24T18:43:18.855Z
+    readonly payloadSize: string; // e.g. 1269928930
+    readonly metadataSize: string; // e.g. 340
+    readonly objectCount: string; // e.g. 26
+    readonly uploadCount: string // e.g. 0
+}
+
 //#endregion
 
 //#region Flags

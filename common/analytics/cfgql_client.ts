@@ -446,8 +446,8 @@ export interface GetR2OperationsByDateRow {
 export type R2OperationClass = 'A' | 'B';
 
 async function _getR2OperationsByDate(profile: Profile, operationClass: R2OperationClass, startDateInclusive: string, endDateInclusive: string): Promise<CfGqlResult<GetR2OperationsByDateRow>> {
-    const actionTypes = operationClass === 'A' ? [ 'ListBuckets', 'PutBucket', 'ListObjects', 'PutObject', 'CopyObject', 'CompleteMultipartUpload', 'CreateMultipartUpload', 'UploadPartCopy']
-        : [ 'HeadBucket', 'HeadObject', 'GetObject' ];
+    const actionTypes = operationClass === 'A' ? [ 'ListBuckets', 'PutBucket', 'ListObjects', 'PutObject', 'CopyObject', 'CompleteMultipartUpload', 'CreateMultipartUpload', 'UploadPart', 'UploadPartCopy', 'PutBucketEncryption', 'ListMultipartUploads' ]
+        : [ 'HeadBucket', 'HeadObject', 'GetObject', 'ReportUsageSummary', 'GetBucketEncryption', 'GetBucketLocation' ];
     const resObj = await query(profile, q => q.object('r2OperationsAdaptiveGroups')
         .argLong('limit', 10000)
         .argRaw('filter', `{date_geq: $start, date_leq: $end, actionStatus: "success", actionType_in: ${JSON.stringify(actionTypes)}}`)
