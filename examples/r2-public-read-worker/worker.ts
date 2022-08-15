@@ -84,9 +84,10 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     // hide keys considered "internal", like _headers if in pages mode
     const internalKeys = emulatePages ? INTERNAL_KEYS_PAGES : INTERNAL_KEYS;
     if (!internalKeys.has(key)) {
-        // parse any conditional request options from the request headers
-        let range = method === 'GET' ? tryParseRange(headers) : undefined;
-        const onlyIf = method === 'GET' ? tryParseR2Conditional(headers) : undefined;
+        // parse any range or conditional request options from the request headers
+        // even on HEAD requests - since S3 does, against the HTTP spec
+        let range = tryParseRange(headers);
+        const onlyIf = tryParseR2Conditional(headers);
 
         // first, try to request the object at the given key
         obj = key === '' ? null : await getOrHead(key, { range, onlyIf });
@@ -105,14 +106,16 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
         if (obj) {
             // choose not to satisfy range requests for encoded content
             // unfortunately we don't know it's encoded until after the first request
+            let disableRangeRequests = false;
             if (range && computeHeaders(obj, { range }).has('content-encoding')) {
                 console.log(`re-request without range`);
                 range = undefined;
                 obj = await bucket.get(key);
                 if (obj === null) throw new Error(`Object ${key} existed for .get with range, but not without`);
+                disableRangeRequests = true;
             }
             const accessControlAllowOrigin = computeAccessControlAllowOrigin(obj, headers.get('origin') ?? undefined, allowCorsOrigins, allowCorsTypes);
-            return computeObjResponse(obj, range ? 206 : 200, { range, onlyIf, accessControlAllowOrigin });
+            return computeObjResponse(obj, range ? 206 : 200, { range, onlyIf, accessControlAllowOrigin, disableRangeRequests });
         }
     }
 
@@ -190,7 +193,7 @@ function isR2ObjectBody(obj: R2Object): obj is R2ObjectBody {
     return 'body' in obj;
 }
 
-function computeObjResponse(obj: R2Object, status: number, opts: { range?: R2Range, onlyIf?: R2Conditional, accessControlAllowOrigin?: string } = {}): Response {
+function computeObjResponse(obj: R2Object, status: number, opts: { range?: R2Range, onlyIf?: R2Conditional, accessControlAllowOrigin?: string, disableRangeRequests?: boolean } = {}): Response {
     const { onlyIf } = opts;
     let body: ReadableStream | undefined;
     if (isR2ObjectBody(obj)) {
@@ -207,12 +210,11 @@ function computeObjResponse(obj: R2Object, status: number, opts: { range?: R2Ran
     // non-standard cloudflare ResponseInit property indicating the response is already encoded
     // required to prevent the cf frontend from double-encoding it, or serving it encoded without a content-encoding header
     const encodeBody = headers.has('content-encoding') ? 'manual' : undefined;
-
     return new Response(body, { status, headers, encodeBody });
 }
 
-function computeHeaders(obj: R2Object, opts: { range?: R2Range, accessControlAllowOrigin?: string }): Headers {
-    const { range, accessControlAllowOrigin } = opts;
+function computeHeaders(obj: R2Object, opts: { range?: R2Range, accessControlAllowOrigin?: string, disableRangeRequests?: boolean }): Headers {
+    const { range, accessControlAllowOrigin, disableRangeRequests } = opts;
     const headers = new Headers();
     // writes content-type, content-encoding, content-disposition, i.e. the values from obj.httpMetadata
     obj.writeHttpMetadata(headers);
@@ -225,6 +227,7 @@ function computeHeaders(obj: R2Object, opts: { range?: R2Range, accessControlAll
     headers.set('etag', obj.httpEtag); // the version with double quotes, e.g. "96f20d7dc0d24de9c154d822967dcae1"
     headers.set('last-modified', obj.uploaded.toUTCString()); // toUTCString is the http date format (rfc 1123)
 
+    if (!disableRangeRequests) headers.set('accept-ranges', 'bytes'); // beware: cf frontend seems to remove this for 200s if auto-compressing
     if (range) headers.set('content-range', computeContentRange(range, obj.size));
     if (accessControlAllowOrigin) headers.set('access-control-allow-origin', accessControlAllowOrigin); 
     return headers;
