@@ -22,6 +22,7 @@ import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { NoopAnalyticsEngine } from '../common/noop_analytics_engine.ts';
 import { R2 } from '../common/r2/r2.ts';
 import { NoopD1Database } from '../common/noop_d1_database.ts';
+import { WebStorageDurableObjectStorage } from '../common/storage/web_storage_durable_object_storage.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -66,6 +67,9 @@ export async function serve(args: (string | number)[], options: Record<string, u
     const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
     if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
     
+    // support webstorage in both isolation modes
+    LocalDurableObjects.storageProviderFactories.set('webstorage', WebStorageDurableObjectStorage.provider);
+
     // read the script-based cloudflare worker contents
     let port = DEFAULT_PORT;
     let certPem = certPemOpt;

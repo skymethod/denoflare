@@ -1,6 +1,6 @@
 import { CliCommand } from './cli_command.ts';
 import { parseNameValuePairsOption } from './cli_common.ts';
-import { denoBundle } from './deno_bundle.ts';
+import { denoBundle, DenoDiagnostic } from './deno_bundle.ts';
 import { resolve, toFileUrl, isAbsolute } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { Bytes } from '../common/bytes.ts';
@@ -121,12 +121,12 @@ function computeSupportedBackends() {
     return [ ...(builtinSupported ? [ 'builtin'] : []), 'process', 'module' ];
 }
 
-function isKnownIgnorableWarning(diag: Deno.Diagnostic): boolean {
+function isKnownIgnorableWarning(diag: DenoDiagnostic): boolean {
     return isModuleJsonImportWarning(diag) 
         || isSubsequentVariableDeclarationsInDenoLibsWarning(diag);
 }
 
-function isModuleJsonImportWarning(diag: Deno.Diagnostic): boolean {
+function isModuleJsonImportWarning(diag: DenoDiagnostic): boolean {
     /*
     these seem to be non-fatal
     possibly a deno bug: https://github.com/denoland/deno/issues/13448
@@ -146,7 +146,7 @@ function isModuleJsonImportWarning(diag: Deno.Diagnostic): boolean {
     return diag.category === 1 && diag.code === 7042;
 }
 
-function isSubsequentVariableDeclarationsInDenoLibsWarning(diag: Deno.Diagnostic): boolean {
+function isSubsequentVariableDeclarationsInDenoLibsWarning(diag: DenoDiagnostic): boolean {
     /*
     these seem to be non-fatal
     {                                                                                                                           
@@ -178,7 +178,7 @@ function isSubsequentVariableDeclarationsInDenoLibsWarning(diag: Deno.Diagnostic
     return diag.category === 1 && diag.code === 2403 && (diag.fileName || '').startsWith('asset:///lib.deno.');
 }
 
-function formatDiagnostic(diagnostic: Deno.Diagnostic): string {
+function formatDiagnostic(diagnostic: DenoDiagnostic): string {
     const { code, messageText, fileName, start} = diagnostic;
     const suffix = start ? `:${start.line}:${start.character}` : '';
     return `TS${code}: ${messageText}\n  at ${fileName}:${suffix}`;

@@ -1,6 +1,6 @@
 import { isStringArray } from '../check.ts';
 import { Bytes } from '../bytes.ts';
-import { DurableObjectGetAlarmOptions, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
+import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
 
 export class WebStorageDurableObjectStorage implements DurableObjectStorage {
 
@@ -10,6 +10,10 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
 
     constructor(prefix: string) {
         this.prefix = prefix;
+    }
+
+    static provider(className: string, id: DurableObjectId, options: Record<string, string>) {
+        return new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':'));
     }
 
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {

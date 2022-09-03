@@ -2,7 +2,25 @@ import { spawn } from './spawn.ts';
 
 export interface DenoBundleResult {
     readonly code: string;
-    readonly diagnostics: Deno.Diagnostic[];
+    readonly diagnostics: DenoDiagnostic[];
+}
+
+export enum DenoDiagnosticCategory {
+    Warning = 0,
+    Error = 1,
+    Suggestion = 2,
+    Message = 3,
+}
+
+export interface DenoDiagnostic {
+    readonly category: DenoDiagnosticCategory;
+    readonly code: number;
+    readonly messageText?: string;
+    readonly fileName?: string;
+    readonly start?: {
+        readonly line: number;
+        readonly character: number;
+    };
 }
 
 export async function denoBundle(rootSpecifier: string, opts: { noCheck?: boolean | string, check?: boolean | string, compilerOptions?: { lib?: string[] } } = {}): Promise<DenoBundleResult> {
@@ -16,7 +34,7 @@ export async function denoBundle(rootSpecifier: string, opts: { noCheck?: boolea
     
         const { out, err, success } = await runDenoBundle(rootSpecifier, { config, noCheck, check });
         let code = out;
-        let diagnostics: Deno.Diagnostic[] = [];
+        let diagnostics: DenoDiagnostic[] = [];
         if (err.length > 0 || !success) {
             diagnostics = parseDiagnostics(err);
             if (code.length === 0) {
@@ -57,8 +75,8 @@ async function runDenoBundle(rootSpecifier: string, opts: { noCheck?: boolean | 
     return { code, success, out, err };
 }
 
-function parseDiagnostics(err: string): Deno.Diagnostic[] {
-    const rt: Deno.Diagnostic[] = [];
+function parseDiagnostics(err: string): DenoDiagnostic[] {
+    const rt: DenoDiagnostic[] = [];
     if (err.length === 0) return rt;
 
     for (const [ _, codeStr, inBetween, fileName, lineStr, charStr ] of [...err.matchAll(/TS(\d+)(.*?)\s+at\s+([^\s]+):(\d+):(\d+)\n/gs)]) {

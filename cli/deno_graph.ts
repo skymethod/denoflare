@@ -6,12 +6,17 @@ export async function computeDenoGraphLocalPaths(path: string): Promise<string[]
 }
 
 export async function computeDenoGraph(path: string): Promise<ModuleGraphJson> {
-    const absolutePath = toAbsolutePath(path);
-    const graph = await createGraph(toFileUrl(absolutePath).toString());
+    const graph = await createGraph(computeRootSpecifier(path));
     return graph.toJSON();
 } 
 
 //
+
+function computeRootSpecifier(path: string): string {
+    if (path.startsWith('file://')) return path;
+    const absolutePath = toAbsolutePath(path);
+    return toFileUrl(absolutePath).toString();
+}
 
 function toAbsolutePath(path: string): string {
     return isAbsolute(path) ? path : normalize(join(Deno.cwd(), path));
