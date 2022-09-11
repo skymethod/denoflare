@@ -134,10 +134,11 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     }
    
     async list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
-        if (Object.keys(options).length === 0) {
+        if (Object.keys(options).length === 0 || Object.keys(options).length === 1 && typeof options.prefix === 'string') {
             const index = readSortedIndex(this.prefix);
             const rt = new Map<string, DurableObjectStorageValue>();
             for (const key of index) {
+                if (typeof options.prefix === 'string' && !key.startsWith(options.prefix)) continue;
                 const value = await this._get(key);
                 if (!value) throw new Error(`Index value not found: ${key}`);
                 rt.set(key, value);
