@@ -97,7 +97,11 @@ function locateStorage(reference: DurableObjectStorageReference, cache: Map<stri
     const cacheKey = `${optionsKey}:${className}:${id.toString()}`;
     let storage = cache.get(cacheKey);
     if (!storage) {
-        storage = LocalDurableObjects.newDurableObjectStorage(className, id, options);
+        const dispatchAlarm = () => {
+            // TODO implement
+            console.log(`RpcHostDurableObjectStorage: dispatchAlarm`, { className, id });
+        }
+        storage = LocalDurableObjects.newDurableObjectStorage(className, id, options, dispatchAlarm);
         console.log(`RpcHostDurableObjectStorage: created: ${cacheKey} -> ${storage}`);
         cache.set(cacheKey, storage);
     }

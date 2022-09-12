@@ -7,13 +7,19 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     // no semantic support for transactions, although they will work in simple cases
 
     private readonly prefix: string;
+    private readonly dispatchAlarm: () => void;
 
-    constructor(prefix: string) {
+    // alarms not durable, kept in memory only
+    private alarm: number | null = null;
+    private alarmTimeoutId = 0;
+
+    constructor(prefix: string, dispatchAlarm: () => void) {
         this.prefix = prefix;
+        this.dispatchAlarm = dispatchAlarm;
     }
 
-    static provider(className: string, id: DurableObjectId, options: Record<string, string>) {
-        return new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':'));
+    static provider(className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) {
+        return new WebStorageDurableObjectStorage([options.container || 'default', className, id.toString()].join(':'), dispatchAlarm);
     }
 
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
@@ -134,30 +140,57 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     }
    
     async list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
-        if (Object.keys(options).length === 0 || Object.keys(options).length === 1 && typeof options.prefix === 'string') {
-            const index = readSortedIndex(this.prefix);
-            const rt = new Map<string, DurableObjectStorageValue>();
-            for (const key of index) {
-                if (typeof options.prefix === 'string' && !key.startsWith(options.prefix)) continue;
-                const value = await this._get(key);
-                if (!value) throw new Error(`Index value not found: ${key}`);
-                rt.set(key, value);
-            }
-            return Promise.resolve(rt);
+        const { start, end, reverse, prefix, limit, allowConcurrency, noCache } = options;
+        if (allowConcurrency !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(allowConcurrency) not implemented: ${JSON.stringify(options)}`);
+        if (noCache !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(noCache) not implemented: ${JSON.stringify(options)}`);
+        if (start !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(start) not implemented: ${JSON.stringify(options)}`);
+        if (end !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(end) not implemented: ${JSON.stringify(options)}`);
+
+        const index = readSortedIndex(this.prefix);
+        if (reverse) index.reverse();
+        const rt = new Map<string, DurableObjectStorageValue>();
+        for (const key of index) {
+            if (typeof limit === 'number' && rt.size >= limit) break;
+            if (typeof prefix === 'string' && !key.startsWith(prefix)) continue;
+            const value = await this._get(key);
+            if (!value) throw new Error(`Index value not found: ${key}`);
+            rt.set(key, value);
         }
-        throw new Error(`WebStorageDurableObjectStorage.list not implemented: options=${options}`);
+        return Promise.resolve(rt);
     }
 
-    getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {
-        throw new Error(`WebStorageDurableObjectStorage.getAlarm not implemented options=${JSON.stringify(options)}`);
+    getAlarm(options: DurableObjectGetAlarmOptions = {}): Promise<number | null> {
+        const { allowConcurrency } = options;
+        if (allowConcurrency !== undefined) throw new Error(`WebStorageDurableObjectStorage.getAlarm(allowConcurrency) not implemented: options=${JSON.stringify(options)}`);
+        return Promise.resolve(this.alarm);
     }
 
-    setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void> {
-        throw new Error(`WebStorageDurableObjectStorage.setAlarm not implemented scheduledTime=${scheduledTime} options=${JSON.stringify(options)}`);
+    setAlarm(scheduledTime: number | Date, options: DurableObjectSetAlarmOptions = {}): Promise<void> {
+        const { allowUnconfirmed } = options;
+        if (allowUnconfirmed !== undefined) throw new Error(`WebStorageDurableObjectStorage.setAlarm(allowUnconfirmed) not implemented: options=${JSON.stringify(options)}`);
+        this.alarm = Math.max(Date.now(), typeof scheduledTime === 'number' ? scheduledTime : scheduledTime.getTime());
+        this.rescheduleAlarm();
+        return Promise.resolve();
     }
     
-    deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void> {
-        throw new Error(`WebStorageDurableObjectStorage.deleteAlarm not implemented options=${JSON.stringify(options)}`);
+    deleteAlarm(options: DurableObjectSetAlarmOptions = {}): Promise<void> {
+        const { allowUnconfirmed } = options;
+        if (allowUnconfirmed !== undefined) throw new Error(`WebStorageDurableObjectStorage.deleteAlarm(allowUnconfirmed) not implemented: options=${JSON.stringify(options)}`);
+        this.alarm = null;
+        this.rescheduleAlarm();
+        return Promise.resolve();
+    }
+
+    //
+
+    private rescheduleAlarm() {
+        clearTimeout(this.alarmTimeoutId);
+        if (typeof this.alarm === 'number') {
+            this.alarmTimeoutId = setTimeout(() => {
+                this.alarm = null;
+                this.dispatchAlarm();
+            }, Math.max(0, this.alarm - Date.now()));
+        }
     }
     
 }

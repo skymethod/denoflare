@@ -30,7 +30,8 @@ export class ModuleWorkerExecution {
         if (module === undefined) throw new Error('Bad module: undefined');
         if (module.default === undefined) throw new Error('Bad module.default: undefined');
         if (typeof module.default.fetch !== 'function') throw new Error(`Bad module.default.fetch: ${typeof module.default.fetch}`);
-        return new ModuleWorkerExecution({ fetch: module.default.fetch, moduleWorkerEnv });
+        if (module.default.alarm !== undefined && typeof module.default.alarm !== 'function') throw new Error(`Bad module.default.alarm: ${typeof module.default.alarm}`);
+        return new ModuleWorkerExecution({ fetch: module.default.fetch, alarm: module.default.alarm, moduleWorkerEnv });
     }
 
     async fetch(request: IncomingRequestCf): Promise<Response> {
@@ -44,6 +45,7 @@ interface ModuleWorker {
     readonly moduleWorkerEnv: Record<string, unknown>;
     // deno-lint-ignore no-explicit-any
     fetch(request: IncomingRequestCf, env: any, ctx: ModuleWorkerContext): Promise<Response>;
+    alarm?(): Promise<void>;
 }
 
 class DefaultModuleWorkerContext implements ModuleWorkerContext {

@@ -40,10 +40,10 @@ export class LocalDurableObjects {
         return new UnimplementedDurableObjectNamespace(doNamespace);
     }
 
-    static newDurableObjectStorage(className: string, id: DurableObjectId, options: Record<string, string>) {
+    static newDurableObjectStorage(className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) {
         const storage = options.storage || 'memory';
         const rt = LocalDurableObjects.storageProviderFactories.get(storage);
-        if (rt) return rt(className, id, options);
+        if (rt) return rt(className, id, options, dispatchAlarm);
         throw new Error(`Bad storage: ${storage}`);
     }
 
@@ -63,7 +63,18 @@ export class LocalDurableObjects {
             if (existing) return existing;
         }
         const ctor = this.findConstructorForClassName(className);
-        const storage = this.storageProvider(className, id, options);
+        const dispatchAlarm = () => {
+            console.log(`LocalDurableObjects: dispatchAlarm`);
+            const obj = classObjects?.get(idStr);
+            try {
+                if (!obj) throw new Error(`LocalDurableObjects: object ${className} ${idStr} not found`);
+                if (!obj.alarm) throw new Error(`LocalDurableObjects: object ${className} ${idStr} alarm() not implemented`);
+                obj.alarm();
+            } catch (e) {
+                console.error(`LocalDurableObjects: error dispatching alarm`, e);
+            }
+        }
+        const storage = this.storageProvider(className, id, options, dispatchAlarm);
         const mutex = new Mutex();
         const state: DurableObjectState = new LocalDurableObjectState(id, storage, mutex);
         const durableObject = new ctor(state, this.moduleWorkerEnv);
@@ -87,9 +98,10 @@ export type DurableObjectConstructor = new (state: DurableObjectState, env: Reco
 
 export interface DurableObject {
     fetch(request: Request): Promise<Response>;
+    alarm?(): Promise<void>;
 }
 
-export type DurableObjectStorageProvider = (className: string, id: DurableObjectId, options: Record<string, string>) => DurableObjectStorage;
+export type DurableObjectStorageProvider = (className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) => DurableObjectStorage;
 
 //
 
@@ -111,6 +123,10 @@ class DurableObjectWithMutexAroundFetch implements DurableObject {
 
     fetch(request: Request): Promise<Response> {
         return this.mutex.dispatch(() => this.durableObject.fetch(request));
+    }
+
+    alarm(): Promise<void> {
+        return this.durableObject.alarm ? this.durableObject.alarm() : Promise.resolve();
     }
 
 }
