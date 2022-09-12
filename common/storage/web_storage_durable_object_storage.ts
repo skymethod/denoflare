@@ -1,21 +1,18 @@
 import { isStringArray } from '../check.ts';
 import { Bytes } from '../bytes.ts';
 import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
+import { InMemoryAlarms } from './in_memory_alarms.ts';
 
 export class WebStorageDurableObjectStorage implements DurableObjectStorage {
 
     // no semantic support for transactions, although they will work in simple cases
 
     private readonly prefix: string;
-    private readonly dispatchAlarm: () => void;
-
-    // alarms not durable, kept in memory only
-    private alarm: number | null = null;
-    private alarmTimeoutId = 0;
+    private readonly alarms: InMemoryAlarms;
 
     constructor(prefix: string, dispatchAlarm: () => void) {
         this.prefix = prefix;
-        this.dispatchAlarm = dispatchAlarm;
+        this.alarms = new InMemoryAlarms(dispatchAlarm);
     }
 
     static provider(className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) {
@@ -159,38 +156,16 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
         return Promise.resolve(rt);
     }
 
-    getAlarm(options: DurableObjectGetAlarmOptions = {}): Promise<number | null> {
-        const { allowConcurrency } = options;
-        if (allowConcurrency !== undefined) throw new Error(`WebStorageDurableObjectStorage.getAlarm(allowConcurrency) not implemented: options=${JSON.stringify(options)}`);
-        return Promise.resolve(this.alarm);
+    getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {
+        return this.alarms.getAlarm(options);
     }
 
-    setAlarm(scheduledTime: number | Date, options: DurableObjectSetAlarmOptions = {}): Promise<void> {
-        const { allowUnconfirmed } = options;
-        if (allowUnconfirmed !== undefined) throw new Error(`WebStorageDurableObjectStorage.setAlarm(allowUnconfirmed) not implemented: options=${JSON.stringify(options)}`);
-        this.alarm = Math.max(Date.now(), typeof scheduledTime === 'number' ? scheduledTime : scheduledTime.getTime());
-        this.rescheduleAlarm();
-        return Promise.resolve();
+    setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void> {
+        return this.alarms.setAlarm(scheduledTime, options);
     }
     
-    deleteAlarm(options: DurableObjectSetAlarmOptions = {}): Promise<void> {
-        const { allowUnconfirmed } = options;
-        if (allowUnconfirmed !== undefined) throw new Error(`WebStorageDurableObjectStorage.deleteAlarm(allowUnconfirmed) not implemented: options=${JSON.stringify(options)}`);
-        this.alarm = null;
-        this.rescheduleAlarm();
-        return Promise.resolve();
-    }
-
-    //
-
-    private rescheduleAlarm() {
-        clearTimeout(this.alarmTimeoutId);
-        if (typeof this.alarm === 'number') {
-            this.alarmTimeoutId = setTimeout(() => {
-                this.alarm = null;
-                this.dispatchAlarm();
-            }, Math.max(0, this.alarm - Date.now()));
-        }
+    deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void> {
+        return this.alarms.deleteAlarm(options);
     }
     
 }

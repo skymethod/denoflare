@@ -2,12 +2,13 @@ import { isStringArray } from './check.ts';
 import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from './cloudflare_workers_types.d.ts';
 import { DurableObjectStorageProvider } from './local_durable_objects.ts';
 import { RpcChannel } from './rpc_channel.ts';
+import { InMemoryAlarms } from './storage/in_memory_alarms.ts';
 import { InMemoryDurableObjectStorage } from './storage/in_memory_durable_object_storage.ts';
 
 export function makeRpcStubDurableObjectStorageProvider(channel: RpcChannel): DurableObjectStorageProvider {
-    return (className, id, options) => {
+    return (className, id, options, dispatchAlarm) => {
         if ((options.storage || 'memory') === 'memory') return new InMemoryDurableObjectStorage(); // optimization, right now memory impl functions the same in either isolate
-        return new RpcStubDurableObjectStorage(channel, { className, id, options });
+        return new RpcStubDurableObjectStorage(channel, { className, id, options }, dispatchAlarm);
     }
 }
 
@@ -31,10 +32,12 @@ export interface DurableObjectStorageReference {
 class RpcStubDurableObjectStorage implements DurableObjectStorage {
     private readonly channel: RpcChannel;
     private readonly reference: DurableObjectStorageReference;
+    private readonly alarms: InMemoryAlarms;
 
-    constructor(channel: RpcChannel, reference: DurableObjectStorageReference) {
+    constructor(channel: RpcChannel, reference: DurableObjectStorageReference, dispatchAlarm: () => void) {
         this.channel = channel;
         this.reference = reference;
+        this.alarms = new InMemoryAlarms(dispatchAlarm);
     }
     
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
@@ -147,15 +150,15 @@ class RpcStubDurableObjectStorage implements DurableObjectStorage {
     }
 
     getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {
-        throw new Error(`RpcStubDurableObjectStorage.getAlarm not implemented options=${JSON.stringify(options)}`);
+        return this.alarms.getAlarm(options);
     }
 
     setAlarm(scheduledTime: number | Date, options?: DurableObjectSetAlarmOptions): Promise<void> {
-        throw new Error(`RpcStubDurableObjectStorage.setAlarm not implemented scheduledTime=${scheduledTime} options=${JSON.stringify(options)}`);
+        return this.alarms.setAlarm(scheduledTime, options);
     }
     
     deleteAlarm(options?: DurableObjectSetAlarmOptions): Promise<void> {
-        throw new Error(`RpcStubDurableObjectStorage.deleteAlarm not implemented options=${JSON.stringify(options)}`);
+        return this.alarms.deleteAlarm(options);
     }
     
 }
