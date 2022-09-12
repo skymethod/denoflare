@@ -10,7 +10,7 @@ Deno.test('InMemoryDurableObjectStorage', async () => {
 
 Deno.test('WebStorageDurableObjectStorage', async () => {
     const container = 'test';
-    const storage = new WebStorageDurableObjectStorage(container);
+    const storage = new WebStorageDurableObjectStorage(container, () => {});
     await runSimpleStorageTestScenario(storage);
 });
 

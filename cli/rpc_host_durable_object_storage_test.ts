@@ -7,7 +7,7 @@ Deno.test('makeRpcHostDurableObjectStorage', async () => {
     const channels = new InMemoryRpcChannels('test');
     makeRpcHostDurableObjectStorage(channels.host);
     const provider = makeRpcStubDurableObjectStorageProvider(channels.stub);
-    const storage = provider('class1', 'id1', { storage: 'memory', container: 'test.rpc' });
+    const storage = provider('class1', 'id1', { storage: 'memory', container: 'test.rpc' }, () => {});
     await runSimpleStorageTestScenario(storage);
 });
 
