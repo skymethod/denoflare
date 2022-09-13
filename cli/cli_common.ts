@@ -99,6 +99,7 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('wasmModuleBinding', 'strings', 'Wasm module environment variable binding, overrides config', { hint: 'name:path-to-local-wasm-file'})
         .option('serviceBinding', 'strings', 'Service environment variable binding, overrides config', { hint: 'name:service:environment'})
         .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
+        .option('aeDatasetBinding', 'strings', 'Analytics Engine dataset environment variable binding, overrides config', { hint: 'name:dataset-name'})
         ;
 }
 
@@ -106,32 +107,36 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
     const rt: Record<string, Binding> = {};
     const pattern = /^([^:]+):(.*)$/;
     for (const textBinding of parseOptionalStringOptions('text-binding', options) || []) {
-        const [ _, name, value] = checkMatchesReturnMatcher('text-binding', textBinding, pattern);
+        const [ _, name, value ] = checkMatchesReturnMatcher('text-binding', textBinding, pattern);
         rt[name] = { value };
     }
     for (const secretBinding of parseOptionalStringOptions('secret-binding', options) || []) {
-        const [ _, name, secret] = checkMatchesReturnMatcher('secret-binding', secretBinding, pattern);
+        const [ _, name, secret ] = checkMatchesReturnMatcher('secret-binding', secretBinding, pattern);
         rt[name] = { secret };
     }
     for (const kvNamespaceBinding of parseOptionalStringOptions('kv-namespace-binding', options) || []) {
-        const [ _, name, kvNamespace] = checkMatchesReturnMatcher('kv-namespace-binding', kvNamespaceBinding, pattern);
+        const [ _, name, kvNamespace ] = checkMatchesReturnMatcher('kv-namespace-binding', kvNamespaceBinding, pattern);
         rt[name] = { kvNamespace };
     }
     for (const doNamespaceBinding of parseOptionalStringOptions('do-namespace-binding', options) || []) {
-        const [ _, name, doNamespace] = checkMatchesReturnMatcher('do-namespace-binding', doNamespaceBinding, pattern);
+        const [ _, name, doNamespace ] = checkMatchesReturnMatcher('do-namespace-binding', doNamespaceBinding, pattern);
         rt[name] = { doNamespace };
     }
     for (const wasmModuleBinding of parseOptionalStringOptions('wasm-module-binding', options) || []) {
-        const [ _, name, wasmModule] = checkMatchesReturnMatcher('wasm-module-binding', wasmModuleBinding, pattern);
+        const [ _, name, wasmModule ] = checkMatchesReturnMatcher('wasm-module-binding', wasmModuleBinding, pattern);
         rt[name] = { wasmModule };
     }
     for (const serviceBinding of parseOptionalStringOptions('service-binding', options) || []) {
-        const [ _, name, serviceEnvironment] = checkMatchesReturnMatcher('service-binding', serviceBinding, pattern);
+        const [ _, name, serviceEnvironment ] = checkMatchesReturnMatcher('service-binding', serviceBinding, pattern);
         rt[name] = { serviceEnvironment };
     }
     for (const r2BucketBinding of parseOptionalStringOptions('r2-bucket-binding', options) || []) {
-        const [ _, name, bucketName] = checkMatchesReturnMatcher('r2-bucket-binding', r2BucketBinding, pattern);
+        const [ _, name, bucketName ] = checkMatchesReturnMatcher('r2-bucket-binding', r2BucketBinding, pattern);
         rt[name] = { bucketName };
+    }
+    for (const aeDatasetBinding of parseOptionalStringOptions('ae-dataset-binding', options) || []) {
+        const [ _, name, dataset ] = checkMatchesReturnMatcher('ae-dataset-binding', aeDatasetBinding, pattern);
+        rt[name] = { dataset };
     }
     return rt;
 }
