@@ -682,6 +682,9 @@ export interface DurableObjectStorageListOptions {
     /** Key at which the list results should start, inclusive. */
     readonly start?: string;
 
+    /** Key after which the list results should start, exclusive. Cannot be used simultaneously with 'start'. */
+    readonly startAfter?: string;
+
     /** Key at which the list results should end, exclusive. */
     readonly end?: string;
 

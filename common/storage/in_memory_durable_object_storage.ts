@@ -116,21 +116,25 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     }
    
     list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
-        if (Object.keys(options).length === 0) {
-            const { prefix, limit, reverse } = options;
-            const { sortedKeys, values } = this;
-            const rt = new Map<string, DurableObjectStorageValue>();
-            let orderedKeys = sortedKeys;
-            if (reverse) orderedKeys = [...orderedKeys].reverse();
-            for (const key of orderedKeys) {
-                if (limit !== undefined && rt.size >= limit) return Promise.resolve(rt);
-                if (prefix !== undefined && !key.startsWith(prefix)) continue;
-                const value = structuredClone(values.get(key)!);
-                rt.set(key, value);
-            }
-            return Promise.resolve(rt);
+        const { start, startAfter, end, prefix, limit, reverse, allowConcurrency, noCache } = options;
+        for (const [ name, value ] of Object.entries({ allowConcurrency, noCache })) {
+            if (value !== undefined) throw new Error(`InMemoryDurableObjectStorage.list(${name}) not implemented: ${JSON.stringify(options)}`);
         }
-        throw new Error(`InMemoryDurableObjectStorage.list not implemented options=${JSON.stringify(options)}`);
+
+        const { sortedKeys, values } = this;
+        const rt = new Map<string, DurableObjectStorageValue>();
+        let orderedKeys = sortedKeys;
+        if (reverse) orderedKeys = [...orderedKeys].reverse();
+        for (const key of orderedKeys) {
+            if (limit !== undefined && rt.size >= limit) return Promise.resolve(rt);
+            if (prefix !== undefined && !key.startsWith(prefix)) continue;
+            if (typeof start === 'string' && (reverse ? key > start : key < start)) continue;
+            if (typeof startAfter === 'string' && (reverse ? key >= startAfter : key <= startAfter)) continue;
+            if (typeof end === 'string' && (reverse ? key <= end : key >= end)) break;
+            const value = structuredClone(values.get(key)!);
+            rt.set(key, value);
+        }
+        return Promise.resolve(rt);
     }
 
     getAlarm(options?: DurableObjectGetAlarmOptions): Promise<number | null> {

@@ -137,11 +137,10 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
     }
    
     async list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
-        const { start, end, reverse, prefix, limit, allowConcurrency, noCache } = options;
-        if (allowConcurrency !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(allowConcurrency) not implemented: ${JSON.stringify(options)}`);
-        if (noCache !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(noCache) not implemented: ${JSON.stringify(options)}`);
-        if (start !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(start) not implemented: ${JSON.stringify(options)}`);
-        if (end !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(end) not implemented: ${JSON.stringify(options)}`);
+        const { start, startAfter, end, reverse, prefix, limit, allowConcurrency, noCache } = options;
+        for (const [ name, value ] of Object.entries({ allowConcurrency, noCache })) {
+            if (value !== undefined) throw new Error(`WebStorageDurableObjectStorage.list(${name}) not implemented: ${JSON.stringify(options)}`);
+        }
 
         const index = readSortedIndex(this.prefix);
         if (reverse) index.reverse();
@@ -149,8 +148,11 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
         for (const key of index) {
             if (typeof limit === 'number' && rt.size >= limit) break;
             if (typeof prefix === 'string' && !key.startsWith(prefix)) continue;
+            if (typeof start === 'string' && (reverse ? key > start : key < start)) continue;
+            if (typeof startAfter === 'string' && (reverse ? key >= startAfter : key <= startAfter)) continue;
+            if (typeof end === 'string' && (reverse ? key <= end : key >= end)) break;
             const value = await this._get(key);
-            if (!value) throw new Error(`Index value not found: ${key}`);
+            if (value === undefined) throw new Error(`Index value not found: ${key}`);
             rt.set(key, value);
         }
         return Promise.resolve(rt);

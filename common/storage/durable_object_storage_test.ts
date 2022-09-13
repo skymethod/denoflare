@@ -53,4 +53,26 @@ export async function runSimpleStorageTestScenario(storage: DurableObjectStorage
     assertEquals(await storage.get('object'), { a: true });
     await storage.deleteAll();
     assertEquals((await storage.list()).size, 0);
+
+    // list options
+    await storage.put('a', '');
+    await storage.put('b', '');
+    await storage.put('c', '');
+    assertEquals((await storage.list()).size, 3);
+    assertEquals((await storage.list({ limit: 1 })), new Map([['a', '']]));
+    assertEquals((await storage.list({ limit: 1, reverse: true })), new Map([['c', '']]));
+    assertEquals((await storage.list({ start: 'c' })), new Map([['c', '']]));
+    assertEquals((await storage.list({ startAfter: 'b' })), new Map([['c', '']]));
+    assertEquals((await storage.list({ end: 'b' })), new Map([['a', '']]));
+    assertEquals((await storage.list({ reverse: true, start: 'b' })), new Map([['b', ''], ['a', '']]));
+    assertEquals((await storage.list({ reverse: true, startAfter: 'b' })), new Map([['a', '']]));
+
+    await storage.put('aa', '');
+    await storage.put('ab', '');
+    await storage.put('ac', '');
+    assertEquals((await storage.list({ prefix: 'a' })).size, 4);
+    assertEquals((await storage.list({ prefix: 'b' })).size, 1);
+
+    await storage.deleteAll();
+    assertEquals((await storage.list()).size, 0);
 }
