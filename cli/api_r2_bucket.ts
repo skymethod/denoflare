@@ -200,10 +200,9 @@ function computeR2RangeFromContentRange(contentRange: string | undefined): { ran
 }
 
 function cleanEtagForR2(etag: string | undefined) {
-    // R2: "If-None-Match etag must be surrounded by double quotes."
-    // Also R2: ETag: W/"3493cd1f3714231393d343b2cf3d5cae"
-    const m = /^W\/(".*?")$/.exec(etag || '');
-    return m ? m[1] : etag;
+    // 2022-09-19: If-None-Match each ETag must be surrounded by double quotes
+    const m = /^([a-f0-9]+)$/.exec(etag || '');
+    return m ? `"${m[1]}"` : etag;
 }
 
 //
