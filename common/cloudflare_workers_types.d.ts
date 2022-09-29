@@ -848,8 +848,9 @@ export interface AnalyticsEngine {
 }
   
 export interface AnalyticsEngineEvent {
-    readonly doubles?: number[];
-    readonly blobs?: (ArrayBuffer | string | null)[];
+    readonly doubles?: number[]; // up to 20
+    readonly blobs?: (ArrayBuffer | string | null)[]; // up to 20, max sum of all blobs: 5kb
+    readonly indexes?: string[]; // 0 or 1
 }
 
 //#endregion

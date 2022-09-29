@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listTraceWorkers, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -310,6 +310,23 @@ function cfapiCommand() {
         } else {
             console.log(result);
         }
+    });
+
+    add(apiCommand('list-trace-workers', ''), async (accountId, apiToken) => {
+        const result = await listTraceWorkers({ accountId, apiToken });
+        console.log(result);
+    });
+
+    add(apiCommand('set-trace-worker', '').arg('producerScript', 'string', 'Producer script name').arg('consumerService', 'string', 'Consumer service name'), async (accountId, apiToken, opts) => {
+        const { producerScript, consumerService } = opts;
+        const result = await setTraceWorker({ accountId, apiToken, producerScript, consumerService });
+        console.log(result);
+    });
+
+    add(apiCommand('delete-trace-worker', '').arg('tag', 'string', 'Unique tag of the trace worker pair'), async (accountId, apiToken, opts) => {
+        const { tag } = opts;
+        const result = await deleteTraceWorker({ accountId, apiToken, tag });
+        console.log(result);
     });
 
     return rt;

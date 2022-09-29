@@ -985,7 +985,40 @@ export async function restoreD1Backup(opts: { accountId: string, apiToken: strin
 export async function downloadD1Backup(opts: { accountId: string, apiToken: string, databaseUuid: string, backupUuid: string }): Promise<Uint8Array> {
     const { accountId, apiToken, databaseUuid, backupUuid } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/backup/${backupUuid}/download`;
-    return await execute('downloadD1Backup', 'GET', url, apiToken, undefined, 'bytes' );
+    return await execute('downloadD1Backup', 'GET', url, apiToken, undefined, 'bytes');
+}
+
+//#endregion
+
+//#region Trace workers
+
+export async function listTraceWorkers(opts: { accountId: string, apiToken: string }): Promise<readonly TraceWorker[]> {
+    const { accountId, apiToken } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/traces`;
+    return (await execute<readonly TraceWorker[]>('listTraceWorkers', 'GET', url, apiToken)).result;
+}
+
+export interface TraceWorker {
+    readonly tag: string; // cloudflare id
+    readonly producer: { readonly script: string };
+    readonly consumer: { readonly service: string, readonly environment: string };
+    readonly created_on: string; // instant with six digits of fractional seconds
+    readonly updated_on: string; // instant with six digits of fractional seconds
+}
+
+export async function setTraceWorker(opts: { accountId: string, apiToken: string, producerScript: string, consumerService: string }): Promise<TraceWorker> {
+    const { accountId, apiToken, producerScript, consumerService } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/traces`;
+    const payload = { producer: { script: producerScript, environment: 'production' }, consumer: { service: consumerService, environment: 'production' } };
+    return (await execute<TraceWorker>('setTraceWorker', 'POST', url, apiToken, payload)).result;
+}
+
+export async function deleteTraceWorker(opts: { accountId: string, apiToken: string, tag: string }): Promise<void> {
+    const { accountId, apiToken, tag } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/traces/${tag}`;
+    const res = await execute('deleteTraceWorker', 'DELETE', url.toString(), apiToken);
+    console.log(res);
+    // 200 result: null
 }
 
 //#endregion
