@@ -1,4 +1,4 @@
-import { Binding, Config, isSecretBinding, isTextBinding, Profile } from '../common/config.ts';
+import { Binding, Config, isSecretBinding, isTextBinding, Profile, Script } from '../common/config.ts';
 import { checkConfig, isValidProfileName } from '../common/config_validation.ts';
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 import { join, resolve } from './deps_cli.ts';
@@ -81,14 +81,14 @@ export async function resolveBinding(binding: Binding, localPort: number | undef
     return binding;
 }
 
-export async function resolveProfile(config: Config, options: Record<string, unknown>): Promise<Profile> {
-    const profile = await findProfile(config, options);
+export async function resolveProfile(config: Config, options: Record<string, unknown>, script?: Script): Promise<Profile> {
+    const profile = await findProfile(config, options, script);
     if (profile === undefined) throw new Error(`Unable to find profile, no profiles in config`);
     return await resolveProfileComponents(profile);
 }
 
-export async function resolveProfileOpt(config: Config, options: Record<string, unknown>): Promise<Profile | undefined> {
-    const profile = await findProfile(config, options);
+export async function resolveProfileOpt(config: Config, options: Record<string, unknown>, script?: Script): Promise<Profile | undefined> {
+    const profile = await findProfile(config, options, script);
     if (profile === undefined) return undefined;
     return await resolveProfileComponents(profile);
 }
@@ -136,7 +136,7 @@ async function findConfigFilePath(verbose: boolean): Promise<string | undefined>
     }
 }
 
-async function findProfile(config: Config, options: Record<string, unknown>): Promise<Profile|undefined> {
+async function findProfile(config: Config, options: Record<string, unknown>, script: Script | undefined): Promise<Profile|undefined> {
     const accountId = parseOptionalStringOption('account-id', options);
     const apiToken = parseOptionalStringOption('api-token', options);
     if (typeof apiToken === 'string' && apiToken.length > 0) {
@@ -164,6 +164,12 @@ async function findProfile(config: Config, options: Record<string, unknown>): Pr
         const optionProfile = profiles[optionProfileName];
         if (!optionProfile) throw new Error(`Unable to find profile ${optionProfileName} in config`);
         return optionProfile;
+    }
+    if (script && typeof script.profile) {
+        if (typeof script.profile !== 'string' || !isValidProfileName(script.profile)) throw new Error(`Bad profile name: ${script.profile}`);
+        const scriptProfile = profiles[script.profile];
+        if (!scriptProfile) throw new Error(`Unable to find profile ${scriptProfile} in config`);
+        return scriptProfile;
     }
     const profilesArr = Object.values(profiles);
     if (profilesArr.length == 0) return undefined;

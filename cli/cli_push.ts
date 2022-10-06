@@ -38,7 +38,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     const config = await loadConfig(options);
     const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameOpt);
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
-    const { accountId, apiToken } = await resolveProfile(config, options);
+    const { accountId, apiToken } = await resolveProfile(config, options, script);
     const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
     const bundleOpts = parseBundleOpts(options);
 
