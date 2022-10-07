@@ -1,4 +1,4 @@
-import { assert } from 'https://deno.land/std@0.144.0/testing/asserts.ts';
+import { assert } from 'https://deno.land/std@0.159.0/testing/asserts.ts';
 
 import { versionCompare } from './versions.ts';
 
