@@ -57,20 +57,15 @@ export class ApiR2Bucket implements R2Bucket {
         const range = computeRangeHeader(options?.range);
         const cleanIfMatch = cleanEtagForR2(ifMatch);
         const cleanIfNoneMatch = cleanEtagForR2(ifNoneMatch);
-        const res = await getObject({ bucket, key, origin, region, ifMatch: cleanIfMatch, ifNoneMatch: cleanIfNoneMatch, ifModifiedSince, ifUnmodifiedSince, range }, { credentials, userAgent });
+        const res = await getObject({ bucket, key, origin, region, ifMatch: cleanIfMatch, ifNoneMatch: cleanIfNoneMatch, ifModifiedSince, ifUnmodifiedSince, range, acceptEncoding: 'identity' /* avoid auto compresseion */ }, { credentials, userAgent });
         if (!res) return null;
         if (R2.DEBUG) console.log(`${res.status} ${computeHeadersString(res.headers)}`);
-        let size: number | undefined;
         if (res.status === 304 || res.status === 412) {
             // r2 no longer returns content-length, etag, or last-modified in this case
             // no choice but to do another call
             return await this.head(key);
-        } else if (!res.headers.has('content-length')) {
-            // 2022-10-07: R2 no longer returning content-length on GETs!
-            const headResult = await this.head(key);
-            if (headResult) size = headResult.size;
         }
-        return new ResponseBasedR2ObjectBody(res, key, size);
+        return new ResponseBasedR2ObjectBody(res, key);
     }
 
     async put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions): Promise<R2Object> {
@@ -249,14 +244,14 @@ class HeadersBasedR2Object implements R2Object {
     readonly customMetadata: Record<string, string>;
     readonly range?: R2Range;
 
-    constructor(headers: Headers, key: string, size?: number) {
+    constructor(headers: Headers, key: string) {
         this.key = key;
         const parsed = computeR2RangeFromContentRange(headers.get('content-range') || undefined);
         if (parsed) {
             this.range = parsed.range;
         }
         const contentLength = headers.get('content-length') ?? undefined;
-        this._size = typeof size === 'number' ? size : parsed && typeof parsed.size === 'number' ? parsed.size : contentLength ? parseInt(contentLength) : undefined;
+        this._size = parsed && typeof parsed.size === 'number' ? parsed.size : contentLength ? parseInt(contentLength) : undefined;
         this.httpEtag = getExpectedHeader('etag', headers);
         this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^(W\/)?"([0-9a-f]{32})"$/)[1];
         const lastModified = getExpectedHeader('last-modified', headers);
@@ -285,8 +280,8 @@ class ResponseBasedR2ObjectBody extends HeadersBasedR2Object implements R2Object
 
     private readonly response: Response;
 
-    constructor(response: Response, key: string, size: number | undefined) {
-        super(response.headers, key, size);
+    constructor(response: Response, key: string) {
+        super(response.headers, key);
         this.response = response;
     }
 

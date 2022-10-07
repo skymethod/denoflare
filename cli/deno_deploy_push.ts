@@ -3,7 +3,7 @@ import { Bytes } from '../common/bytes.ts';
 
 //
 
-async function testDeploy(opts: { projectId: string, apiToken: string }) {
+async function _testDeploy(opts: { projectId: string, apiToken: string }) {
     const { projectId, apiToken } = opts;
 
     const script = `
