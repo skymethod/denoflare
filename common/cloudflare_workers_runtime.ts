@@ -33,7 +33,8 @@ export function defineScriptGlobals(bindings: Record<string, Binding>, globalCac
 //
 
 function defineGlobalCaches(globalCachesProvider: GlobalCachesProvider) {
-    globalThisAsAny()['caches'] = globalCachesProvider();
+    delete globalThisAsAny().caches;
+    globalThisAsAny().caches = globalCachesProvider();
 }
 
 function redefineGlobalResponse() {
