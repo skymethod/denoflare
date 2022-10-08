@@ -44,7 +44,7 @@ function tryParseMessageCode(message: unknown): number | undefined {
 }
 
 async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Promise<Response> {
-    const { bucket } = env;
+    const { bucket, virtualHostname } = env;
     const flags = stringSetFromCsv(env.flags);
     const allowIps = stringSetFromCsv(env.allowIps);
     const denyIps = stringSetFromCsv(env.denyIps);
@@ -69,11 +69,24 @@ async function computeResponse(request: IncomingRequestCf, env: WorkerEnv): Prom
     // parse bucket-name, key from url
     const { hostname, pathname, searchParams } = new URL(url);
     const debug = searchParams.has('debug');
-    const m = /^\/(.+?)\/(.+)$/.exec(pathname);
-    if (!m) return notFound(method);
-    const [ _, bucketName, keyEncoded ] = m;
+    let style: string, bucketName: string, keyEncoded: string;
+    if (virtualHostname === hostname) {
+        // vhost-style request, bucket key is the full url path
+        const m = /^\/(.+)$/.exec(pathname);
+        if (!m) return notFound(method);
+        style = 'vhost';
+        bucketName = virtualHostname.split('.').at(0) ?? '';
+        keyEncoded = m[1];
+    } else {
+        // path-style request, bucket key follows bucket name in the url path
+        const m = /^\/(.+?)\/(.+)$/.exec(pathname);
+        if (!m) return notFound(method);
+        style = 'path',
+        bucketName = m[1];
+        keyEncoded = m[2];
+    }
     const key = decodeURIComponent(keyEncoded);
-    console.log(JSON.stringify({ hostname, bucketName, keyEncoded, key }));
+    console.log(JSON.stringify({ style, hostname, bucketName, keyEncoded, key }));
 
     // check auth
     const credential = await isPresignedUrlAuthorized({ url, searchParams, credentials, debug, maxSkewMinutes, maxExpiresMinutes });

@@ -8,4 +8,5 @@ export interface WorkerEnv {
     readonly credentials?: string;
     readonly maxSkewMinutes?: string; // default: 15
     readonly maxExpiresMinutes?: string; // default: 7 days
+    readonly virtualHostname?: string; // e.g. custombucketname.example.com, useful if using vhost-style presigning
 }
