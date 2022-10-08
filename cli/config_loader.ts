@@ -165,7 +165,7 @@ async function findProfile(config: Config, options: Record<string, unknown>, scr
         if (!optionProfile) throw new Error(`Unable to find profile ${optionProfileName} in config`);
         return optionProfile;
     }
-    if (script && typeof script.profile) {
+    if (script && script.profile) {
         if (typeof script.profile !== 'string' || !isValidProfileName(script.profile)) throw new Error(`Bad profile name: ${script.profile}`);
         const scriptProfile = profiles[script.profile];
         if (!scriptProfile) throw new Error(`Unable to find profile ${scriptProfile} in config`);
