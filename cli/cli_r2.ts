@@ -80,7 +80,9 @@ export function commandOptionsForR2(opts: { hideUrlStyle?: boolean, hideUnsigned
     }
 }
 
-export async function loadR2Options(options: Record<string, unknown>): Promise<{ origin: string, region: string, context: AwsCallContext, urlStyle?: UrlStyle }> {
+export type R2Options = { origin: string, region: string, context: AwsCallContext, urlStyle?: UrlStyle };
+
+export async function loadR2Options(options: Record<string, unknown>): Promise<R2Options> {
     const config = await loadConfig(options);
     const { accountId, apiToken } = await resolveProfile(config, options);
     const apiTokenId = (await verifyToken({ apiToken })).id;
@@ -90,6 +92,10 @@ export async function loadR2Options(options: Record<string, unknown>): Promise<{
         secretKey: (await Bytes.ofUtf8(apiToken).sha256()).hex(),
     };
     const origin = `https://${accountId}.r2.cloudflarestorage.com`;
+    return loadR2OptionsForCredentials(credentials, origin, options);
+}
+
+export function loadR2OptionsForCredentials(credentials: AwsCredentials, origin: string, options: Record<string, unknown>): R2Options {
     const region = R2_REGION_AUTO;
     const unsignedPayload = parseOptionalBooleanOption('unsigned-payload', options);
     const context = { credentials, userAgent: CLI_USER_AGENT, unsignedPayload };
