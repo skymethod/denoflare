@@ -13,6 +13,7 @@ export function makeRpcStubDurableObjectStorageProvider(channel: RpcChannel): Du
 }
 
 export type DeleteAll = { method: 'delete-all', reference: DurableObjectStorageReference };
+export type Sync = { method: 'sync', reference: DurableObjectStorageReference };
 export type Get1 = { method: 'get1', reference: DurableObjectStorageReference, key: string, opts?: DurableObjectStorageReadOptions };
 export type Get2 = { method: 'get2', reference: DurableObjectStorageReference, keys: readonly string[], opts?: DurableObjectStorageReadOptions };
 export type Put1 = { method: 'put1', reference: DurableObjectStorageReference, key: string, value: DurableObjectStorageValue, opts?: DurableObjectStorageWriteOptions };
@@ -43,6 +44,15 @@ class RpcStubDurableObjectStorage implements DurableObjectStorage {
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
         const txn = new RpcStubDurableObjectStorageTransaction(this);
         return await Promise.resolve(closure(txn));
+    }
+
+    async sync(): Promise<void> {
+        const { reference } = this;
+        const sync: Sync = { method: 'sync', reference };
+        return await this.channel.sendRequest('do-storage', sync, data => {
+            const { error } = data;
+            if (typeof error === 'string') throw new Error(error);
+        });
     }
 
     async deleteAll(): Promise<void> {

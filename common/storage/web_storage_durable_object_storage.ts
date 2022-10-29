@@ -24,6 +24,10 @@ export class WebStorageDurableObjectStorage implements DurableObjectStorage {
         return await Promise.resolve(closure(txn));
     }
 
+    sync(): Promise<void> {
+        return Promise.resolve();
+    }
+
     deleteAll(): Promise<void> {
         const { prefix } = this;
         const index = readSortedIndex(prefix);

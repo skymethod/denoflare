@@ -13,6 +13,10 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
         return await Promise.resolve(closure(txn));
     }
 
+    sync(): Promise<void> {
+        return Promise.resolve();
+    }
+
     deleteAll(): Promise<void> {
         this.sortedKeys.splice(0);
         this.values.clear();

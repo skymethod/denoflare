@@ -631,6 +631,12 @@ export interface DurableObjectStorage extends DurableObjectStorageMethods {
      * 
      * In the event of a failure while the deleteAll() operation is still in flight, it may be that only a subset of the data is properly deleted. */
     deleteAll(): Promise<void>;
+
+    /** Synchronizes any pending writes to disk.
+     * 
+     * This is similar to normal behavior from automatic write coalescing. If there are any pending writes in the write buffer (including those submitted with allowUnconfirmed),
+     * the returned promise will resolve when they complete. If there are no pending writes, the returned promise will be already resolved. */
+    sync(): Promise<void>;
 }
 
 /** Provides access to the put(), get(), delete() and list() methods documented above to run in the current transaction context. 

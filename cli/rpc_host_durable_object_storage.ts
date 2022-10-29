@@ -1,7 +1,7 @@
 import { DurableObjectStorage } from '../common/cloudflare_workers_types.d.ts';
 import { LocalDurableObjects } from '../common/local_durable_objects.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
-import { Delete1, Delete2, DeleteAll, DurableObjectStorageReference, Get1, Get2, List, Put1, Put2 } from '../common/rpc_stub_durable_object_storage.ts';
+import { Delete1, Delete2, DeleteAll, DurableObjectStorageReference, Get1, Get2, List, Put1, Put2, Sync } from '../common/rpc_stub_durable_object_storage.ts';
 
 export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
     const cache = new Map<string, DurableObjectStorage>();
@@ -50,6 +50,15 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                     try {
                         const storage = locateStorage(reference, cache);
                         await storage.deleteAll();
+                        return { };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
+                } else if (method === 'sync') {
+                    const { reference } = data as Sync;
+                    try {
+                        const storage = locateStorage(reference, cache);
+                        await storage.sync();
                         return { };
                     } catch (e) {
                         return { error: `${e}`};
