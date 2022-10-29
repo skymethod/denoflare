@@ -15,10 +15,10 @@ export function addRequestHandlerForRpcR2Bucket(channel: RpcChannel, bodies: Bod
         return res;
     });
     channel.addRequestHandler('r2-bucket-delete', async requestData => {
-        const { bucketName, key } = requestData as R2BucketDeleteRequest;
+        const { bucketName, keys } = requestData as R2BucketDeleteRequest;
         const target = r2BucketResolver(bucketName);
 
-        await target.delete(key);
+        await target.delete(keys);
         return {};
     });
     channel.addRequestHandler('r2-bucket-head', async requestData => {
@@ -146,9 +146,9 @@ export class RpcR2Bucket implements R2Bucket {
         });
     }
 
-    async delete(key: string): Promise<void> {
+    async delete(keys: string | string[]): Promise<void> {
         const { bucketName } = this;
-        const req: R2BucketDeleteRequest = { bucketName, key };
+        const req: R2BucketDeleteRequest = { bucketName, keys };
         await this.channel.sendRequest('r2-bucket-delete', req, () => { });
     }
 
@@ -173,7 +173,7 @@ interface R2BucketListResponse {
 
 interface R2BucketDeleteRequest {
     readonly bucketName: string;
-    readonly key: string;
+    readonly keys: string | string[];
 }
 
 interface R2BucketHeadRequest {

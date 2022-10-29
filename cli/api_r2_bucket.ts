@@ -1,7 +1,7 @@
 import { R2Bucket, R2Conditional, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
-import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, deleteObjects, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
 
@@ -128,9 +128,12 @@ export class ApiR2Bucket implements R2Bucket {
         return rt;
     }
 
-    async delete(key: string): Promise<void> {
+    async delete(keys: string | string[]): Promise<void> {
         const { origin, credentials, bucket, region, userAgent } = this;
-        await deleteObject({ bucket, key, origin, region }, { credentials, userAgent });
+        const keysArr = Array.isArray(keys) ? keys : [ keys ];
+        if (keysArr.length === 0) return;
+        if (keysArr.length === 1) await deleteObject({ bucket, key: keysArr[0], origin, region }, { credentials, userAgent });
+        await deleteObjects({ bucket, items: keysArr, origin, region }, { credentials, userAgent });
     }
 
     async list(options?: R2ListOptions): Promise<R2Objects> {
