@@ -1,4 +1,4 @@
-import { R2Bucket, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions } from './cloudflare_workers_types.d.ts';
+import { R2Bucket, R2Checksums, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions } from './cloudflare_workers_types.d.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { Bodies, BodyResolver } from './rpc_fetch.ts';
 import { Bytes } from './bytes.ts';
@@ -215,6 +215,7 @@ class RpcR2ObjectBody implements R2ObjectBody {
     readonly size: number;
     readonly etag: string;
     readonly httpEtag: string;
+    readonly checksums: R2Checksums;
     readonly uploaded: Date;
     readonly httpMetadata: R2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
@@ -228,6 +229,7 @@ class RpcR2ObjectBody implements R2ObjectBody {
         this.size = object.size;
         this.etag = object.etag;
         this.httpEtag = object.httpEtag;
+        this.checksums = object.checksums;
         this.uploaded = object.uploaded;
         this.httpMetadata = object.httpMetadata;
         this.customMetadata = object.customMetadata;

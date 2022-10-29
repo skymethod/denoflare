@@ -1,5 +1,5 @@
 import { Bytes } from './bytes.ts';
-import { R2Conditional, R2GetOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
+import { R2Checksums, R2Conditional, R2GetOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
 
 // R2Objects
 
@@ -36,6 +36,7 @@ export interface PackedR2Object {
     readonly size: number;
     readonly etag: string;
     readonly httpEtag: string;
+    readonly checksums: PackedR2Checksums;
     readonly uploaded: string; // instant
     readonly httpMetadata: PackedR2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
@@ -48,6 +49,7 @@ export function packR2Object(unpacked: R2Object): PackedR2Object {
         size: unpacked.size,
         etag: unpacked.etag,
         httpEtag: unpacked.httpEtag,
+        checksums: packR2Checksums(unpacked.checksums),
         uploaded: unpacked.uploaded.toISOString(),
         httpMetadata: packR2HTTPMetadata(unpacked.httpMetadata),
         customMetadata: unpacked.customMetadata,
@@ -61,6 +63,7 @@ export function unpackR2Object(packed: PackedR2Object): R2Object {
         size: packed.size,
         etag: packed.etag,
         httpEtag: packed.httpEtag,
+        checksums: unpackR2Checksums(packed.checksums),
         uploaded: new Date(packed.uploaded),
         httpMetadata: unpackR2HTTPMetadata(packed.httpMetadata),
         customMetadata: packed.customMetadata,
@@ -98,6 +101,37 @@ export function unpackR2HTTPMetadata(packed: PackedR2HTTPMetadata): R2HTTPMetada
         contentEncoding: packed.contentEncoding,
         cacheControl: packed.cacheControl,
         cacheExpiry: unpackOptionalDate(packed.cacheExpiry),
+    };
+}
+
+// R2Checksums
+
+export interface PackedR2Checksums {
+    readonly md5?: string;
+    readonly sha1?: string;
+    readonly sha256?: string;
+    readonly sha384?: string;
+    readonly sha512?: string;
+}
+
+
+export function packR2Checksums(unpacked: R2Checksums): PackedR2Checksums {
+    return {
+        md5: packHash(unpacked.md5),
+        sha1: packHash(unpacked.sha1),
+        sha256: packHash(unpacked.sha256),
+        sha384: packHash(unpacked.sha384),
+        sha512: packHash(unpacked.sha512),
+    };
+}
+
+export function unpackR2Checksums(packed: PackedR2Checksums): R2Checksums {
+    return { 
+        md5: unpackArrayBuffer(packed.md5),
+        sha1: unpackArrayBuffer(packed.sha1),
+        sha256: unpackArrayBuffer(packed.sha256),
+        sha384: unpackArrayBuffer(packed.sha384),
+        sha512: unpackArrayBuffer(packed.sha512),
     };
 }
 
@@ -222,4 +256,9 @@ function unpackOptionalDate(packed: string | undefined): Date | undefined {
 function packHash(hash: string | ArrayBuffer | undefined): string | undefined {
     if (hash === undefined || typeof hash === 'string') return hash;
     return new Bytes(new Uint8Array(hash)).hex();
+}
+
+function unpackArrayBuffer(hex: string | undefined): ArrayBuffer | undefined {
+    if (hex === undefined) return undefined;
+    return Bytes.ofHex(hex).array().buffer;
 }

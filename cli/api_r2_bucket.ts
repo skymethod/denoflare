@@ -1,4 +1,4 @@
-import { R2Bucket, R2Conditional, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
+import { R2Bucket, R2Checksums, R2Conditional, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
 import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, deleteObjects, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
@@ -235,6 +235,7 @@ class ListBucketResultItemBasedR2Object implements R2Object {
     readonly version: string;
     readonly etag: string;
     readonly httpEtag: string;
+    readonly checksums: R2Checksums;
     readonly uploaded: Date;
     readonly httpMetadata: R2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
@@ -250,6 +251,7 @@ class ListBucketResultItemBasedR2Object implements R2Object {
         this.version = this.etag;
         this.httpMetadata = {};
         this.customMetadata = {};
+        this.checksums = {};
     }
 
     writeHttpMetadata(_headers: Headers): void { throw new Error(`writeHttpMetadata not supported`); }
@@ -261,6 +263,7 @@ class HeadersBasedR2Object implements R2Object {
     readonly version: string;
     readonly etag: string;
     readonly httpEtag: string;
+    readonly checksums: R2Checksums;
     readonly uploaded: Date;
     readonly httpMetadata: R2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
@@ -291,6 +294,7 @@ class HeadersBasedR2Object implements R2Object {
 
         // placeholder values, don't throw on prop access
         this.version = this.etag;
+        this.checksums = {};
     }
 
     writeHttpMetadata(_headers: Headers): void { throw new Error(`writeHttpMetadata not supported`); }

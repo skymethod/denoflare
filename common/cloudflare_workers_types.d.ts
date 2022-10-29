@@ -812,11 +812,20 @@ export interface R2Object {
     readonly size: number;
     readonly etag: string;
     readonly httpEtag: string;
+    readonly checksums: R2Checksums;
     readonly uploaded: Date;
     readonly httpMetadata: R2HTTPMetadata;
     readonly customMetadata: Record<string, string>;
     readonly range?: R2Range;
     writeHttpMetadata(headers: Headers): void;
+}
+
+export interface R2Checksums {
+    readonly md5?: ArrayBuffer;
+    readonly sha1?: ArrayBuffer;
+    readonly sha256?: ArrayBuffer;
+    readonly sha384?: ArrayBuffer;
+    readonly sha512?: ArrayBuffer;
 }
 
 export interface R2ObjectBody extends R2Object {
