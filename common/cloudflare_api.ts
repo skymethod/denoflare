@@ -1023,6 +1023,17 @@ export async function deleteTraceWorker(opts: { accountId: string, apiToken: str
 
 //#endregion
 
+//#region Billing
+
+export async function listUserBillingHistory(opts: { apiToken: string }): Promise<unknown> {
+    const { apiToken } = opts;
+    const url = new URL(`${computeBaseUrl()}/user/billing/history`);
+    url.searchParams.set('type', 'charge');
+    return (await execute<unknown>('listUserBillingHistory', 'GET', url.toString(), apiToken)).result;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
@@ -1031,9 +1042,9 @@ export class CloudflareApi {
 //
 
 const APPLICATION_JSON = 'application/json';
-const APPLICATION_JSON_UTF8 = 'application/json; charset=UTF-8';
+const APPLICATION_JSON_UTF8 = 'application/json; charset=utf-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
-const TEXT_PLAIN_UTF8 = 'text/plain; charset=UTF-8';
+const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 
 function computeBaseUrl(): string {
     return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4`);
@@ -1086,7 +1097,7 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (responseType === 'text') {
         return await fetchResponse.text();
     }
-    if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType)) {
+    if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType.toLowerCase())) {
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json() as CloudflareApiResponse<Result>;
