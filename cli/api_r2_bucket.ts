@@ -79,6 +79,10 @@ export class ApiR2Bucket implements R2Bucket {
         let contentMd5: string | undefined;
         let contentType: string | undefined;
         let customMetadata: Record<string, string> | undefined;
+        let ifMatch: string | undefined;
+        let ifModifiedSince: string | undefined;
+        let ifNoneMatch: string | undefined;
+        let ifUnmodifiedSince: string | undefined;
         if (options?.httpMetadata instanceof Headers) {
             const headers = options.httpMetadata;
             cacheControl = headers.get('cache-control') || undefined;
@@ -109,6 +113,20 @@ export class ApiR2Bucket implements R2Bucket {
                 contentMd5 = new Bytes(new Uint8Array(options.md5)).base64();
             }
         }
+        if (options?.onlyIf) {
+            if (options.onlyIf instanceof Headers) {
+                const headers = options.onlyIf;
+                ifMatch = headers.get('if-match') || undefined;
+                ifModifiedSince = headers.get('if-modified-since') || undefined;
+                ifNoneMatch = headers.get('if-none-match') || undefined;
+                ifUnmodifiedSince = headers.get('if-unmodified-since') || undefined;
+            } else {
+                ifMatch = options.onlyIf.etagMatches;
+                ifModifiedSince = options.onlyIf.uploadedAfter && options.onlyIf.uploadedAfter.toString();
+                ifNoneMatch = options.onlyIf.etagDoesNotMatch;
+                ifUnmodifiedSince = options.onlyIf.uploadedBefore && options.onlyIf.uploadedBefore.toString();
+            }
+        }
 
         const computeBody: () => Promise<AwsCallBody> = async () => {
             if (value === null) return Bytes.EMPTY;
@@ -122,7 +140,7 @@ export class ApiR2Bucket implements R2Bucket {
         };
 
         const body = await computeBody();
-        await putObject({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata }, { credentials, userAgent });
+        await putObject({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince }, { credentials, userAgent });
         const rt = await this.head(key);
         if (!rt) throw new Error(`ApiR2Bucket: put: subsequent HEAD did not return the object`);
         return rt;

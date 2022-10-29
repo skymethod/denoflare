@@ -169,28 +169,47 @@ export function packHeaders(headers: Headers): PackedHeaders {
 // R2PutOptions
 
 export interface PackedR2PutOptions {
+    readonly onlyIf?: PackedR2Conditional | PackedHeaders;
     readonly httpMetadata?: PackedR2HTTPMetadata | PackedHeaders;
     readonly customMetadata?: Record<string, string>;
     readonly md5?: string;
+    readonly sha1?: string;
+    readonly sha256?: string;
+    readonly sha384?: string;
+    readonly sha512?: string;
 }
 
 export function unpackR2PutOptions(packed: PackedR2PutOptions): R2PutOptions {
-    return { 
+    return {
+        onlyIf: packed.onlyIf === undefined ? undefined
+            : Array.isArray(packed.onlyIf) ? unpackHeaders(packed.onlyIf)
+            : unpackR2Conditional(packed.onlyIf),
         httpMetadata: packed.httpMetadata === undefined ? undefined
             : Array.isArray(packed.httpMetadata) ? unpackHeaders(packed.httpMetadata)
             : unpackR2HTTPMetadata(packed.httpMetadata),
         customMetadata: packed.customMetadata,
         md5: packed.md5,
+        sha1: packed.sha1,
+        sha256: packed.sha256,
+        sha384: packed.sha384,
+        sha512: packed.sha512,
     };
 }
 
 export function packR2PutOptions(unpacked: R2PutOptions): PackedR2PutOptions {
-    return { 
+    return {
+        onlyIf: unpacked.onlyIf === undefined ? undefined
+            : unpacked.onlyIf instanceof Headers ? packHeaders(unpacked.onlyIf)
+            : packR2Conditional(unpacked.onlyIf),
         httpMetadata: unpacked.httpMetadata === undefined ? undefined
             : unpacked.httpMetadata instanceof Headers ? packHeaders(unpacked.httpMetadata)
             : packR2HTTPMetadata(unpacked.httpMetadata),
         customMetadata: unpacked.customMetadata,
         md5: packHash(unpacked.md5),
+        sha1: packHash(unpacked.sha1),
+        sha256: packHash(unpacked.sha256),
+        sha384: packHash(unpacked.sha384),
+        sha512: packHash(unpacked.sha512),
     };
 }
 

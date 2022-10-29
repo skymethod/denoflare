@@ -836,9 +836,14 @@ export interface R2Objects {
 }
 
 export interface R2PutOptions {
+    readonly onlyIf?: R2Conditional | Headers;
     readonly httpMetadata?: R2HTTPMetadata | Headers;
     readonly customMetadata?: Record<string, string>;
     readonly md5?: ArrayBuffer | string; // hex if string
+    readonly sha1?: ArrayBuffer | string;
+    readonly sha256?: ArrayBuffer | string;
+    readonly sha384?: ArrayBuffer | string;
+    readonly sha512?: ArrayBuffer | string;
 }
 
 export type R2Range =
