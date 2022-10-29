@@ -796,6 +796,7 @@ export interface R2ListOptions {
     readonly prefix?: string;
     readonly cursor?: string;
     readonly delimiter?: string;
+    readonly startAfter?: string;
     readonly include?: ('httpMetadata' | 'customMetadata')[];
 }
 

@@ -139,10 +139,11 @@ export class ApiR2Bucket implements R2Bucket {
         const continuationToken = options?.cursor;
         const delimiter = options?.delimiter;
         const prefix = options?.prefix;
+        const startAfter = options?.startAfter;
         if ((options?.include || []).length > 0) {
             throw new Error(`ApiR2Bucket: list: include not supported`);
         }
-        const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix }, { credentials, userAgent });
+        const result = await listObjectsV2({ bucket, origin, region, maxKeys, continuationToken, delimiter, prefix, startAfter }, { credentials, userAgent });
         const truncated = result.isTruncated;
         const cursor = result.nextContinuationToken;
         const delimitedPrefixes = [...(result.commonPrefixes || [])];
