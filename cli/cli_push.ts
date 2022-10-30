@@ -4,7 +4,7 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
@@ -317,6 +317,8 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         return { type: 'analytics_engine', name, dataset: binding.dataset };
     } else if (isD1DatabaseBinding(binding)) {
         return { type: 'd1', name, id: binding.d1DatabaseUuid };
+    } else if (isQueueBinding(binding)) {
+        return { type: 'queue', name, queue_name: binding.queueName };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

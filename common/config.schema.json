@@ -117,6 +117,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Queue environment variable binding",
+                                            "required": [ "queueName" ],
+                                            "properties": {
+                                                "queueName": {
+                                                    "description": "The queue name",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

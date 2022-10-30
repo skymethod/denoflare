@@ -100,6 +100,7 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('serviceBinding', 'strings', 'Service environment variable binding, overrides config', { hint: 'name:service:environment'})
         .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
         .option('aeDatasetBinding', 'strings', 'Analytics Engine dataset environment variable binding, overrides config', { hint: 'name:dataset-name'})
+        .option('queueBinding', 'strings', 'Queue environment variable binding, overrides config', { hint: 'name:queue-name'})
         ;
 }
 
@@ -137,6 +138,10 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
     for (const aeDatasetBinding of parseOptionalStringOptions('ae-dataset-binding', options) || []) {
         const [ _, name, dataset ] = checkMatchesReturnMatcher('ae-dataset-binding', aeDatasetBinding, pattern);
         rt[name] = { dataset };
+    }
+    for (const queueBinding of parseOptionalStringOptions('queue-binding', options) || []) {
+        const [ _, name, queueName ] = checkMatchesReturnMatcher('queue-binding', queueBinding, pattern);
+        rt[name] = { queueName };
     }
     return rt;
 }

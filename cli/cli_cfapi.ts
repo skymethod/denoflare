@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -332,6 +332,45 @@ function cfapiCommand() {
     add(apiCommand('list-user-billing-history', ''), async (_accountId, apiToken) => {
         const result = await listUserBillingHistory({ apiToken });
         console.log(result);
+    });
+
+    add(apiCommand('list-queues', '').option('page', 'integer', 'Page number'), async (accountId, apiToken, opts) => {
+        const { page } = opts;
+        const result = await listQueues({ accountId, apiToken, page });
+        console.log(JSON.stringify(result, undefined, 2));
+    });
+
+    add(apiCommand('create-queue', '').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
+        const { queueName } = opts;
+        const result = await createQueue({ accountId, apiToken, queueName });
+        console.log(result);
+    });
+
+    add(apiCommand('get-queue', '').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
+        const { queueName } = opts;
+        const result = await getQueue({ accountId, apiToken, queueName });
+        console.log(result);
+    });
+
+    add(apiCommand('delete-queue', '').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
+        const { queueName } = opts;
+        await deleteQueue({ accountId, apiToken, queueName });
+    });
+
+    add(apiCommand('put-queue-consumer', '').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name')
+            .option('batchSize', 'integer', 'The maximum number of messages allowed in each batch')
+            .option('maxRetries', 'integer', 'The maximum number of retries for a message, if it fails or retryAll() is invoked')
+            .option('maxWaitTimeMillis', 'integer', 'The maximum number of millis to wait until a batch is full')
+            .option('deadLetterQueue', 'string', 'Name of the dead letter queue')
+            , async (accountId, apiToken, opts) => {
+        const { queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis } = opts;
+        const result = await putQueueConsumer({ accountId, apiToken, queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis });
+        console.log(result);
+    });
+
+    add(apiCommand('delete-queue-consumer', '').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name'), async (accountId, apiToken, opts) => {
+        const { queueName, scriptName, envName } = opts;
+        await deleteQueueConsumer({ accountId, apiToken, queueName, scriptName, envName });
     });
 
     return rt;

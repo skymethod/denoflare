@@ -189,6 +189,8 @@ export interface ScheduledEvent extends ScheduledEventProperties {
 export default {
     fetch(request: IncomingRequestCf, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<Response>;
     scheduled(event: ModuleWorkerScheduledEvent, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
+    alarm(): Promise<void>;
+    queue(batch: QueueMessageBatch, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
 };
 */
 
@@ -880,6 +882,44 @@ export interface AnalyticsEngineEvent {
 
 export interface D1Database {
     readonly fetch: typeof fetch;
+}
+
+//#endregion
+
+//#region Queues
+
+export interface Queue {
+
+    /** Sends a message to the Queue. 
+     * 
+     * The message can be any type supported by the structured clone algorithm, as long as its size is less than 128 KB.
+     * When the promise resolves, the message is confirmed to be written to disk. */
+    send(message: unknown): Promise<void>;
+}
+
+/** A message that is sent to a consumer Worker. */
+export interface QueueMessage {
+
+    /** A unique, system-generated ID for the message. */
+    readonly id: string;
+
+    /** A timestamp when the message was sent. */
+    readonly timestamp: Date;
+
+    /**The body of the message. */
+    readonly body: unknown;
+}
+
+/** A batch of messages that are sent to a consumer Worker. */
+export interface QueueMessageBatch {
+    /** The name of the Queue that belongs to this batch. */
+    readonly queue: string;
+
+    /** An array of messages in the batch. Ordering of messages is not guaranteed. */
+    readonly messages: readonly QueueMessage[];
+
+    /** Marks every message to be retried in the next batch. */
+    retryAll(): void;
 }
 
 //#endregion

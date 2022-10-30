@@ -96,7 +96,7 @@ export async function putScript(opts: { accountId: string, scriptName: string, a
     return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -151,6 +151,12 @@ export interface D1DatabaseBinding {
     readonly type: 'd1';
     readonly name: string;
     readonly id: string;
+}
+
+export interface QueueBinding {
+    readonly type: 'queue';
+    readonly name: string;
+    readonly 'queue_name': string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least
@@ -1030,6 +1036,106 @@ export async function listUserBillingHistory(opts: { apiToken: string }): Promis
     const url = new URL(`${computeBaseUrl()}/user/billing/history`);
     url.searchParams.set('type', 'charge');
     return (await execute<unknown>('listUserBillingHistory', 'GET', url.toString(), apiToken)).result;
+}
+
+//#endregion
+
+//#region Queues
+
+export async function listQueues(opts: { accountId: string, apiToken: string, page?: number }): Promise<Queue[]> {
+    const { accountId, apiToken, page } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/queues`);
+    if (typeof page === 'number') url.searchParams.set('page', page.toString());
+    return (await execute<Queue[]>('listQueues', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function getQueue(opts: { accountId: string, apiToken: string, queueName: string }): Promise<Queue> {
+    const { accountId, apiToken, queueName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}`;
+    return (await execute<Queue>('getQueue', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function deleteQueue(opts: { accountId: string, apiToken: string, queueName: string }): Promise<void> {
+    const { accountId, apiToken, queueName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}`;
+    await execute<Queue>('deleteQueue', 'DELETE', url.toString(), apiToken);
+    // 200 result: null
+}
+
+export async function createQueue(opts: { accountId: string, apiToken: string, queueName: string }): Promise<NewQueue> {
+    const { accountId, apiToken, queueName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/queues`;
+    const payload = { queue_name: queueName };
+    return (await execute<NewQueue>('createQueue', 'POST', url, apiToken, payload)).result;
+}
+
+export interface NewQueue {
+    readonly queue_name: string;
+    readonly created_on: string; // 2022-10-30T16:05:14.966372Z
+    readonly modified_on: string; // 2022-10-30T16:05:14.966372Z
+}
+
+export interface Queue extends NewQueue {
+    readonly producers_total_count: number;
+    readonly producers: QueueProducerInfo[];
+    readonly consumers_total_count: number;
+    readonly consumers: QueueConsumerInfo[];
+}
+
+export interface QueueProducerInfo {
+    readonly script: string;
+}
+
+export interface QueueConsumerInfo {
+    readonly script: string;
+    readonly settings: QueueConsumerSettings;
+}
+
+export async function putQueueConsumer(opts: { accountId: string, apiToken: string, queueName: string, scriptName: string, envName?: string, batchSize?: number, maxRetries?: number, maxWaitTimeMillis?: number, deadLetterQueue?: string }): Promise<QueueConsumer> {
+    const { accountId, apiToken, queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis, deadLetterQueue } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}/consumers/${scriptName}${typeof envName === 'string' ? `/${envName}` : ''}`;
+    const payload = {
+        settings: {
+            batch_size: batchSize,
+            max_retries: maxRetries,
+            max_wait_time_ms: maxWaitTimeMillis,
+        },
+        dead_letter_queue: deadLetterQueue,
+    };
+    return (await execute<QueueConsumer>('putQueueConsumer', 'PUT', url, apiToken, payload)).result;
+}
+
+export async function deleteQueueConsumer(opts: { accountId: string, apiToken: string, queueName: string, scriptName: string, envName?: string }): Promise<void> {
+    const { accountId, apiToken, queueName, scriptName, envName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}/consumers/${scriptName}${typeof envName === 'string' ? `/${envName}` : ''}`;
+    
+    await execute('deleteQueueConsumer', 'DELETE', url, apiToken);
+    // 200 result: null
+}
+
+
+export interface QueueConsumerSettings {
+    /** The maximum number of messages allowed in each batch. */
+    readonly batch_size?: number; // default: 10
+
+    /** The maximum number of retries for a message, if it fails or retryAll() is invoked. */
+    readonly max_retries?: number; // default: 3
+
+    /** The maximum number of millis to wait until a batch is full (max: 30 seconds). */
+    readonly max_wait_time_ms?: number; // default: 5000
+}
+
+export interface QueueConsumer {
+    readonly queue_name: string;
+    readonly script_name: string;
+    readonly environment_name?: string;
+    readonly settings: QueueConsumerSettings;
+    /** The name of another Queue to send a message if it fails processing at least max_retries times. 
+     * 
+     * If a dead_letter_queue is not defined, messages that repeatedly fail processing will eventually be discarded. 
+     * If there is no Queue with the specified name, it will be created automatically. */
+    readonly dead_letter_queue: string; // '' for unset
+    readonly created_on: string; // 2022-10-30T16:38:22.373479Z
 }
 
 //#endregion
