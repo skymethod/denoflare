@@ -1183,7 +1183,58 @@ export interface AnalyticsEngineEvent {
 //#region D1
 
 export interface D1Database {
-    readonly fetch: typeof fetch;
+
+    /** Create a precompiled query statement.
+     * 
+     * Prepared statements lead to overall faster execution and prevent SQL injection attacks. */
+    prepare(query: string): D1PreparedStatement;
+
+    /** Dumps the entire D1 database to an SQLite compatible file inside an ArrayBuffer. */
+    dump(): Promise<ArrayBuffer>;
+
+    /** Execute a list of prepared statements and get the results in the same order. */
+    batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
+
+    /** Executes one or more queries directly without prepared statements or parameters binding. 
+     * 
+     * This method can have poorer performance (prepared statements can be reused in some cases) and, more importantly, is less safe. 
+     * Only use this method for maintenance and one-shot tasks (example: migration jobs). 
+     * The input can be one or multiple queries separated by \n. 
+     * If an error occurs, an exception is thrown with the query and error messages, execution stops and further statements are not executed. */
+    exec<T = unknown>(query: string): Promise<D1Result<T>>;
+}
+
+/** D1 prepared statements */
+export interface D1PreparedStatement {
+
+    /** bind positional parameters to values */
+    bind(...values: unknown[]): D1PreparedStatement;
+
+    /** Returns the first row of the results.
+     * 
+     * This does not return metadata like the other methods. Instead it returns the object directly. */
+    first<T = unknown>(column?: string): Promise<T>;
+
+    /** Returns all rows and metadata. */
+    all<T = unknown>(): Promise<D1Result<T>>;
+
+    /** Same as stmt.all(), but returns an array of rows instead of objects. */
+    raw<T = unknown>(): Promise<T[]>;
+
+    /** Runs the query/queries, but returns no results. 
+     * 
+     * Instead, run() returns the metrics only. Useful for write operations like UPDATE, DELETE or INSERT. */
+    run<T = unknown>(): Promise<D1Result<T>>;
+    
+}
+
+/** D1 query results and metadata */
+export interface D1Result<T = unknown> {
+    readonly results?: T[];
+    readonly lastRowId: number | null;
+    readonly changes: number;
+    readonly duration: number;
+    readonly error?: string;
 }
 
 //#endregion
