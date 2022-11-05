@@ -1,27 +1,446 @@
 
+//#region Copied from workers-types with minimal tweaking
+
+/**
+ * Request metadata provided by Cloudflare's edge.
+ */
+export type IncomingRequestCfProperties<HostMetadata = unknown> =
+    IncomingRequestCfPropertiesBase &
+    IncomingRequestCfPropertiesBotManagementEnterprise &
+    IncomingRequestCfPropertiesCloudflareForSaaSEnterprise<HostMetadata> &
+    IncomingRequestCfPropertiesGeographicInformation &
+    IncomingRequestCfPropertiesCloudflareAccessOrApiShield;
+
+interface IncomingRequestCfPropertiesBase {
+    /**
+     * [ASN](https://www.iana.org/assignments/as-numbers/as-numbers.xhtml) of the incoming request.
+     *
+     * @example 395747
+     */
+    readonly asn: number;
+    /**
+     * The organization which owns the ASN of the incoming request.
+     *
+     * @example "Google Cloud"
+     */
+    readonly asOrganization: string;
+    /**
+     * The original value of the `Accept-Encoding` header if Cloudflare modified it.
+     *
+     * @example "gzip, deflate, br"
+     */
+    readonly clientAcceptEncoding?: string;
+    /**
+     * The number of milliseconds it took for the request to reach your worker.
+     *
+     * @example 22
+     */
+    readonly clientTcpRtt?: number;
+    /**
+     * The three-letter [IATA](https://en.wikipedia.org/wiki/IATA_airport_code)
+     * airport code of the data center that the request hit.
+     *
+     * @example "DFW"
+     */
+    readonly colo: string;
+    /**
+     * Represents the upstream's response to a
+     * [TCP `keepalive` message](https://tldp.org/HOWTO/TCP-Keepalive-HOWTO/overview.html)
+     * from cloudflare.
+     *
+     * For workers with no upstream, this will always be `1`.
+     *
+     * @example 3
+     */
+    readonly edgeRequestKeepAliveStatus: IncomingRequestCfPropertiesEdgeRequestKeepAliveStatus;
+    /**
+     * The HTTP Protocol the request used.
+     *
+     * @example "HTTP/2"
+     */
+    readonly httpProtocol: string;
+    /**
+     * The browser-requested prioritization information in the request object.
+     *
+     * If no information was set, defaults to the empty string `""`
+     *
+     * @example "weight=192;exclusive=0;group=3;group-weight=127"
+     * @default ""
+     */
+    readonly requestPriority: string;
+    /**
+     * The TLS version of the connection to Cloudflare.
+     * In requests served over plaintext (without TLS), this property is the empty string `""`.
+     *
+     * @example "TLSv1.3"
+     */
+    readonly tlsVersion: string;
+    /**
+     * The cipher for the connection to Cloudflare.
+     * In requests served over plaintext (without TLS), this property is the empty string `""`.
+     *
+     * @example "AEAD-AES128-GCM-SHA256"
+     */
+    readonly tlsCipher: string;
+    /**
+     * Metadata containing the [`HELLO`](https://www.rfc-editor.org/rfc/rfc5246#section-7.4.1.2) and [`FINISHED`](https://www.rfc-editor.org/rfc/rfc5246#section-7.4.9) messages from this request's TLS handshake.
+     *
+     * If the incoming request was served over plaintext (without TLS) this field is undefined.
+     */
+    readonly tlsExportedAuthenticator?: IncomingRequestCfPropertiesExportedAuthenticatorMetadata;
+}
+
+/**
+ * Metadata about the request's TLS handshake
+ */
+interface IncomingRequestCfPropertiesExportedAuthenticatorMetadata {
+    /**
+     * The client's [`HELLO` message](https://www.rfc-editor.org/rfc/rfc5246#section-7.4.1.2), encoded in hexadecimal
+     *
+     * @example "44372ba35fa1270921d318f34c12f155dc87b682cf36a790cfaa3ba8737a1b5d"
+     */
+    readonly clientHandshake: string;
+    /**
+     * The server's [`HELLO` message](https://www.rfc-editor.org/rfc/rfc5246#section-7.4.1.2), encoded in hexadecimal
+     *
+     * @example "44372ba35fa1270921d318f34c12f155dc87b682cf36a790cfaa3ba8737a1b5d"
+     */
+    readonly serverHandshake: string;
+    /**
+     * The client's [`FINISHED` message](https://www.rfc-editor.org/rfc/rfc5246#section-7.4.9), encoded in hexadecimal
+     *
+     * @example "084ee802fe1348f688220e2a6040a05b2199a761f33cf753abb1b006792d3f8b"
+     */
+    readonly clientFinished: string;
+    /**
+     * The server's [`FINISHED` message](https://www.rfc-editor.org/rfc/rfc5246#section-7.4.9), encoded in hexadecimal
+     *
+     * @example "084ee802fe1348f688220e2a6040a05b2199a761f33cf753abb1b006792d3f8b"
+     */
+    readonly serverFinished: string;
+}
+
+/**
+ * An upstream endpoint's response to a TCP `keepalive` message from Cloudflare.
+ */
+export type IncomingRequestCfPropertiesEdgeRequestKeepAliveStatus =
+    | 0 /** Unknown */
+    | 1 /** no keepalives (not found) */
+    | 2 /** no connection re-use, opening keepalive connection failed */
+    | 3 /** no connection re-use, keepalive accepted and saved */
+    | 4 /** connection re-use, refused by the origin server (`TCP FIN`) */
+    | 5; /** connection re-use, accepted by the origin server */
+
+interface IncomingRequestCfPropertiesBotManagementBase {
+    /**
+     * Cloudflare’s [level of certainty](https://developers.cloudflare.com/bots/concepts/bot-score/) that a request comes from a bot,
+     * represented as an integer percentage between `1` (almost certainly human)
+     * and `99` (almost certainly a bot).
+     *
+     * @example 54
+     */
+    readonly score: number;
+    /**
+     * A boolean value that is true if the request comes from a good bot, like Google or Bing.
+     * Most customers choose to allow this traffic. For more details, see [Traffic from known bots](https://developers.cloudflare.com/firewall/known-issues-and-faq/#how-does-firewall-rules-handle-traffic-from-known-bots).
+     */
+    readonly verifiedBot: boolean;
+    /**
+     * A boolean value that is true if the request originates from a
+     * Cloudflare-verified proxy service.
+     */
+    readonly corporateProxy: boolean;
+    /**
+     * A boolean value that's true if the request matches [file extensions](https://developers.cloudflare.com/bots/reference/static-resources/) for many types of static resources.
+     */
+    readonly staticResource: boolean;
+}
+
+interface IncomingRequestCfPropertiesBotManagement {
+    /**
+     * Results of Cloudflare's Bot Management analysis
+     */
+    readonly botManagement: IncomingRequestCfPropertiesBotManagementBase;
+    /**
+     * Duplicate of `botManagement.score`.
+     *
+     * @deprecated
+     */
+    readonly clientTrustScore: number;
+}
+
+interface IncomingRequestCfPropertiesBotManagementEnterprise
+    extends IncomingRequestCfPropertiesBotManagement {
+    /**
+     * Results of Cloudflare's Bot Management analysis
+     */
+    readonly botManagement: IncomingRequestCfPropertiesBotManagementBase & {
+        /**
+         * A [JA3 Fingerprint](https://developers.cloudflare.com/bots/concepts/ja3-fingerprint/) to help profile specific SSL/TLS clients
+         * across different destination IPs, Ports, and X509 certificates.
+         */
+        readonly ja3Hash: string;
+    };
+}
+
+interface IncomingRequestCfPropertiesCloudflareForSaaSEnterprise<HostMetadata> {
+    /**
+     * Custom metadata set per-host in [Cloudflare for SaaS](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/).
+     *
+     * This field is only present if you have Cloudflare for SaaS enabled on your account
+     * and you have followed the [required steps to enable it]((https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/domain-support/custom-metadata/)).
+     */
+    readonly hostMetadata: HostMetadata;
+}
+
+/**
+ * Geographic data about the request's origin.
+ */
+type IncomingRequestCfPropertiesGeographicInformation =
+    | Record<never, never> // No geographic data was found for the incoming request.
+    | {
+        /** The country code `"T1"` is used for requests originating on TOR  */
+        readonly country: 'T1';
+    }
+    | {
+        /**
+         * The [ISO 3166-1 Alpha 2](https://www.iso.org/iso-3166-country-codes.html) country code the request originated from.
+         *
+         * If your worker is [configured to accept TOR connections](https://support.cloudflare.com/hc/en-us/articles/203306930-Understanding-Cloudflare-Tor-support-and-Onion-Routing), this may also be `"T1"`, indicating a request that originated over TOR.
+         *
+         * If Cloudflare is unable to determine where the request originated this property is omitted.
+         *
+         * @example "GB"
+         */
+        readonly country: string;
+        /**
+         * If present, this property indicates that the request originated in the EU
+         *
+         * @example "1"
+         */
+        readonly isEUCountry?: '1';
+        /**
+         * A two-letter code indicating the continent the request originated from.
+         *
+         * @example "AN"
+         */
+        readonly continent: string;
+        /**
+         * The city the request originated from
+         *
+         * @example "Austin"
+         */
+        readonly city?: string;
+        /**
+         * Postal code of the incoming request
+         *
+         * @example "78701"
+         */
+        readonly postalCode?: string;
+        /**
+         * Latitude of the incoming request
+         *
+         * @example "30.27130"
+         */
+        readonly latitude?: string;
+        /**
+         * Longitude of the incoming request
+         *
+         * @example "-97.74260"
+         */
+        readonly longitude?: string;
+        /**
+         * Timezone of the incoming request
+         *
+         * @example "America/Chicago"
+         */
+        readonly timezone?: string;
+        /**
+         * If known, the ISO 3166-2 name for the first level region associated with
+         * the IP address of the incoming request
+         *
+         * @example "Texas"
+         */
+        readonly region?: string;
+        /**
+         * If known, the ISO 3166-2 code for the first-level region associated with
+         * the IP address of the incoming request
+         *
+         * @example "TX"
+         */
+        readonly regionCode?: string;
+        /**
+         * Metro code (DMA) of the incoming request
+         *
+         * @example "635"
+         */
+        readonly metroCode?: string;
+    };
+
+interface IncomingRequestCfPropertiesCloudflareAccessOrApiShield {
+    /**
+     * Information about the client certificate presented to Cloudflare.
+     *
+     * This is populated when the incoming request is served over TLS using
+     * either Cloudflare Access or API Shield (mTLS)
+     * and the presented SSL certificate has a valid
+     * [Certificate Serial Number](https://ldapwiki.com/wiki/Certificate%20Serial%20Number)
+     * (i.e., not `null` or `""`).
+     *
+     * Otherwise, a set of placeholder values are used.
+     *
+     * The property `certPresented` will be set to `"1"` when
+     * the object is populated (i.e. the above conditions were met).
+     */
+    readonly tlsClientAuth:
+    | IncomingRequestCfPropertiesTLSClientAuth
+    | IncomingRequestCfPropertiesTLSClientAuthPlaceholder;
+}
+
+/** Placeholder values for TLS Client Authorization */
+interface IncomingRequestCfPropertiesTLSClientAuthPlaceholder {
+    certPresented: "0";
+    certVerified: "NONE";
+    certRevoked: "0";
+    certIssuerDN: "";
+    certSubjectDN: "";
+    certIssuerDNRFC2253: "";
+    certSubjectDNRFC2253: "";
+    certIssuerDNLegacy: "";
+    certSubjectDNLegacy: "";
+    certSerial: "";
+    certIssuerSerial: "";
+    certSKI: "";
+    certIssuerSKI: "";
+    certFingerprintSHA1: "";
+    certFingerprintSHA256: "";
+    certNotBefore: "";
+    certNotAfter: "";
+}
+
+/** Data about the incoming request's TLS certificate */
+interface IncomingRequestCfPropertiesTLSClientAuth {
+    /** Always `"1"`, indicating that the certificate was presented */
+    readonly certPresented: '1';
+    /**
+     * Result of certificate verification.
+     *
+     * @example "FAILED:self signed certificate"
+     */
+    readonly certVerified: string;
+    /** The presented certificate's revokation status.
+     *
+     * - A value of `"1"` indicates the certificate has been revoked
+     * - A value of `"0"` indicates the certificate has not been revoked
+     */
+    readonly certRevoked: '1' | '0';
+    /**
+     * The certificate issuer's [distinguished name](https://knowledge.digicert.com/generalinformation/INFO1745.html)
+     *
+     * @example "CN=cloudflareaccess.com, C=US, ST=Texas, L=Austin, O=Cloudflare"
+     */
+    readonly certIssuerDN: string;
+    /**
+     * The certificate subject's [distinguished name](https://knowledge.digicert.com/generalinformation/INFO1745.html)
+     *
+     * @example "CN=*.cloudflareaccess.com, C=US, ST=Texas, L=Austin, O=Cloudflare"
+     */
+    readonly certSubjectDN: string;
+    /**
+     * The certificate issuer's [distinguished name](https://knowledge.digicert.com/generalinformation/INFO1745.html) ([RFC 2253](https://www.rfc-editor.org/rfc/rfc2253.html) formatted)
+     *
+     * @example "CN=cloudflareaccess.com, C=US, ST=Texas, L=Austin, O=Cloudflare"
+     */
+    readonly certIssuerDNRFC2253: string;
+    /**
+     * The certificate subject's [distinguished name](https://knowledge.digicert.com/generalinformation/INFO1745.html) ([RFC 2253](https://www.rfc-editor.org/rfc/rfc2253.html) formatted)
+     *
+     * @example "CN=*.cloudflareaccess.com, C=US, ST=Texas, L=Austin, O=Cloudflare"
+     */
+    readonly zcertSubjectDNRFC2253: string;
+    /** The certificate issuer's distinguished name (legacy policies) */
+    readonly zcertIssuerDNLegacy: string;
+    /** The certificate subject's distinguished name (legacy policies) */
+    readonly certSubjectDNLegacy: string;
+    /**
+     * The certificate's serial number
+     *
+     * @example "00936EACBE07F201DF"
+     */
+    readonly certSerial: string;
+    /**
+     * The certificate issuer's serial number
+     *
+     * @example "2489002934BDFEA34"
+     */
+    readonly certIssuerSerial: string;
+    /**
+     * The certificate's Subject Key Identifier
+     *
+     * @example "BB:AF:7E:02:3D:FA:A6:F1:3C:84:8E:AD:EE:38:98:EC:D9:32:32:D4"
+     */
+    readonly certSKI: string;
+    /**
+     * The certificate issuer's Subject Key Identifier
+     *
+     * @example "BB:AF:7E:02:3D:FA:A6:F1:3C:84:8E:AD:EE:38:98:EC:D9:32:32:D4"
+     */
+    readonly certIssuerSKI: string;
+    /**
+     * The certificate's SHA-1 fingerprint
+     *
+     * @example "6b9109f323999e52259cda7373ff0b4d26bd232e"
+     */
+    readonly certFingerprintSHA1: string;
+    /**
+     * The certificate's SHA-256 fingerprint
+     *
+     * @example "acf77cf37b4156a2708e34c4eb755f9b5dbbe5ebb55adfec8f11493438d19e6ad3f157f81fa3b98278453d5652b0c1fd1d71e5695ae4d709803a4d3f39de9dea"
+     */
+    readonly certFingerprintSHA256: string;
+    /**
+     * The effective starting date of the certificate
+     *
+     * @example "Dec 22 19:39:00 2018 GMT"
+     */
+    readonly certNotBefore: string;
+    /**
+     * The effective expiration date of the certificate
+     *
+     * @example "Dec 22 19:39:00 2018 GMT"
+     */
+    readonly certNotAfter: string;
+}
+
+//#endregion
+
 //#region Common worker types (used in both script and module workers)
 
 export interface WorkerContextMethods {
     /** Prevents requests from failing due to an unhandled exception thrown by the Worker, causing it instead to “fail open”. 
      * 
      * Instead of returning an error response, the runtime will proxy the request to the origin server as though the Worker was never invoked. */
-     passThroughOnException(): void;
+    passThroughOnException(): void;
 
-     /** Extend the lifetime of the event without blocking the response from being sent. 
-      * 
-      * Use this method to notify the runtime to wait for tasks (e.g. logging, analytics to third-party services, streaming and caching) 
-      * that need to run longer than the usual time it takes to send a response. */
-     waitUntil(promise: Promise<unknown>): void;
+    /** Extend the lifetime of the event without blocking the response from being sent. 
+     * 
+     * Use this method to notify the runtime to wait for tasks (e.g. logging, analytics to third-party services, streaming and caching) 
+     * that need to run longer than the usual time it takes to send a response. */
+    waitUntil(promise: Promise<unknown>): void;
 }
 
 export interface ScheduledEventProperties {
     /** The time the ScheduledEvent was scheduled to be executed in milliseconds since January 1, 1970, UTC. 
      * 
      * It can be parsed as new Date(event.scheduledTime) */
-     readonly scheduledTime: number;
+    readonly scheduledTime: number;
 
-     /** The original cron string that the event was scheduled for. */
-     readonly cron: string;
+    /** The original cron string that the event was scheduled for. */
+    readonly cron: string;
+}
+
+export interface Fetcher {
+    fetch(requestOrUrl: Request | string, requestInit?: RequestInit | Request): Promise<Response>;
 }
 
 export interface IncomingRequestCf extends Request {
@@ -29,124 +448,7 @@ export interface IncomingRequestCf extends Request {
     readonly cf: IncomingRequestCfProperties;
 
     // undocumented
-    readonly fetcher: Record<string, unknown>; // ???
-}
-
-/** An object containing properties about the incoming request provided by Cloudflare’s edge network. */
-export interface IncomingRequestCfProperties {
-    // https://developers.cloudflare.com/workers/runtime-apis/request#incomingrequestcfproperties
-
-    /** ASN of the incoming request, e.g. 395747. */
-    readonly asn: number;
-
-    /** The organisation which owns the ASN of the incoming request, e.g. Google Cloud. */
-    readonly asOrganization: string;
-
-    /** The three-letter IATA airport code of the data center that the request hit, e.g. "DFW". */
-    readonly colo: string;
-
-    /** Country of the incoming request. 
-     * 
-     * The two-letter country code in the request. This is the same value as that provided in the CF-IPCountry header, e.g. "US". */
-    readonly country: string | null;
-
-    /** HTTP Protocol, e.g. "HTTP/2". */
-    readonly httpProtocol: string;
-
-    /** The browser-requested prioritization information in the request object, e.g. "weight=192;exclusive=0;group=3;group-weight=127". */
-    readonly requestPriority: string | null;
-
-    /** The cipher for the connection to Cloudflare, e.g. "AEAD-AES128-GCM-SHA256". */
-    readonly tlsCipher: string;
-
-    /** Only set when using Cloudflare Access or API Shield. */
-    readonly tlsClientAuth: TlsClientAuth | null;
-
-    /** The TLS version of the connection to Cloudflare, e.g. TLSv1.3. */
-    readonly tlsVersion: string;
-
-    // 2021-04-13: these are now free! https://blog.cloudflare.com/location-based-personalization-using-workers/
-
-    /** City of the incoming request, e.g. "Austin". */
-    readonly city: string | null;
-
-    /** Accept-Encoding of the incoming request, e.g. gzip, deflate, br */
-    readonly clientAcceptEncoding?: string; 
-
-    /** Continent of the incoming request, e.g. "NA". */
-    readonly continent: string | null;
-
-    /** Latitude of the incoming request, e.g. "30.27130". */
-    readonly latitude: string | null;
-
-    /** Longitude of the incoming request, e.g. "-97.74260". */
-    readonly longitude: string | null;
-
-    /** Postal code of the incoming request, e.g. "78701". */
-    readonly postalCode: string | null;
-
-    /** Metro code (DMA) of the incoming request, e.g. "635". */
-    readonly metroCode: string | null;
-
-    /** If known, the [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2) name for the first level region associated with the IP address of the incoming request, e.g. "Texas". */
-    readonly region: string | null;
-
-    /** If known, the [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2) code for the first level region associated with the IP address of the incoming request, e.g. "TX". */
-    readonly regionCode: string | null;
-
-    /** Timezone of the incoming request, e.g. "America/Chicago". */
-    readonly timezone: string;
-
-    // undocumented
-
-    readonly edgeRequestKeepAliveStatus: number; // e.g. 1
-    readonly clientTcpRtt: number; // e.g. 35
-    readonly weight: string; // e.g. "UNDEFINED"  (free only?)
-    readonly tlsExportedAuthenticator: TlsExportedAuthenticator;
-}
-
-export interface TlsExportedAuthenticator {
-    readonly clientFinished: string; // e.g. e138d272eedf10ff081b2614c40c22e2a2e1c272aeef6e9ba8517dd19e4908c4
-    readonly clientHandshake: string; 
-    readonly serverHandshake: string;
-    readonly serverFinished: string;
-}
-
-export interface TlsClientAuth {
-    readonly certIssuerDNLegacy: string,
-    readonly certIssuerDN: string,
-    readonly certIssuerDNRFC2253: string,
-    readonly certSubjectDNLegacy: string,
-    readonly certVerified: string,
-    readonly certNotAfter: string,
-    readonly certSubjectDN: string,
-    readonly certFingerprintSHA1: string,
-    readonly certNotBefore: string,
-    readonly certSerial: string,
-    readonly certPresented: string,
-    readonly certSubjectDNRFC2253: string,
-
-    // undocumented
-    readonly certFingerprintSHA256: string;
-    readonly certIssuerSKI: string;
-    readonly certRevoked: string;
-    readonly certSKI: string;
-}
-
-//#endregion
-
-//#region Business and Enterprise only
-
-export interface IncomingRequestCfBusinessAndEnterpriseProperties extends IncomingRequestCfProperties {
-    // undocumented
-    readonly clientTrustScore: number; // e.g. 99
-    readonly botManagement: BotManagement;
-}
-
-export interface BotManagement {
-    readonly score: number; // e.g. 99
-    readonly verifiedBot: boolean;
-    readonly staticResource: boolean;
+    readonly fetcher: Fetcher | null;
 }
 
 //#endregion
