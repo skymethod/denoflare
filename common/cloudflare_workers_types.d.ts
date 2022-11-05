@@ -646,7 +646,7 @@ export interface KVNamespace {
      * 
      * For large values, the choice of type can have a noticeable effect on latency and CPU usage. 
      * For reference, the types can be ordered from fastest to slowest as "stream", "arrayBuffer", "text", and "json". */
-    get(key: string, opts: KVGetOptions | { type: 'text' }): Promise<string | null>;
+    get(key: string, opts?: KVGetOptions | { type: 'text' }): Promise<string | null>;
     get(key: string, opts: KVGetOptions | { type: 'json' }): Promise<Record<string, unknown> | null>;
     get(key: string, opts: KVGetOptions | { type: 'arrayBuffer' }): Promise<ArrayBuffer | null>;
     get(key: string, opts: KVGetOptions | { type: 'stream' }): Promise<ReadableStream | null>;
@@ -656,7 +656,7 @@ export interface KVNamespace {
     /** Gets the metadata associated with a key-value pair alongside its value.
      * 
      * If there’s no metadata associated with the requested key-value pair, null will be returned for metadata. */
-    getWithMetadata(key: string, opts: KVGetOptions | { type: 'text' }): Promise<KVValueAndMetadata<string> | null>;
+    getWithMetadata(key: string, opts?: KVGetOptions | { type: 'text' }): Promise<KVValueAndMetadata<string> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'json' }): Promise<KVValueAndMetadata<Record<string, unknown>> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'arrayBuffer' }): Promise<KVValueAndMetadata<ArrayBuffer> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'stream' }): Promise<KVValueAndMetadata<ReadableStream> | null>;

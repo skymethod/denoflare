@@ -21,7 +21,7 @@ export class ApiKVNamespace implements KVNamespace {
         return new ApiKVNamespace(accountId, apiToken, kvNamespace);
     }
     
-    get(key: string, opts: { type: 'text' }): Promise<string|null>;
+    get(key: string, opts?: { type: 'text' }): Promise<string|null>;
     get(key: string, opts: { type: 'json' }): Promise<Record<string,unknown>|null>;
     get(key: string, opts: { type: 'arrayBuffer' }): Promise<ArrayBuffer|null>;
     // deno-lint-ignore no-explicit-any
@@ -31,15 +31,15 @@ export class ApiKVNamespace implements KVNamespace {
         const { accountId, namespaceId, apiToken } = this;
         const bytes = await getKeyValue({ accountId, namespaceId, key, apiToken });
         if (bytes === undefined) return null;
-        if (opts.type === 'arrayBuffer') {
+        if (opts && opts.type === 'arrayBuffer') {
             return bytes.buffer;
-        } else if (opts.type === 'json') {
+        } else if (opts && opts.type === 'json') {
             return JSON.parse(new Bytes(bytes).utf8());
         }
         throw new Error(`ApiKVNamespace.get not implemented. key=${typeof key} ${key}, opts=${JSON.stringify(opts)}`);
     } 
 
-    getWithMetadata(key: string, opts: KVGetOptions | { type: 'text' }): Promise<KVValueAndMetadata<string> | null>;
+    getWithMetadata(key: string, opts?: KVGetOptions | { type: 'text' }): Promise<KVValueAndMetadata<string> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'json' }): Promise<KVValueAndMetadata<Record<string, unknown>> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'arrayBuffer' }): Promise<KVValueAndMetadata<ArrayBuffer> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'stream' }): Promise<KVValueAndMetadata<ReadableStream> | null>;
@@ -49,11 +49,11 @@ export class ApiKVNamespace implements KVNamespace {
         const bytes = await getKeyValue({ accountId, namespaceId, key, apiToken });
         if (bytes === undefined) return null;
         const metadata = await getKeyMetadata(this.accountId, this.namespaceId, key, this.apiToken);
-        if (opts.type === 'arrayBuffer') {
+        if (opts && opts.type === 'arrayBuffer') {
             const rt: KVValueAndMetadata<ArrayBuffer> = { value: bytes.buffer, metadata: metadata || null };
             return rt;
         }
-        if (opts.type === 'json') {
+        if (opts && opts.type === 'json') {
             const value = JSON.parse(new Bytes(bytes).utf8());
             const rt: KVValueAndMetadata<Record<string, unknown>> = { value, metadata: metadata || null };
             return rt;

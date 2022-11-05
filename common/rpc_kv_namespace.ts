@@ -29,14 +29,14 @@ export function addRequestHandlerForRpcKvNamespace(channel: RpcChannel, kvNamesp
 }
 
 export class RpcKVNamespace implements KVNamespace {
-    get(key: string, opts: { type: 'text' }): Promise<string|null>;
+    get(key: string, opts?: { type: 'text' }): Promise<string|null>;
     get(key: string, opts: { type: 'json' }): Promise<Record<string,unknown>|null>;
     get(key: string, opts: { type: 'arrayBuffer' }): Promise<ArrayBuffer|null>;
     // deno-lint-ignore no-explicit-any
     get(key: string, opts: { type: 'stream' }): Promise<ReadableStream<any>|null>;
     // deno-lint-ignore no-explicit-any
     async get(key: any, opts: any): Promise<any> {
-        if (typeof key === 'string') {
+        if (typeof key === 'string' && opts) {
             if (opts.type === 'arrayBuffer' || opts === 'arrayBuffer') {
                 const { kvNamespace } = this;
                 const req: KVNamespaceGetArrayBufferRequest = { type: 'arrayBuffer', key, kvNamespace };
@@ -58,13 +58,13 @@ export class RpcKVNamespace implements KVNamespace {
         throw new Error(`RpcKVNamespace.get not implemented. key=${typeof key} ${key}, opts=${JSON.stringify(opts)}`);
     } 
 
-    getWithMetadata(key: string, opts: KVGetOptions | { type: 'text' }): Promise<KVValueAndMetadata<string> | null>;
+    getWithMetadata(key: string, opts?: KVGetOptions | { type: 'text' }): Promise<KVValueAndMetadata<string> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'json' }): Promise<KVValueAndMetadata<Record<string, unknown>> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'arrayBuffer' }): Promise<KVValueAndMetadata<ArrayBuffer> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'stream' }): Promise<KVValueAndMetadata<ReadableStream> | null>;
     // deno-lint-ignore no-explicit-any
     async getWithMetadata(key: any, opts: any): Promise<any> {
-        if (typeof key === 'string') {
+        if (typeof key === 'string' && opts) {
             if (opts.type === 'json' || opts === 'json') {
                 const { kvNamespace } = this;
                 const req: KVNamespaceGetJsonRequest = { type: 'json', key, kvNamespace, withMetadata: true };
