@@ -193,17 +193,58 @@ export interface DeleteScriptResult {
 
 export interface Script {
     readonly id: string;
+    readonly tag: string;
     readonly etag: string;
     readonly handlers: readonly string[];
     readonly 'named_handlers'?: readonly NamedHandler[];
     readonly 'modified_on': string;
     readonly 'created_on': string;
     readonly 'usage_model': string;
+    readonly 'last_deployed_from': string;
 }
 
 export interface NamedHandler {
     readonly name: string;
     readonly handlers: readonly string[];
+}
+
+//#endregion
+
+//#region Worker Deployments
+
+export async function listWorkerDeployments(opts: { accountId: string, apiToken: string, scriptTag: string }): Promise<WorkerDeploymentResult> {
+    const { accountId, apiToken, scriptTag } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/deployments/by-script/${scriptTag}`;
+    return (await execute<WorkerDeploymentResult>('listWorkerDeployments', 'GET', url, apiToken)).result;
+}
+
+export interface WorkerDeploymentResult {
+    readonly latest: WorkerDeployment;
+    readonly items: readonly WorkerDeploymentSummary[];
+}
+
+export interface WorkerDeployment extends WorkerDeploymentSummary {
+    readonly resources: WorkerDeployment;
+}
+
+export interface WorkerDeploymentResources {
+    readonly script: { readonly etag: string, readonly handlers: readonly string[], readonly named_handlers?: readonly NamedHandler[], readonly last_deployed_from: string };
+    readonly script_runtime: { readonly usage_model: string };
+    readonly bindings: readonly (Record<string, unknown> & { name: string, type: string })[];
+}
+
+export interface WorkerDeploymentSummary {
+    readonly id: string; // e.g. a5adf92c-7513-4011-ac1a-78a903c2cc0a
+    readonly number: number; // e.g. 4
+    readonly metadata: WorkerDeploymentMetadata;
+}
+
+export interface WorkerDeploymentMetadata {
+    readonly created_on: string; // e.g. 2022-10-24T23:52:40.183869Z
+    readonly modified_on: string;
+    readonly source: string; // 'api' | 'dash' | 'wrangler' | 'terraform' | 'other'
+    readonly author: string; // cloudflare tag (for what entity?)
+    readonly author_email: string; // email address
 }
 
 //#endregion
@@ -239,6 +280,35 @@ export async function putWorkerAccountSettings(opts: { accountId: string, apiTok
 export interface WorkerAccountSettings {
     readonly 'default_usage_model': string,
     readonly 'green_compute': boolean,
+}
+
+//#endregion
+
+//#region Worker Service Metadata
+
+export async function getWorkerServiceMetadata(opts: { accountId: string, apiToken: string, scriptName: string }): Promise<WorkerServiceMetadata> {
+    const { accountId, apiToken, scriptName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/services/${scriptName}`;
+    return (await execute<WorkerServiceMetadata>('getWorkerServiceMetadata', 'GET', url, apiToken)).result;
+}
+
+export interface WorkerServiceMetadata {
+    readonly id: string; // script id/name
+    readonly default_environment: WorkerServiceEnvironment;
+    readonly created_on: string;
+    readonly modified_on: string;
+    readonly usage_model: string;
+    readonly environments: readonly WorkerServiceEnvironmentSummary[];
+}
+
+export interface WorkerServiceEnvironmentSummary {
+    readonly environment: string; // e.g. production
+    readonly created_on: string;
+    readonly modified_on: string;
+}
+
+export interface WorkerServiceEnvironment extends WorkerServiceEnvironmentSummary {
+    readonly script: Script;
 }
 
 //#endregion
