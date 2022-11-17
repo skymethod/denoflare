@@ -139,6 +139,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Secret key environment variable binding",
+                                            "required": [ "secretKey" ],
+                                            "properties": {
+                                                "secretKey": {
+                                                    "description": "The secret key's CryptoKey parameters as JSON. e.g. `{\"algorithm\":{\"name\":\"HMAC\",\"hash\":\"SHA-256\"},\"usages\":[\"sign\"],\"format\":\"raw\",\"base64\":\"ajS0ajNy3s97EZDwjG6IYeG+u9mOtgzovKvWt4DGLwekVI7P9zD6E4o2SRgD9WTS3zBR6mWiPLdXmlfhTtWbZg==\"}`",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

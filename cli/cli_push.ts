@@ -4,9 +4,9 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
-import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
+import { checkEqual, checkMatchesReturnMatcher, isStringRecord } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 
 export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare worker script to Cloudflare')
@@ -319,6 +319,9 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         return { type: 'd1', name, id: binding.d1DatabaseUuid };
     } else if (isQueueBinding(binding)) {
         return { type: 'queue', name, queue_name: binding.queueName };
+    } else if (isSecretKeyBinding(binding)) {
+        const { format, algorithm, usages, base64 } = parseSecretKeyValue(binding.secretKey);
+        return { type: 'secret_key', name, format, algorithm, usages, key_base64: base64 };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }
@@ -329,4 +332,18 @@ async function computeWasmModulePart(wasmModule: string, parts: Record<string, P
     const part = name;
     parts[part] = { name, value: new Blob([ valueBytes ], { type: 'application/wasm' }), valueBytes };
     return part;
+}
+
+function parseSecretKeyValue(json: string): { format: string, algorithm: AesKeyGenParams | HmacKeyGenParams, usages: KeyUsage[], base64: string } {
+    const obj = JSON.parse(json);
+    const { format, algorithm, usages, base64 } = obj;
+    if (typeof format !== 'string') throw new Error(`Bad secretKey.format: ${JSON.stringify(format)} in ${JSON.stringify(obj)}`);
+    if (!isStringRecord(algorithm)) throw new Error(`Bad secretKey.algorithm: ${JSON.stringify(algorithm)} in ${JSON.stringify(obj)}`);
+    const { name } = algorithm;
+    if (typeof name !== 'string') throw new Error(`Bad secretKey.algorithm.name: ${JSON.stringify(name)} in ${JSON.stringify(obj)}`);
+    if (!Array.isArray(usages) || !usages.every(v => typeof v === 'string')) throw new Error(`Bad secretKey.usages: ${JSON.stringify(usages)} in ${JSON.stringify(obj)}`);
+    if (typeof base64 !== 'string') throw new Error(`Bad secretKey.base64: ${JSON.stringify(base64)} in ${JSON.stringify(obj)}`);
+
+    // deno-lint-ignore no-explicit-any
+    return { format, algorithm: algorithm as any, usages, base64 };
 }

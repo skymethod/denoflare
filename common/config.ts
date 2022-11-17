@@ -90,7 +90,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -173,6 +173,13 @@ export interface QueueBinding {
     readonly queueName: string;
 }
 
+/** Secret key environment variable binding */
+export interface SecretKeyBinding {
+
+    /** The secret key's CryptoKey parameters as JSON. */
+    readonly secretKey: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -245,4 +252,9 @@ export function isD1DatabaseBinding(binding: Binding): binding is D1DatabaseBind
 export function isQueueBinding(binding: Binding): binding is QueueBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).queueName === 'string';
+}
+
+export function isSecretKeyBinding(binding: Binding): binding is SecretKeyBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).secretKey === 'string';
 }

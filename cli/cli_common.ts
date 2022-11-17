@@ -101,6 +101,7 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('r2BucketBinding', 'strings', 'R2 bucket environment variable binding, overrides config', { hint: 'name:bucket-name'})
         .option('aeDatasetBinding', 'strings', 'Analytics Engine dataset environment variable binding, overrides config', { hint: 'name:dataset-name'})
         .option('queueBinding', 'strings', 'Queue environment variable binding, overrides config', { hint: 'name:queue-name'})
+        .option('secretKeyBinding', 'strings', 'Secret key environment variable binding, overrides config', { hint: 'name:{"algorithm":{"name":"HMAC"...'})
         ;
 }
 
@@ -142,6 +143,10 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
     for (const queueBinding of parseOptionalStringOptions('queue-binding', options) || []) {
         const [ _, name, queueName ] = checkMatchesReturnMatcher('queue-binding', queueBinding, pattern);
         rt[name] = { queueName };
+    }
+    for (const secretKeyBinding of parseOptionalStringOptions('secret-key-binding', options) || []) {
+        const [ _, name, secretKey ] = checkMatchesReturnMatcher('secret-key-binding', secretKeyBinding, pattern);
+        rt[name] = { secretKey };
     }
     return rt;
 }
