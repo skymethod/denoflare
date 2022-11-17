@@ -87,6 +87,17 @@
                                         },
                                         {
                                             "type": "object",
+                                            "description": "Service environment variable binding",
+                                            "required": [ "serviceEnvironment" ],
+                                            "properties": {
+                                                "serviceEnvironment": {
+                                                    "description": "The service and environment, delimited by ':'.  e.g. `my-service:production`",
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "type": "object",
                                             "description": "R2 Bucket Name environment variable binding",
                                             "required": [ "bucketName" ],
                                             "properties": {
