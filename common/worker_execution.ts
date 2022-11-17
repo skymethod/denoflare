@@ -1,5 +1,5 @@
 import { IncomingRequestCf, IncomingRequestCfProperties } from './cloudflare_workers_types.d.ts';
-import { AnalyticsEngineProvider, D1DatabaseProvider, DONamespaceProvider, GlobalCachesProvider, KVNamespaceProvider, R2BucketProvider, WebSocketPairProvider } from './cloudflare_workers_runtime.ts';
+import { AnalyticsEngineProvider, D1DatabaseProvider, DONamespaceProvider, GlobalCachesProvider, KVNamespaceProvider, R2BucketProvider, SecretKeyProvider, WebSocketPairProvider } from './cloudflare_workers_runtime.ts';
 import { Binding } from './config.ts';
 import { consoleLog } from './console.ts';
 import { DurableObjectConstructor } from './local_durable_objects.ts';
@@ -21,6 +21,7 @@ export interface WorkerExecutionCallbacks {
     r2BucketProvider: R2BucketProvider;
     analyticsEngineProvider: AnalyticsEngineProvider;
     d1DatabaseProvider: D1DatabaseProvider;
+    secretKeyProvider: SecretKeyProvider;
     incomingRequestCfPropertiesProvider: () => IncomingRequestCfProperties;
     onModuleWorkerInfo?: (info: ModuleWorkerInfo) => void;
 }
