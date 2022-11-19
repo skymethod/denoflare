@@ -2,8 +2,10 @@ import { checkEqual } from './check.ts';
 import { getTraversalObj } from './deps_xml.ts';
 import { decodeXml } from './xml_util.ts';
 
-export function parseXml(xml: string): ExtendedXmlNode {
-    const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false, tagValueProcessor: decodeXml }) as XmlNode;
+export function parseXml(xml: string, opts: { additionalEntities?: { [char: string]: string } } = {}): ExtendedXmlNode {
+    const { additionalEntities } = opts;
+    const tagValueProcessor = (tagName: string) => decodeXml(tagName, additionalEntities);
+    const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false, tagValueProcessor }) as XmlNode;
     const namespaces = new XmlNamespaces();
     applyQnames(rt, namespaces);
     checkEqual('namespaces.stackSize', namespaces.stackSize, 0);

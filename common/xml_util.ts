@@ -4,10 +4,12 @@ export function encodeXml(unencoded: string): string {
     });
 }
 
-export function decodeXml(encoded: string): string {
+export function decodeXml(encoded: string, additionalEntities: { [char: string]: string } = {}): string {
     return encoded.replaceAll(/&(#(\d+)|[a-z]+);/g, (str, entity, decimal) => {
         if (typeof decimal === 'string') return String.fromCharCode(parseInt(decimal));
         if (typeof entity === 'string') {
+            const additional = additionalEntities[entity];
+            if (additional) return additional;
             const rt = ENTITIES_TO_UNENCODED_CHARS[entity];
             if (rt) return rt;
         }
