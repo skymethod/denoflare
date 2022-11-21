@@ -15,6 +15,7 @@ import { R2BucketProvider } from '../common/cloudflare_workers_runtime.ts';
 import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { CLI_USER_AGENT } from './cli_common.ts';
 import { versionCompare } from './versions.ts';
+import { InMemoryR2Bucket } from './in_memory_r2_bucket.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -137,7 +138,24 @@ export class WorkerManager {
 export async function computeR2BucketProvider(profile: Profile | undefined, bindings: Record<string, Binding>, userAgent: string): Promise<R2BucketProvider> {
     if (Object.values(bindings).some(isR2BucketBinding)) {
         const { accountId, credentials } = await ApiR2Bucket.parseAccountAndCredentials(profile);
-        return bucketName => ApiR2Bucket.ofAccountAndCredentials(accountId, credentials, bucketName, userAgent);
+        const inMemoryBuckets = new Map<string, InMemoryR2Bucket>();
+        return bucketName => {
+            // in-memory bucket?
+            const m = /^local:memory:([a-zA-Z0-9-]+)$/.exec(bucketName);
+            if (m) {
+                const [ _, name ] = m;
+                // share in-memory-buckets by name (trailing parameter)
+                let bucket = inMemoryBuckets.get(name);
+                if (!bucket) {
+                    bucket = new InMemoryR2Bucket(name);
+                    inMemoryBuckets.set(name, bucket);
+                }
+                return bucket;
+            }
+
+            // api bucket
+            return ApiR2Bucket.ofAccountAndCredentials(accountId, credentials, bucketName, userAgent);
+        }
     }
     return _ => { throw new Error('computeR2BucketProvider: No R2 bucket bindings found'); }
 }
