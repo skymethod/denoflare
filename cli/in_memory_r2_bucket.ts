@@ -62,7 +62,7 @@ export class InMemoryR2Bucket implements R2Bucket {
 
     async list(options?: R2ListOptions): Promise<R2Objects> {
         await Promise.resolve();
-        const { prefix, ...rest } = options ?? {};
+        const { prefix, limit, ...rest } = options ?? {};
 
         if (Object.keys(rest).length > 0)  throw new Error(`InMemoryR2Bucket: list(${JSON.stringify({ options })}) not implemented`);
 
@@ -72,6 +72,7 @@ export class InMemoryR2Bucket implements R2Bucket {
         let cursor: string | undefined;
         const delimitedPrefixes: string[] = [];
         for (const key of sortedKeys) {
+            if (typeof limit === 'number' && objects.length >= limit) break;
             if (typeof prefix === 'string' && !key.startsWith(prefix)) continue;
             const { info } = records[key];
             objects.push(new InMemoryR2Object(info));
