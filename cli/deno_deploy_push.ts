@@ -7,7 +7,7 @@ async function _testDeploy(opts: { projectId: string, apiToken: string }) {
     const { projectId, apiToken } = opts;
 
     const script = `
-    import { serve } from 'https://deno.land/std@0.165.0/http/server.ts';
+    import { serve } from 'https://deno.land/std@0.166.0/http/server.ts';
     
     serve((req, init) => {
         return new Response('hello!');

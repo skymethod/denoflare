@@ -1,4 +1,4 @@
-import { walk } from 'https://deno.land/std@0.165.0/fs/mod.ts'; // isolated for sharing
+import { walk } from 'https://deno.land/std@0.166.0/fs/mod.ts'; // isolated for sharing
 import { spawn } from '../cli/spawn.ts';
 
 export type TscResult = { code: number, success: boolean, out: string, err: string, output: Record<string, string> };
