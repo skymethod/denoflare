@@ -111,17 +111,28 @@ export function packRequest(info: RequestInfo, init: RequestInit | undefined, bo
         const { method, url, redirect } = info;
         const headers = [...info.headers.entries()];
         const bodyId = (method === 'GET' || method === 'HEAD') ? undefined : bodies.computeBodyId(info.body);
-        return { method, url, headers, bodyId, redirect };
+        return { method, url, headers, bodyId, bodyText: undefined, bodyBytes: undefined, bodyNull: false, redirect };
     } else if (typeof info === 'string') {
         // url String
         const url = info;
         let method = 'GET';
         let headers: [string, string][] = [];
         let redirect: RequestRedirect | undefined;
+        let bodyId: number | undefined;
+        let bodyText: string | undefined;
+        let bodyBytes: Uint8Array | undefined;
+        let bodyNull = false;
         if (init !== undefined) {
             if (init.method !== undefined) method = init.method;
             if (init.headers !== undefined) headers = [...new Headers(init.headers).entries()];
-            if (init.body !== undefined) throw new Error(`packRequest: init.body`);
+            if (init.body !== undefined) {
+                if (typeof init.body === 'string') { bodyText = init.body; }
+                else if (init.body instanceof Uint8Array) { bodyBytes = init.body; }
+                else if (init.body instanceof ReadableStream) { bodyId = bodies.computeBodyId(init.body); }
+                else if (init.body instanceof ArrayBuffer) { bodyBytes = new Uint8Array(new Uint8Array(init.body)); }
+                else if (init.body === null) { bodyNull = true; }
+                else { throw new Error(`packRequest: init.body`); }
+            }
             if (init.cache !== undefined) throw new Error(`packRequest: init.cache`);
             if (init.credentials !== undefined) throw new Error(`packRequest: init.credentials`);
             if (init.integrity !== undefined) throw new Error(`packRequest: init.integrity`);
@@ -133,15 +144,19 @@ export function packRequest(info: RequestInfo, init: RequestInit | undefined, bo
             if (init.window !== undefined) throw new Error(`packRequest: init.window`);
             redirect = init.redirect;
         }
-        return { method, url, headers, bodyId: undefined, redirect };
+        return { method, url, headers, bodyId, bodyText, bodyBytes, bodyNull, redirect };
     }
     throw new Error(`packRequest: implement info=${info} ${typeof info} init=${init}`);
 }
 
 export function unpackRequest(packedRequest: PackedRequest, bodyResolver: BodyResolver): Request {
-    const { url, method, bodyId, redirect } = packedRequest;
+    const { url, method, bodyId, bodyText, bodyBytes, bodyNull, redirect } = packedRequest;
     const headers = new Headers(packedRequest.headers);
-    const body = bodyId === undefined ? undefined : bodyResolver(bodyId);
+    const body = bodyNull ? null 
+        : bodyText !== undefined ? bodyText
+        : bodyBytes !== undefined ? bodyBytes
+        : bodyId === undefined ? undefined 
+        : bodyResolver(bodyId);
     return new Request(url, { method, headers, body, redirect });
 }
 
@@ -152,6 +167,9 @@ export interface PackedRequest {
     readonly url: string;
     readonly headers: [string, string][];
     readonly bodyId: number | undefined;
+    readonly bodyText: string | undefined;
+    readonly bodyBytes: Uint8Array | undefined;
+    readonly bodyNull: boolean;
     readonly redirect: RequestRedirect | undefined;
 }
 

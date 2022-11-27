@@ -2,7 +2,7 @@ import { ApiKVNamespace } from './api_kv_namespace.ts';
 import { Profile, Binding, isR2BucketBinding } from '../common/config.ts';
 import { consoleError, consoleLog } from '../common/console.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
-import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc } from '../common/rpc_fetch.ts';
+import { Bodies, PackedRequest, packResponse, addRequestHandlerForReadBodyChunk, packRequest, unpackResponse, makeBodyResolverOverRpc, unpackRequest } from '../common/rpc_fetch.ts';
 import { addRequestHandlerForRpcKvNamespace } from '../common/rpc_kv_namespace.ts';
 import { runScript, WorkerFetch } from '../common/rpc_script.ts';
 import { dirname, fromFileUrl, resolve } from './deps_cli.ts';
@@ -81,12 +81,11 @@ export class WorkerManager {
         const bodies = new Bodies();
         const requestBodyResolver = makeBodyResolverOverRpc(rpcChannel);
         rpcChannel.addRequestHandler('fetch', async requestData => {
-            const { method, url, headers, bodyId } = requestData as PackedRequest;
-            const body = bodyId === undefined ? undefined : requestBodyResolver(bodyId);
-            const res = await fetch(url, { method, headers, body });
+            const req = unpackRequest(requestData as PackedRequest, requestBodyResolver);
+            const res = await fetch(req);
             let overrideContentType: string | undefined;
-            if (url.startsWith('file://')) {
-                const importType = new URL(url).searchParams.get('import');
+            if (req.url.startsWith('file://')) {
+                const importType = new URL(req.url).searchParams.get('import');
                 if (importType === 'wasm') {
                     // application/wasm content-type required for WebAssembly.instantiate
                     // but no content type is returned for any local file fetches
