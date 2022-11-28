@@ -1,5 +1,5 @@
 import { Bytes } from '../common/bytes.ts';
-import { R2Bucket, R2Checksums, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
+import { R2Bucket, R2Checksums, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2MultipartOptions, R2MultipartUpload, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
 
 export class InMemoryR2Bucket implements R2Bucket {
     private readonly records: Record<string, ObjectRecord> = {}; // by key
@@ -78,6 +78,14 @@ export class InMemoryR2Bucket implements R2Bucket {
             objects.push(new InMemoryR2Object(info));
         }
         return { objects, truncated, cursor, delimitedPrefixes };
+    }
+
+    createMultipartUpload(key: string, options?: R2MultipartOptions): Promise<R2MultipartUpload> {
+        throw new Error(`InMemoryR2Bucket: createMultipartUpload(${JSON.stringify({ key, options })}) not implemented`);
+    }
+
+    resumeMultipartUpload(key: string, uploadId: string): Promise<R2MultipartUpload> {
+        throw new Error(`InMemoryR2Bucket: resumeMultipartUpload(${JSON.stringify({ key, uploadId })}) not implemented`);
     }
 
 }

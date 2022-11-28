@@ -1,5 +1,5 @@
 import { Bytes } from './bytes.ts';
-import { R2Checksums, R2Conditional, R2GetOptions, R2HTTPMetadata, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
+import { R2Checksums, R2Conditional, R2GetOptions, R2HTTPMetadata, R2MultipartOptions, R2Object, R2Objects, R2PutOptions, R2Range } from './cloudflare_workers_types.d.ts';
 
 // R2Objects
 
@@ -245,6 +245,31 @@ export function packR2PutOptions(unpacked: R2PutOptions): PackedR2PutOptions {
         sha384: packHash(unpacked.sha384),
         sha512: packHash(unpacked.sha512),
     };
+}
+
+// R2MultipartOptions
+
+export interface PackedR2MultipartOptions {
+    readonly httpMetadata?: PackedR2HTTPMetadata | PackedHeaders;
+    readonly customMetadata?: Record<string, string>;
+}
+
+export function unpackR2MultipartOptions(packed: PackedR2MultipartOptions): R2MultipartOptions {
+    return {
+        httpMetadata: packed.httpMetadata === undefined ? undefined
+            : Array.isArray(packed.httpMetadata) ? unpackHeaders(packed.httpMetadata)
+            : unpackR2HTTPMetadata(packed.httpMetadata),
+        customMetadata: packed.customMetadata,
+    };
+}
+
+export function packR2MultipartOptions(unpacked: R2MultipartOptions): PackedR2MultipartOptions {
+    return {
+        httpMetadata: unpacked.httpMetadata === undefined ? undefined
+            : unpacked.httpMetadata instanceof Headers ? packHeaders(unpacked.httpMetadata)
+            : packR2HTTPMetadata(unpacked.httpMetadata),
+        customMetadata: unpacked.customMetadata,
+    }
 }
 
 //

@@ -1078,6 +1078,27 @@ export interface R2Bucket {
     put(key: string, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob, options?: R2PutOptions): Promise<R2Object>;
     delete(keys: string | string[]): Promise<void>;
     list(options?: R2ListOptions): Promise<R2Objects>;
+    createMultipartUpload(key: string, options?: R2MultipartOptions): Promise<R2MultipartUpload>;
+    resumeMultipartUpload(key: string, uploadId: string): Promise<R2MultipartUpload>;
+}
+
+export interface R2MultipartOptions {
+    readonly httpMetadata?: R2HTTPMetadata | Headers;
+    readonly customMetadata?: Record<string, string>;
+}
+
+export interface R2MultipartUpload {
+    readonly key: string;
+    readonly uploadId: string;
+
+    uploadPart(partNumber: number, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob): Promise<R2UploadedPart>;
+    abort(): Promise<void>;
+    complete(uploadedParts: R2UploadedPart[]): Promise<R2Object>;
+}
+
+export interface R2UploadedPart {
+    readonly partNumber: number;
+    readonly etag: string;
 }
 
 export interface R2Conditional {

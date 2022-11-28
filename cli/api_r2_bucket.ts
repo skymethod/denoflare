@@ -1,7 +1,7 @@
-import { R2Bucket, R2Checksums, R2Conditional, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
+import { R2Bucket, R2Checksums, R2Conditional, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2MultipartOptions, R2MultipartUpload, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range, R2UploadedPart } from '../common/cloudflare_workers_types.d.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
-import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, deleteObjects, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO } from '../common/r2/r2.ts';
+import { AwsCallBody, AwsCredentials, computeHeadersString, deleteObject, deleteObjects, getObject, headObject, ListBucketResultItem, listObjectsV2, putObject, R2, R2_REGION_AUTO, createMultipartUpload, uploadPart, abortMultipartUpload, completeMultipartUpload, CompletedPart } from '../common/r2/r2.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { verifyToken } from '../common/cloudflare_api.ts';
 
@@ -128,18 +128,7 @@ export class ApiR2Bucket implements R2Bucket {
             }
         }
 
-        const computeBody: () => Promise<AwsCallBody> = async () => {
-            if (value === null) return Bytes.EMPTY;
-            if (typeof value === 'string') return value;
-            if (value instanceof ArrayBuffer) return new Bytes(new Uint8Array(value));
-            if (value instanceof Blob) return new Bytes(new Uint8Array(await value.arrayBuffer()));
-            if (typeof value === 'object' && 'locked' in value) { // ReadableStream
-                return await Bytes.ofStream(value);
-            }
-            return new Bytes(new Uint8Array(value.buffer)); // ArrayBufferView
-        };
-
-        const body = await computeBody();
+        const body = await computeAwsCallBody(value);
         await putObject({ bucket, key, body, origin, region, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata, ifMatch, ifModifiedSince, ifNoneMatch, ifUnmodifiedSince }, { credentials, userAgent });
         const rt = await this.head(key);
         if (!rt) throw new Error(`ApiR2Bucket: put: subsequent HEAD did not return the object`);
@@ -172,9 +161,42 @@ export class ApiR2Bucket implements R2Bucket {
         return { truncated, cursor, delimitedPrefixes, objects };
     }
 
+    async createMultipartUpload(key: string, options?: R2MultipartOptions): Promise<R2MultipartUpload> {
+        const { origin, credentials, bucket, region, userAgent } = this;
+        const { httpMetadata, customMetadata } = options ?? {};
+
+        const cacheControl = httpMetadata instanceof Headers ? (httpMetadata.get('cache-control') ?? undefined) : httpMetadata ? httpMetadata.cacheControl : undefined;
+        const contentDisposition = httpMetadata instanceof Headers ? (httpMetadata.get('content-disposition') ?? undefined) : httpMetadata ? httpMetadata.contentDisposition : undefined;
+        const contentEncoding = httpMetadata instanceof Headers ? (httpMetadata.get('content-encoding') ?? undefined) : httpMetadata ? httpMetadata.contentEncoding : undefined;
+        const contentLanguage = httpMetadata instanceof Headers ? (httpMetadata.get('content-language') ?? undefined) : httpMetadata ? httpMetadata.contentLanguage : undefined;
+        const expires = httpMetadata instanceof Headers ? (httpMetadata.get('expires') ?? undefined) : httpMetadata && httpMetadata.cacheExpiry ? httpMetadata.cacheExpiry.toString() : undefined;
+        const contentType = httpMetadata instanceof Headers ? (httpMetadata.get('content-type') ?? undefined) : httpMetadata ? httpMetadata.contentType : undefined;
+
+        const { uploadId } = await createMultipartUpload(({ bucket, origin, region, key, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentType, customMetadata }), { credentials, userAgent })
+
+        return new ApiR2MultipartUpload(this, key, uploadId, { bucket, credentials, origin, region, userAgent });
+    }
+
+    async resumeMultipartUpload(key: string, uploadId: string): Promise<R2MultipartUpload> {
+        const { origin, credentials, bucket, region, userAgent } = this;
+        await Promise.resolve();
+        return new ApiR2MultipartUpload(this, key, uploadId, { bucket, credentials, origin, region, userAgent });
+    }
+
 }
 
 //
+
+async function computeAwsCallBody(value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob): Promise<AwsCallBody> {
+    if (value === null) return Bytes.EMPTY;
+    if (typeof value === 'string') return value;
+    if (value instanceof ArrayBuffer) return new Bytes(new Uint8Array(value));
+    if (value instanceof Blob) return new Bytes(new Uint8Array(await value.arrayBuffer()));
+    if (typeof value === 'object' && 'locked' in value) { // ReadableStream
+        return await Bytes.ofStream(value);
+    }
+    return new Bytes(new Uint8Array(value.buffer)); // ArrayBufferView
+}
 
 function parseOnlyIf(onlyIf?: R2Conditional | Headers): { ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string } {
     let ifMatch: string | undefined;
@@ -278,7 +300,7 @@ class HeadersBasedR2Object implements R2Object {
         const contentLength = headers.get('content-length') ?? undefined;
         this._size = parsed && typeof parsed.size === 'number' ? parsed.size : contentLength ? parseInt(contentLength) : undefined;
         this.httpEtag = getExpectedHeader('etag', headers);
-        this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^(W\/)?"([0-9a-f]{32})"$/)[1];
+        this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^(W\/)?"([0-9a-f]{32})(-[0-9a-z]+)?"$/)[1];
         const lastModified = getExpectedHeader('last-modified', headers);
         this.uploaded = new Date(lastModified);
         const cacheExpiryStr = headers.get('cache-expiry') || undefined;
@@ -325,6 +347,49 @@ class ResponseBasedR2ObjectBody extends HeadersBasedR2Object implements R2Object
 
     blob(): Promise<Blob> {
         return this.response.blob();
+    }
+
+}
+
+type ApiR2MultipartUploadOpts = { credentials: AwsCredentials, userAgent: string, origin: string, bucket: string, region: string };
+
+class ApiR2MultipartUpload implements R2MultipartUpload {
+    readonly key: string;
+    readonly uploadId: string;
+
+    private readonly parent: R2Bucket;
+    private readonly opts: ApiR2MultipartUploadOpts;
+
+    constructor(parent: R2Bucket, key: string, uploadId: string, opts: ApiR2MultipartUploadOpts) {
+        this.parent = parent;
+        this.key = key;
+        this.uploadId = uploadId;
+        this.opts = opts;
+    }
+
+    async uploadPart(partNumber: number, value: ReadableStream | ArrayBuffer | ArrayBufferView | string | null | Blob): Promise<R2UploadedPart> {
+        const { key, uploadId } = this;
+        const { origin, credentials, bucket, region, userAgent } = this.opts;
+
+        const body = await computeAwsCallBody(value);
+        const { etag } = await uploadPart({ bucket, key, uploadId, partNumber, body, origin, region }, { credentials, userAgent });
+        return { etag, partNumber };
+    }
+
+    async abort(): Promise<void> {
+        const { key, uploadId } = this;
+        const { origin, credentials, bucket, region, userAgent } = this.opts;
+        await abortMultipartUpload({ bucket, key, uploadId, origin, region }, { credentials, userAgent });
+    }
+
+    async complete(uploadedParts: R2UploadedPart[]): Promise<R2Object> {
+        const { parent, key, uploadId } = this;
+        const { origin, credentials, bucket, region, userAgent } = this.opts;
+        const parts: CompletedPart[] = uploadedParts;
+        await completeMultipartUpload({ bucket, key, uploadId, origin, region, parts }, { credentials, userAgent });
+        const rt = await parent.head(key);
+        if (!rt) throw new Error(`ApiR2Bucket: put: subsequent HEAD did not return the object`);
+        return rt;
     }
 
 }
