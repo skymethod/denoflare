@@ -17,6 +17,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
     .option('customDomain', 'strings', 'Bind worker to one or more Custom Domains for Workers', { hint: 'domain-or-subdomain-name' })
     .option('workersDev', 'boolean', 'Enable or disable the worker workers.dev route')
+    .option('logpush', 'boolean', 'Enable or disable logpush for the worker')
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
@@ -28,7 +29,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (PUSH_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
+    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
 
     if (verbose) {
         // in cli
@@ -63,6 +64,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const pushId = watch ? `${pushStart}.${pushNumber}` : undefined;
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const usageModel = script?.usageModel;
+        const logpush = typeof logpushOpt === 'boolean' ? logpushOpt : script?.logpush;
         const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
@@ -81,7 +83,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        await putScript({ accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel });
+        await putScript({ accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
        
         if (doNamespaces.hasPendingUpdates()) {

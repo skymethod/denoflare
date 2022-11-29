@@ -197,6 +197,10 @@
                         "workersDev": {
                             "description": "If specified, enable or disable the workers.dev route for this worker when deploying to Cloudflare.",
                             "type": "boolean"
+                        },
+                        "logpush": {
+                            "description": "If specified, enable or disable logpush for this worker.",
+                            "type": "boolean"
                         }
                     }
                 }

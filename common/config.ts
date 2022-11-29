@@ -87,6 +87,12 @@ export interface Script {
 
     /** If specified, enable or disable the workers.dev route for this worker when deploying to Cloudflare. */
     readonly workersDev?: boolean;
+
+    /** If specified, enable or disable logpush for this worker.
+     * 
+     * See https://blog.cloudflare.com/workers-logpush-ga/
+     */
+    readonly logpush?: boolean;
 }
 
 /** Binding definition for a worker script environment variable */

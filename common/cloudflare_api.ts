@@ -64,14 +64,15 @@ export async function listScripts(opts: { accountId: string, apiToken: string })
     return (await execute<readonly Script[]>('listScripts', 'GET', url, apiToken)).result;
 }
 
-export async function putScript(opts: { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound' }): Promise<Script> {
-    const { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel } = opts;
+export async function putScript(opts: { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', logpush?: boolean }): Promise<Script> {
+    const { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
         bindings, 
         usage_model: usageModel,
-        migrations
+        migrations,
+        logpush
     };
 
     if (isModule) {

@@ -80,7 +80,7 @@ function isValidCustomDomain(customDomain: string): boolean {
 // deno-lint-ignore no-explicit-any
 function checkScript(name: string, script: any): Script {
     checkObject(name, script);
-    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev } = script;
+    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev, logpush } = script;
     if (path !== undefined && typeof path !== 'string') throw new Error(`Bad ${name}.path: expected string, found ${typeof path}`);
     if (bindings !== undefined) {
         checkObject(`${name}.bindings`, bindings);
@@ -103,6 +103,7 @@ function checkScript(name: string, script: any): Script {
     if (usageModel !== undefined && usageModel !== 'bundled' && usageModel !== 'unbound') throw new Error(`Bad ${name}.usageModel: expected bundled | unbound, found ${usageModel}`);
     if (customDomains !== undefined && !(Array.isArray(customDomains) && customDomains.every(v => typeof v === 'string' && isValidCustomDomain(v)))) throw new Error(`Bad ${name}.customDomains: expected string array of domain names, found ${customDomains}`);
     if (workersDev !== undefined && typeof workersDev !== 'boolean') throw new Error(`Bad ${name}.workersDev: expected boolean, found ${typeof workersDev}`);
+    if (logpush !== undefined && typeof logpush !== 'boolean') throw new Error(`Bad ${name}.logpush: expected boolean, found ${typeof logpush}`);
 
     return script as Script;
 }
