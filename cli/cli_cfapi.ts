@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -385,6 +385,48 @@ function cfapiCommand() {
         if (!scriptTag) throw new Error(`Unable to find script: ${script}`);
         const result = await listWorkerDeployments({ accountId, apiToken, scriptTag });
         console.log(JSON.stringify(result, undefined, 2));
+    });
+
+    rt.subcommandGroup();
+    
+    add(apiCommand('list-logpush-jobs', '').option('page', 'integer', 'Page number'), async (accountId, apiToken, opts) => {
+        const { page } = opts;
+        const result = await listLogpushJobs({ accountId, apiToken, page });
+        console.log(JSON.stringify(result, undefined, 2));
+    });
+
+    add(apiCommand('create-logpush-job', 'Create a Logpush job')
+            .arg('name', 'string', 'Name of the job')
+            .option('logpullOptions', 'required-string', 'Configuration string, specifies things like requested fields and timestamp formats')
+            .option('filter', 'string', 'Filter json')
+            .option('destinationConfiguration', 'required-string', 'Uniquely identifies a resource (such as an s3 bucket) where data will be pushed')
+            .option('dataset', 'required-string', 'Dataset to be pulled')
+            .option('enabled', 'boolean', 'Indicates if the job should be enabled')
+            , async (accountId, apiToken, opts) => {
+        const { name, logpullOptions, filter, destinationConfiguration, dataset, enabled = true } = opts;
+        const value = await createLogpushJob({ accountId, apiToken, name, logpullOptions, filter, destinationConfiguration, dataset, enabled });
+        console.log(value);
+    });
+
+    add(apiCommand('update-logpush-job', 'Update a Logpush job')
+            .arg('jobId', 'string', 'Job id')
+            .option('logpullOptions', 'string', 'Configuration string, specifies things like requested fields and timestamp formats')
+            .option('filter', 'string', 'Filter json')
+            .option('destinationConfiguration', 'string', 'Uniquely identifies a resource (such as an s3 bucket) where data will be pushed')
+            .option('frequency', 'string', 'high: larger quantities of smaller files, low: smaller quantities of larger files')
+            .option('enabled', 'boolean', 'Indicates if the job should be enabled')
+            , async (accountId, apiToken, opts) => {
+        const { jobId: jobIdStr, logpullOptions, filter, destinationConfiguration, frequency, enabled } = opts;
+        const jobId = parseInt(jobIdStr);
+        const value = await updateLogpushJob({ accountId, apiToken, jobId, logpullOptions, filter, destinationConfiguration, frequency, enabled });
+        console.log(value);
+    });
+
+    add(apiCommand('delete-logpush-job', 'Delete a Logpush job').arg('jobId', 'string', 'Job id'), async (accountId, apiToken, opts) => {
+        const { jobId: jobIdStr } = opts;
+        const jobId = parseInt(jobIdStr);
+        const value = await deleteLogpushJob({ accountId, apiToken, jobId });
+        console.log(value);
     });
 
     return rt;

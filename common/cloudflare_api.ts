@@ -1219,6 +1219,56 @@ export interface QueueConsumer {
 
 //#endregion
 
+//#region Logpush (account-level)
+
+export async function listLogpushJobs(opts: { accountId: string, apiToken: string, page?: number }): Promise<unknown[]> {
+    const { accountId, apiToken, page } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/logpush/jobs`);
+    if (typeof page === 'number') url.searchParams.set('page', page.toString());
+    return (await execute<Queue[]>('listLogpushJobs', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function createLogpushJob(opts: { accountId: string, apiToken: string, name: string, logpullOptions: string, filter: string | undefined, destinationConfiguration: string, dataset: string, enabled: boolean }): Promise<LogpushJob> {
+    const { accountId, apiToken, name, logpullOptions: logpull_options, filter, destinationConfiguration: destination_conf, dataset, enabled } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/logpush/jobs`;
+    const payload = { name, logpull_options, filter, destination_conf, dataset, enabled };
+    return (await execute<LogpushJob>('createLogpushJob', 'POST', url, apiToken, payload)).result;
+}
+
+export async function updateLogpushJob(opts: { accountId: string, apiToken: string, jobId: number, logpullOptions?: string, filter?: string, destinationConfiguration?: string, frequency?: string, enabled?: boolean }): Promise<LogpushJob> {
+    const { accountId, apiToken, jobId, logpullOptions: logpull_options, filter, destinationConfiguration: destination_conf, frequency, enabled } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/logpush/jobs/${jobId}`;
+    const payload = { logpull_options, filter, destination_conf, frequency, enabled };
+    return (await execute<LogpushJob>('updateLogpushJob', 'PUT', url, apiToken, payload)).result;
+}
+
+export async function deleteLogpushJob(opts: { accountId: string, apiToken: string, jobId: number }): Promise<LogpushJobReference> {
+    const { accountId, apiToken, jobId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/logpush/jobs/${jobId}`;
+    return (await execute<LogpushJobReference>('deleteLogpushJob', 'DELETE', url, apiToken)).result;
+}
+
+export interface LogpushJob {
+    readonly id: number; // e.g. 136165
+    readonly dataset: string; // e.g. workers_trace_events
+    readonly frequency: string; // 'high' or 'low'
+    readonly filter: string; // json
+    readonly kind: string; // blank or 'edge'
+    readonly enabled: boolean;
+    readonly name: string;
+    readonly logpull_options: string;
+    readonly destination_conf: string;
+    readonly last_complete: string | null; // datetime
+    readonly last_error: string | null; // datetime
+    readonly error_message: string | null;
+}
+
+export interface LogpushJobReference {
+    readonly id: number; // e.g. 136165
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
