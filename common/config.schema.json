@@ -201,6 +201,10 @@
                         "logpush": {
                             "description": "If specified, enable or disable logpush for this worker.",
                             "type": "boolean"
+                        },
+                        "compatibilityDate": {
+                            "description": "If specified, the specific compatibility environment for this worker.\n\nSee https://developers.cloudflare.com/workers/platform/compatibility-dates/",
+                            "type": "string"
                         }
                     }
                 }

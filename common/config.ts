@@ -93,6 +93,11 @@ export interface Script {
      * See https://blog.cloudflare.com/workers-logpush-ga/
      */
     readonly logpush?: boolean;
+
+    /** If specified, the specific compatibility environment for this worker.
+     * 
+     * See https://developers.cloudflare.com/workers/platform/compatibility-dates/ */
+    readonly compatibilityDate?: string;
 }
 
 /** Binding definition for a worker script environment variable */
