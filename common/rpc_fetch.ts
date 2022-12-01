@@ -4,6 +4,10 @@ import { Constants } from './constants.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 import { RpcChannel } from './rpc_channel.ts';
 
+// ReadableStreamReadResult removed in deno 1.28.3
+// https://github.com/denoland/deno/pull/16191
+type ReadableStreamReadResult<V extends ArrayBufferView> = ReadableStreamBYOBReadResult<V>
+
 export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies, webSocketResolver: WebSocketResolver): (info: RequestInfo, init?: RequestInit) => Promise<Response | DenoflareResponse> {
     return async (info: RequestInfo, init?: RequestInit) => {
         const data = packRequest(info, init, bodies);
