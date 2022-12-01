@@ -1,4 +1,4 @@
-import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.166.0/path/mod.ts'; // intended to be self-contained, don't use shared deps
+import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.167.0/path/mod.ts'; // intended to be self-contained, don't use shared deps
 
 /**
  * Meant to work properly in a standard Deno environment.
