@@ -205,6 +205,13 @@
                         "compatibilityDate": {
                             "description": "If specified, the specific compatibility environment for this worker.\n\nSee https://developers.cloudflare.com/workers/platform/compatibility-dates/",
                             "type": "string"
+                        },
+                        "compatibilityFlags": {
+                            "description": "If specified, the specific compatibility flags for this worker.\n\nSee https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 }

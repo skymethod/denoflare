@@ -19,6 +19,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('workersDev', 'boolean', 'Enable or disable the worker workers.dev route')
     .option('logpush', 'boolean', 'Enable or disable logpush for the worker')
     .option('compatibilityDate', 'string', 'Specific compatibility environment for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/')
+    .option('compatibilityFlag', 'strings', 'Specific compatibility flags for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags')
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
@@ -30,7 +31,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (PUSH_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, compatibilityDate: compatibilityDateOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
+    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, compatibilityDate: compatibilityDateOpt, compatibilityFlag: compatibilityFlagOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
 
     if (verbose) {
         // in cli
@@ -67,6 +68,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const usageModel = script?.usageModel;
         const logpush = typeof logpushOpt === 'boolean' ? logpushOpt : script?.logpush;
         const compatibilityDate = typeof compatibilityDateOpt === 'string' ? compatibilityDateOpt : script?.compatibilityDate;
+        const compatibilityFlags = compatibilityFlagOpt || script?.compatibilityFlags;
         const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
@@ -85,7 +87,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        await putScript({ accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate });
+        await putScript({ accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags });
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
        
         if (doNamespaces.hasPendingUpdates()) {

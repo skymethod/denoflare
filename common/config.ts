@@ -98,6 +98,11 @@ export interface Script {
      * 
      * See https://developers.cloudflare.com/workers/platform/compatibility-dates/ */
     readonly compatibilityDate?: string;
+
+    /** If specified, the specific compatibility flags for this worker.
+     * 
+     * See https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags */
+     readonly compatibilityFlags?: string[];
 }
 
 /** Binding definition for a worker script environment variable */
