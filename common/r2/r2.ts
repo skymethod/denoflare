@@ -261,7 +261,7 @@ function stringToSign(method: string, url: URL, includeHost: boolean): string {
     if (includeHost) {
         rt += `${url.hostname}\n`; // hostname does not include port
     }
-    rt += url.pathname; // URL handles the encoding for us
+    rt += url.pathname.replaceAll(':', '%3A'); // URL handles the encoding for us
     rt += '\n';
 
     let qs = '';
