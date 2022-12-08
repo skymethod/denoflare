@@ -4,6 +4,7 @@
     "title": "Denoflare configuration file",
     "description": "Top-level Denoflare configuration object",
     "type": "object",
+    "allowTrailingCommas": true,
     "properties": {
         "scripts": {
             "description": "Known script definitions, by unique `script-name`.",
