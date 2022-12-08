@@ -34,6 +34,7 @@ export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a Cloudflare work
     .option('keyPem', 'string', `(required for https) Path to private key file in pem format (contents start with -----BEGIN PRIVATE KEY-----)`, { hint: 'path' })
     .option('name', 'string', `Explicit script name to use from config file`)
     .option('watchInclude', 'strings', 'Watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
+    .option('localIsolation', 'enum', `Local isolation mode: use 'none' for debugging, disables sandbox and hot-reload`, { value: 'isolate', default: true }, { value: 'none' })
 
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
@@ -44,7 +45,7 @@ export const SERVE_COMMAND = denoflareCliCommand('serve', 'Run a Cloudflare work
 export async function serve(args: (string | number)[], options: Record<string, unknown>) {
     if (SERVE_COMMAND.dumpHelp(args, options)) return;
 
-    const { scriptSpec, verbose, port: portOpt, certPem: certPemOpt, keyPem: keyPemOpt, name: nameOpt, watchInclude } = SERVE_COMMAND.parse(args, options);
+    const { scriptSpec, verbose, port: portOpt, certPem: certPemOpt, keyPem: keyPemOpt, name: nameOpt, watchInclude, localIsolation: localIsolationOpt } = SERVE_COMMAND.parse(args, options);
 
     if (verbose) {
         // in cli
@@ -76,7 +77,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     let certPem = certPemOpt;
     let keyPem = keyPemOpt;
     let bindingsProvider: () => Promise<Record<string, Binding>> = () => Promise.resolve({});
-    let isolation: Isolation = 'isolate';
+    let isolation: Isolation = localIsolationOpt as Isolation ?? 'isolate';
     let script: Script | undefined;
     let localHostname: string | undefined;
     const bindingsFromOptions = parseInputBindingsFromOptions(options);
@@ -91,7 +92,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             const pushId = isolation === 'none' ? undefined : `${pushNumber++}`;
             return await resolveBindings(inputBindings, port, pushId);
         }
-        isolation = script.localIsolation || isolation;
+        isolation = localIsolationOpt as Isolation ?? script.localIsolation ?? isolation;
         localHostname = script.localHostname;
         certPem = certPem || script.localCertPem;
         keyPem = keyPem || script.localKeyPem;
