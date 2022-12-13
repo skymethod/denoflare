@@ -800,10 +800,32 @@ export interface DurableObjectNamespace {
      * 
      * This allows you to begin making requests to the object right away, without waiting for a network round trip. 
      * 
+     * Durable Objects don't currently move between geographical regions after they are created (dynamic relocation of existing Durable Objects is planned for the future). 
+     * By default they are created close to the first client that accesses them via `get`.
+     *
+     * If you'd like to manually create them in another location, you can provide an optional `locationHint` parameter to `get`. 
+     * Only the first call to `get` for a particular object will respect the hint.
+     *
+     * The following `locationHint`s are supported. Note that hints are a best effort and not a guarantee. Durable Objects do not currently run in all of the locations below, and so the closest nearby region will be used until those locations are fully supported.
+     *
+     * | Location Hint Parameter  | Location              |
+     * | ------------------------ | --------------------- |
+     * | wnam                     | Western North America |
+     * | enam                     | Eastern North America |
+     * | sam                      | South America         |
+     * | weur                     | Western Europe        |
+     * | eeur                     | Eastern Europe        |
+     * | apac                     | Asia-Pacific          |
+     * | oc                       | Oceania               |
+     * | afr                      | Africa                |
+     * | me                       | Middle East           |
+     *
      * https://developers.cloudflare.com/workers/runtime-apis/durable-objects#obtaining-an-object-stub
      * */
-    get(id: DurableObjectId): DurableObjectStub;
+    get(id: DurableObjectId, opts?: { locationHint?: LocationHint }): DurableObjectStub;
 }
+
+export type LocationHint = 'wnam' | 'enam' | 'sam' | 'weur' | 'eeur' | 'apac' | 'oc' | 'afr' | 'me';
 
 // https://developers.cloudflare.com/workers/runtime-apis/durable-objects#obtaining-an-object-stub
 
@@ -1196,7 +1218,7 @@ export interface AnalyticsEngine {
 export interface AnalyticsEngineEvent {
     readonly doubles?: number[]; // up to 20
     readonly blobs?: (ArrayBuffer | string | null)[]; // up to 20, max sum of all blobs: 5kb
-    readonly indexes?: string[]; // 0 or 1
+    readonly indexes?: string[]; // 0 or 1, max 32 bytes
 }
 
 //#endregion
