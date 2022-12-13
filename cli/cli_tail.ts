@@ -1,6 +1,6 @@
 import { createTail, sendTailHeartbeat } from '../common/cloudflare_api.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { isTailMessageCronEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage } from '../common/tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage } from '../common/tail.ts';
 import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { denoflareCliCommand } from './cli_common.ts';
@@ -112,6 +112,12 @@ function dumpMessageCompact(message: TailMessage) {
     } else if (isTailMessageCronEvent(message.event)) {
         const scheduledTime = new Date(message.event.scheduledTime).toISOString();
         console.log(` cron: ${time} ${message.event.cron} ${scheduledTime}`);
+    } else if (isTailMessageAlarmEvent(message.event)) {
+        const { scheduledTime } = message.event;
+        console.log(` alarm: ${time} ${scheduledTime}`);
+    } else if (isTailMessageQueueEvent(message.event)) {
+        const { batchSize, queue } = message.event;
+        console.log(` queue: ${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`);
     } else {
         console.log(`  req: ${time} ${message.event.request.method} ${message.event.request.url}`);
         const userAgent = message.event.request.headers['user-agent'];

@@ -53,7 +53,7 @@ export interface TailMessage {
     readonly event: TailMessageEvent | null; // null for DO alarm callbacks
 }
 
-export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent;
+export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
 
@@ -74,7 +74,11 @@ export function parseTailMessage(obj: unknown): TailMessage {
         return { outcome, scriptName, exceptions, logs, eventTimestamp: Date.now(), event: null };
     }
     if (!(typeof eventTimestamp === 'number' && eventTimestamp > 0)) throw new Error(`Bad eventTimestamp: expected positive number, found ${JSON.stringify(eventTimestamp)}`);
-    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : parseTailMessageCronEvent(objAsAny.event);
+    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event)
+        : objAsAny.event && objAsAny.event.queue ? parseTailMessageQueueEvent(objAsAny.event)
+        : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event)
+        : parseTailMessageAlarmEvent(objAsAny.event);
+
     return { outcome, scriptName, exceptions, logs, eventTimestamp, event };
 }
 
@@ -140,6 +144,56 @@ function parseTailMessageException(obj: unknown): TailMessageException {
     if (!(typeof timestamp === 'number' && timestamp > 0)) throw new Error(`Bad timestamp: expected positive number, found ${JSON.stringify(timestamp)}`);
 
     return { name, message, timestamp };
+}
+
+//
+
+export interface TailMessageQueueEvent {
+    readonly batchSize: number; // e.g. 1
+    readonly queue: string; // queue name
+}
+
+const REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS = new Set(['batchSize', 'queue']);
+
+export function isTailMessageQueueEvent(obj: unknown): obj is TailMessageQueueEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS);
+}
+
+function parseTailMessageQueueEvent(obj: unknown): TailMessageQueueEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageQueueEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS);
+    // deno-lint-ignore no-explicit-any
+    const objAsAny = obj as any;
+    const { batchSize, queue } = objAsAny;
+    if (!(typeof batchSize === 'number' && batchSize > 0)) throw new Error(`Bad batchSize: expected positive number, found ${JSON.stringify(batchSize)}`);
+    if (!(typeof queue === 'string')) throw new Error(`Bad queue: expected string, found ${JSON.stringify(queue)}`);
+    return { batchSize, queue };
+}
+
+//
+
+export interface TailMessageAlarmEvent {
+    readonly scheduledTime: string; // instant
+}
+
+const REQUIRED_TAIL_MESSAGE_ALARM_EVENT_KEYS = new Set(['scheduledTime']);
+
+export function isTailMessageAlarmEvent(obj: unknown): obj is TailMessageAlarmEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_ALARM_EVENT_KEYS);
+}
+
+function parseTailMessageAlarmEvent(obj: unknown): TailMessageAlarmEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageAlarmEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_ALARM_EVENT_KEYS);
+    // deno-lint-ignore no-explicit-any
+    const objAsAny = obj as any;
+    const { scheduledTime } = objAsAny;
+    if (!(typeof scheduledTime === 'string')) throw new Error(`Bad scheduledTime: expected string, found ${JSON.stringify(scheduledTime)}`);
+    return { scheduledTime };
 }
 
 //

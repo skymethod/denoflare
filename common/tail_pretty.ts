@@ -1,4 +1,4 @@
-import { isTailMessageCronEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
 
 export interface AdditionalLog {
     // deno-lint-ignore no-explicit-any
@@ -14,8 +14,15 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
     if (isTailMessageCronEvent(message.event)) {
         const colo = props.colo || '???';
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageAlarmEvent(message.event)) {
+        const colo = props.colo || '???';
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${message.event.scheduledTime}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageQueueEvent(message.event)) {
+        const colo = props.colo || '???';
+        const { queue, batchSize } = message.event;
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
-        const { method, url, cf } = message.event === null ? { method: undefined, url: undefined, cf: undefined } : message.event.request;
+        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) ? { method: undefined, url: undefined, cf: undefined } : message.event.request;
         const unredactedUrl = typeof props.url === 'string' ? props.url : url;
         const colo = cf?.colo || props.colo || '???';
         if (cf === undefined) {
@@ -63,10 +70,22 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
     for (const { name, message: exceptionMessage } of message.exceptions) {
         logger(` %c|%c [%c${name}%c] %c${exceptionMessage}`, 'color: gray', '', `color: red; font-style: bold`, '', 'color: red');
     }
-    if (message.event !== null && !isTailMessageCronEvent(message.event)) {
-        const response = message.event.response;
-        if (response) {
-            logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+    if (message.event) {
+        if (isTailMessageCronEvent(message.event)) {
+            const { scheduledTime, cron } = message.event;
+            const scheduledInstant = new Date(scheduledTime).toISOString();
+            logger(` %c|%c [%ccron%c] %c${cron} ${scheduledInstant}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageAlarmEvent(message.event)) {
+            const { scheduledTime } = message.event;
+            logger(` %c|%c [%calarm%c] %c${scheduledTime}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageQueueEvent(message.event)) {
+            const { batchSize, queue } = message.event;
+            logger(` %c|%c [%cqueue%c] %c${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else {
+            const response = message.event.response;
+            if (response) {
+                logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+            }
         }
     }
 }

@@ -1117,9 +1117,9 @@ class CloudflareApi {
     static URL_TRANSFORMER = (v)=>v;
 }
 const APPLICATION_JSON = 'application/json';
-const APPLICATION_JSON_UTF8 = 'application/json; charset=UTF-8';
+const APPLICATION_JSON_UTF8 = 'application/json; charset=utf-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
-const TEXT_PLAIN_UTF8 = 'text/plain; charset=UTF-8';
+const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 function computeAccountBaseUrl(accountId) {
     return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4/accounts/${accountId}`);
 }
@@ -1169,7 +1169,7 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
     if (![
         APPLICATION_JSON_UTF8,
         APPLICATION_JSON
-    ].includes(contentType)) {
+    ].includes(contentType.toLowerCase())) {
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json();
@@ -1270,7 +1270,7 @@ function parseTailMessage(obj) {
         };
     }
     if (!(typeof eventTimestamp === 'number' && eventTimestamp > 0)) throw new Error(`Bad eventTimestamp: expected positive number, found ${JSON.stringify(eventTimestamp)}`);
-    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : parseTailMessageCronEvent(objAsAny.event);
+    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : objAsAny.event && objAsAny.event.queue ? parseTailMessageQueueEvent(objAsAny.event) : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event) : parseTailMessageAlarmEvent(objAsAny.event);
     return {
         outcome,
         scriptName,
@@ -1332,6 +1332,45 @@ function parseTailMessageException(obj) {
         name,
         message,
         timestamp
+    };
+}
+const REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS = new Set([
+    'batchSize',
+    'queue'
+]);
+function isTailMessageQueueEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS);
+}
+function parseTailMessageQueueEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageQueueEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS);
+    const objAsAny = obj;
+    const { batchSize , queue  } = objAsAny;
+    if (!(typeof batchSize === 'number' && batchSize > 0)) throw new Error(`Bad batchSize: expected positive number, found ${JSON.stringify(batchSize)}`);
+    if (!(typeof queue === 'string')) throw new Error(`Bad queue: expected string, found ${JSON.stringify(queue)}`);
+    return {
+        batchSize,
+        queue
+    };
+}
+const REQUIRED_TAIL_MESSAGE_ALARM_EVENT_KEYS = new Set([
+    'scheduledTime'
+]);
+function isTailMessageAlarmEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_ALARM_EVENT_KEYS);
+}
+function parseTailMessageAlarmEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageAlarmEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_ALARM_EVENT_KEYS);
+    const objAsAny = obj;
+    const { scheduledTime  } = objAsAny;
+    if (!(typeof scheduledTime === 'string')) throw new Error(`Bad scheduledTime: expected string, found ${JSON.stringify(scheduledTime)}`);
+    return {
+        scheduledTime
     };
 }
 const REQUIRED_TAIL_MESSAGE_CRON_EVENT_KEYS = new Set([
@@ -1449,14 +1488,21 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
     if (isTailMessageCronEvent(message.event)) {
         const colo = props.colo || '???';
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageAlarmEvent(message.event)) {
+        const colo1 = props.colo || '???';
+        logger(`[%c${time}%c] [%c${colo1}%c] [%c${outcome}%c] %c${message.event.scheduledTime}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageQueueEvent(message.event)) {
+        const colo2 = props.colo || '???';
+        const { queue , batchSize  } = message.event;
+        logger(`[%c${time}%c] [%c${colo2}%c] [%c${outcome}%c] %c${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
-        const { method , url , cf  } = message.event === null ? {
+        const { method , url , cf  } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) ? {
             method: undefined,
             url: undefined,
             cf: undefined
         } : message.event.request;
         const unredactedUrl = typeof props.url === 'string' ? props.url : url;
-        const colo1 = cf?.colo || props.colo || '???';
+        const colo3 = cf?.colo || props.colo || '???';
         if (cf === undefined) {
             const { durableObjectClass , durableObjectName , durableObjectId  } = computeDurableObjectInfo(props);
             const doTemplates = [];
@@ -1478,12 +1524,12 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
                 doStyles.push('color: gray', '');
             }
             if (message.event === null) {
-                logger(`[%c${time}%c] [%c${colo1}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ALARM`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles);
+                logger(`[%c${time}%c] [%c${colo3}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ALARM`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles);
             } else {
-                logger(`[%c${time}%c] [%c${colo1}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ${method} %c${unredactedUrl}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles, 'color: red; font-style: bold;');
+                logger(`[%c${time}%c] [%c${colo3}%c] [%c${outcome}%c] [${doTemplates.join(' ')}] ${method} %c${unredactedUrl}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', ...doStyles, 'color: red; font-style: bold;');
             }
         } else {
-            logger(`[%c${time}%c] [%c${colo1}%c] [%c${outcome}%c] ${method} %c${unredactedUrl}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+            logger(`[%c${time}%c] [%c${colo3}%c] [%c${outcome}%c] ${method} %c${unredactedUrl}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
         }
     }
     for (const { data  } of additionalLogs){
@@ -1497,10 +1543,22 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
     for (const { name , message: exceptionMessage  } of message.exceptions){
         logger(` %c|%c [%c${name}%c] %c${exceptionMessage}`, 'color: gray', '', `color: red; font-style: bold`, '', 'color: red');
     }
-    if (message.event !== null && !isTailMessageCronEvent(message.event)) {
-        const response = message.event.response;
-        if (response) {
-            logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+    if (message.event) {
+        if (isTailMessageCronEvent(message.event)) {
+            const { scheduledTime , cron  } = message.event;
+            const scheduledInstant = new Date(scheduledTime).toISOString();
+            logger(` %c|%c [%ccron%c] %c${cron} ${scheduledInstant}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageAlarmEvent(message.event)) {
+            const { scheduledTime: scheduledTime1  } = message.event;
+            logger(` %c|%c [%calarm%c] %c${scheduledTime1}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageQueueEvent(message.event)) {
+            const { batchSize: batchSize1 , queue: queue1  } = message.event;
+            logger(` %c|%c [%cqueue%c] %c${queue1} ${batchSize1} message${batchSize1 === 1 ? '' : 's'}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else {
+            const response = message.event.response;
+            if (response) {
+                logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+            }
         }
     }
 }
@@ -1610,7 +1668,7 @@ const PRETTY_OUTCOMES = new Map([
     [
         'unknown',
         'Unknown'
-    ], 
+    ]
 ]);
 const LOG_LEVEL_COLORS = new Map([
     [
@@ -1636,7 +1694,7 @@ const LOG_LEVEL_COLORS = new Map([
     [
         'error',
         'red'
-    ], 
+    ]
 ]);
 class TailConnection {
     static VERBOSE = false;
@@ -1758,7 +1816,7 @@ function bytesToUuid(bytes) {
         "-",
         ...bits.slice(8, 10),
         "-",
-        ...bits.slice(10, 16), 
+        ...bits.slice(10, 16)
     ].join("");
 }
 function checkEqual(name, value, expected) {
@@ -2156,11 +2214,17 @@ async function _getR2OperationsByDate(profile, operationClass, startDateInclusiv
         'CopyObject',
         'CompleteMultipartUpload',
         'CreateMultipartUpload',
-        'UploadPartCopy'
+        'UploadPart',
+        'UploadPartCopy',
+        'PutBucketEncryption',
+        'ListMultipartUploads'
     ] : [
         'HeadBucket',
         'HeadObject',
-        'GetObject'
+        'GetObject',
+        'ReportUsageSummary',
+        'GetBucketEncryption',
+        'GetBucketLocation'
     ];
     const resObj = await query(profile, (q)=>q.object('r2OperationsAdaptiveGroups').argLong('limit', 10000).argRaw('filter', `{date_geq: $start, date_leq: $end, actionStatus: "success", actionType_in: ${JSON.stringify(actionTypes)}}`).argRaw('orderBy', `[date_ASC]`).object('dimensions').scalar('date').scalar('bucketName').end().object('sum').scalar('requests').scalar('responseObjectSize').end(), {
         start: startDateInclusive,
@@ -2216,7 +2280,7 @@ async function computeDurableObjectsCostsTable(client, opts) {
         client.getDurableObjectStorageByDate(start, end),
         client.getDurableObjectPeriodicMetricsByDate(start, end),
         client.getDurableObjectInvocationsByDate(start, end),
-        tryListDurableObjectsNamespaces(client.profile), 
+        tryListDurableObjectsNamespaces(client.profile)
     ]);
     const gqlResultInfos = {
         'storage': storage.info,
@@ -2226,7 +2290,7 @@ async function computeDurableObjectsCostsTable(client, opts) {
     const rowsByNamespace = {};
     const rowsByDate = {};
     for (const pRow of periodic.rows){
-        const { date , namespaceId , maxActiveWebsocketConnections , sumInboundWebsocketMsgCount , sumOutboundWebsocketMsgCount , sumSubrequests , sumActiveTime , sumStorageReadUnits , sumStorageWriteUnits , sumStorageDeletes ,  } = pRow;
+        const { date , namespaceId , maxActiveWebsocketConnections , sumInboundWebsocketMsgCount , sumOutboundWebsocketMsgCount , sumSubrequests , sumActiveTime , sumStorageReadUnits , sumStorageWriteUnits , sumStorageDeletes  } = pRow;
         let rows = rowsByNamespace[namespaceId];
         if (!rows) {
             rows = [];
@@ -3125,7 +3189,7 @@ class DemoMode {
         {
             id: 'profile2',
             text: 'pers-profile'
-        }, 
+        }
     ];
     static selectedProfileId = 'profile1';
     static setSelectedProfileId(_value) {}
@@ -3157,7 +3221,7 @@ class DemoMode {
         {
             id: 'script7',
             text: 'secret-app'
-        }, 
+        }
     ];
     static selectedScriptIds = new Set([
         'script7',
@@ -3232,7 +3296,7 @@ function computeFakeDoRequest() {
                         durableObjectName: 'log1'
                     }
                 ]
-            }, 
+            }
         ],
         exceptions: [],
         eventTimestamp: Date.now(),
@@ -3290,7 +3354,7 @@ function computeFakeRequestWithLogs() {
                 message: [
                     'Lorem ipsum dolor sit amet, consectetur adipiscing elit'
                 ]
-            }, 
+            }
         ],
         exceptions: [],
         eventTimestamp: Date.now(),
@@ -3320,14 +3384,14 @@ function computeFakeRequestExceedingTimeLimit() {
                 message: [
                     'burning cpu'
                 ]
-            }, 
+            }
         ],
         exceptions: [
             {
                 name: 'Error',
                 timestamp: Date.now(),
                 message: 'Worker exceeded CPU time limit.'
-            }, 
+            }
         ],
         eventTimestamp: Date.now(),
         outcome: 'exceededCpu'
@@ -3666,7 +3730,7 @@ class WebtailAppVM {
             {
                 id: 'http',
                 text: 'HTTP request'
-            }, 
+            }
         ];
         filterForm.fieldValueOptions = [];
         filterForm.fieldValue = filter.event1 === 'http' ? 'http' : filter.event1 === 'cron' ? 'cron' : 'all';
@@ -3700,7 +3764,7 @@ class WebtailAppVM {
             {
                 id: 'error',
                 text: 'Error'
-            }, 
+            }
         ];
         filterForm.fieldValueOptions = [];
         filterForm.fieldValue = filter.status1 === 'success' ? 'success' : filter.status1 === 'error' ? 'error' : 'all';
@@ -4175,7 +4239,7 @@ class WebtailAppVM {
         const includeUserAgent = this.extraFields.includes('user-agent');
         const includeReferer = this.extraFields.includes('referer');
         if (includeIpAddress || includeUserAgent || includeReferer) {
-            if (message.event !== null && !isTailMessageCronEvent(message.event)) {
+            if (message.event !== null && !isTailMessageCronEvent(message.event) && !isTailMessageAlarmEvent(message.event) && !isTailMessageQueueEvent(message.event)) {
                 if (includeIpAddress) {
                     const ipAddress = message.event.request.headers['cf-connecting-ip'] || undefined;
                     if (ipAddress) rt.push(computeAdditionalLogForExtraField('IP address', ipAddress));
@@ -4279,7 +4343,7 @@ const EXTRA_FIELDS_OPTIONS = [
     {
         id: 'referer',
         text: 'Referer'
-    }, 
+    }
 ];
 const STATE_KEY = 'state1';
 function loadState() {
@@ -5608,7 +5672,7 @@ appendStylesheets([
     WELCOME_PANEL_CSS.cssText,
     PROFILE_EDITOR_CSS.cssText,
     FILTER_EDITOR_CSS.cssText,
-    CIRCULAR_PROGRESS_CSS.cssText, 
+    CIRCULAR_PROGRESS_CSS.cssText
 ]);
 LitElement.render(appHtml, document.body);
 function parseStaticData() {
