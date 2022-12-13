@@ -1,6 +1,11 @@
 import { checkEqual } from './check.ts';
-import { getTraversalObj } from './deps_xml.ts';
+import { getTraversalObj, validate } from './deps_xml.ts';
 import { decodeXml } from './xml_util.ts';
+
+export function validateXml(xml: string): true | XmlValidationError {
+    const rt = validate(xml);
+    return rt === true ? rt : rt.err;
+}
 
 export function parseXml(xml: string, opts: { additionalEntities?: { [char: string]: string } } = {}): ExtendedXmlNode {
     const { additionalEntities } = opts;
@@ -96,6 +101,13 @@ export type ExtendedXmlNode = XmlNode & {
     readonly atts: ReadonlyMap<string, string>;
     readonly qname: Qname;
 };
+
+export interface XmlValidationError { 
+    readonly code: string;
+    readonly msg: string;
+    readonly line: number;
+    readonly col: number;
+}
 
 //
 
