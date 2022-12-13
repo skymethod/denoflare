@@ -1291,6 +1291,9 @@ export interface Queue {
      * The message can be any type supported by the structured clone algorithm, as long as its size is less than 128 KB.
      * When the promise resolves, the message is confirmed to be written to disk. */
     send(message: unknown): Promise<void>;
+
+    /** Sends multiple messages to the Queue. */
+    sendBatch(messages: { body: unknown }[]): Promise<void>;
 }
 
 /** A message that is sent to a consumer Worker. */
