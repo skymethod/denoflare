@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from 'https://deno.land/std@0.167.0/testing/asserts.ts';
+import { assertEquals, assertThrows } from 'https://deno.land/std@0.168.0/testing/asserts.ts';
 
 import { parseFlags } from './flag_parser.ts';
 
