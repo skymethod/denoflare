@@ -136,7 +136,7 @@ async function findConfigFilePath(verbose: boolean): Promise<string | undefined>
     }
 }
 
-async function findProfile(config: Config, options: Record<string, unknown>, script: Script | undefined): Promise<Profile|undefined> {
+async function findProfile(config: Config, options: Record<string, unknown>, script: Script | undefined): Promise<Profile | undefined> {
     const accountId = parseOptionalStringOption('account-id', options);
     const apiToken = parseOptionalStringOption('api-token', options);
     if (typeof apiToken === 'string' && apiToken.length > 0) {

@@ -104,7 +104,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     if (typeof portOpt === 'number') {
         port = portOpt; // port option should override config script localPort
     }
-    const profile = await resolveProfileOpt(config, options);
+    const profile = await resolveProfileOpt(config, options, script);
 
     redefineGlobalFetchToWorkaroundBareIpAddresses();
 
