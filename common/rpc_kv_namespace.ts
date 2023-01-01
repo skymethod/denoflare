@@ -22,6 +22,18 @@ export function addRequestHandlerForRpcKvNamespace(channel: RpcChannel, kvNamesp
                 const res: KVNamespaceGetJsonResponse = { type: req.type, record };
                 return res;
             }
+        } else if (req.type === 'text') {
+            if (req.withMetadata) {
+                const result = await target.getWithMetadata(key, { type: 'text', cacheTtl });
+                const text = result ? result.value : null;
+                const metadata = result?.metadata || undefined;
+                const res: KVNamespaceGetTextResponse = { type: req.type, text, metadata };
+                return res;
+            } else {
+                const text = await target.get(key, { type: 'text', cacheTtl });
+                const res: KVNamespaceGetTextResponse = { type: req.type, text };
+                return res;
+            }
         }
         // deno-lint-ignore no-explicit-any
         throw new Error(`RequestHandlerForRpcKvNamespace: Implement ${(req as any).type}, req=${JSON.stringify(req)}`);
@@ -35,8 +47,8 @@ export class RpcKVNamespace implements KVNamespace {
     // deno-lint-ignore no-explicit-any
     get(key: string, opts: { type: 'stream' }): Promise<ReadableStream<any>|null>;
     // deno-lint-ignore no-explicit-any
-    async get(key: any, opts: any): Promise<any> {
-        if (typeof key === 'string' && opts) {
+    async get(key: any, opts: any = { type: 'text' }): Promise<any> {
+        if (typeof key === 'string') {
             if (opts.type === 'arrayBuffer' || opts === 'arrayBuffer') {
                 const { kvNamespace } = this;
                 const req: KVNamespaceGetArrayBufferRequest = { type: 'arrayBuffer', key, kvNamespace };
@@ -53,6 +65,14 @@ export class RpcKVNamespace implements KVNamespace {
                     if (res.type === 'json') return res.record;
                     throw new Error(`Bad res.type ${res.type}, expected json`);
                 });
+            } else if (opts.type === 'text' || opts === 'text') {
+                const { kvNamespace } = this;
+                const req: KVNamespaceGetTextRequest = { type: 'text', key, kvNamespace };
+                return await this.channel.sendRequest('kv-namespace-get', req, responseData => {
+                    const res = responseData as KVNamespaceGetResponse;
+                    if (res.type === 'text') return res.text;
+                    throw new Error(`Bad res.type ${res.type}, expected json`);
+                });
             }
         }
         throw new Error(`RpcKVNamespace.get not implemented. key=${typeof key} ${key}, opts=${JSON.stringify(opts)}`);
@@ -63,8 +83,8 @@ export class RpcKVNamespace implements KVNamespace {
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'arrayBuffer' }): Promise<KVValueAndMetadata<ArrayBuffer> | null>;
     getWithMetadata(key: string, opts: KVGetOptions | { type: 'stream' }): Promise<KVValueAndMetadata<ReadableStream> | null>;
     // deno-lint-ignore no-explicit-any
-    async getWithMetadata(key: any, opts: any): Promise<any> {
-        if (typeof key === 'string' && opts) {
+    async getWithMetadata(key: any, opts: any = { type: 'text' }): Promise<any> {
+        if (typeof key === 'string') {
             if (opts.type === 'json' || opts === 'json') {
                 const { kvNamespace } = this;
                 const req: KVNamespaceGetJsonRequest = { type: 'json', key, kvNamespace, withMetadata: true };
@@ -76,6 +96,20 @@ export class RpcKVNamespace implements KVNamespace {
                 let rt: KVValueAndMetadata<Record<string, unknown>> | null = null;
                 if (record) {
                     rt = { metadata: metadata || null, value: record };
+                }
+                return rt;
+            }
+            if (opts.type === 'text' || opts === 'text') {
+                const { kvNamespace } = this;
+                const req: KVNamespaceGetTextRequest = { type: 'text', key, kvNamespace, withMetadata: true };
+                const { text, metadata } = await this.channel.sendRequest('kv-namespace-get', req, responseData => {
+                    const res = responseData as KVNamespaceGetResponse;
+                    if (res.type === 'text') return { text: res.text, metadata: res.metadata };
+                    throw new Error(`Bad res.type ${res.type}, expected text, res=${JSON.stringify(res)}`);
+                });
+                let rt: KVValueAndMetadata<string> | null = null;
+                if (text) {
+                    rt = { metadata: metadata || null, value: text };
                 }
                 return rt;
             }
@@ -107,7 +141,7 @@ export class RpcKVNamespace implements KVNamespace {
 
 //
 
-type KVNamespaceGetRequest = KVNamespaceGetArrayBufferRequest | KVNamespaceGetJsonRequest;
+type KVNamespaceGetRequest = KVNamespaceGetArrayBufferRequest | KVNamespaceGetJsonRequest | KVNamespaceGetTextRequest;
 
 interface KVNamespaceGetArrayBufferRequest {
     readonly kvNamespace: string;
@@ -125,7 +159,15 @@ interface KVNamespaceGetJsonRequest {
     readonly withMetadata?: boolean;
 }
 
-type KVNamespaceGetResponse = KVNamespaceGetArrayBufferResponse | KVNamespaceGetJsonResponse;
+interface KVNamespaceGetTextRequest {
+    readonly kvNamespace: string;
+    readonly type: 'text';
+    readonly key: string;
+    readonly cacheTtl?: number;
+    readonly withMetadata?: boolean;
+}
+
+type KVNamespaceGetResponse = KVNamespaceGetArrayBufferResponse | KVNamespaceGetJsonResponse | KVNamespaceGetTextResponse;
 
 interface KVNamespaceGetArrayBufferResponse {
     readonly type: 'arrayBuffer';
@@ -136,5 +178,11 @@ interface KVNamespaceGetArrayBufferResponse {
 interface KVNamespaceGetJsonResponse {
     readonly type: 'json';
     readonly record: Record<string, unknown> | null;
+    readonly metadata?: Record<string, unknown>;
+}
+
+interface KVNamespaceGetTextResponse {
+    readonly type: 'text';
+    readonly text: string | null;
     readonly metadata?: Record<string, unknown>;
 }

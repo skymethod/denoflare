@@ -27,7 +27,7 @@ export class ApiKVNamespace implements KVNamespace {
     // deno-lint-ignore no-explicit-any
     get(key: string, opts: { type: 'stream' }): Promise<ReadableStream<any>|null>;
     // deno-lint-ignore no-explicit-any
-    async get(key: any, opts: any): Promise<any> {
+    async get(key: any, opts: any = { type: 'text' }): Promise<any> {
         const { accountId, namespaceId, apiToken } = this;
         const bytes = await getKeyValue({ accountId, namespaceId, key, apiToken });
         if (bytes === undefined) return null;
@@ -35,6 +35,8 @@ export class ApiKVNamespace implements KVNamespace {
             return bytes.buffer;
         } else if (opts && opts.type === 'json') {
             return JSON.parse(new Bytes(bytes).utf8());
+        } else if (opts && opts.type === 'text') {
+            return new Bytes(bytes).utf8();
         }
         throw new Error(`ApiKVNamespace.get not implemented. key=${typeof key} ${key}, opts=${JSON.stringify(opts)}`);
     } 
