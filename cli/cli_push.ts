@@ -234,7 +234,7 @@ async function resolveImport(opts: { importType: string, importMetaUrl: string, 
     if (importMetaUrl.startsWith('file://')) {
         const localPath = resolve(resolve(fromFileUrl(importMetaUrl), '..'), unquotedModuleSpecifier);
         const rootSpecifierDir = resolve(rootSpecifier, '..');
-        const relativePath = relative(rootSpecifierDir, localPath);
+        const relativePath = relative(rootSpecifierDir, localPath).replaceAll("\\","/");
         const valueBytes = await Deno.readFile(localPath);
         return { relativePath, valueBytes, valueType };
     } else if (importMetaUrl.startsWith('https://')) {
