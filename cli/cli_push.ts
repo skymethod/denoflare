@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
-import { gzip, isAbsolute, resolve, fromFileUrl, relative, systemSeperator } from './deps_cli.ts';
+import { gzip, isAbsolute, resolve, fromFileUrl, relative, systemSeparator } from './deps_cli.ts';
 import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
@@ -235,9 +235,7 @@ async function resolveImport(opts: { importType: string, importMetaUrl: string, 
         const localPath = resolve(resolve(fromFileUrl(importMetaUrl), '..'), unquotedModuleSpecifier);
         const rootSpecifierDir = resolve(rootSpecifier, '..');
         let relativePath = relative(rootSpecifierDir, localPath);
-        if(systemSeperator == '\\'){
-            relativePath = relativePath.replaceAll('\\','/');
-        }
+        if (systemSeparator === '\\') relativePath = relativePath.replaceAll('\\', '/');
         const valueBytes = await Deno.readFile(localPath);
         return { relativePath, valueBytes, valueType };
     } else if (importMetaUrl.startsWith('https://')) {
