@@ -300,7 +300,7 @@ class HeadersBasedR2Object implements R2Object {
         const contentLength = headers.get('content-length') ?? undefined;
         this._size = parsed && typeof parsed.size === 'number' ? parsed.size : contentLength ? parseInt(contentLength) : undefined;
         this.httpEtag = getExpectedHeader('etag', headers);
-        this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^(W\/)?"([0-9a-f]{32})(-[0-9a-z]+)?"$/)[1];
+        this.etag = checkMatchesReturnMatcher('etag', this.httpEtag, /^(W\/)?"([0-9a-f]{32})(-[0-9a-z]+)?"$/)[2];
         const lastModified = getExpectedHeader('last-modified', headers);
         this.uploaded = new Date(lastModified);
         const cacheExpiryStr = headers.get('cache-expiry') || undefined;
