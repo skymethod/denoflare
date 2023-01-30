@@ -79,9 +79,9 @@ function parseDiagnostics(err: string): DenoDiagnostic[] {
     const rt: DenoDiagnostic[] = [];
     if (err.length === 0) return rt;
 
-    for (const [ _, codeStr, inBetween, fileName, lineStr, charStr ] of [...err.matchAll(/TS(\d+)(.*?)\s+at\s+([^\s]+):(\d+):(\d+)\n/gs)]) {
+    for (const [ _, __, codeStr, inBetween, fileName, lineStr, charStr ] of [...err.matchAll(/(TS(\d+)|error:)(.*?)\s+at\s+([^\s]+):(\d+):(\d+)\n/gs)]) {
         const messageText = inBetween.trim();
-        const code = parseInt(codeStr);
+        const code = codeStr ? parseInt(codeStr) : 0;
         const line = parseInt(lineStr);
         const character = parseInt(charStr);
         rt.push({ category: 1 /*error*/, code, messageText, fileName, start: { line, character } });
