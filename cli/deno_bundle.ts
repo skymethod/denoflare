@@ -37,6 +37,14 @@ export async function denoBundle(rootSpecifier: string, opts: { noCheck?: boolea
         let diagnostics: DenoDiagnostic[] = [];
         if (err.length > 0 || !success) {
             diagnostics = parseDiagnostics(err);
+            if (!success && err && diagnostics.length === 0) {
+                // unparsed error (e.g. deno bundle not supporting npm specifiers)
+                diagnostics.push({
+                    category: DenoDiagnosticCategory.Error,
+                    code: 0,
+                    messageText: err,
+                });
+            }
             if (code.length === 0) {
                 const { out } = await runDenoBundle(rootSpecifier, { config, noCheck: true });
                 if (out.length > 0) code = out;
