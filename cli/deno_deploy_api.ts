@@ -1,4 +1,4 @@
-import { TextLineStream } from 'https://deno.land/std@0.176.0/streams/delimiter.ts';
+import { TextLineStream } from 'https://deno.land/std@0.178.0/streams/delimiter.ts';
 
 export const DEFAULT_ENDPOINT = `https://dash.deno.com/api`;
 
