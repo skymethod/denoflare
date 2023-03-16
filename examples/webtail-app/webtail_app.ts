@@ -3,7 +3,7 @@
 
 import { initSidebar, SIDEBAR_CSS, SIDEBAR_HTML } from './views/sidebar_view.ts';
 import { WebtailAppVM } from './webtail_app_vm.ts';
-import { CloudflareApi, css, html, LitElement, CfGqlClient } from './deps_app.ts';
+import { CloudflareApi, css, html, LitElement, CfGqlClient, render } from './deps_app.ts';
 import { MATERIAL_CSS } from './material.ts';
 import { initModal, MODAL_CSS, MODAL_HTML } from './views/modal_view.ts';
 import { HEADER_CSS } from './views/header_view.ts';
@@ -73,7 +73,7 @@ appendStylesheets([
     CIRCULAR_PROGRESS_CSS.cssText,
 ]);
 
-LitElement.render(appHtml, document.body);
+render(appHtml, document.body);
 
 function parseStaticData(): StaticData {
     const script = document.getElementById('static-data-script') as HTMLScriptElement;

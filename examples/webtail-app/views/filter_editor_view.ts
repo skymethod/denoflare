@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 
-import { css, html, LitElement } from '../deps_app.ts';
+import { css, html, LitElement, render } from '../deps_app.ts';
 import { WebtailAppVM } from '../webtail_app_vm.ts';
 import { CHECK_BOX_CHECKED_ICON, CHECK_BOX_UNCHECKED_ICON } from './icons.ts';
 
@@ -110,9 +110,9 @@ export function initFilterEditor(document: HTMLDocument, vm: WebtailAppVM): () =
         filterFieldLabel.htmlFor = type == 'choice' ? filterFieldChoiceDiv.id : type == 'options' ? filterFieldOptionsDiv.id : filterFieldTextInput.id;
         filterFieldTextInput.style.display = type == 'text' ? 'block' : 'none';
         filterFieldChoiceDiv.style.display = type == 'choice' ? 'flex' : 'none';
-        LitElement.render(CHOICES_HTML(vm), filterFieldChoiceDiv);
+        render(CHOICES_HTML(vm), filterFieldChoiceDiv);
         filterFieldOptionsDiv.style.display = type == 'options' ? 'flex' : 'none';
-        LitElement.render(OPTIONS_HTML(vm), filterFieldOptionsDiv);
+        render(OPTIONS_HTML(vm), filterFieldOptionsDiv);
 
         filterFormHelpDiv.textContent = vm.filterForm.helpText;
         filterFormOutput.textContent = vm.filterForm.outputMessage;

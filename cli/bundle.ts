@@ -67,7 +67,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         // the 'bundle' module function is closer to what we were doing with Deno.emit before
 
         // dynamic import, otherwise fails pre 1.22, and avoid typecheck failures using two lines
-        const moduleUrl = 'https://deno.land/x/emit@0.0.2/mod.ts';
+        const moduleUrl = 'https://deno.land/x/emit@0.16.0/mod.ts';
         const { bundle } = await import(moduleUrl);  
 
         // new 'bundle' no longer takes abs file paths
