@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 
-import { css, html, LitElement, DurableObjectsCostsTable, DurableObjectsDailyCostsTable } from '../deps_app.ts';
+import { css, html, LitElement, DurableObjectsCostsTable, DurableObjectsDailyCostsTable, render } from '../deps_app.ts';
 import { WebtailAppVM } from '../webtail_app_vm.ts';
 
 export const ANALYTICS_HTML = html`
@@ -136,13 +136,13 @@ export function initAnalytics(document: HTMLDocument, vm: WebtailAppVM): () => v
         if (durableObjectsCosts) {
             const renderCosts = (namespaceId: string | undefined) => {
                 const table = durableObjectsCosts.namespaceTables[namespaceId || ''] || durableObjectsCosts.accountTable;
-                LitElement.render(COSTS_HTML(table, namespaceId), analyticsTableElement);
+                render(COSTS_HTML(table, namespaceId), analyticsTableElement);
             }
             renderCosts(undefined);
-            LitElement.render(NAMESPACES_HTML(durableObjectsCosts, renderCosts), analyticsNamespacesTableElement);
+            render(NAMESPACES_HTML(durableObjectsCosts, renderCosts), analyticsNamespacesTableElement);
         } else {
-            LitElement.render(undefined, analyticsTableElement);
-            LitElement.render(undefined, analyticsNamespacesTableElement);
+            render(undefined, analyticsTableElement);
+            render(undefined, analyticsNamespacesTableElement);
         }
     };
 }

@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 
-import { html, LitElement, css, setSubtract, setUnion } from '../deps_app.ts';
+import { html, LitElement, css, setSubtract, setUnion, render } from '../deps_app.ts';
 import { StaticData } from '../static_data.ts';
 import { WebtailAppVM } from '../webtail_app_vm.ts';
 import { HEADER_HTML, initHeader } from './header_view.ts';
@@ -75,9 +75,9 @@ export function initSidebar(document: HTMLDocument, vm: WebtailAppVM, data: Stat
     
     return () => {
         updateHeader();
-        LitElement.render(PROFILES_HTML(vm), profilesDiv);
-        LitElement.render(ANALYTICS_HTML(vm), analyticsDiv);
-        LitElement.render(SCRIPTS_HTML(vm), scriptsDiv);
+        render(PROFILES_HTML(vm), profilesDiv);
+        render(ANALYTICS_HTML(vm), analyticsDiv);
+        render(SCRIPTS_HTML(vm), scriptsDiv);
     };
 }
 

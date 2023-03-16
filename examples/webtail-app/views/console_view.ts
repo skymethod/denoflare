@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
 
-import { css, html, LitElement } from '../deps_app.ts';
+import { css, html, LitElement, render } from '../deps_app.ts';
 import { FilterState, WebtailAppVM } from '../webtail_app_vm.ts';
 import { actionIcon, CLEAR_ICON } from './icons.ts';
 
@@ -183,7 +183,7 @@ export function initConsole(document: HTMLDocument, vm: WebtailAppVM): () => voi
     vm.onQpsChange = qps => {
         consoleHeaderQpsElement.textContent = computeQpsText(qps);
     };
-    LitElement.render(actionIcon(CLEAR_ICON, { text: 'Clear', onclick: () => vm.resetOutput() }), consoleHeaderClearElement);
+    render(actionIcon(CLEAR_ICON, { text: 'Clear', onclick: () => vm.resetOutput() }), consoleHeaderClearElement);
 
     // for (let i = 0; i < 100; i++) vm.logger(`line ${i}`); // generate a bunch of lines to test scrolling
     // setInterval(() => { vm.logger(`line ${new Date().toISOString()}`); }, 1000); // generate a line every second to test autoscroll
@@ -192,7 +192,7 @@ export function initConsole(document: HTMLDocument, vm: WebtailAppVM): () => voi
         consoleDiv.style.display = vm.selectedAnalyticId ? 'none' : 'block';
         consoleHeaderFiltersDiv.style.visibility = vm.profiles.length > 0 ? 'visible' : 'hidden';
         consoleHeaderTailsElement.textContent = computeTailsText(vm.tails.size);
-        LitElement.render(FILTERS_HTML(vm), consoleHeaderFiltersDiv);
+        render(FILTERS_HTML(vm), consoleHeaderFiltersDiv);
     };
 }
 
