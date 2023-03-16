@@ -1,4 +1,4 @@
-export { css, html, LitElement, svg, SVGTemplateResult, CSSResult, TemplateResult } from 'https://cdn.skypack.dev/lit-element@2.5.1';
+export { css, html, LitElement, svg, SVGTemplateResult, CSSResult, TemplateResult } from 'https://cdn.skypack.dev/lit-element@3.2.2';
 export type { Tail } from '../../common/cloudflare_api.ts';
 export { createTail, CloudflareApiError, listScripts, listTails, CloudflareApi } from '../../common/cloudflare_api.ts';
 export { setSubtract, setEqual, setIntersect, setUnion } from '../../common/sets.ts';
