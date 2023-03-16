@@ -6,8 +6,7 @@ export async function computeDenoGraphLocalPaths(path: string): Promise<string[]
 }
 
 export async function computeDenoGraph(path: string): Promise<ModuleGraphJson> {
-    const graph = await createGraph(computeRootSpecifier(path));
-    return graph.toJSON();
+    return await createGraph(computeRootSpecifier(path));
 } 
 
 //

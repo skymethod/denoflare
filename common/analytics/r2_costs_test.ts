@@ -1,4 +1,4 @@
-import { assertEquals } from 'https://deno.land/std@0.179.0/testing/asserts.ts';
+import { assertEquals } from 'https://deno.land/std@0.180.0/testing/asserts.ts';
 import { computeCosts } from './r2_costs.ts';
 
 const DEBUG = false;
