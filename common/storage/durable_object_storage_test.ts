@@ -1,5 +1,5 @@
 import { InMemoryDurableObjectStorage } from './in_memory_durable_object_storage.ts';
-import { assertEquals } from 'https://deno.land/std@0.180.0/testing/asserts.ts';
+import { assertEquals } from 'https://deno.land/std@0.182.0/testing/asserts.ts';
 import { DurableObjectStorage } from '../cloudflare_workers_types.d.ts';
 import { WebStorageDurableObjectStorage } from './web_storage_durable_object_storage.ts';
 

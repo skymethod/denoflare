@@ -1,4 +1,4 @@
-import { TextLineStream } from 'https://deno.land/std@0.180.0/streams/text_line_stream.ts';
+import { TextLineStream } from 'https://deno.land/std@0.182.0/streams/text_line_stream.ts';
 
 export const DEFAULT_ENDPOINT = `https://dash.deno.com/api`;
 
