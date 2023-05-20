@@ -68,21 +68,21 @@ export class ApiKVNamespace implements KVNamespace {
     
         const operation = { accountId, namespaceId, key, apiToken, ...opts };
     
-        if (typeof value === "string") {
-          return await putKeyValue({ ...operation, value });
-        } else if ("pipeTo" in value) {
-          let chunks = "";
-          const stream = value.pipeThrough(new TextDecoderStream());
+        if (typeof value === 'string') {
+            return await putKeyValue({ ...operation, value });
+        } else if ('pipeTo' in value) {
+            const chunks: string[] = [];
+            const stream = value.pipeThrough(new TextDecoderStream());
 
-          for await (const chunk of stream) {
-            chunks += chunk;
-          }
-    
-          return await putKeyValue({ ...operation, value: chunks });
-        } else if ("slice" in value) {
-          return await putKeyValue({ ...operation, value: new TextDecoder().decode(value) });
+            for await (const chunk of stream) {
+                chunks.push(chunk);
+            }
+
+            return await putKeyValue({ ...operation, value: chunks.join('') });
+        } else if ('slice' in value) {
+            return await putKeyValue({ ...operation, value: new TextDecoder().decode(value) });
         }
-    
+
         throw new Error(`ApiKVNamespace.put not implemented. key=${key} value=${value} opts=${JSON.stringify(opts)}`);
     }
     
@@ -92,9 +92,10 @@ export class ApiKVNamespace implements KVNamespace {
         await deleteKeyValue({ accountId, namespaceId, apiToken, key });
     }
 
-    list(opts?: KVListOptions): Promise<KVListCompleteResult | KVListIncompleteResult> {
+    async list(opts?: KVListOptions): Promise<KVListCompleteResult | KVListIncompleteResult> {
         const { accountId, namespaceId, apiToken } = this;
 
-        return listKeys({ accountId, namespaceId, apiToken, ...opts });
+        return await listKeys({ accountId, namespaceId, apiToken, ...opts });
     }
+
 }

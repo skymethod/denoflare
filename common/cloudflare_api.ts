@@ -1,6 +1,6 @@
-//#region Durable objects
+import { KVListCompleteResult, KVListIncompleteResult } from './cloudflare_workers_types.d.ts';
 
-import { KVListCompleteResult, KVListIncompleteResult } from "./cloudflare_workers_types.d.ts";
+//#region Durable objects
 
 export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string }): Promise<readonly DurableObjectsNamespace[]> {
     const { accountId, apiToken } = opts;
@@ -372,23 +372,31 @@ export async function putKeyValue(opts: { accountId: string, namespaceId: string
     }
 }
 
-export async function deleteKeyValue(opts: { accountId: string; namespaceId: string; key: string; apiToken: string; }): Promise<void> {
+/**
+ * Delete key-value pair
+ * https://developers.cloudflare.com/api/operations/workers-kv-namespace-delete-key-value-pair
+ */
+export async function deleteKeyValue(opts: { accountId: string, namespaceId: string, key: string, apiToken: string }): Promise<void> {
     const { accountId, namespaceId, key, apiToken } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/values/${key}`);
 
-    await execute("deleteKeyValue", "DELETE", url.toString(), apiToken);
+    await execute('deleteKeyValue', 'DELETE', url.toString(), apiToken);
 }
   
-export async function listKeys(opts: { accountId: string; namespaceId: string; apiToken: string; cursor?: string; limit?: number; prefix?: string; }) {
+/**
+ * List a namespace's keys
+ * https://developers.cloudflare.com/api/operations/workers-kv-namespace-list-a-namespace'-s-keys
+ */
+export async function listKeys(opts: { accountId: string, namespaceId: string, apiToken: string, cursor?: string, limit?: number, prefix?: string }) {
     const { accountId, namespaceId, apiToken, cursor, limit, prefix } = opts;
 
     const url = new URL(`${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/keys`);
 
-    if (typeof limit === "number") url.searchParams.set("limit", limit.toString());
-    if (cursor) url.searchParams.set("cursor", cursor);
-    if (prefix) url.searchParams.set("prefix", prefix);
+    if (typeof limit === 'number') url.searchParams.set('limit', limit.toString());
+    if (cursor) url.searchParams.set('cursor', cursor);
+    if (prefix) url.searchParams.set('prefix', prefix);
 
-    return (await execute<KVListCompleteResult | KVListIncompleteResult>("listKeys", "GET", url.toString(), apiToken)).result;
+    return (await execute<KVListCompleteResult | KVListIncompleteResult>('listKeys', 'GET', url.toString(), apiToken)).result;
 }
 
 //#endregion
