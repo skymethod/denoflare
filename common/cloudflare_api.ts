@@ -1,5 +1,7 @@
 //#region Durable objects
 
+import { KVListCompleteResult, KVListIncompleteResult } from "./cloudflare_workers_types.d.ts";
+
 export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string }): Promise<readonly DurableObjectsNamespace[]> {
     const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
@@ -368,6 +370,25 @@ export async function putKeyValue(opts: { accountId: string, namespaceId: string
     } else {
         await execute('putKeyValue', 'PUT', url.toString(), apiToken, value);
     }
+}
+
+export async function deleteKeyValue(opts: { accountId: string; namespaceId: string; key: string; apiToken: string; }): Promise<void> {
+    const { accountId, namespaceId, key, apiToken } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/values/${key}`);
+
+    await execute("deleteKeyValue", "DELETE", url.toString(), apiToken);
+}
+  
+export async function listKeys(opts: { accountId: string; namespaceId: string; apiToken: string; cursor?: string; limit?: number; prefix?: string; }) {
+    const { accountId, namespaceId, apiToken, cursor, limit, prefix } = opts;
+
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/storage/kv/namespaces/${namespaceId}/keys`);
+
+    if (typeof limit === "number") url.searchParams.set("limit", limit.toString());
+    if (cursor) url.searchParams.set("cursor", cursor);
+    if (prefix) url.searchParams.set("prefix", prefix);
+
+    return (await execute<KVListCompleteResult | KVListIncompleteResult>("listKeys", "GET", url.toString(), apiToken)).result;
 }
 
 //#endregion

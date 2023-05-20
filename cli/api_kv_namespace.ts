@@ -1,5 +1,5 @@
 import { KVGetOptions, KVListCompleteResult, KVListIncompleteResult, KVListOptions, KVNamespace, KVPutOptions, KVValueAndMetadata } from '../common/cloudflare_workers_types.d.ts';
-import { getKeyMetadata, getKeyValue } from '../common/cloudflare_api.ts';
+import { deleteKeyValue, getKeyMetadata, getKeyValue, listKeys, putKeyValue } from '../common/cloudflare_api.ts';
 import { Profile } from '../common/config.ts';
 import { Bytes } from '../common/bytes.ts';
 
@@ -63,16 +63,38 @@ export class ApiKVNamespace implements KVNamespace {
         throw new Error(`ApiKVNamespace.getWithMetadata not implemented. key=${key} opts=${JSON.stringify(opts)}`);
     } 
     
-    put(_key: string, _value: string | ReadableStream | ArrayBuffer, _opts?: KVPutOptions): Promise<void> {
-        throw new Error(`ApiKVNamespace.put not implemented.`);
-    }
+    async put(key: string, value: string | ReadableStream | ArrayBuffer, opts?: KVPutOptions): Promise<void> {
+        const { accountId, namespaceId, apiToken } = this;
+    
+        const operation = { accountId, namespaceId, key, apiToken, ...opts };
+    
+        if (typeof value === "string") {
+          return await putKeyValue({ ...operation, value });
+        } else if ("pipeTo" in value) {
+          let chunks = "";
+          const stream = value.pipeThrough(new TextDecoderStream());
 
-    delete(_key: string): Promise<void> {
-        throw new Error(`ApiKVNamespace.delete not implemented.`);
-    }
-
-    list(_opts?: KVListOptions): Promise<KVListCompleteResult | KVListIncompleteResult> {
-        throw new Error(`ApiKVNamespace.list not implemented.`);
+          for await (const chunk of stream) {
+            chunks += chunk;
+          }
+    
+          return await putKeyValue({ ...operation, value: chunks });
+        } else if ("slice" in value) {
+          return await putKeyValue({ ...operation, value: new TextDecoder().decode(value) });
+        }
+    
+        throw new Error(`ApiKVNamespace.put not implemented. key=${key} value=${value} opts=${JSON.stringify(opts)}`);
     }
     
+    async delete(key: string): Promise<void> {
+        const { accountId, namespaceId, apiToken } = this;
+
+        await deleteKeyValue({ accountId, namespaceId, apiToken, key });
+    }
+
+    list(opts?: KVListOptions): Promise<KVListCompleteResult | KVListIncompleteResult> {
+        const { accountId, namespaceId, apiToken } = this;
+
+        return listKeys({ accountId, namespaceId, apiToken, ...opts });
+    }
 }
