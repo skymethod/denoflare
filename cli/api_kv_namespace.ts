@@ -95,7 +95,12 @@ export class ApiKVNamespace implements KVNamespace {
     async list(opts?: KVListOptions): Promise<KVListCompleteResult | KVListIncompleteResult> {
         const { accountId, namespaceId, apiToken } = this;
 
-        return await listKeys({ accountId, namespaceId, apiToken, ...opts });
-    }
+        const response = await listKeys({ accountId, namespaceId, apiToken, ...opts });
 
+        return {
+            keys: response.result,
+            list_complete: Boolean(response.result_info.cursor),
+            cursor: response.result_info.cursor
+        }
+    }
 }

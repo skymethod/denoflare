@@ -396,21 +396,21 @@ export async function listKeys(opts: { accountId: string, namespaceId: string, a
     if (cursor) url.searchParams.set('cursor', cursor);
     if (prefix) url.searchParams.set('prefix', prefix);
 
-    const response = await execute('listKeys', 'GET', url.toString(), apiToken) as KVApiListResult;
+    return await execute('listKeys', 'GET', url.toString(), apiToken) as ListKVResponse;
+}
 
-    return {
-        keys: response.result,
-        list_complete: Boolean(response.result_info.cursor),
-        cursor: response.result_info.cursor
-    }
+export interface ResultListKV {
+    readonly expiration: number;
+    readonly metadata: Record<string, string>;
+    readonly name: string;
 }
 
 export interface ResultInfoKV {
-    count: number;
-    cursor: string;
+    readonly count: number;
+    readonly cursor: string;
 }
 
-export interface ListKVResponse extends CloudflareApiResponse<KVListCompleteResult | KVListIncompleteResult> {
+export interface ListKVResponse extends CloudflareApiResponse<ResultListKV[]> {
     readonly result_info: ResultInfoKV;
 }
 
