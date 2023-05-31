@@ -1,5 +1,5 @@
 export function encodeXml(unencoded: string): string {
-    return unencoded.replaceAll(/[&<>'']/g, (char) => {
+    return unencoded.replaceAll(/[&<>'"]/g, (char) => {
         return UNENCODED_CHARS_TO_ENTITIES[char];
     });
 }
