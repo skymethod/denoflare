@@ -1,5 +1,3 @@
-import { KVListCompleteResult, KVListIncompleteResult } from './cloudflare_workers_types.d.ts';
-
 //#region Durable objects
 
 export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string }): Promise<readonly DurableObjectsNamespace[]> {
@@ -396,22 +394,47 @@ export async function listKeys(opts: { accountId: string, namespaceId: string, a
     if (cursor) url.searchParams.set('cursor', cursor);
     if (prefix) url.searchParams.set('prefix', prefix);
 
-    return await execute('listKeys', 'GET', url.toString(), apiToken) as ListKVResponse;
+    return await execute('listKeys', 'GET', url.toString(), apiToken) as ListKeysResponse;
 }
 
-export interface ResultListKV {
-    readonly expiration: number;
-    readonly metadata: Record<string, string>;
+export interface KeyInfo {
+    readonly expiration?: number;
+    readonly metadata?: Record<string, string>;
     readonly name: string;
 }
 
-export interface ResultInfoKV {
-    readonly count: number;
-    readonly cursor: string;
+export interface ListKeysResponse extends CloudflareApiResponse<KeyInfo[]> {
+    readonly result_info: {
+        readonly count: number;
+        readonly cursor: string;
+    }
 }
 
-export interface ListKVResponse extends CloudflareApiResponse<ResultListKV[]> {
-    readonly result_info: ResultInfoKV;
+/**
+ * List Namespaces
+ * https://developers.cloudflare.com/api/operations/workers-kv-namespace-list-namespaces
+ */
+export async function listKVNamespaces(opts: { accountId: string, apiToken: string, direction?: 'asc' | 'desc', order?: 'id' | 'title', page?: number, per_page?: number }) {
+    const { accountId, apiToken, direction, order, page, per_page } = opts;
+
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/storage/kv/namespaces`);
+
+    if (direction) url.searchParams.set('direction', direction);
+    if (order) url.searchParams.set('order', order);
+    if (typeof page === 'number') url.searchParams.set('page', page.toString());
+    if (typeof per_page === 'number') url.searchParams.set('per_page', per_page.toString());
+
+    return await execute('listKVNamespaces', 'GET', url.toString(), apiToken) as ListKVNamespacesResponse;
+}
+
+export interface KVNamespaceInfo {
+    readonly id: string;
+    readonly title: string;
+    readonly supports_url_encoding?: boolean;
+}
+
+export interface ListKVNamespacesResponse extends CloudflareApiResponse<KVNamespaceInfo[]> {
+    readonly result_info: ResultInfo;
 }
 
 //#endregion

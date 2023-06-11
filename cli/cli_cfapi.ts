@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -101,6 +101,36 @@ function cfapiCommand() {
             const metadata = await getKeyMetadata(accountId, namespaceId, key, apiToken);
             console.log(JSON.stringify(metadata, undefined, 2));
         }
+    });
+
+    add(apiCommand('list-keys', `List a KV namespace's keys`)
+        .arg('namespaceId', 'string', 'KV namespace id')
+        .option('cursor', 'string', 'Token indicating the position from which to continue')
+        .option('prefix', 'string', 'Used to filter down which keys will be returned')
+        .option('limit', 'integer', 'The number of keys to return')
+    , async (accountId, apiToken, opts) => {
+        const { namespaceId, cursor, prefix, limit } = opts;
+        const res = await listKeys({ accountId, namespaceId, cursor, prefix, limit, apiToken });
+        for (const item of res.result) {
+            console.log(JSON.stringify(item));
+        }
+        console.log(JSON.stringify(res.result_info));
+    });
+
+    add(apiCommand('list-kv-namespaces', `List KV namespaces`)
+        .option('direction', 'enum', 'Direction to order namespaces', { value: 'asc' }, { value: 'desc' })
+        .option('order', 'enum', 'Field to order results by', { value: 'id' }, { value: 'title' })
+        .option('page', 'integer', 'Page number of paginated results')
+        .option('perPage', 'integer', 'Maximum number of results per page')
+    , async (accountId, apiToken, opts) => {
+        const { direction, order, page, perPage: per_page } = opts;
+        if (typeof direction === 'string' && !(direction === 'asc' || direction === 'desc')) throw new Error();
+        if (typeof order === 'string' && !(order === 'id' || order === 'title')) throw new Error();
+        const res = await listKVNamespaces({ accountId, apiToken, direction, order, page, per_page });
+        for (const item of res.result) {
+            console.log(JSON.stringify(item));
+        }
+        console.log(JSON.stringify(res.result_info));
     });
     
     rt.subcommandGroup();
