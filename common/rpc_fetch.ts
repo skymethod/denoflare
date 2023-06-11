@@ -28,7 +28,7 @@ export function makeBodyResolverOverRpc(channel: RpcChannel): BodyResolver {
             // event loop workaround needed as of Deno 1.34.2
             setTimeout(() => {
                 if (value !== undefined) controller.enqueue(value);
-                if (done) controller.close();
+                if (done) try { controller.close(); } catch (e) { console.warn(`Ignoring error closing rpc body stream: ${e.stack}`); }
             }, 0);
         },
         cancel(reason) {
