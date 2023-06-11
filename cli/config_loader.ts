@@ -6,6 +6,8 @@ import { fileExists } from './fs_util.ts';
 import { parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand } from './cli_command.ts';
 import { listAccounts } from '../common/cloudflare_api.ts';
+import { isStringRecord } from '../common/check.ts';
+import { push } from './cli_push.ts';
 
 export function commandOptionsForConfig(command: CliCommand<unknown>) {
     return command
@@ -49,35 +51,58 @@ export async function loadConfig(options: Record<string, unknown>): Promise<Conf
     return config;
 }
 
-export async function resolveBindings(bindings: Record<string, Binding>, localPort: number | undefined, pushId: string | undefined): Promise<Record<string, Binding>> {
+export type BindingResolutionOpts = { localPort?: number, pushId?: string, awsCredentialsLoader?: (profile: string) => Promise<AwsCredentials>, envLoader?: (name: string) => string | undefined };
+
+export async function resolveBindings(bindings: Record<string, Binding>, opts: BindingResolutionOpts): Promise<Record<string, Binding>> {
     const rt: Record<string, Binding> = {};
     for (const [name, binding] of Object.entries(bindings || {})) {
-        rt[name] = await resolveBinding(binding, localPort, pushId);
+        rt[name] = await resolveBinding(binding, opts);
     }
     return rt;
 }
 
-export async function resolveBinding(binding: Binding, localPort: number | undefined, pushId: string | undefined): Promise<Binding> {
-    if (isSecretBinding(binding)) {
-        const m = /^aws:(.*?)$/.exec(binding.secret);
-        if (m) {
-            const creds = await loadAwsCredentialsForProfile(m[1]);
-            return { secret: `${creds.accessKeyId}:${creds.secretAccessKey}` };
+export async function resolveBinding(binding: Binding, { localPort, pushId, awsCredentialsLoader = loadAwsCredentialsForProfile, envLoader = Deno.env.get }: BindingResolutionOpts): Promise<Binding> {
+    binding = structuredClone(binding); // don't modify input
+    const replace = async (str: string) => {
+        const rt: string[] = [];
+        const p = /\$\{((aws|env):)?(.*?)\}/g
+        let m: RegExpExecArray | null;
+        let pos = 0;
+        while ((m = p.exec(str)) !== null) {
+            if (m.index > pos) rt.push(str.substring(pos, m.index));
+            const [ substring, _, prefix, suffix ] = m;
+            if (prefix === 'aws') {
+                const creds = await awsCredentialsLoader(suffix);
+                rt.push(`${creds.accessKeyId}:${creds.secretAccessKey}`);
+            } else if (prefix === 'env') {
+                const val = envLoader(suffix);
+                if (typeof val !== 'string') throw new Error(`Unable to resolve ${substring}`);
+                rt.push(val);
+            } else if (suffix === 'localPort' && localPort) {
+                rt.push(localPort.toString());
+            } else if (suffix === 'pushId' && pushId) {
+                rt.push(pushId);
+            } else {
+                throw new Error(`Unable to resolve ${substring}`);
+            }
+            pos = m.index + substring.length;
         }
-    } else if (isTextBinding(binding)) {
-        let value = binding.value;
-        if (localPort === undefined) {
-            if (binding.value.includes('${localPort}')) throw new Error(`Cannot resolve: localPort`);
-        } else {
-            value = value.replace('${localPort}', localPort.toString());
-        }
-        if (pushId === undefined) {
-            if (value.includes('${pushId}')) throw new Error(`Cannot resolve: pushId`);
-        } else {
-            value = value.replace('${pushId}', pushId);
-        }
-        return { value };
+        if (pos < str.length) rt.push(str.substring(pos));
+        return rt.join('');
     }
+    const visit = async (obj: unknown) => {
+        if (isStringRecord(obj)) {
+            for (const key of Object.keys(obj)) {
+                const value = obj[key];
+                if (typeof value === 'string') {
+                    obj[key] = await replace(value);
+                } else {
+                    visit(value);
+                }
+            }
+        }
+    }
+    await visit(binding);
     return binding;
 }
 

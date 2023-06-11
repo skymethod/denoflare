@@ -296,7 +296,7 @@ class DurableObjectNamespaces {
 //
 
 async function computeBindings(inputBindings: Record<string, Binding>, scriptName: string, doNamespaces: DurableObjectNamespaces, pushId: string | undefined): Promise<{ bindings: ApiBinding[], parts: Part[] }> {
-    const resolvedBindings = await resolveBindings(inputBindings, undefined, pushId);
+    const resolvedBindings = await resolveBindings(inputBindings, { pushId });
     const bindings: ApiBinding[] = [];
     const partsMap: Record<string, Part> = {};
     for (const [name, binding] of Object.entries(resolvedBindings)) {

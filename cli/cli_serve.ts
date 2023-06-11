@@ -90,7 +90,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
         bindingsProvider = async () => {
             const pushId = isolation === 'none' ? undefined : `${pushNumber++}`;
-            return await resolveBindings(inputBindings, port, pushId);
+            return await resolveBindings(inputBindings, { localPort: port, pushId });
         }
         isolation = localIsolationOpt as Isolation ?? script.localIsolation ?? isolation;
         localHostname = script.localHostname;
