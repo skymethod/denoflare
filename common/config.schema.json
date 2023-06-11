@@ -23,7 +23,7 @@
                             "type": "string"
                         },
                         "bindings": {
-                            "description": "Bindings for worker environment variables to use when running locally, or deploying to Cloudflare",
+                            "description": "Bindings for worker environment variables to use when running locally, or deploying to Cloudflare.\n\nAll string properties support the following substitutions:\n - ${env:VAR_NAME} replaced with environment value\n - ${aws:profile-name} replaced with the associated `<aws_access_key_id>:<aws_secret_access_key>` from `~/.aws/credentials`\n - ${localPort} replaced with the localhost port used when running `serve`, the local dev server. \n  - `${pushId}` replaced with an incremental push identifier used when running `serve`, the local dev server, or `push` --watch.",
                             "type": "object",
                             "propertyNames": {
                                 "pattern": "^[a-zA-Z0-9_]+$"
@@ -37,7 +37,7 @@
                                             "required": [ "value" ],
                                             "properties": {
                                                 "value": {
-                                                    "description": "Value is the string value, with the following replacements:\n  - `${localPort}` replaced with the localhost port used when running `serve`, the local dev server.\n  This can be useful when defining a variable for the server Origin, for example.\n  - `${pushId}` replaced with an incremental push identifier used when running `serve`, the local dev server, or `push` --watch.",
+                                                    "description": "String value, visible in the Cloudflare dashboard",
                                                     "type": "string"
                                                 }
                                             }
@@ -48,7 +48,7 @@
                                             "required": [ "secret" ],
                                             "properties": {
                                                 "secret": {
-                                                    "description": "Value can be:\n - Secret literal string value\n - `aws:<aws-profile-name>`, replaced with the associated `<aws_access_key_id>:<aws_secret_access_key>` from `~/.aws/credentials`.\nUseful if you want to keep your credentials in a single file.",
+                                                    "description": "String value, hidden in the Cloudflare dashboard",
                                                     "type": "string"
                                                 }
                                             }
@@ -103,7 +103,7 @@
                                             "required": [ "bucketName" ],
                                             "properties": {
                                                 "bucketName": {
-                                                    "description": "The R2 bucket name.",
+                                                    "description": "The R2 bucket name",
                                                     "type": "string"
                                                 }
                                             }
@@ -231,11 +231,11 @@
                     "required": [ "accountId", "apiToken" ],
                     "properties": {
                         "accountId": {
-                            "description": "Cloudflare Account ID: 32-char hex string.\n\nThis value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.",
+                            "description": "Cloudflare Account ID: 32-char hex string.\n\nThis value can either be specified directly, `${env:VAR_NAME}` to reference an environment variable, or using `${regex:<file-path>:<pattern-with-capturing-group>}` to grab the value from another file.",
                             "type": "string"
                         },
                         "apiToken": {
-                            "description": "Cloudflare API token: Value obtained from the Cloudflare dashboard (My Profile -> [API Tokens](https://dash.cloudflare.com/profile/api-tokens)) when creating the token under this account.\n\nThis value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.",
+                            "description": "Cloudflare API token: Value obtained from the Cloudflare dashboard (My Profile -> [API Tokens](https://dash.cloudflare.com/profile/api-tokens)) when creating the token under this account.\n\nThis value can either be specified directly, `${env:VAR_NAME}` to reference an environment variable, or using `${regex:<file-path>:<pattern-with-capturing-group>}` to grab the value from another file.",
                             "type": "string"
                         },
                         "default": {

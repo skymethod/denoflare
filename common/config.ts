@@ -201,13 +201,13 @@ export interface Profile {
 
     /** Cloudflare Account ID: 32-char hex string.
      * 
-     * This value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.
+     * This value can either be specified directly, `${env:VAR_NAME}` to reference an environment variable, or using `${regex:<file-path>:<pattern-with-capturing-group>}` to grab the value from another file.
      */
     readonly accountId: string;
 
     /** Cloudflare API token: Value obtained from the Cloudflare dashboard (My Profile -> [API Tokens](https://dash.cloudflare.com/profile/api-tokens)) when creating the token under this account. 
      * 
-     * This value can either be specified directly, or using `regex:<file-path>:<pattern-with-capturing-group>` to grab the value from another file.
+     * This value can either be specified directly, `${env:VAR_NAME}` to reference an environment variable, or using `${regex:<file-path>:<pattern-with-capturing-group>}` to grab the value from another file.
      */
     readonly apiToken: string;
 

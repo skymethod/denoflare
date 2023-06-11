@@ -66,7 +66,7 @@ function isValidLocalPort(localPort: number): boolean {
 }
 
 function isValidAccountId(accountId: string): boolean {
-    return /^(regex:.*|[0-9a-f]{32})$/.test(accountId)
+    return /^[0-9a-f]{32}$/.test(accountId)
 }
 
 function isValidApiToken(apiToken: string): boolean {
@@ -136,8 +136,16 @@ function checkBinding(name: string, binding: any) {
 function checkProfile(name: string, profile: any): Profile {
     checkObject(name, profile);
     const { accountId, apiToken, default: _default } = profile;
-    if (typeof accountId !== 'string' || !isValidAccountId(accountId)) throw new Error(`Bad ${name}.accountId: ${accountId}`);
+    if (typeof accountId !== 'string' || !hasSubstitutionsOr(isValidAccountId)(accountId)) throw new Error(`Bad ${name}.accountId: ${accountId}`);
     if (typeof apiToken !== 'string' || !isValidApiToken(apiToken)) throw new Error(`Bad ${name}.apiToken`);
     if (_default !== undefined && typeof _default !== 'boolean') throw new Error(`Bad ${name}.default: ${_default}`);
     return profile as Profile;
+}
+
+function hasSubstitutionsOr(pred: (str: string) => boolean): (str: string) => boolean {
+    return str => hasSubstitutions(str) || pred(str);
+}
+
+function hasSubstitutions(str: string): boolean {
+    return /\$\{.*?\}/.test(str);
 }
