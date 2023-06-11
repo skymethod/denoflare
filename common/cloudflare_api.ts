@@ -396,7 +396,22 @@ export async function listKeys(opts: { accountId: string, namespaceId: string, a
     if (cursor) url.searchParams.set('cursor', cursor);
     if (prefix) url.searchParams.set('prefix', prefix);
 
-    return (await execute<KVListCompleteResult | KVListIncompleteResult>('listKeys', 'GET', url.toString(), apiToken)).result;
+    return await execute('listKeys', 'GET', url.toString(), apiToken) as ListKVResponse;
+}
+
+export interface ResultListKV {
+    readonly expiration: number;
+    readonly metadata: Record<string, string>;
+    readonly name: string;
+}
+
+export interface ResultInfoKV {
+    readonly count: number;
+    readonly cursor: string;
+}
+
+export interface ListKVResponse extends CloudflareApiResponse<ResultListKV[]> {
+    readonly result_info: ResultInfoKV;
 }
 
 //#endregion
