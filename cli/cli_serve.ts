@@ -24,6 +24,7 @@ import { R2 } from '../common/r2/r2.ts';
 import { NoopD1Database } from '../common/noop_d1_database.ts';
 import { WebStorageDurableObjectStorage } from '../common/storage/web_storage_durable_object_storage.ts';
 import { cryptoKeyProvider } from '../common/crypto_keys.ts';
+import { versionCompare } from './versions.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -106,7 +107,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     }
     const profile = await resolveProfileOpt(config, options, script);
 
-    redefineGlobalFetchToWorkaroundBareIpAddresses();
+    if (versionCompare(Deno.version.deno, '1.33.4') < 0) redefineGlobalFetchToWorkaroundBareIpAddresses();
 
     const bundleOpts = parseBundleOpts(options);
 

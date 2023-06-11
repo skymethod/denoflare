@@ -2,6 +2,7 @@ const _fetch = fetch;
 
 export function redefineGlobalFetchToWorkaroundBareIpAddresses() {
     // https://github.com/denoland/deno/issues/7660
+    // fixed in v1.33.4 !
 
     // deno-lint-ignore no-explicit-any
     const fetchFromDeno = function(arg1: any, arg2: any) {

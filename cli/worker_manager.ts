@@ -177,7 +177,7 @@ function computeWebworkerRootSpecifier() {
 }
 
 function canWorkerOptionsRemoveDenoNamespace() {
-    return versionCompare(Deno.version.deno, "1.22") < 0;
+    return versionCompare(Deno.version.deno, '1.22') < 0;
 }
 
 //
