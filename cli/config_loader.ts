@@ -1,4 +1,4 @@
-import { Binding, Config, isSecretBinding, isTextBinding, Profile, Script } from '../common/config.ts';
+import { Binding, Config, Profile, Script } from '../common/config.ts';
 import { checkConfig, isValidProfileName } from '../common/config_validation.ts';
 import { ParseError, formatParseError, parseJsonc, ParseOptions } from './jsonc.ts';
 import { join, resolve } from './deps_cli.ts';
@@ -7,7 +7,6 @@ import { parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand } from './cli_command.ts';
 import { listAccounts } from '../common/cloudflare_api.ts';
 import { isStringRecord } from '../common/check.ts';
-import { push } from './cli_push.ts';
 
 export function commandOptionsForConfig(command: CliCommand<unknown>) {
     return command
@@ -51,9 +50,9 @@ export async function loadConfig(options: Record<string, unknown>): Promise<Conf
     return config;
 }
 
-export type BindingResolutionOpts = { localPort?: number, pushId?: string, awsCredentialsLoader?: (profile: string) => Promise<AwsCredentials>, envLoader?: (name: string) => string | undefined };
+export type ResolutionOpts = { localPort?: number, pushId?: string, awsCredentialsLoader?: (profile: string) => Promise<AwsCredentials>, envLoader?: (name: string) => string | undefined };
 
-export async function resolveBindings(bindings: Record<string, Binding>, opts: BindingResolutionOpts): Promise<Record<string, Binding>> {
+export async function resolveBindings(bindings: Record<string, Binding>, opts: ResolutionOpts): Promise<Record<string, Binding>> {
     const rt: Record<string, Binding> = {};
     for (const [name, binding] of Object.entries(bindings || {})) {
         rt[name] = await resolveBinding(binding, opts);
@@ -61,41 +60,14 @@ export async function resolveBindings(bindings: Record<string, Binding>, opts: B
     return rt;
 }
 
-export async function resolveBinding(binding: Binding, { localPort, pushId, awsCredentialsLoader = loadAwsCredentialsForProfile, envLoader = Deno.env.get }: BindingResolutionOpts): Promise<Binding> {
+export async function resolveBinding(binding: Binding, opts: ResolutionOpts): Promise<Binding> {
     binding = structuredClone(binding); // don't modify input
-    const replace = async (str: string) => {
-        const rt: string[] = [];
-        const p = /\$\{((aws|env):)?(.*?)\}/g
-        let m: RegExpExecArray | null;
-        let pos = 0;
-        while ((m = p.exec(str)) !== null) {
-            if (m.index > pos) rt.push(str.substring(pos, m.index));
-            const [ substring, _, prefix, suffix ] = m;
-            if (prefix === 'aws') {
-                const creds = await awsCredentialsLoader(suffix);
-                rt.push(`${creds.accessKeyId}:${creds.secretAccessKey}`);
-            } else if (prefix === 'env') {
-                const val = envLoader(suffix);
-                if (typeof val !== 'string') throw new Error(`Unable to resolve ${substring}`);
-                rt.push(val);
-            } else if (suffix === 'localPort' && localPort) {
-                rt.push(localPort.toString());
-            } else if (suffix === 'pushId' && pushId) {
-                rt.push(pushId);
-            } else {
-                throw new Error(`Unable to resolve ${substring}`);
-            }
-            pos = m.index + substring.length;
-        }
-        if (pos < str.length) rt.push(str.substring(pos));
-        return rt.join('');
-    }
     const visit = async (obj: unknown) => {
         if (isStringRecord(obj)) {
             for (const key of Object.keys(obj)) {
                 const value = obj[key];
                 if (typeof value === 'string') {
-                    obj[key] = await replace(value);
+                    obj[key] = await resolveString(value, opts);
                 } else {
                     visit(value);
                 }
@@ -106,16 +78,16 @@ export async function resolveBinding(binding: Binding, { localPort, pushId, awsC
     return binding;
 }
 
-export async function resolveProfile(config: Config, options: Record<string, unknown>, script?: Script): Promise<Profile> {
+export async function resolveProfile(config: Config, options: Record<string, unknown>, script?: Script, opts: ResolutionOpts = {}): Promise<Profile> {
     const profile = await findProfile(config, options, script);
     if (profile === undefined) throw new Error(`Unable to find profile, no profiles in config`);
-    return await resolveProfileComponents(profile);
+    return await resolveProfileComponents(profile, opts);
 }
 
-export async function resolveProfileOpt(config: Config, options: Record<string, unknown>, script?: Script): Promise<Profile | undefined> {
+export async function resolveProfileOpt(config: Config, options: Record<string, unknown>, script?: Script, opts: ResolutionOpts = {}): Promise<Profile | undefined> {
     const profile = await findProfile(config, options, script);
     if (profile === undefined) return undefined;
-    return await resolveProfileComponents(profile);
+    return await resolveProfileComponents(profile, opts);
 }
 
 //
@@ -204,17 +176,31 @@ async function findProfile(config: Config, options: Record<string, unknown>, scr
     throw new Error(`Unable to find profile, ${profilesArr.length} profiles in config, and ${defaultProfiles.length} marked as default`);
 }
 
-async function resolveProfileComponents(profile: Profile): Promise<Profile> {
-    const accountId = await resolveString(profile.accountId);
-    const apiToken = await resolveString(profile.apiToken);
+async function resolveProfileComponents(profile: Profile, opts: ResolutionOpts): Promise<Profile> {
+    const accountId = await resolveString(profile.accountId, opts);
+    const apiToken = await resolveString(profile.apiToken, opts);
     return { accountId, apiToken };
 }
 
-async function resolveString(string: string): Promise<string> {
-    if (string.startsWith('regex:')) {
-        const str = string.substring('regex:'.length);
-        const i = str.indexOf(':');
-        if (i > -1) {
+async function resolveString(string: string, { localPort, pushId, awsCredentialsLoader = loadAwsCredentialsForProfile, envLoader = Deno.env.get }: ResolutionOpts): Promise<string> {
+    const rt: string[] = [];
+    const p = /\$\{((aws|env|regex):)?(.*?)\}/g
+    let m: RegExpExecArray | null;
+    let pos = 0;
+    while ((m = p.exec(string)) !== null) {
+        if (m.index > pos) rt.push(string.substring(pos, m.index));
+        const [ substring, _, prefix, suffix ] = m;
+        if (prefix === 'aws') {
+            const creds = await awsCredentialsLoader(suffix);
+            rt.push(`${creds.accessKeyId}:${creds.secretAccessKey}`);
+        } else if (prefix === 'env') {
+            const val = envLoader(suffix);
+            if (typeof val !== 'string') throw new Error(`Unable to resolve ${substring}`);
+            rt.push(val);
+        } else if (prefix === 'regex') {
+            const str = suffix;
+            const i = str.indexOf(':');
+            if (i < 0) throw new Error(`Unable to resolve ${substring}`);
             const path = str.substring(0, i);
             const txt = await Deno.readTextFile(path);
             let pattern = str.substring(i + 1);
@@ -227,11 +213,19 @@ async function resolveString(string: string): Promise<string> {
             if (m) {
                 return m[1];
             } else {
-                throw new Error(`resolveString: Failed to resolve ${string}`);
+                throw new Error(`Unable to resolve ${substring}`);
             }
+        } else if (suffix === 'localPort' && localPort) {
+            rt.push(localPort.toString());
+        } else if (suffix === 'pushId' && pushId) {
+            rt.push(pushId);
+        } else {
+            throw new Error(`Unable to resolve ${substring}`);
         }
+        pos = m.index + substring.length;
     }
-    return string;
+    if (pos < string.length) rt.push(string.substring(pos));
+    return rt.join('');
 }
 
 async function loadAwsCredentialsForProfile(profile: string): Promise<AwsCredentials> {

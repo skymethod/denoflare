@@ -1,11 +1,12 @@
 import { assertEquals, assertRejects } from 'https://deno.land/std@0.191.0/testing/asserts.ts';
 
-import { resolveBindings } from './config_loader.ts';
-import { Binding } from '../common/config.ts';
+import { resolveBindings, resolveProfile } from './config_loader.ts';
+import { Binding, Config } from '../common/config.ts';
 
 Deno.test({
     name: 'resolveBindings',
     fn: async () => {
+        const opts = makeOpts();
         const input: Record<string, Binding> = {
             text1: { value: '${pushId}' },
             text2: { value: '${localPort}' },
@@ -14,13 +15,6 @@ Deno.test({
             text5: { value: 'pre${env:foo}post' },
             kv1: { kvNamespace: '${env:foo}' },
         };
-        const awsCredentialsLoader = async (profile: string) => {
-            await Promise.resolve();
-            if (profile === 'foo') return { accessKeyId: 'ak', secretAccessKey: 'sak' };
-            throw new Error(`Profile ${profile} not found`);
-        };
-        const envLoader = (name: string) => new Map([['foo', 'bar']]).get(name);
-        const opts = { localPort: 123, pushId: 'the-push-id', awsCredentialsLoader, envLoader };
         const output = await resolveBindings(input, opts);
         assertEquals(input, input); // ensure input not modified
         assertEquals(output, {
@@ -36,3 +30,25 @@ Deno.test({
         })
     }
 });
+
+Deno.test({
+    name: 'resolveProfile',
+    fn: async () => {
+        const opts = makeOpts();
+        const config: Config = { profiles: { first: { accountId: 'account-id', apiToken: '${env:API_TOKEN}' } } };
+        const profile = await resolveProfile(config, {}, undefined, opts);
+        assertEquals(profile as unknown, { accountId: 'account-id', apiToken: 'api-token' });
+    }
+});
+
+//
+
+function makeOpts() {
+    const awsCredentialsLoader = async (profile: string) => {
+        await Promise.resolve();
+        if (profile === 'foo') return { accessKeyId: 'ak', secretAccessKey: 'sak' };
+        throw new Error(`Profile ${profile} not found`);
+    };
+    const envLoader = (name: string) => new Map([['foo', 'bar'], ['API_TOKEN', 'api-token']]).get(name);
+    return { localPort: 123, pushId: 'the-push-id', awsCredentialsLoader, envLoader };
+}
