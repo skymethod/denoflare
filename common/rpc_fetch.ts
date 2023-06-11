@@ -25,8 +25,11 @@ export function makeBodyResolverOverRpc(channel: RpcChannel): BodyResolver {
             const { value, done } = await channel.sendRequest('read-body-chunk', { bodyId }, responseData => {
                 return responseData as ReadableStreamReadResult<Uint8Array>;
             });
-            if (value !== undefined) controller.enqueue(value);
-            if (done) controller.close();
+            // event loop workaround needed as of Deno 1.34.2
+            setTimeout(() => {
+                if (value !== undefined) controller.enqueue(value);
+                if (done) controller.close();
+            }, 0);
         },
         cancel(reason) {
             consoleLog(`RpcBodyResolver(${bodyId}): cancel reason=${reason}`);
