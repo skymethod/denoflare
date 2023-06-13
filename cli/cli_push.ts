@@ -4,7 +4,7 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
@@ -330,6 +330,8 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
     } else if (isSecretKeyBinding(binding)) {
         const { format, algorithm, usages, base64 } = parseCryptoKeyDef(binding.secretKey);
         return { type: 'secret_key', name, format, algorithm, usages, key_base64: base64 };
+    } else if (isBrowserBinding(binding)) {
+        return { type: 'browser', name };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

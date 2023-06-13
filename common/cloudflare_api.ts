@@ -99,7 +99,7 @@ export async function putScript(opts: { accountId: string, scriptName: string, a
     return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -169,6 +169,11 @@ export interface SecretKeyBinding {
     readonly algorithm: AesKeyGenParams | HmacKeyGenParams;
     readonly usages: KeyUsage[];
     readonly key_base64: string;
+}
+
+export interface BrowserBinding {
+    readonly type: 'browser';
+    readonly name: string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least

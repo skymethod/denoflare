@@ -151,6 +151,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Browser rendering environment variable binding",
+                                            "required": [ "browser" ],
+                                            "properties": {
+                                                "browser": {
+                                                    "description": "Type indicator only, value is ignored.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }
