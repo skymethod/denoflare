@@ -176,6 +176,7 @@ function computeSizeString(scriptContents: Uint8Array, compressedScriptContents:
 }
 
 async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, parts: Part[]): Promise<string> {
+    scriptContents = scriptContents.replace(/const\s+\{\s*connect\s*\}\s*=\s*cloudflareSockets\(\);/, `import { connect } from "cloudflare:sockets";`);
     const p = /const\s+([a-zA-Z0-9_]+)\s*=\s*await\s+import(Wasm|Text|Binary)\d*\(\s*(importMeta\d*)\.url\s*,\s*(['"`])((https:\/|\.|\.\.)\/[\/.a-zA-Z0-9_-]+)\4\s*\)\s*;?/g;
     let m: RegExpExecArray | null;
     let i = 0;
