@@ -1070,10 +1070,10 @@ export async function queryAnalyticsEngine(opts: { accountId: string, apiToken: 
 
 //#region D1
 
-export async function createD1Database(opts: { accountId: string, apiToken: string, databaseName: string }): Promise<D1Database> {
-    const { accountId, apiToken, databaseName } = opts;
+export async function createD1Database(opts: { accountId: string, apiToken: string, databaseName: string, location?: string, experimentalBackend?: boolean }): Promise<D1Database> {
+    const { accountId, apiToken, databaseName: name, location: primary_location_hint, experimentalBackend: experimental } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
-    return (await execute<D1Database>('createD1Database', 'POST', url, apiToken, { name: databaseName })).result;
+    return (await execute<D1Database>('createD1Database', 'POST', url, apiToken, { name, primary_location_hint, experimental })).result;
 }
 
 export async function listD1Databases(opts: { accountId: string, apiToken: string }): Promise<readonly D1Database[]> {
