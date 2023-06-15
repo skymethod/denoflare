@@ -25,6 +25,7 @@ import { NoopD1Database } from '../common/noop_d1_database.ts';
 import { WebStorageDurableObjectStorage } from '../common/storage/web_storage_durable_object_storage.ts';
 import { cryptoKeyProvider } from '../common/crypto_keys.ts';
 import { versionCompare } from './versions.ts';
+import { RpcHostSockets } from './rpc_host_sockets.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -53,6 +54,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         ModuleWatcher.VERBOSE = verbose;
         WorkerManager.VERBOSE = verbose;
         DenoWebSocketForwarder.VERBOSE = verbose;
+        RpcHostSockets.VERBOSE = verbose;
 
         // in common
         RpcChannel.VERBOSE = verbose;

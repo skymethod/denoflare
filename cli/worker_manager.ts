@@ -16,6 +16,7 @@ import { ApiR2Bucket } from './api_r2_bucket.ts';
 import { CLI_USER_AGENT } from './cli_common.ts';
 import { versionCompare } from './versions.ts';
 import { InMemoryR2Bucket } from './in_memory_r2_bucket.ts';
+import { RpcHostSockets } from './rpc_host_sockets.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -76,6 +77,8 @@ export class WorkerManager {
         makeRpcHostDurableObjectStorage(rpcChannel);
         // host side of the rpc websocket impl
         const rpcHostWebSockets = new RpcHostWebSockets(rpcChannel);
+        // host side of the rpc socket impl
+        const _rpcHostSockets = new RpcHostSockets(rpcChannel);
 
         // make external fetch calls on behalf of the worker
         const bodies = new Bodies();

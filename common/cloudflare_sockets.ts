@@ -4,6 +4,9 @@ import { Signal } from './signal.ts';
 // https://blog.cloudflare.com/workers-tcp-socket-api-connect-databases/
 
 export function cloudflareSockets(): CloudflareSockets {
+    // deno-lint-ignore no-explicit-any
+    const provider = (globalThis as any).__cloudflareSocketsProvider;
+    if (typeof provider === 'function') return provider();
     return { connect: DenoSocket.connect };
 }
 
@@ -47,6 +50,17 @@ export interface Socket {
      * 
      * Note that in order to call startTls(), you must set secureTransport to starttls when initially calling connect() to create the socket. */
     startTls(): Socket;
+}
+
+export function parseSocketAddress(address: string | SocketAddress): SocketAddress {
+    if (typeof address === 'string') {
+        const m = /^([a-z0-9.-]+):(\d+)$/.exec(address);
+        if (!m) throw new Error(`Bad address: ${address}`);
+        const [ _, hostname, portStr ] = m;
+        const port = parseInt(portStr);
+        return { hostname, port };
+    }
+    return address;
 }
 
 //
@@ -95,17 +109,7 @@ class DenoSocket implements Socket {
     }
 
     static connect(address: SocketAddress | string, options: SocketOptions = {}): Socket {
-        const parseSocketAddress = () => {
-            if (typeof address === 'string') {
-                const m = /^([a-z0-9.-]+):(\d+)$/.exec(address);
-                if (!m) throw new Error(`Bad address: ${address}`);
-                const [ _, hostname, portStr ] = m;
-                const port = parseInt(portStr);
-                return { hostname, port };
-            }
-            return address;
-        }
-        return new DenoSocket(parseSocketAddress(), options);
+        return new DenoSocket(parseSocketAddress(address), options);
     }
 
     get closed(): Promise<void> {

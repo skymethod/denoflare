@@ -22,6 +22,7 @@ import { RpcR2Bucket } from './rpc_r2_bucket.ts';
 import { NoopAnalyticsEngine } from './noop_analytics_engine.ts';
 import { NoopD1Database } from './noop_d1_database.ts';
 import { cryptoKeyProvider } from './crypto_keys.ts';
+import { makeRpcCloudflareSockets } from './rpc_cloudflare_sockets.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -40,11 +41,13 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
         const rpcStubWebSockets = new RpcStubWebSockets(channel);
         const rpcDurableObjectStorageProvider = makeRpcStubDurableObjectStorageProvider(channel);
 
+        // deno-lint-ignore no-explicit-any
+        const globalThisAsAny = (globalThis as any);
+
         // redefine fetch
         // must be done before running the script, as the script might do fetches in top-level await (e.g. importWasm)
         const bodies = new Bodies();
-        // deno-lint-ignore no-explicit-any
-        (globalThis as any).fetch = makeFetchOverRpc(channel, bodies, v => rpcStubWebSockets.unpackWebSocket(v));
+        globalThisAsAny.fetch = makeFetchOverRpc(channel, bodies, v => rpcStubWebSockets.unpackWebSocket(v));
         addRequestHandlerForReadBodyChunk(channel, bodies);
         channel.addRequestHandler('worker-fetch', async workerFetchData => {
             const workerFetch = workerFetchData as WorkerFetch;
@@ -54,6 +57,9 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
             const responseData = await packResponse(response, bodies, v => rpcStubWebSockets.packWebSocket(v));
             return { data: responseData, transfer: responseData.bodyBytes ? [ responseData.bodyBytes.buffer ] : [] };
         });
+
+        // register cloudflare sockets provider
+        globalThisAsAny.__cloudflareSocketsProvider = () => makeRpcCloudflareSockets(channel);
 
         const exec = await WorkerExecution.start(u, scriptType, bindings, {
             onModuleWorkerInfo: moduleWorkerInfo => { 
