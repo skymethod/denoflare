@@ -1344,6 +1344,53 @@ export interface LogpushJobReference {
 
 //#endregion
 
+//#region Intel
+
+export async function getAsnOverview(opts: { accountId: string, apiToken: string, asn: number }): Promise<AsnOverview> {
+    // https://developers.cloudflare.com/api/operations/asn-intelligence-get-asn-overview
+    const { accountId, apiToken, asn } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/intel/asn/${asn}`);
+    return (await execute<AsnOverview>('getAsnOverview', 'GET', url.toString(), apiToken)).result;
+}
+
+export interface AsnOverview {
+    readonly asn: number;
+    readonly description: string;
+    readonly country: string;
+    readonly type: string;
+    readonly domain_count: number;
+    readonly top_domains: readonly string[];
+}
+
+//#endregion
+
+//#region Radar
+
+export async function getAsns(opts: { apiToken: string, asns: number[] }): Promise<GetAsnsResponse> {
+    // https://developers.cloudflare.com/api/operations/radar_get_ha
+    const { apiToken, asns } = opts;
+    const url = new URL(`${computeBaseUrl()}/radar/entities/asns`);
+    url.searchParams.set('asn', asns.join(','));
+    return (await execute<GetAsnsResponse>('getAsns', 'GET', url.toString(), apiToken)).result;
+}
+
+export interface GetAsnsResponse {
+    readonly asns: readonly Asn[];
+}
+
+export interface Asn {
+    readonly name: string;
+    readonly nameLong: string;
+    readonly aka: string;
+    readonly asn: number;
+    readonly website: string;
+    readonly country: string;
+    readonly countryName: string;
+    readonly orgName: string;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
@@ -1407,7 +1454,7 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (responseType === 'text') {
         return await fetchResponse.text();
     }
-    if (![APPLICATION_JSON_UTF8, APPLICATION_JSON].includes(contentType.toLowerCase())) {
+    if (![APPLICATION_JSON_UTF8.replaceAll(' ', ''), APPLICATION_JSON].includes(contentType.toLowerCase().replaceAll(' ', ''))) { // radar returns: application/json;charset=UTF-8
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json() as CloudflareApiResponse<Result>;

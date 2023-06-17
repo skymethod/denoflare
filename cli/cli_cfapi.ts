@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -456,6 +456,20 @@ function cfapiCommand() {
         const { jobId: jobIdStr } = opts;
         const jobId = parseInt(jobIdStr);
         const value = await deleteLogpushJob({ accountId, apiToken, jobId });
+        console.log(value);
+    });
+
+    add(apiCommand('get-asn', '').arg('asn', 'string', 'ASN'), async (accountId, apiToken, opts) => {
+        const { asn: asnStr } = opts;
+        const asn = parseInt(asnStr);
+        const value = await getAsnOverview({ accountId, apiToken, asn });
+        console.log(value);
+    });
+
+    add(apiCommand('get-asns', '').arg('asns', 'string', 'ASN'), async (_accountId, apiToken, opts) => {
+        const { asns: asnsStr } = opts;
+        const asns = asnsStr.split(',').map(v => parseInt(v));
+        const value = await getAsns({ apiToken, asns });
         console.log(value);
     });
 

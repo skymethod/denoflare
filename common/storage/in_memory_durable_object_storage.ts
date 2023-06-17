@@ -1,23 +1,62 @@
+import { Bytes } from '../bytes.ts';
 import { isStringArray } from '../check.ts';
 import { DurableObjectGetAlarmOptions, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
 
 export class InMemoryDurableObjectStorage implements DurableObjectStorage {
+    static VERBOSE = false;
 
     // no semantic support for transactions, although they will work in simple cases
 
     private readonly sortedKeys: string[] = [];
     private readonly values = new Map<string, DurableObjectStorageValue>();
 
+    //
+
+    async export(writable: WritableStream<Uint8Array>): Promise<number> {
+        const writer = writable.getWriter();
+        const encoder = new TextEncoder();
+        await writer.write(encoder.encode('[\n'));
+        let exported = 0;
+        for (const key of this.sortedKeys) {
+            const value = this.values.get(key);
+            await writer.write(encoder.encode(`  ${exported++ > 0 ? ',' : ''}${JSON.stringify([ key, value ])}\n`))
+        }
+        await writer.write(encoder.encode(']\n'));
+        await writer.close();
+        return exported;
+    }
+
+    async import(readable: ReadableStream<Uint8Array>): Promise<number> {
+        const arr = JSON.parse((await Bytes.ofStream(readable)).utf8());
+        if (!Array.isArray(arr)) throw new Error();
+        const keys = new Set(this.sortedKeys);
+        for (const item of arr) {
+            if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== 'string') throw new Error(JSON.stringify(item));
+            const [ key, value ] = item;
+            if (!keys.has(key)) {
+                this.sortedKeys.push(key);
+            }
+            this.values.set(key, value);
+        }
+        this.sortedKeys.sort();
+        return arr.length;
+    }
+
+    //
+
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
+        if (InMemoryDurableObjectStorage.VERBOSE) console.log(`InMemoryDurableObjectStorage: transaction()`);
         const txn = new InMemoryDurableObjectStorageTransaction(this);
         return await Promise.resolve(closure(txn));
     }
 
     sync(): Promise<void> {
+        if (InMemoryDurableObjectStorage.VERBOSE) console.log(`InMemoryDurableObjectStorage: sync()`);
         return Promise.resolve();
     }
 
     deleteAll(): Promise<void> {
+        if (InMemoryDurableObjectStorage.VERBOSE) console.log(`InMemoryDurableObjectStorage: deleteAll()`);
         this.sortedKeys.splice(0);
         this.values.clear();
         return Promise.resolve();
@@ -26,6 +65,7 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     get(key: string, opts?: DurableObjectStorageReadOptions): Promise<DurableObjectStorageValue | undefined>;
     get(keys: readonly string[], opts?: DurableObjectStorageReadOptions): Promise<Map<string, DurableObjectStorageValue>>;
     get(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageReadOptions): Promise<Map<string, DurableObjectStorageValue> | DurableObjectStorageValue | undefined> {
+        if (InMemoryDurableObjectStorage.VERBOSE) console.log(`InMemoryDurableObjectStorage: get(${JSON.stringify({ keyOrKeys, opts })})`);
         return this._get(keyOrKeys, opts); 
     }
 
@@ -51,6 +91,7 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     put(key: string, value: DurableObjectStorageValue, opts?: DurableObjectStorageWriteOptions): Promise<void>;
     put(entries: Record<string, unknown>, opts?: DurableObjectStorageWriteOptions): Promise<void>;
     put(arg1: unknown, arg2?: unknown, arg3?: unknown): Promise<void> {
+        if (InMemoryDurableObjectStorage.VERBOSE) console.log(`InMemoryDurableObjectStorage: put(${JSON.stringify({ arg1, arg2, arg3 })})`);
         return this._put(arg1, arg2, arg3);
     }
 
@@ -91,6 +132,7 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     delete(key: string, opts?: DurableObjectStorageWriteOptions): Promise<boolean>;
     delete(keys: readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<number>;
     delete(keyOrKeys: string | readonly string[], opts?: DurableObjectStorageWriteOptions): Promise<boolean | number> {
+        if (InMemoryDurableObjectStorage.VERBOSE) console.log(`InMemoryDurableObjectStorage: delete(${JSON.stringify({ keyOrKeys, opts })})`);
         return this._delete(keyOrKeys, opts);
     }
 
@@ -120,6 +162,7 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     }
    
     list(options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions = {}): Promise<Map<string, DurableObjectStorageValue>> {
+        if (InMemoryDurableObjectStorage.VERBOSE) console.log(`InMemoryDurableObjectStorage: list(${JSON.stringify({ options })})`);
         const { start, startAfter, end, prefix, limit, reverse, allowConcurrency, noCache } = options;
         for (const [ name, value ] of Object.entries({ allowConcurrency, noCache })) {
             if (value !== undefined) throw new Error(`InMemoryDurableObjectStorage.list(${name}) not implemented: ${JSON.stringify(options)}`);
