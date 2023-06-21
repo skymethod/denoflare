@@ -319,6 +319,12 @@ export interface WorkerServiceEnvironment extends WorkerServiceEnvironmentSummar
     readonly script: Script;
 }
 
+export async function getWorkerServiceScript(opts: { accountId: string, apiToken: string, scriptName: string, environment: string }): Promise<FormData> {
+    const { accountId, apiToken, scriptName, environment } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/services/${scriptName}/environments/${environment}/content`;
+    return await execute('getWorkerServiceScript', 'GET', url, apiToken, undefined, 'form');
+}
+
 //#endregion
 
 //#region Worker Service Subdomain Enabled
@@ -1419,12 +1425,13 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
 type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData;
 
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json'): Promise<CloudflareApiResponse<Result>>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'form'): Promise<FormData>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes'): Promise<Uint8Array>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'text'): Promise<string>;
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json?'): Promise<CloudflareApiResponse<Result> | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'empty'): Promise<undefined>;
-async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' = 'json'): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined> {
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' | 'form' = 'json'): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined | FormData> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | Record<string, unknown>[] | undefined;
@@ -1453,6 +1460,12 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     }
     if (responseType === 'text') {
         return await fetchResponse.text();
+    }
+    if (responseType === 'form') {
+        // response content type: multipart/form-data; boundary=12f64b0540f60cfc995cf4c5666ef5c4ae71b3927e4c2df3c0689552fad2
+        // --12f64b0540f60cfc995cf4c5666ef5c4ae71b3927e4c2df3c0689552fad2
+        // Content-Disposition: form-data; name="main"
+        return await fetchResponse.formData();
     }
     if (![APPLICATION_JSON_UTF8.replaceAll(' ', ''), APPLICATION_JSON].includes(contentType.toLowerCase().replaceAll(' ', ''))) { // radar returns: application/json;charset=UTF-8
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);

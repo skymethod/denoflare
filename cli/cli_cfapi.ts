@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -415,6 +415,20 @@ function cfapiCommand() {
         if (!scriptTag) throw new Error(`Unable to find script: ${script}`);
         const result = await listWorkerDeployments({ accountId, apiToken, scriptTag });
         console.log(JSON.stringify(result, undefined, 2));
+    });
+
+    add(apiCommand('get-worker-script', '').arg('scriptName', 'string', 'Script name').option('environment', 'string', 'Service environment name (defaults to production)'), async (accountId, apiToken, opts) => {
+        const { scriptName, environment = 'production' } = opts;
+        const result = await getWorkerServiceScript({ accountId, apiToken, scriptName, environment });
+        const trimTo = 1000;
+        for (const [name, value] of result) {
+            console.log(name);
+            if (typeof value === 'string') {
+                console.log(value.length > trimTo ? `${value.substring(0, trimTo)}... (${value.length} bytes)` : value);
+            } else {
+                throw new Error(`Unimplemented value: ${value}`);
+            }
+        }
     });
 
     rt.subcommandGroup();
