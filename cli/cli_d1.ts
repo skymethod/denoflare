@@ -19,6 +19,8 @@ export const DROP_COMMAND = denoflareCliCommand(['d1', 'drop'], `Drop a database
 
 export const CREATE_COMMAND = denoflareCliCommand(['d1', 'create'], `Create a database`)
     .arg('databaseName', 'string', 'Name of the database to create')
+    .option('location', 'enum', `Hint for the database's primary location`, ...Object.entries({ weur: 'Western Europe', eeur: 'Eastern Europe', apac: 'Asia Pacific', wnam: 'Western North America', enam: 'Eastern North America' }).map(v => ({ value: v[0], description: v[1] })))
+    .option('experimentalBackend', 'boolean', 'Use the new experimental database backend')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#create')
     ;
@@ -101,11 +103,11 @@ async function drop(args: (string | number)[], options: Record<string, unknown>)
 async function create(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (CREATE_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, databaseName } = CREATE_COMMAND.parse(args, options);
+    const { verbose, databaseName, location, experimentalBackend } = CREATE_COMMAND.parse(args, options);
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
 
-    const db = await createD1Database({ accountId, apiToken, databaseName });
+    const db = await createD1Database({ accountId, apiToken, databaseName, location, experimentalBackend });
     console.log(db);
 }
 

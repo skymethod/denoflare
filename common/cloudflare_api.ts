@@ -1076,10 +1076,15 @@ export async function queryAnalyticsEngine(opts: { accountId: string, apiToken: 
 
 //#region D1
 
-export async function createD1Database(opts: { accountId: string, apiToken: string, databaseName: string, location?: string, experimentalBackend?: boolean }): Promise<D1Database> {
+export interface CreateD1DatabaseResult extends D1Database {
+    readonly primary_location_hint?: string; // e.g. "WNAM"
+    readonly created_in_region?: string; // e.g. "WNAM"
+}
+
+export async function createD1Database(opts: { accountId: string, apiToken: string, databaseName: string, location?: string, experimentalBackend?: boolean }): Promise<CreateD1DatabaseResult> {
     const { accountId, apiToken, databaseName: name, location: primary_location_hint, experimentalBackend: experimental } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
-    return (await execute<D1Database>('createD1Database', 'POST', url, apiToken, { name, primary_location_hint, experimental })).result;
+    return (await execute<CreateD1DatabaseResult>('createD1Database', 'POST', url, apiToken, { name, primary_location_hint, experimental })).result;
 }
 
 export async function listD1Databases(opts: { accountId: string, apiToken: string }): Promise<readonly D1Database[]> {
@@ -1095,6 +1100,8 @@ export interface ListD1DatabasesResponse extends CloudflareApiResponse<readonly 
 export interface D1Database {
     readonly uuid: string; // dashed v4 guid
     readonly name: string;
+    readonly version: string; // e.g. "alpha" or "beta"
+    readonly created_at: string | null; // e.g. 2023-07-06T22:16:06.646959Z
 }
 
 export async function deleteD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<void> {
