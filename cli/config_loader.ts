@@ -8,10 +8,14 @@ import { CliCommand } from './cli_command.ts';
 import { listAccounts } from '../common/cloudflare_api.ts';
 import { isStringRecord } from '../common/check.ts';
 
-export function commandOptionsForConfig(command: CliCommand<unknown>) {
+export function commandOptionsForConfigOnly(command: CliCommand<unknown>) {
     return command
         .optionGroup()
         .option('config', 'string', 'Path to config file (default: .denoflare in cwd or parents)', { hint: 'path' })
+}
+
+export function commandOptionsForConfig(command: CliCommand<unknown>) {
+    return commandOptionsForConfigOnly(command)
         .option('profile', 'string', 'Explicit profile to use from config file', { hint: 'name' })
         .option('accountId', 'string', 'Explicit Cloudflare account id to use for authentication')
         .option('apiToken', 'string', 'Explicit Cloudflare API token to use for authentication')
@@ -88,6 +92,31 @@ export async function resolveProfileOpt(config: Config, options: Record<string, 
     const profile = await findProfile(config, options, script);
     if (profile === undefined) return undefined;
     return await resolveProfileComponents(profile, opts);
+}
+
+export async function loadAwsCredentialsForProfile(profile: string): Promise<AwsCredentials> {
+    const txt = await Deno.readTextFile(`${Deno.env.get('HOME')}/.aws/credentials`);
+    const profileLine = '[' + profile + ']';
+    let inProfile = false;
+    const atts = new Map<string, string>();
+    for (const line of txt.split('\n')) {
+        if (line.startsWith('[') && line.endsWith(']')) {
+            inProfile = line === profileLine;
+        } else if (inProfile) {
+            const i = line.indexOf('=');
+            if (i > -1) {
+                const name = line.substring(0, i).trim();
+                const value = line.substring(i + 1).trim();
+                atts.set(name, value);
+            }
+        }
+    }
+    const accessKeyId = atts.get('aws_access_key_id');
+    const secretAccessKey = atts.get('aws_secret_access_key');
+    if (accessKeyId !== undefined && secretAccessKey !== undefined) {
+        return { accessKeyId, secretAccessKey };
+    }
+    throw new Error(`No aws credentials found for profile ${profile}`);
 }
 
 //
@@ -226,31 +255,6 @@ async function resolveString(string: string, { localPort, pushId, awsCredentials
     }
     if (pos < string.length) rt.push(string.substring(pos));
     return rt.join('');
-}
-
-async function loadAwsCredentialsForProfile(profile: string): Promise<AwsCredentials> {
-    const txt = await Deno.readTextFile(`${Deno.env.get('HOME')}/.aws/credentials`);
-    const profileLine = '[' + profile + ']';
-    let inProfile = false;
-    const atts = new Map<string, string>();
-    for (const line of txt.split('\n')) {
-        if (line.startsWith('[') && line.endsWith(']')) {
-            inProfile = line === profileLine;
-        } else if (inProfile) {
-            const i = line.indexOf('=');
-            if (i > -1) {
-                const name = line.substring(0, i).trim();
-                const value = line.substring(i + 1).trim();
-                atts.set(name, value);
-            }
-        }
-    }
-    const accessKeyId = atts.get('aws_access_key_id');
-    const secretAccessKey = atts.get('aws_secret_access_key');
-    if (accessKeyId !== undefined && secretAccessKey !== undefined) {
-        return { accessKeyId, secretAccessKey };
-    }
-    throw new Error(`No aws credentials found for profile ${profile}`);
 }
 
 //

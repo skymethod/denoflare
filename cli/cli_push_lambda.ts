@@ -1,0 +1,322 @@
+import { Architecture, CreateFunctionRequest, FunctionConfiguration, Policy, PublishLayerVersionRequest, UpdateFunctionCodeRequest, UpdateFunctionConfigurationRequest, addPermission, createFunction, createFunctionUrlConfig, getFunctionConfiguration, getFunctionUrlConfig, getLayerVersion, getPolicy, listLayerVersions, publishLayerVersion, updateFunctionCode, updateFunctionConfiguration } from '../common/aws/aws_lambda.ts';
+import { createDenoLayerZip, createRuntimeZip } from '../common/aws/lambda_runtime_zip.ts';
+import { Bytes } from '../common/bytes.ts';
+import { check, checkMatches, checkMatchesReturnMatcher } from '../common/check.ts';
+import { CloudflareApi } from '../common/cloudflare_api.ts';
+import { Binding } from '../common/config.ts';
+import { isValidScriptName } from '../common/config_validation.ts';
+import { AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
+import { bundle, commandOptionsForBundle, parseBundleOpts } from './bundle.ts';
+import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
+import { CLI_VERSION } from './cli_version.ts';
+import { commandOptionsForConfigOnly, loadAwsCredentialsForProfile, loadConfig, resolveBindings } from './config_loader.ts';
+import { isAbsolute, resolve } from './deps_cli.ts';
+import { ModuleWatcher } from './module_watcher.ts';
+
+export const PUSH_LAMBDA_COMMAND = denoflareCliCommand('push-lambda', 'Upload a Cloudflare worker script to AWS Lambda + public function URL')
+    .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
+    .option('name', 'string', `Name to use for lambda function name [default: Name of script defined in .denoflare config, or https url basename sans extension]`)
+    .option('role', 'required-string', 'IAM role arn for the lambda function (e.g. arn:aws:iam::123412341234:role/my-lambda-role)', { hint: 'role-arn' })
+    .option('region', 'required-string', 'AWS region (e.g. us-east-1)', { hint: 'region-name' })
+    .option('architecture', 'enum', 'Lambda architecture', { value: 'x86' }, { value: 'arm' })
+    .option('memory', 'integer', 'Memory for the lambda function, in MB (default: 128)', { hint: 'mb', min: 128, max: 10240 })
+    .option('storage', 'integer', 'Size of the /tmp directory for the lambda function, in MB (default: 512)', { hint: 'mb', min: 512, max: 10240 })
+    .option('timeout', 'integer', 'How long the lambda function is allowed to run, in seconds (default: 3)', { hint: 'seconds', min: 1, max: 900 })
+    .option('noLayer', 'boolean', 'Skip creating a layer, deploy the lambda as one large zip (slower for multiple pushes)')
+    .option('denoVersion', 'string', `Explicit deno version to use on lambda (default: ${Deno.version.deno})`, { hint: 'x.x.x' })
+    .option('profile', 'string', 'AWS credentials for deploying the worker, from $HOME/.aws/credentials')
+    .option('accessKey', 'string', 'AWS credentials for deploying the worker (e.g. AKIA4ABC89ABC89ABC89)')
+    .option('secretKey', 'string', 'AWS credentials for deploying the worker (e.g. aB98mjz0aB98mjz0aB98mjz0aB98mjz0aB98mjz0)')
+    .option('watch', 'boolean', 'If set, watch the local file system and automatically re-upload on script changes')
+    .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
+    .include(commandOptionsForInputBindings)
+    .include(commandOptionsForConfigOnly)
+    .include(commandOptionsForBundle)
+    .docsLink('/cli/push-lambda')
+    ;
+
+export async function pushLambda(args: (string | number)[], options: Record<string, unknown>) {
+    if (PUSH_LAMBDA_COMMAND.dumpHelp(args, options)) return;
+
+    const opt = PUSH_LAMBDA_COMMAND.parse(args, options);
+    const { scriptSpec, verbose, name: nameOpt, role, region, architecture: architectureOpt, memory = 128, storage = 512, timeout = 3, noLayer = false, denoVersion = Deno.version.deno, profile, accessKey, secretKey, watch, watchInclude } = opt;
+
+    checkMatches('region', region, /^[a-z]+(-[a-z0-9]+)+$/);
+    checkMatches('role', role, /^arn:aws:iam::\d{12}:role\/.+?$/);
+    const architecture: Architecture = architectureOpt === 'arm' ? 'arm64' : 'x86_64';
+    const credentials: AwsCredentials = await (async () => {
+        if (typeof accessKey === 'string' && typeof secretKey === 'string') {
+            check('accessKey', accessKey, v => v.trim() === v && v.length > 0);
+            check('secretKey', secretKey, v => v.trim() === v && v.length > 0);
+            return { accessKey, secretKey };
+        } else if (typeof profile === 'string') {
+            check('profile', profile, v => v.trim() === v && v.length > 0);
+            const { accessKeyId: accessKey, secretAccessKey: secretKey } = await loadAwsCredentialsForProfile(profile);
+            return { accessKey, secretKey };
+        } else {
+            throw new Error(`Provide AWS credentials for deploying the worker via either --profile, or --access-key and --secret-key`);
+        }
+    })();
+
+    if (verbose) {
+        // in cli
+        ModuleWatcher.VERBOSE = verbose;
+        CloudflareApi.DEBUG = true;
+    }
+
+    const config = await loadConfig(options);
+    const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameOpt);
+    if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
+    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
+    const bundleOpts = parseBundleOpts(options);
+
+    const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
+    let pushNumber = 1;
+    let layerVersionArn: string | undefined;
+    let existingFunctionConfiguration: FunctionConfiguration | undefined;
+    let functionUrl: string | undefined;
+
+    const buildAndPutScript = async () => {
+        const isModule = !rootSpecifier.endsWith('.js');
+        let scriptContentsStr = '';
+        if (isModule) {
+            console.log(`bundling ${scriptName} into bundle.js...`);
+            const start = Date.now();
+            const output = await bundle(rootSpecifier, bundleOpts);
+            scriptContentsStr = output.code;
+            console.log(`bundle finished (${output.backend}) in ${Date.now() - start}ms`);
+        } else {
+            scriptContentsStr = await Deno.readTextFile(rootSpecifier);
+        }
+
+        let start = Date.now();
+        const pushId = watch ? `${pushStart}.${pushNumber}` : undefined;
+        const pushIdSuffix = pushId ? ` ${pushId}` : '';
+        const environmentVariables = await computeEnvironmentVariables(inputBindings, pushId);
+        console.log(`computed environment variables in ${Date.now() - start}ms`);
+
+        if (isModule) {
+            scriptContentsStr = rewriteScriptContents(scriptContentsStr);
+        }
+
+        console.log(`pushing ${isModule ? 'module' : 'script'}-based lambda worker ${scriptName}${pushIdSuffix}...`);
+
+        start = Date.now();
+
+        const runtime = 'provided.al2';
+        const functionName = scriptName;
+        const handler = 'what.ever'; // unused in the current runtime
+        const context: AwsCallContext = {
+            userAgent: `denoflare/${CLI_VERSION} (deno/${Deno.version.deno})`,
+            credentials,
+        }
+        const layerName = `deno-${denoVersion.replaceAll('.', '_')}-${architecture}`;
+     
+        const computeDenoZipStream = async () => {
+            const denoZipUrl = architecture as string === 'arm64' ? `https://github.com/LukeChannings/deno-arm64/releases/download/v${denoVersion}/deno-linux-arm64.zip` 
+                : `https://github.com/denoland/deno/releases/download/v${denoVersion}/deno-x86_64-unknown-linux-gnu.zip`
+            const res = await fetch(denoZipUrl);
+            if (!res.ok || !res.body) throw new Error();
+            return res.body;
+        }
+    
+        // first, ensure deno layer exists if applicable
+        if (layerVersionArn === undefined && !noLayer) {
+            console.log(`Packaging ${layerName} layer zip...`);
+            const denoZipStream = await computeDenoZipStream();
+            const { zipBlob, sha1Hex: _ }  = await createDenoLayerZip({ denoZipStream });
+            const zipFileBytes = new Bytes(new Uint8Array(await zipBlob.arrayBuffer()));
+            const zipFileSha256Base64 = (await zipFileBytes.sha256()).base64();
+            console.log(`  compressed size: ${Bytes.formatSize(zipFileBytes.length)}`);
+    
+            console.log(`Checking to see if layer already exists...`);
+            const listResponse = await listLayerVersions({ layerName, context, region, request: { CompatibleArchitecture: architecture, CompatibleRuntime: runtime, MaxItems: 50 } });
+            for (const layerVersion of listResponse.LayerVersions) {
+                const { Version: versionNumber } = layerVersion;
+                const response = await getLayerVersion({ layerName, versionNumber, context, region });
+                if (response && response.Content.CodeSha256 === zipFileSha256Base64) {
+                    layerVersionArn = response.LayerVersionArn;
+                    break;
+                }
+            }
+            if (layerVersionArn === undefined) {
+                const zipFileBase64 = zipFileBytes.base64();
+                const request: PublishLayerVersionRequest = {
+                    Content: {
+                        ZipFile: zipFileBase64,
+                    },
+                    CompatibleArchitectures: [ architecture ],
+                    CompatibleRuntimes: [ runtime ],
+                }
+                console.log(`Publishing layer...`);
+                const result = await publishLayerVersion({ layerName, request, region, context });
+                layerVersionArn = result.LayerVersionArn;
+            }
+        }
+
+        // package and push lambda zip (bootstrap, runtime, worker, and deno if applicable)
+        console.log(`Packaging lambda zip...`);
+        const runtimeTs = await (await fetch(new URL('../common/aws/lambda_runtime.ts', import.meta.url))).text();
+        const runtimeTypesTs = await (await fetch(new URL('../common/aws/lambda_runtime.d.ts', import.meta.url))).text();
+        const denoZipStream = layerVersionArn ? undefined : await computeDenoZipStream();
+        const { zipBlob, sha1Hex: _ } = await createRuntimeZip({ runtimeTs, runtimeTypesTs, workerTs: scriptContentsStr, denoZipStream });
+        const zipFileBytes = new Bytes(new Uint8Array(await zipBlob.arrayBuffer()));
+        const zipFileBase64 = zipFileBytes.base64();
+        console.log(`  compressed size: ${Bytes.formatSize(zipFileBytes.length)}`);
+
+        if (!existingFunctionConfiguration) {
+            console.log(`Checking if function exists...`);
+            existingFunctionConfiguration = await getFunctionConfiguration({ functionName, region, context });
+        }
+        if (existingFunctionConfiguration) {
+            if ((existingFunctionConfiguration.Architectures ?? [])[0] !== architecture) throw new Error(`Cannot update function architecture. Create a new one, or delete and recreate this one.`);
+
+            const changed = (() => {
+                if (layerVersionArn) {
+                    const layerFound = (existingFunctionConfiguration.Layers ?? []).some(v => v.Arn === layerVersionArn);
+                    if (!layerFound) return 'layer';
+                } else {
+                    if ((existingFunctionConfiguration.Layers ?? []).length > 0) return 'layer';
+                }
+                const existingVars = existingFunctionConfiguration.Environment?.Variables ?? {};
+                if (!computeRecordsEqual(existingVars, environmentVariables)) return 'envVars'
+                if (existingFunctionConfiguration.Handler !== handler) return 'handler';
+                if (existingFunctionConfiguration.MemorySize !== memory) return 'memory';
+                if (existingFunctionConfiguration.EphemeralStorage?.Size !== storage) return 'storage';
+                if (existingFunctionConfiguration.Role !== role) return 'role';
+                if (existingFunctionConfiguration.Runtime !== runtime) return 'runtime';
+                if (existingFunctionConfiguration.Timeout !== timeout) return 'timeout';
+                return undefined;
+            })();
+            if (changed) {
+                console.log(`Updating function configuration (${changed})...`);
+                const request: UpdateFunctionConfigurationRequest = {
+                    Handler: handler,
+                    MemorySize: memory,
+                    EphemeralStorage: {
+                        Size: storage,
+                    },
+                    Role: role,
+                    Runtime: runtime,
+                    Timeout: timeout,
+                    Layers: layerVersionArn ? [ layerVersionArn ] : undefined,
+                    Environment: {
+                        Variables: environmentVariables,
+                    },
+                }
+                existingFunctionConfiguration = await updateFunctionConfiguration({ functionName, request, region, context });
+            }
+            
+            const zipFileSha256Base64 = (await zipFileBytes.sha256()).base64();
+            if (existingFunctionConfiguration.CodeSha256 === zipFileSha256Base64) {
+                console.log(`Function already up to date`);
+            } else {
+                console.log(`Updating function code...`);
+                const request: UpdateFunctionCodeRequest = {
+                    Architectures: [ architecture ],
+                    ZipFile: zipFileBase64,
+                    Publish: true,
+                }
+                existingFunctionConfiguration = await updateFunctionCode({ functionName, request, region, context });
+            }
+        } else {
+            console.log(`Creating function...`);
+            const request: CreateFunctionRequest = {
+                Architectures: [ architecture ],
+                Code: { ZipFile: zipFileBase64 },
+                FunctionName: functionName,
+                Handler: handler,
+                MemorySize: memory,
+                EphemeralStorage: {
+                    Size: storage,
+                },
+                PackageType: 'Zip',
+                Publish: true,
+                Role: role,
+                Runtime: runtime,
+                Timeout: timeout,
+                Layers: layerVersionArn ? [ layerVersionArn ] : undefined,
+                Environment: {
+                    Variables: environmentVariables,
+                }
+            }
+            existingFunctionConfiguration = await createFunction({ request, region, context });
+        }
+        
+        // finally, ensure function url exists for the lambda
+        if (!functionUrl) {
+            console.log(`Checking if function url exists...`);
+            const urlConfig = await getFunctionUrlConfig({ functionName, region, context });
+            if (urlConfig) {
+                functionUrl = urlConfig.FunctionUrl;
+            } else {
+                console.log(`Creating function url...`);
+                const result = await createFunctionUrlConfig({ functionName, context, region, request: { AuthType: 'NONE' } });
+                functionUrl = result.FunctionUrl;
+            }
+            
+            const awsAccountId = checkMatchesReturnMatcher('role', role, /^arn:aws:iam::(\d{12}):role\//)[1];
+            const functionArn = `arn:aws:lambda:${region}:${awsAccountId}:function:${functionName}`;
+            console.log(`Checking if resource-based policy exists...`);
+            const policyResponse = await getPolicy({ functionName, region, context });
+            let found = false;
+            let policy: Policy | undefined;
+            if (policyResponse) {
+                policy = JSON.parse(policyResponse.Policy) as Policy;
+                for (const statement of policy.Statement) {
+                    const { Resource, Effect, Action, Principal, Condition } = statement;
+                    if (Resource === functionArn && Effect === 'Allow' && Action === 'lambda:InvokeFunctionUrl' && Principal === '*' && (Condition === undefined || (Condition.StringEquals !== undefined && Condition.StringEquals['lambda:FunctionUrlAuthType'] === 'NONE'))) {
+                        found = true;
+                    }
+                }
+            }
+            if (!found) {
+                console.log(`Adding resource-based policy...`);
+                await addPermission({ functionName, context, region, request: { Action: 'lambda:InvokeFunctionUrl', Principal: '*', StatementId: 'FunctionURLAllowPublicAccess', FunctionUrlAuthType: 'NONE' } });
+            }
+        }
+
+        console.log(`Deployed to ${functionUrl} in (${Date.now() - start}ms)`);
+        
+        pushNumber++;
+    }
+    await buildAndPutScript();
+
+    if (watch) {
+        console.log('watching for changes...');
+        const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
+        if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
+        const scriptPathOrUrl = scriptUrl ? scriptUrl.toString() : script ? script.path : isAbsolute(rootSpecifier) ? rootSpecifier : resolve(Deno.cwd(), rootSpecifier);
+        const _moduleWatcher = new ModuleWatcher(scriptPathOrUrl, async () => {
+            try {
+                await buildAndPutScript();
+            } catch (e) {
+                console.error(e);
+            } finally {
+                console.log('watching for changes...');
+            }
+        }, watchInclude);
+        return new Promise(() => {});
+    }
+}
+
+//
+
+function rewriteScriptContents(scriptContents: string): string {
+    // nothing yet
+    return scriptContents;
+}
+
+async function computeEnvironmentVariables(inputBindings: Record<string, Binding>, pushId: string | undefined): Promise<Record<string, string>> {
+    const resolvedBindings = await resolveBindings(inputBindings, { pushId });
+    const rt: Record<string, string> = {};
+    for (const [ name, binding ] of Object.entries(resolvedBindings)) {
+        rt[`BINDING_${name}`] = JSON.stringify(binding);
+    }
+    return rt;
+}
+
+function computeRecordsEqual(lhs: Record<string, string>, rhs: Record<string, string>): boolean {
+    const str = (r: Record<string, string>) => Object.keys(r).sort().map(v => `${v}=${r[v]}`).join(',');
+    return str(lhs) === str(rhs);
+}
