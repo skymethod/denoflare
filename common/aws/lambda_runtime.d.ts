@@ -1,3 +1,25 @@
+export interface LambdaWorkerContext {
+    readonly lambda: LambdaWorkerInfo;
+}
+
+export interface LambdaWorkerInfo {
+    readonly request: LambdaHttpRequest;
+    readonly times: LambdaWorkerTimes;
+    readonly env: Record<string, string>;
+    readonly awsRequestId: string;
+    readonly invokedFunctionArn: string;
+    readonly traceId: string;
+}
+
+export interface LambdaWorkerTimes {
+    readonly bootstrap: number;
+    readonly start: number;
+    readonly init: number;
+    readonly request: number;
+    readonly dispatch: number;
+    readonly deadline: number;
+}
+
 // https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-develop-integrations-lambda.html#http-api-develop-integrations-lambda.proxy-format
 
 export interface LambdaHttpRequest {

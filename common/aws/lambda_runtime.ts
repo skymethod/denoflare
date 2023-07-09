@@ -1,6 +1,8 @@
-import type { LambdaHttpRequest } from './lambda_runtime.d.ts';
+import type { LambdaHttpRequest, LambdaWorkerInfo } from './lambda_runtime.d.ts';
 
-const runtimeStartTime = Date.now();
+const startTime = Date.now();
+const denoRunTime = Deno.env.get('DENO_RUN_TIME');
+const bootstrapTime = denoRunTime === undefined ? 0 : Math.round(parseFloat(denoRunTime) / 1000000);
 
 const AWS_LAMBDA_RUNTIME_API = Deno.env.get('AWS_LAMBDA_RUNTIME_API');
 
@@ -39,9 +41,11 @@ const { module, workerEnv } = await (async () => {
         Deno.exit(1);
     }
 })();
+const initTime = Date.now();
 
 while (true) {
     const res = await fetch(`http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime/invocation/next`);
+    const requestTime = Date.now();
     const [ awsRequestId, deadlineMillisStr, invokedFunctionArn, traceId ] = [
         'Lambda-Runtime-Aws-Request-Id', 
         'Lambda-Runtime-Deadline-Ms', 
@@ -68,12 +72,19 @@ while (true) {
             const headers = new Headers(request.headers);
             const moduleRequestBody: BodyInit | undefined = request.body === undefined ? undefined : request.isBase64Encoded ? base64Decode(request.body, false) : request.body;
             headers.set('cf-connecting-ip', requestContext.http.sourceIp);
-            const lambda = { request, runtimeStartTime, env: Deno.env.toObject(), awsRequestId, deadlineMillisStr, invokedFunctionArn, traceId, nextStatus, nextHeaders };
+            const lambda: LambdaWorkerInfo = { 
+                times: { bootstrap: bootstrapTime, start: startTime, init: initTime, request: requestTime, dispatch: Date.now(), deadline: parseInt(deadlineMillisStr) }, 
+                request,
+                env: Deno.env.toObject(),
+                awsRequestId,
+                invokedFunctionArn,
+                traceId,
+            }
             const moduleResponse = await module.default.fetch(new Request(url, { method, headers, body: moduleRequestBody }), workerEnv, { lambda });
             const moduleResponseBodyBase64 = base64Encode(new Uint8Array(await moduleResponse.arrayBuffer()));
             body = JSON.stringify({ statusCode: moduleResponse.status, headers: Object.fromEntries(moduleResponse.headers), body: moduleResponseBodyBase64, isBase64Encoded: true });
         } else {
-            const rt: Record<string, unknown> = { env: Deno.env.toObject(), awsRequestId, deadlineMillisStr, invokedFunctionArn, traceId, request, nextStatus, nextHeaders, runtimeStartTime };
+            const rt: Record<string, unknown> = { env: Deno.env.toObject(), awsRequestId, deadlineMillisStr, invokedFunctionArn, traceId, request, nextStatus, nextHeaders, bootstrapTime, startTime, initTime, requestTime };
             console.log(JSON.stringify(rt, undefined, 2));
             body = `${JSON.stringify(rt)}`;
         }
