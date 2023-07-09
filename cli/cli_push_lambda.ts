@@ -16,8 +16,8 @@ import { ModuleWatcher } from './module_watcher.ts';
 export const PUSH_LAMBDA_COMMAND = denoflareCliCommand('push-lambda', 'Upload a Cloudflare worker script to AWS Lambda + public function URL')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
     .option('name', 'string', `Name to use for lambda function name [default: Name of script defined in .denoflare config, or https url basename sans extension]`)
-    .option('role', 'required-string', 'IAM role arn for the lambda function (e.g. arn:aws:iam::123412341234:role/my-lambda-role)', { hint: 'role-arn' })
-    .option('region', 'required-string', 'AWS region (e.g. us-east-1)', { hint: 'region-name' })
+    .option('role', 'string', 'IAM role arn for the lambda function (e.g. arn:aws:iam::123412341234:role/my-lambda-role)', { hint: 'role-arn' })
+    .option('region', 'string', 'AWS region (e.g. us-east-1)', { hint: 'region-name' })
     .option('architecture', 'enum', 'Lambda architecture', { value: 'x86' }, { value: 'arm' })
     .option('memory', 'integer', 'Memory for the lambda function, in MB (default: 128)', { hint: 'mb', min: 128, max: 10240 })
     .option('storage', 'integer', 'Size of the /tmp directory for the lambda function, in MB (default: 512)', { hint: 'mb', min: 512, max: 10240 })
@@ -39,11 +39,47 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
     if (PUSH_LAMBDA_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_LAMBDA_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, role, region, architecture: architectureOpt, memory = 128, storage = 512, timeout = 3, noLayer = false, denoVersion = Deno.version.deno, profile, accessKey, secretKey, watch, watchInclude } = opt;
+    const { scriptSpec, verbose, name: nameOpt, role: roleOpt, region: regionOpt, architecture: architectureOpt, memory: memoryOpt, storage: storageOpt, timeout: timeoutOpt, noLayer: noLayerOpt, denoVersion: denoVersionOpt, profile: profileOpt, accessKey: accessKeyOpt, secretKey: secretKeyOpt, watch, watchInclude } = opt;
 
+    if (verbose) {
+        // in cli
+        ModuleWatcher.VERBOSE = verbose;
+        CloudflareApi.DEBUG = true;
+    }
+
+    const config = await loadConfig(options);
+    const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameOpt);
+    if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
+    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
+    const bundleOpts = parseBundleOpts(options);
+    const { region, role, architectureStr, memory, storage, timeout, noLayer, denoVersion, profile, accessKey, secretKey } = (() => {
+        const { lambda } = script ?? {};
+        const configOpts: Record<string, string> = {};
+        if (lambda) {
+            for (const token of lambda.trim().split(',')) {
+                const m = /^([a-z-]+)=(.+?)$/.exec(token.trim());
+                if (!m) throw new Error(`Invalid lambda config: ${lambda}`);
+                const [ _, name, value ] = m;
+                configOpts[name] = value;
+            }
+        }
+        const region = regionOpt ?? configOpts.region;
+        const role = roleOpt ?? configOpts.role;
+        const architectureStr = architectureOpt ?? configOpts.architecture;
+        const memory = memoryOpt ?? configOpts.memory ? parseInt(configOpts.memory) : 128;
+        const storage = storageOpt ?? configOpts.storage ? parseInt(configOpts.storage) : 512;
+        const timeout = timeoutOpt ?? configOpts.timeout ? parseInt(configOpts.timeout) : 3;
+        const noLayer = typeof noLayerOpt === 'boolean' ? noLayerOpt : configOpts['no-layer'] === 'true';
+        const denoVersion = denoVersionOpt ?? configOpts['deno-version'] ?? Deno.version.deno;
+        const profile = profileOpt ?? configOpts.profile;
+        const accessKey = accessKeyOpt ?? configOpts['access-key'];
+        const secretKey = secretKeyOpt ?? configOpts['secret-key'];
+        return { region, role, architectureStr, memory, storage, timeout, noLayer, denoVersion, profile, accessKey, secretKey };
+    })();
     checkMatches('region', region, /^[a-z]+(-[a-z0-9]+)+$/);
     checkMatches('role', role, /^arn:aws:iam::\d{12}:role\/.+?$/);
-    const architecture: Architecture = architectureOpt === 'arm' ? 'arm64' : 'x86_64';
+    if (architectureStr !== 'arm' && architectureStr !== 'x86') throw new Error(`Unexpected architecture: ${architectureStr}`);
+    const architecture: Architecture = architectureStr === 'arm' ? 'arm64' : 'x86_64';
     const credentials: AwsCredentials = await (async () => {
         if (typeof accessKey === 'string' && typeof secretKey === 'string') {
             check('accessKey', accessKey, v => v.trim() === v && v.length > 0);
@@ -57,18 +93,6 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
             throw new Error(`Provide AWS credentials for deploying the worker via either --profile, or --access-key and --secret-key`);
         }
     })();
-
-    if (verbose) {
-        // in cli
-        ModuleWatcher.VERBOSE = verbose;
-        CloudflareApi.DEBUG = true;
-    }
-
-    const config = await loadConfig(options);
-    const { scriptName, rootSpecifier, script } = await computeContentsForScriptReference(scriptSpec, config, nameOpt);
-    if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
-    const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
-    const bundleOpts = parseBundleOpts(options);
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -122,14 +146,14 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
     
         // first, ensure deno layer exists if applicable
         if (layerVersionArn === undefined && !noLayer) {
-            console.log(`Packaging ${layerName} layer zip...`);
+            console.log(`packaging ${layerName} layer zip...`);
             const denoZipStream = await computeDenoZipStream();
             const { zipBlob, sha1Hex: _ }  = await createDenoLayerZip({ denoZipStream });
             const zipFileBytes = new Bytes(new Uint8Array(await zipBlob.arrayBuffer()));
             const zipFileSha256Base64 = (await zipFileBytes.sha256()).base64();
             console.log(`  compressed size: ${Bytes.formatSize(zipFileBytes.length)}`);
     
-            console.log(`Checking to see if layer already exists...`);
+            console.log(`checking to see if layer already exists...`);
             const listResponse = await listLayerVersions({ layerName, context, region, request: { CompatibleArchitecture: architecture, CompatibleRuntime: runtime, MaxItems: 50 } });
             for (const layerVersion of listResponse.LayerVersions) {
                 const { Version: versionNumber } = layerVersion;
@@ -148,14 +172,16 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
                     CompatibleArchitectures: [ architecture ],
                     CompatibleRuntimes: [ runtime ],
                 }
-                console.log(`Publishing layer...`);
+                console.log(`publishing layer...`);
                 const result = await publishLayerVersion({ layerName, request, region, context });
                 layerVersionArn = result.LayerVersionArn;
+            } else {
+                console.log(`  layer exists`);
             }
         }
 
         // package and push lambda zip (bootstrap, runtime, worker, and deno if applicable)
-        console.log(`Packaging lambda zip...`);
+        console.log(`packaging lambda zip...`);
         const runtimeTs = await (await fetch(new URL('../common/aws/lambda_runtime.ts', import.meta.url))).text();
         const runtimeTypesTs = await (await fetch(new URL('../common/aws/lambda_runtime.d.ts', import.meta.url))).text();
         const denoZipStream = layerVersionArn ? undefined : await computeDenoZipStream();
@@ -165,7 +191,7 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
         console.log(`  compressed size: ${Bytes.formatSize(zipFileBytes.length)}`);
 
         if (!existingFunctionConfiguration) {
-            console.log(`Checking if function exists...`);
+            console.log(`checking if function exists...`);
             existingFunctionConfiguration = await getFunctionConfiguration({ functionName, region, context });
         }
         if (existingFunctionConfiguration) {
@@ -189,7 +215,7 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
                 return undefined;
             })();
             if (changed) {
-                console.log(`Updating function configuration (${changed})...`);
+                console.log(`updating function configuration (${changed})...`);
                 const request: UpdateFunctionConfigurationRequest = {
                     Handler: handler,
                     MemorySize: memory,
@@ -209,9 +235,9 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
             
             const zipFileSha256Base64 = (await zipFileBytes.sha256()).base64();
             if (existingFunctionConfiguration.CodeSha256 === zipFileSha256Base64) {
-                console.log(`Function already up to date`);
+                console.log(`  function already up to date`);
             } else {
-                console.log(`Updating function code...`);
+                console.log(`updating function code...`);
                 const request: UpdateFunctionCodeRequest = {
                     Architectures: [ architecture ],
                     ZipFile: zipFileBase64,
@@ -220,7 +246,7 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
                 existingFunctionConfiguration = await updateFunctionCode({ functionName, request, region, context });
             }
         } else {
-            console.log(`Creating function...`);
+            console.log(`creating function...`);
             const request: CreateFunctionRequest = {
                 Architectures: [ architecture ],
                 Code: { ZipFile: zipFileBase64 },
@@ -245,19 +271,19 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
         
         // finally, ensure function url exists for the lambda
         if (!functionUrl) {
-            console.log(`Checking if function url exists...`);
+            console.log(`checking if function url exists...`);
             const urlConfig = await getFunctionUrlConfig({ functionName, region, context });
             if (urlConfig) {
                 functionUrl = urlConfig.FunctionUrl;
             } else {
-                console.log(`Creating function url...`);
+                console.log(`creating function url...`);
                 const result = await createFunctionUrlConfig({ functionName, context, region, request: { AuthType: 'NONE' } });
                 functionUrl = result.FunctionUrl;
             }
             
             const awsAccountId = checkMatchesReturnMatcher('role', role, /^arn:aws:iam::(\d{12}):role\//)[1];
             const functionArn = `arn:aws:lambda:${region}:${awsAccountId}:function:${functionName}`;
-            console.log(`Checking if resource-based policy exists...`);
+            console.log(`checking if resource-based policy exists...`);
             const policyResponse = await getPolicy({ functionName, region, context });
             let found = false;
             let policy: Policy | undefined;
@@ -271,12 +297,12 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
                 }
             }
             if (!found) {
-                console.log(`Adding resource-based policy...`);
+                console.log(`adding resource-based policy...`);
                 await addPermission({ functionName, context, region, request: { Action: 'lambda:InvokeFunctionUrl', Principal: '*', StatementId: 'FunctionURLAllowPublicAccess', FunctionUrlAuthType: 'NONE' } });
             }
         }
 
-        console.log(`Deployed to ${functionUrl} in (${Date.now() - start}ms)`);
+        console.log(`deployed worker to ${functionUrl} in ${Date.now() - start}ms`);
         
         pushNumber++;
     }

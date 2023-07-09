@@ -224,6 +224,10 @@
                             "items": {
                                 "type": "string"
                             }
+                        },
+                        "lambda": {
+                            "description": "Name-value pairs to use when pushing to lambda.",
+                            "type": "string"
                         }
                     }
                 }

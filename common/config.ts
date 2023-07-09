@@ -102,7 +102,10 @@ export interface Script {
     /** If specified, the specific compatibility flags for this worker.
      * 
      * See https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags */
-     readonly compatibilityFlags?: string[];
+    readonly compatibilityFlags?: string[];
+
+    /** Name-value pairs to use when pushing to lambda. */
+    readonly lambda?: string;
 }
 
 /** Binding definition for a worker script environment variable */
