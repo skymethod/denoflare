@@ -1,10 +1,123 @@
-import type { LambdaHttpRequest, LambdaWorkerInfo } from './lambda_runtime.d.ts';
+import type { LambdaHttpRequest, LambdaWorkerContext, LambdaWorkerInfo } from './lambda_runtime.d.ts';
 
 const startTime = Date.now();
-const denoRunTime = Deno.env.get('DENO_RUN_TIME');
+const envObj = Deno.env.toObject();
+const denoRunTime = envObj['DENO_RUN_TIME'];
 const bootstrapTime = denoRunTime === undefined ? 0 : Math.round(parseFloat(denoRunTime) / 1000000);
 
 const AWS_LAMBDA_RUNTIME_API = Deno.env.get('AWS_LAMBDA_RUNTIME_API');
+
+// inlined from https://deno.land/std@0.194.0/encoding/base64.ts
+
+const base64abc = [
+    'A',
+    'B',
+    'C',
+    'D',
+    'E',
+    'F',
+    'G',
+    'H',
+    'I',
+    'J',
+    'K',
+    'L',
+    'M',
+    'N',
+    'O',
+    'P',
+    'Q',
+    'R',
+    'S',
+    'T',
+    'U',
+    'V',
+    'W',
+    'X',
+    'Y',
+    'Z',
+    'a',
+    'b',
+    'c',
+    'd',
+    'e',
+    'f',
+    'g',
+    'h',
+    'i',
+    'j',
+    'k',
+    'l',
+    'm',
+    'n',
+    'o',
+    'p',
+    'q',
+    'r',
+    's',
+    't',
+    'u',
+    'v',
+    'w',
+    'x',
+    'y',
+    'z',
+    '0',
+    '1',
+    '2',
+    '3',
+    '4',
+    '5',
+    '6',
+    '7',
+    '8',
+    '9',
+    '+',
+    '/',
+];
+
+function encodeBase64(data: ArrayBuffer | string): string {
+    const uint8 = typeof data === 'string'
+        ? new TextEncoder().encode(data)
+        : data instanceof Uint8Array
+            ? data
+            : new Uint8Array(data);
+    let result = '',
+        i;
+    const l = uint8.length;
+    for (i = 2; i < l; i += 3) {
+        result += base64abc[uint8[i - 2] >> 2];
+        result += base64abc[((uint8[i - 2] & 0x03) << 4) | (uint8[i - 1] >> 4)];
+        result += base64abc[((uint8[i - 1] & 0x0f) << 2) | (uint8[i] >> 6)];
+        result += base64abc[uint8[i] & 0x3f];
+    }
+    if (i === l + 1) {
+        // 1 octet yet to write
+        result += base64abc[uint8[i - 2] >> 2];
+        result += base64abc[(uint8[i - 2] & 0x03) << 4];
+        result += '==';
+    }
+    if (i === l) {
+        // 2 octets yet to write
+        result += base64abc[uint8[i - 2] >> 2];
+        result += base64abc[((uint8[i - 2] & 0x03) << 4) | (uint8[i - 1] >> 4)];
+        result += base64abc[(uint8[i - 1] & 0x0f) << 2];
+        result += '=';
+    }
+    return result;
+}
+
+function decodeBase64(b64: string): Uint8Array {
+    const binString = atob(b64);
+    const size = binString.length;
+    const bytes = new Uint8Array(size);
+    for (let i = 0; i < size; i++) {
+        bytes[i] = binString.charCodeAt(i);
+    }
+    return bytes;
+}
+
+// inline end
 
 const sendError = async (e: unknown, pathname: string) => {
     const error = e as Error;
@@ -20,7 +133,7 @@ const { module, workerEnv } = await (async () => {
     try {
         const module = await import('.' + '/worker.ts');
         const workerEnv: Record<string, unknown> = {};
-        for (const [ envName, envValue ] of Object.entries(Deno.env.toObject())) {
+        for (const [ envName, envValue ] of Object.entries(envObj)) {
             const m = /^BINDING_(.+?)$/.exec(envName);
             if (!m) continue;
             const bindingName = m[1];
@@ -70,19 +183,29 @@ while (true) {
             const url = new URL(`https://${requestContext.domainName}${request.rawPath}${request.rawQueryString === '' ? '' : `?${request.rawQueryString}`}`);
             const method = requestContext.http.method;
             const headers = new Headers(request.headers);
-            const moduleRequestBody: BodyInit | undefined = request.body === undefined ? undefined : request.isBase64Encoded ? base64Decode(request.body, false) : request.body;
+            const moduleRequestBody: BodyInit | undefined = request.body === undefined ? undefined : request.isBase64Encoded ? decodeBase64(request.body) : request.body;
             headers.set('cf-connecting-ip', requestContext.http.sourceIp);
             const lambda: LambdaWorkerInfo = { 
                 times: { bootstrap: bootstrapTime, start: startTime, init: initTime, request: requestTime, dispatch: Date.now(), deadline: parseInt(deadlineMillisStr) }, 
                 request,
-                env: Deno.env.toObject(),
+                env: envObj,
                 awsRequestId,
                 invokedFunctionArn,
                 traceId,
             }
-            const moduleResponse = await module.default.fetch(new Request(url, { method, headers, body: moduleRequestBody }), workerEnv, { lambda });
-            const moduleResponseBodyBase64 = base64Encode(new Uint8Array(await moduleResponse.arrayBuffer()));
+            const work: Promise<unknown>[] = [];
+            const waitUntil = (promise: Promise<unknown>) => {
+                work.push(promise);
+            };
+            const passThroughOnException = () => {
+                throw new Error(`passThroughOnException not supported on lambda!`);
+            }
+            const context: LambdaWorkerContext = { lambda, waitUntil, passThroughOnException };
+            const moduleResponse = await module.default.fetch(new Request(url, { method, headers, body: moduleRequestBody }), workerEnv, context);
+            if (work.length > 0) await Promise.allSettled(work);
+            const moduleResponseBodyBase64 = encodeBase64(new Uint8Array(await moduleResponse.arrayBuffer()));
             body = JSON.stringify({ statusCode: moduleResponse.status, headers: Object.fromEntries(moduleResponse.headers), body: moduleResponseBodyBase64, isBase64Encoded: true });
+           
         } else {
             const rt: Record<string, unknown> = { env: Deno.env.toObject(), awsRequestId, deadlineMillisStr, invokedFunctionArn, traceId, request, nextStatus, nextHeaders, bootstrapTime, startTime, initTime, requestTime };
             console.log(JSON.stringify(rt, undefined, 2));
@@ -90,6 +213,7 @@ while (true) {
         }
         await fetch(`http://${AWS_LAMBDA_RUNTIME_API}/2018-06-01/runtime/invocation/${awsRequestId}/response`, { method: 'POST', body });
     } catch (e) {
+        console.error(`error handling request: ${e.stack || e}`);
         await sendError(e, `/2018-06-01/runtime/invocation/${awsRequestId}/error`);
     }
 }
@@ -99,29 +223,11 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
-function base64Encode(buf: Uint8Array): string {
-    let string = '';
-    (buf).forEach(
-        (byte) => { string += String.fromCharCode(byte) }
-    )
-    return btoa(string);
-}
-
-function base64Decode(str: string, urlSafe: boolean): Uint8Array {
-    if (urlSafe) str = str.replace(/_/g, '/').replace(/-/g, '+');
-    str = atob(str);
-    const
-        length = str.length,
-        buf = new ArrayBuffer(length),
-        bufView = new Uint8Array(buf);
-    for (let i = 0; i < length; i++) { bufView[i] = str.charCodeAt(i) }
-    return bufView;
-}
-
 function isLambdaHttpRequest(obj: unknown): obj is LambdaHttpRequest {
     return isStringRecord(obj) && isStringRecord(obj.requestContext)
 }
 
+// deno-lint-ignore no-explicit-any
 function tryParseJson(text: string): any {
     try {
         return JSON.parse(text);

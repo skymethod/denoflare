@@ -1,5 +1,7 @@
 export interface LambdaWorkerContext {
     readonly lambda: LambdaWorkerInfo;
+    waitUntil(promise: Promise<unknown>): void;
+    passThroughOnException(): void;
 }
 
 export interface LambdaWorkerInfo {

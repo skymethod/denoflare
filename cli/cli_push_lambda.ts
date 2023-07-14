@@ -66,9 +66,9 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
         const region = regionOpt ?? configOpts.region;
         const role = roleOpt ?? configOpts.role;
         const architectureStr = architectureOpt ?? configOpts.architecture;
-        const memory = memoryOpt ?? configOpts.memory ? parseInt(configOpts.memory) : 128;
-        const storage = storageOpt ?? configOpts.storage ? parseInt(configOpts.storage) : 512;
-        const timeout = timeoutOpt ?? configOpts.timeout ? parseInt(configOpts.timeout) : 3;
+        const memory = memoryOpt ?? (configOpts.memory ? parseInt(configOpts.memory) : 128);
+        const storage = storageOpt ?? (configOpts.storage ? parseInt(configOpts.storage) : 512);
+        const timeout = timeoutOpt ?? (configOpts.timeout ? parseInt(configOpts.timeout) : 3);
         const noLayer = typeof noLayerOpt === 'boolean' ? noLayerOpt : configOpts['no-layer'] === 'true';
         const denoVersion = denoVersionOpt ?? configOpts['deno-version'] ?? Deno.version.deno;
         const profile = profileOpt ?? configOpts.profile;
@@ -235,7 +235,7 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
             
             const zipFileSha256Base64 = (await zipFileBytes.sha256()).base64();
             if (existingFunctionConfiguration.CodeSha256 === zipFileSha256Base64) {
-                console.log(`  function already up to date`);
+                console.log(`  function code already up to date`);
             } else {
                 console.log(`updating function code...`);
                 const request: UpdateFunctionCodeRequest = {
