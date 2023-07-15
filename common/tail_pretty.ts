@@ -88,6 +88,9 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
             }
         }
     }
+    if (message.diagnosticsChannelEvents && message.diagnosticsChannelEvents.length > 0) {
+        logger(` diagnosticsChannelEvents: ${JSON.stringify(message.diagnosticsChannelEvents)}`);
+    }
 }
 
 export function formatLocalYyyyMmDdHhMmSs(date: Date): string {

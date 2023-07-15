@@ -51,20 +51,23 @@ export interface TailMessage {
     readonly logs: readonly TailMessageLog[];
     readonly eventTimestamp: number; // epoch millis (null for DO alarm callbacks, filled in client-side)
     readonly event: TailMessageEvent | null; // null for DO alarm callbacks
+    readonly diagnosticsChannelEvents?: unknown[];
 }
 
 export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
+const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents']);
 
 const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'unknown']);
 
 export function parseTailMessage(obj: unknown): TailMessage {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
-    checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     // deno-lint-ignore no-explicit-any
     const objAsAny = obj as any;
-    const { outcome, scriptName, eventTimestamp } = objAsAny;
+    const { outcome, scriptName, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
+    if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[...KNOWN_OUTCOMES].join(', ')}], found ${JSON.stringify(outcome)}`);
     if (scriptName !== null && typeof scriptName !== 'string') throw new Error(`Bad scriptName: expected string or null, found ${JSON.stringify(scriptName)}`);
     const logs = parseLogs(objAsAny.logs);
@@ -79,7 +82,7 @@ export function parseTailMessage(obj: unknown): TailMessage {
         : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event)
         : parseTailMessageAlarmEvent(objAsAny.event);
 
-    return { outcome, scriptName, exceptions, logs, eventTimestamp, event };
+    return { outcome, scriptName, exceptions, logs, eventTimestamp, event, diagnosticsChannelEvents };
 }
 
 function parseLogs(obj: unknown): readonly TailMessageLog[] {
@@ -100,7 +103,6 @@ export interface TailMessageLog {
     readonly timestamp: number; // epoch millis
 }
 
-// deno-lint-ignore ban-types
 export type LogMessagePart = string | number | boolean | undefined | object;
 
 function isLogMessagePart(value: unknown): value is LogMessagePart {
@@ -291,7 +293,6 @@ function parseTailMessageEventResponse(obj: unknown): TailMessageEventResponse |
 
 //
 
-// deno-lint-ignore ban-types
 function checkKeys(obj: object, requiredKeys: Set<string>, allKeys?: Set<string>) {
     const keys = new Set(Object.keys(obj));
     const missingKeys = setSubtract(requiredKeys, keys);

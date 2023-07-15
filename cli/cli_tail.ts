@@ -137,6 +137,9 @@ function dumpMessageCompact(message: TailMessage) {
         const timestamp = new Date(exception.timestamp).toISOString();
         console.log(`      ${[timestamp, exception.name, exception.message].join(' ')}`);
     }
+    if (message.diagnosticsChannelEvents && message.diagnosticsChannelEvents.length > 0) {
+        console.log(`      ${JSON.stringify(message.diagnosticsChannelEvents)}`);
+    }
 }
 
 function dumpMessageJson(message: TailMessage) {

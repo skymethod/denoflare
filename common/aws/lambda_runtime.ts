@@ -182,9 +182,9 @@ while (true) {
             const { requestContext } = request;
             const url = new URL(`https://${requestContext.domainName}${request.rawPath}${request.rawQueryString === '' ? '' : `?${request.rawQueryString}`}`);
             const method = requestContext.http.method;
-            const headers = new Headers(request.headers);
+            const requestHeaders = new Headers(request.headers);
             const moduleRequestBody: BodyInit | undefined = request.body === undefined ? undefined : request.isBase64Encoded ? decodeBase64(request.body) : request.body;
-            headers.set('cf-connecting-ip', requestContext.http.sourceIp);
+            requestHeaders.set('cf-connecting-ip', requestContext.http.sourceIp);
             const lambda: LambdaWorkerInfo = { 
                 times: { bootstrap: bootstrapTime, start: startTime, init: initTime, request: requestTime, dispatch: Date.now(), deadline: parseInt(deadlineMillisStr) }, 
                 request,
@@ -201,11 +201,20 @@ while (true) {
                 throw new Error(`passThroughOnException not supported on lambda!`);
             }
             const context: LambdaWorkerContext = { lambda, waitUntil, passThroughOnException };
-            const moduleResponse = await module.default.fetch(new Request(url, { method, headers, body: moduleRequestBody }), workerEnv, context);
+            const moduleResponse = await module.default.fetch(new Request(url, { method, headers: requestHeaders, body: moduleRequestBody }), workerEnv, context) as Response;
             if (work.length > 0) await Promise.allSettled(work);
-            const moduleResponseBodyBase64 = encodeBase64(new Uint8Array(await moduleResponse.arrayBuffer()));
-            body = JSON.stringify({ statusCode: moduleResponse.status, headers: Object.fromEntries(moduleResponse.headers), body: moduleResponseBodyBase64, isBase64Encoded: true });
-           
+            let buf = await moduleResponse.arrayBuffer();
+            const headers = Object.fromEntries(moduleResponse.headers);
+            const originalSize = buf.byteLength;
+            if (originalSize > 1024 * 1024 * 6 && !moduleResponse.headers.has('content-encoding')) {
+                // gzip manually to try and stay under 6 MB response limit
+                const gzipStream = new Response(buf).body!.pipeThrough(new CompressionStream('gzip'));
+                buf = await new Response(gzipStream).arrayBuffer();
+                headers['content-encoding'] = 'gzip';
+                console.log(`Force gzipped ${formatSize(originalSize)} to ${formatSize(buf.byteLength)}`);
+            }
+            const moduleResponseBodyBase64 = encodeBase64(new Uint8Array(buf));
+            body = JSON.stringify({ statusCode: moduleResponse.status, headers, body: moduleResponseBodyBase64, isBase64Encoded: true });
         } else {
             const rt: Record<string, unknown> = { env: Deno.env.toObject(), awsRequestId, deadlineMillisStr, invokedFunctionArn, traceId, request, nextStatus, nextHeaders, bootstrapTime, startTime, initTime, requestTime };
             console.log(JSON.stringify(rt, undefined, 2));
@@ -234,4 +243,18 @@ function tryParseJson(text: string): any {
     } catch {
         return undefined;
     }
+}
+
+function formatSize(sizeInBytes: number): string {
+    const sign = sizeInBytes < 0 ? '-' : '';
+    let size = Math.abs(sizeInBytes);
+    if (size < 1024) return `${sign}${size}bytes`;
+    size = size / 1024;
+    if (size < 1024) return `${sign}${roundToOneDecimal(size)}kb`;
+    size = size / 1024;
+    return `${sign}${roundToOneDecimal(size)}mb`;
+}
+
+function roundToOneDecimal(value: number): number {
+    return Math.round(value * 10) / 10;
 }
