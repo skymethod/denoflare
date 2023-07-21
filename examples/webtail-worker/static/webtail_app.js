@@ -1154,10 +1154,13 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
     if (responseType === 'text') {
         return await fetchResponse.text();
     }
+    if (responseType === 'form') {
+        return await fetchResponse.formData();
+    }
     if (![
-        APPLICATION_JSON_UTF8,
+        APPLICATION_JSON_UTF8.replaceAll(' ', ''),
         APPLICATION_JSON
-    ].includes(contentType.toLowerCase())) {
+    ].includes(contentType.toLowerCase().replaceAll(' ', ''))) {
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json();
@@ -1229,6 +1232,10 @@ const REQUIRED_TAIL_MESSAGE_KEYS = new Set([
     'eventTimestamp',
     'event'
 ]);
+const ALL_TAIL_MESSAGE_KEYS = new Set([
+    ...REQUIRED_TAIL_MESSAGE_KEYS,
+    'diagnosticsChannelEvents'
+]);
 const KNOWN_OUTCOMES = new Set([
     'ok',
     'exception',
@@ -1238,9 +1245,10 @@ const KNOWN_OUTCOMES = new Set([
 ]);
 function parseTailMessage(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
-    checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     const objAsAny = obj;
-    const { outcome , scriptName , eventTimestamp  } = objAsAny;
+    const { outcome , scriptName , eventTimestamp , diagnosticsChannelEvents  } = objAsAny;
+    if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[
         ...KNOWN_OUTCOMES
     ].join(', ')}], found ${JSON.stringify(outcome)}`);
@@ -1265,7 +1273,8 @@ function parseTailMessage(obj) {
         exceptions,
         logs,
         eventTimestamp,
-        event
+        event,
+        diagnosticsChannelEvents
     };
 }
 function parseLogs(obj) {
@@ -1548,6 +1557,9 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
                 logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');
             }
         }
+    }
+    if (message.diagnosticsChannelEvents && message.diagnosticsChannelEvents.length > 0) {
+        logger(` diagnosticsChannelEvents: ${JSON.stringify(message.diagnosticsChannelEvents)}`);
     }
 }
 function formatLocalYyyyMmDdHhMmSs(date) {

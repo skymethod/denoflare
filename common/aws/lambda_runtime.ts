@@ -206,8 +206,9 @@ while (true) {
             let buf = await moduleResponse.arrayBuffer();
             const headers = Object.fromEntries(moduleResponse.headers);
             const originalSize = buf.byteLength;
-            if (originalSize > 1024 * 1024 * 6 && !moduleResponse.headers.has('content-encoding')) {
+            if (originalSize > 1024 * 1024 * 3 && !moduleResponse.headers.has('content-encoding')) {
                 // gzip manually to try and stay under 6 MB response limit
+                // don't forget about base64 overhead
                 const gzipStream = new Response(buf).body!.pipeThrough(new CompressionStream('gzip'));
                 buf = await new Response(gzipStream).arrayBuffer();
                 headers['content-encoding'] = 'gzip';
@@ -215,6 +216,7 @@ while (true) {
             }
             const moduleResponseBodyBase64 = encodeBase64(new Uint8Array(buf));
             body = JSON.stringify({ statusCode: moduleResponse.status, headers, body: moduleResponseBodyBase64, isBase64Encoded: true });
+            console.log(`responsebody.length=${body.length}`);
         } else {
             const rt: Record<string, unknown> = { env: Deno.env.toObject(), awsRequestId, deadlineMillisStr, invokedFunctionArn, traceId, request, nextStatus, nextHeaders, bootstrapTime, startTime, initTime, requestTime };
             console.log(JSON.stringify(rt, undefined, 2));

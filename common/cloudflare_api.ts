@@ -94,7 +94,12 @@ export async function putScript(opts: { accountId: string, scriptName: string, a
     }
    
     for (const { name, value, fileName } of (parts || [])) {
-        formData.set(name, value, fileName);
+        if (typeof value === 'string') {
+            if (fileName !== undefined) throw new Error(`Bad ${name} form param: filename '${fileName} is not allowed for string value`);
+            formData.set(name, value);
+        } else {
+            formData.set(name, value, fileName);
+        }
     }
     return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
 }
