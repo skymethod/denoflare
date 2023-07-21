@@ -4,12 +4,15 @@ import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
 const webtailAppJs = await importText(import.meta.url, './static/webtail_app.js');
-const webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex();
+// const webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex(); // TODO works in deno 1.32.3, prevents import in worker isolate in 1.32.4+, file a deno bug
+let webtailAppJsSha1 = '';
 
 export default {
 
     async fetch(request: IncomingRequestCf, env: WorkerEnv, _ctx: ModuleWorkerContext): Promise<Response> {
         const url = new URL(request.url);
+
+        if (webtailAppJsSha1 === '') webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex();
 
         const redirectResponse = env.redirectHosts ? computeRedirectResponse(url, env.redirectHosts) : undefined;
         if (redirectResponse) return redirectResponse;
