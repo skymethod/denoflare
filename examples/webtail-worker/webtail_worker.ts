@@ -4,7 +4,9 @@ import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
 const webtailAppJs = await importText(import.meta.url, './static/webtail_app.js');
-// const webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex(); // TODO works in deno 1.32.3, prevents import in worker isolate in 1.32.4+, file a deno bug
+// works in deno 1.32.3, prevents import in worker isolate in 1.32.4+,
+// Filed https://github.com/denoland/deno/issues/19903 supposedly fixed in 1.35.3, but doesn't help this exact case
+// const webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex(); 
 let webtailAppJsSha1 = '';
 
 export default {
