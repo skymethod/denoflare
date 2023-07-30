@@ -25,6 +25,7 @@ export async function aeProxy(args: (string | number)[], options: Record<string,
 
     const config = await loadConfig(options);
     const { accountId, apiToken } = await resolveProfile(config, options);
+    if (verbose) console.log({ accountId, apiToken });
 
     const server = Deno.serve({ port }, async (req, info) => { 
         const { hostname, port, transport } = info.remoteAddr;
@@ -80,6 +81,11 @@ export async function aeProxy(args: (string | number)[], options: Record<string,
         })();
 
         console.log(`${res.status} ${res.headers.get('content-type')}`);
+        if (verbose) {
+            const body = await res.text();
+            console.log(body);
+            return new Response(body, res);
+        }
         return res;
     });
     console.log(`Local ae proxy running on http://localhost:${port}`);
