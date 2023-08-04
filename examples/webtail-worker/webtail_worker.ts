@@ -4,17 +4,12 @@ import { TWITTER_IMAGE_VERSION, TWITTER_IMAGE_PNG_B64 } from './twitter.ts';
 import { Material } from './material.ts';
 import { AppManifest } from './app_manifest.d.ts';
 const webtailAppJs = await importText(import.meta.url, './static/webtail_app.js');
-// works in deno 1.32.3, prevents import in worker isolate in 1.32.4+,
-// Filed https://github.com/denoland/deno/issues/19903 supposedly fixed in 1.35.3, but doesn't help this exact case
-// const webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex(); 
-let webtailAppJsSha1 = '';
+const webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex(); // works in Deno <= 1.32.3 and >= 1.36.0, see https://github.com/denoland/deno/issues/19903  (for the regression range, you can init on first access)
 
 export default {
 
     async fetch(request: IncomingRequestCf, env: WorkerEnv, _ctx: ModuleWorkerContext): Promise<Response> {
         const url = new URL(request.url);
-
-        if (webtailAppJsSha1 === '') webtailAppJsSha1 = (await Bytes.ofUtf8(webtailAppJs).sha1()).hex();
 
         const redirectResponse = env.redirectHosts ? computeRedirectResponse(url, env.redirectHosts) : undefined;
         if (redirectResponse) return redirectResponse;
