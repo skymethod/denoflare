@@ -28,6 +28,18 @@ export async function listObjectsV2(opts: ListObjectsOpts, context: AwsCallConte
     return parseListBucketResultXml(xml);
 }
 
+export async function* enumerate(opts: ListObjectsOpts, context: AwsCallContext): AsyncIterable<ListBucketResultItem> {
+    opts = { ...opts };
+    while (true) {
+        const res = await listObjectsV2(opts, context);
+        for (const item of res.contents) {
+            yield item;
+        }
+        if (!res.isTruncated) return;
+        opts.continuationToken = res.nextContinuationToken;
+    }
+}
+
 //
 
 export interface ListBucketResult {
@@ -75,8 +87,10 @@ function parseListBucketResult(element: KnownElement): ListBucketResult {
     const prefix = element.getOptionalElementText('Prefix');
     const encodingType = element.getOptionalElementText('EncodingType');
     const commonPrefixes = element.getKnownElements('CommonPrefixes').map(parseCommonPrefixes);
+    const continuationToken = element.getOptionalElementText('ContinuationToken');
+
     element.check();
-    return { name, isTruncated, maxKeys, keyCount, contents, nextContinuationToken, delimiter, commonPrefixes, startAfter, prefix, encodingType };
+    return { name, isTruncated, maxKeys, keyCount, contents, nextContinuationToken, delimiter, commonPrefixes, startAfter, prefix, encodingType, continuationToken };
 }
 
 function parseListBucketResultItem(element: KnownElement): ListBucketResultItem {
