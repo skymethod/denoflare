@@ -27,24 +27,26 @@ export async function loadConfig(options: Record<string, unknown>): Promise<Conf
     const optionConfigFilePath = typeof options.config === 'string' && options.config.trim().length > 0 ? options.config.trim() : undefined;
     const configFilePath = optionConfigFilePath || await findConfigFilePath(verbose);
     if (verbose) console.log(`loadConfig: path=${configFilePath}`);
-    let config = configFilePath ? await loadConfigFromFile(configFilePath) : {};
+    const config = configFilePath ? await loadConfigFromFile(configFilePath) : {};
 
     // enhance with env vars if we have no config profiles
     if (Object.keys(config.profiles || {}).length === 0) {
         try {
-            const cfAccountId = (Deno.env.get('CF_ACCOUNT_ID') || '').trim();
-            const cfApiToken = (Deno.env.get('CF_API_TOKEN') || '').trim();
-            if (cfAccountId.length > 0 && cfApiToken.length > 0) {
-                if (verbose) console.log(`loadConfig: Trying to enhance with CF_ACCOUNT_ID=${cfAccountId}, CF_API_TOKEN=<redacted string length=${cfApiToken.length}>`);
-                const envProfile: Profile = {
-                    accountId: cfAccountId,
-                    apiToken: cfApiToken,
-                };
-                config = { ...config, profiles: { 'env': envProfile } };
+            for (const [ accountIdVar, apiTokenVar ] of [ [ 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN' ], [ 'CF_ACCOUNT_ID', 'CF_API_TOKEN' ] ]) {
+                const cfAccountId = (Deno.env.get(accountIdVar) || '').trim();
+                const cfApiToken = (Deno.env.get(apiTokenVar) || '').trim();
+                if (cfAccountId.length > 0 && cfApiToken.length > 0) {
+                    if (verbose) console.log(`loadConfig: Trying to enhance with ${accountIdVar}=${cfAccountId}, ${apiTokenVar}=<redacted string length=${cfApiToken.length}>`);
+                    const envProfile: Profile = {
+                        accountId: cfAccountId,
+                        apiToken: cfApiToken,
+                    };
+                    return { ...config, profiles: { 'env': envProfile } };
+                }
             }
         } catch (e) {
             if (e instanceof Deno.errors.PermissionDenied) {
-                if (verbose) console.log(`loadConfig: Permission denied reading CF_ACCOUNT_ID or CF_API_TOKEN`);
+                if (verbose) console.log(`loadConfig: Permission denied reading env vars`);
             } else {
                 throw e;
             }
