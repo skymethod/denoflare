@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from 'https://deno.land/std@0.198.0/testing/asserts.ts';
+import { assertEquals, assertRejects } from 'https://deno.land/std@0.199.0/testing/asserts.ts';
 
 import { resolveBindings, resolveProfile } from './config_loader.ts';
 import { Binding, Config } from '../common/config.ts';
