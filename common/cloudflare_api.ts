@@ -911,6 +911,12 @@ export interface Account {
     readonly created_on: string; // instant
 }
 
+export async function getAccountDetails(opts: { accountId: string, apiToken: string }): Promise<User> {
+    const { accountId, apiToken } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}`;
+    return (await execute<User>('getAccountDetails', 'GET', url, apiToken)).result;
+}
+
 //#endregion
 
 //#region User
