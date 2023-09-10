@@ -135,6 +135,10 @@ class RpcStubWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
     get onerror(): ((this: WebSocket, ev: Event | ErrorEvent) => any) | null { return this._onerror; }
     set onerror(value: ((this: WebSocket, ev: Event | ErrorEvent) => any) | null) { this._onerror = value; }
 
+    get binaryType(): BinaryType {
+        return 'arraybuffer'; // default for Deno.  CF runtime returns undefined, but in practice uses ArrayBuffer as the message event data.
+    }
+
     accept() {
         const { isolateId, id, side } = this;
         const seq = this.nextSeq++;
