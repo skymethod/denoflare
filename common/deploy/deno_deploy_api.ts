@@ -2,6 +2,10 @@ import { TextLineStream } from 'https://deno.land/std@0.201.0/streams/text_line_
 
 export const DEFAULT_ENDPOINT = `https://dash.deno.com/api`;
 
+export async function getMeta(opts: { apiToken: string, endpoint?: string }): Promise<Metadata> {
+    return await executeJson<Metadata>(`/meta`, opts);
+}
+
 export async function listProjects(opts: { apiToken: string, endpoint?: string }): Promise<readonly Project[]> {
     return await executeJson<readonly Project[]>(`/projects`, opts);
 }
@@ -11,9 +15,9 @@ export async function getProject(opts: { projectId: string, apiToken: string, en
     return await executeJson<Project>(`/projects/${projectId}`, opts);
 }
 
-export async function listDeployments(opts: { projectId: string, limit?: number, page?: number, apiToken: string, endpoint?: string }): Promise<readonly [readonly Deployment[], PagingInfo]> {
+export async function listDeployments(opts: { projectId: string, limit?: number, page?: number, apiToken: string, endpoint?: string }): Promise<readonly [readonly ProductionDeployment[], PagingInfo | null]> {
     const { projectId, limit, page } = opts;
-    return await executeJson<readonly [readonly Deployment[], PagingInfo]>(`/projects/${projectId}/deployments`, { ...opts, queryParams: { limit, page } });
+    return await executeJson<readonly [readonly ProductionDeployment[], PagingInfo]>(`/projects/${projectId}/deployments`, { ...opts, queryParams: { limit, page } });
 }
 
 export async function negotiateAssets(opts: { projectId: string, manifest: Manifest, apiToken: string, endpoint?: string }): Promise<readonly string[]> {
@@ -25,7 +29,7 @@ export function deploy(opts: { projectId: string, request: DeployRequest, files:
     const { projectId, request, files } = opts;
     const form = new FormData();
     form.append('request', JSON.stringify(request));
-    files.forEach(v => form.append('file', new Blob([v])));
+    files.forEach(v => form.append('file', new Blob([ v ])));
     return executeStream<DeployMessage>(`/projects/${projectId}/deployment_with_assets`, { ...opts, requestBody: form });
 }
 
@@ -77,7 +81,7 @@ export interface Project {
     readonly type: string; // e.g. playground, git
     readonly git: null;
     readonly playground: Playground;
-    readonly productionDeployment: Deployment;
+    readonly productionDeployment: ProductionDeployment;
     readonly hasProductionDeployment: boolean;
     readonly organizationId: string; // Organization.id, v4 guid
     readonly organization: Organization;
@@ -92,14 +96,20 @@ export interface Playground {
     readonly isPublic: boolean;
 }
 
-export interface Deployment {
-    readonly id: string; // e.g. 8bmfqtny52tg
-    readonly url: string; // e.g. file:///src/main.ts, file:///src/deploy.ts
-    readonly domainMappings: readonly DomainMapping[];
+export interface ProductionDeployment {
+    readonly id: string; // v4 guid
     readonly relatedCommit: null,
     readonly projectId: string; // Project.id, v4 guid
     readonly createdAt: string;  // e.g. 2022-06-28T13:34:36.117979Z
     readonly updatedAt: string;  // e.g. 2022-06-28T13:34:36.117979Z
+    readonly deployment: Deployment | null;
+    readonly logs: readonly DeployMessage[];
+}
+
+export interface Deployment {
+    readonly id: string; // e.g. 8bmfqtny52tg
+    readonly url: string; // e.g. file:///src/main.ts, file:///src/deploy.ts, https://deno.com/examples/hello.js
+    readonly domainMappings: readonly DomainMapping[];
     readonly envVars: readonly string[]; // e.g. 'VARNAME'
     readonly isBlocked: boolean;
 }
@@ -114,8 +124,9 @@ export interface Organization {
     readonly id: string; // v4 guid
     readonly name: null;
     readonly pro: boolean;
-    // deno-lint-ignore ban-types
-    readonly features: {};
+    readonly features: {
+        database?: boolean,
+    };
     readonly createdAt: string;  // e.g. 2022-06-28T13:34:36.117979Z
     readonly updatedAt: string;  // e.g. 2022-06-28T13:34:36.117979Z
 }
@@ -138,7 +149,7 @@ export interface FileManifestEntry {
     readonly size: number;
 }
 
-export interface DirectoryManifestEntry{
+export interface DirectoryManifestEntry {
     readonly kind: 'directory';
     readonly entries: Record<string, ManifestEntry>;
 }
@@ -191,4 +202,8 @@ export interface ErrorDeployMessage {
 
 export interface SetEnvironmentVariablesResult {
     readonly result: Project;
+}
+
+export interface Metadata {
+    readonly regionCodes: string[]; // e.g. gcp-us-east1
 }

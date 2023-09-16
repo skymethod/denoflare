@@ -104,8 +104,11 @@ export interface Script {
      * See https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags */
     readonly compatibilityFlags?: string[];
 
-    /** Name-value pairs to use when pushing to lambda. */
+    /** Name-value pairs to use when pushing to AWS Lambda. */
     readonly lambda?: string;
+
+    /** Name-value pairs to use when pushing to Deno Deploy. */
+    readonly deploy?: string;
 }
 
 /** Binding definition for a worker script environment variable */

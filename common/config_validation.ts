@@ -80,7 +80,7 @@ function isValidCustomDomain(customDomain: string): boolean {
 // deno-lint-ignore no-explicit-any
 function checkScript(name: string, script: any): Script {
     checkObject(name, script);
-    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev, logpush, compatibilityDate, compatibilityFlags, lambda } = script;
+    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev, logpush, compatibilityDate, compatibilityFlags, lambda, deploy } = script;
     if (path !== undefined && typeof path !== 'string') throw new Error(`Bad ${name}.path: expected string, found ${typeof path}`);
     if (bindings !== undefined) {
         checkObject(`${name}.bindings`, bindings);
@@ -107,6 +107,7 @@ function checkScript(name: string, script: any): Script {
     if (compatibilityDate !== undefined && (typeof compatibilityDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(compatibilityDate))) throw new Error(`Bad ${name}.compatibilityDate: expected date string, found ${typeof compatibilityDate} ${compatibilityDate}`);
     if (compatibilityFlags !== undefined && !(Array.isArray(compatibilityFlags) && compatibilityFlags.every(v => typeof v === 'string'))) throw new Error(`Bad ${name}.compatibilityFlags: expected string array of flags, found ${compatibilityFlags}`);
     if (lambda !== undefined && typeof lambda !== 'string') throw new Error(`Bad ${name}.lambda: expected string, found ${typeof lambda} ${lambda}`);
+    if (deploy !== undefined && typeof deploy !== 'string') throw new Error(`Bad ${name}.deploy: expected string, found ${typeof deploy} ${deploy}`);
 
     return script as Script;
 }

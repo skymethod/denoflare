@@ -226,7 +226,11 @@
                             }
                         },
                         "lambda": {
-                            "description": "Name-value pairs to use when pushing to lambda.",
+                            "description": "Name-value pairs to use when pushing to AWS Lambda.",
+                            "type": "string"
+                        },
+                        "deploy": {
+                            "description": "Name-value pairs to use when pushing to Deno Deploy.",
                             "type": "string"
                         }
                     }
