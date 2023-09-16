@@ -1,3 +1,5 @@
+const isolateId = crypto.randomUUID().split('-').pop()!;
+console.log(`${isolateId}: new isolate`);
 
 const { mod = {}, err, millis } = await (async () => {
     const start = Date.now();
@@ -9,7 +11,30 @@ const { mod = {}, err, millis } = await (async () => {
         return { err, millis: Date.now() - start };
     }
 })();
-console.log(`${err ? `Failed to import` : 'Successfully imported'} worker module in ${millis}ms`);
+console.log(`${isolateId}: ${err ? `Failed to import` : 'Successfully imported'} worker module in ${millis}ms`);
+
+const env = Deno.env.toObject();
+
+if (mod) {
+    const { queue } = mod;
+    if (typeof queue === 'function') {
+        const kv = await Deno.openKv();
+        console.log(`${isolateId}: Queue handler found, listening to queue...`);
+        kv.listenQueue(async value => {
+            try {
+                const id = crypto.randomUUID();
+                const batch = { queue: '', messages: [ { id, timestamp: new Date(), body: value, retryAll: () => {
+                    // TODO
+                } }]};
+                await queue(batch);
+            } catch (e) {
+                console.error(`${isolateId}: Error in queue handler`, e);
+            }
+        }).catch(e => {
+            console.warn(`${isolateId}: listenQueue catch`, e);
+        });
+    }
+}
 
 Deno.serve(async (req, info) => {
     try {
@@ -20,10 +45,60 @@ Deno.serve(async (req, info) => {
 
         const headers = new Headers([...req.headers, [ 'cf-connecting-ip', info.remoteAddr.hostname ] ]);
 
-        const env = Deno.env.toObject();
-
-        return await fetch(new Request(req, { headers }), env);
+        const kvService = {
+            openKv: async (path?: string) =>  new DenoflareKv(await Deno.openKv(path)),
+            newKvU64: (v: bigint) => new Deno.KvU64(v),
+        }
+        return await fetch(new Request(req, { headers }), env, { kvService });
     } catch (e) {
         return new Response(`${e.stack || e}`, { status: 500 });
     }
+}).finished.catch(e => {
+    console.warn(`${isolateId}: serve catch`, e);
 });
+
+class DenoflareKv 
+// implements Kv
+{
+    private readonly kv: Deno.Kv;
+
+    constructor(kv: Deno.Kv) {
+        this.kv = kv;
+    }
+
+    get<T = unknown>(key: Deno.KvKey, options?: { consistency?: Deno.KvConsistencyLevel | undefined; } | undefined): Promise<Deno.KvEntryMaybe<T>> {
+        return this.kv.get(key, options);
+    }
+
+    getMany<T extends readonly unknown[]>(keys: readonly [...{ [K in keyof T]: Deno.KvKey; }], options?: { consistency?: Deno.KvConsistencyLevel | undefined; } | undefined): Promise<{ [K in keyof T]: Deno.KvEntryMaybe<T[K]>; }> {
+        return this.kv.getMany<T>(keys, options);
+    }
+
+    set(key: Deno.KvKey, value: unknown, options?: { expireIn?: number | undefined; } | undefined): Promise<Deno.KvCommitResult> {
+        return this.kv.set(key, value, options);
+    }
+
+    delete(key: Deno.KvKey): Promise<void> {
+        return this.kv.delete(key);
+    }
+
+    list<T = unknown>(selector: Deno.KvListSelector, options?: Deno.KvListOptions | undefined): Deno.KvListIterator<T> {
+        return this.kv.list<T>(selector, options);
+    }
+
+    enqueue(value: unknown, options?: { delay?: number | undefined; keysIfUndelivered?: Deno.KvKey[] | undefined; } | undefined): Promise<Deno.KvCommitResult> {
+        return this.kv.enqueue(value, options);
+    }
+
+    listenQueue(_handler: (value: unknown) => void | Promise<void>): Promise<void> {
+        throw new Error(`'listenQueue' not implemented directly, export a module queue handler instead.`);
+    }
+
+    atomic(): Deno.AtomicOperation {
+        return this.kv.atomic();
+    }
+
+    close(): void {
+        return this.kv.close();
+    }
+}
