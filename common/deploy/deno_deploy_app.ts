@@ -49,7 +49,13 @@ Deno.serve(async (req, info) => {
             openKv: async (path?: string) =>  new DenoflareKv(await Deno.openKv(path)),
             newKvU64: (v: bigint) => new Deno.KvU64(v),
         }
-        return await fetch(new Request(req, { headers }), env, { kvService });
+        const context = {
+            kvService,
+            waitUntil: (_promise: Promise<unknown>): void => {
+                // assumes Deploy waits for all background promises
+            }
+        };
+        return await fetch(new Request(req, { headers }), env, context);
     } catch (e) {
         return new Response(`${e.stack || e}`, { status: 500 });
     }

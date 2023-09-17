@@ -857,7 +857,6 @@ export interface DurableObjectId {
 
 //#region Durable Object implementation types
 
-// deno-lint-ignore ban-types
 export type DurableObjectStorageValue = number | string | object;  // add more as necessary ("The value can be any type supported by the structured clone algorithm, which is true of most types.")
 
 export interface DurableObjectStorageMethods {
@@ -1285,16 +1284,26 @@ export interface D1Result<T = unknown> {
 
 //#region Queues
 
+export type QueuesContentType = 'text' | 'bytes' | 'json' | 'v8';
+
 export interface Queue {
 
     /** Sends a message to the Queue. 
      * 
      * The message can be any type supported by the structured clone algorithm, as long as its size is less than 128 KB.
-     * When the promise resolves, the message is confirmed to be written to disk. */
-    send(message: unknown): Promise<void>;
+     * When the promise resolves, the message is confirmed to be written to disk.
+     * 
+     * - Use "text" to send a String. This content type can be previewed with the List messages from the dashboard feature.
+     * - Use "json" to send a JavaScript object that can be JSON-serialized. This content type can be previewed from the Cloudflare dashboard.
+     * - Use "bytes" to send an ArrayBuffer. This content type cannot be previewed from the Cloudflare dashboard and will display as Base64-encoded.
+     * - Use "v8" to send a JavaScript object that cannot be JSON-serialized but is supported by structured clone (for example Date and Map). This content type cannot be previewed from the Cloudflare dashboard and will display as Base64-encoded.
+     * 
+     * "v8" is the default content type.
+     * */
+    send(message: unknown, contentType?: QueuesContentType): Promise<void>;
 
     /** Sends multiple messages to the Queue. */
-    sendBatch(messages: { body: unknown }[]): Promise<void>;
+    sendBatch(messages: Iterable<{ body: unknown, contentType?: QueuesContentType }>): Promise<void>;
 }
 
 /** A message that is sent to a consumer Worker. */
@@ -1306,8 +1315,17 @@ export interface QueueMessage {
     /** A timestamp when the message was sent. */
     readonly timestamp: Date;
 
-    /**The body of the message. */
+    /** The body of the message.
+     * 
+     * The body can be any type supported by the structured clone algorithm, as long as its size is less than 128 KB.
+    */
     readonly body: unknown;
+
+    /** Marks a message as successfully delivered, regardless of whether your queue() consumer handler returns successfully or not. */
+    ack(): void;
+
+    /** Marks a message to be retried in the next batch. */
+    retry(): void;
 }
 
 /** A batch of messages that are sent to a consumer Worker. */
@@ -1315,11 +1333,14 @@ export interface QueueMessageBatch {
     /** The name of the Queue that belongs to this batch. */
     readonly queue: string;
 
-    /** An array of messages in the batch. Ordering of messages is not guaranteed. */
+    /** An array of messages in the batch. Ordering of messages is best effort – not guaranteed to be exactly the same as the order in which they were published. */
     readonly messages: readonly QueueMessage[];
 
     /** Marks every message to be retried in the next batch. */
     retryAll(): void;
+
+    /** Marks every message as successfully delivered, regardless of whether your queue() consumer handler returns successfully or not. */
+    ackAll(): void;
 }
 
 //#endregion
