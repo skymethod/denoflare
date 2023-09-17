@@ -38,6 +38,16 @@ export async function setEnvironmentVariables(opts: { projectId: string, variabl
     return await executeJson<SetEnvironmentVariablesResult>(`/projects/${projectId}/env`, { ...opts, method: 'PATCH', requestBody: variables  });
 }
 
+export function getLogs(opts: { projectId: string, deploymentId: string, apiToken: string, endpoint?: string }): AsyncIterable<LiveLog> {
+    const { projectId, deploymentId, apiToken, endpoint } = opts;
+    return executeStream<LiveLog>(`/projects/${projectId}/deployments/${deploymentId}/logs/`, { apiToken, endpoint });
+}
+
+export async function queryLogs(opts: { projectId: string, deploymentId: string, params: LogQueryRequestParams, apiToken: string, endpoint?: string }): Promise<{ logs: readonly PersistedLog[] }> {
+    const { projectId, deploymentId, params, apiToken, endpoint } = opts;
+    return await executeJson<{ logs: readonly PersistedLog[] }>(`/projects/${projectId}/deployments/${deploymentId}/query_logs`, { apiToken, endpoint, queryParams: { params: JSON.stringify(params)} });
+}
+
 //
 
 async function executeJson<T>(pathname: string, opts: ApiCall): Promise<T> {
@@ -206,4 +216,43 @@ export interface SetEnvironmentVariablesResult {
 
 export interface Metadata {
     readonly regionCodes: string[]; // e.g. gcp-us-east1
+}
+
+export interface LogQueryRequestParams {
+    readonly regions?: string[];
+    readonly levels?: string[];
+    readonly since?: string;
+    readonly until?: string;
+    readonly q?: string[];
+    readonly limit?: number;
+}
+
+export interface LiveLogReady {
+    readonly type: 'ready';
+}
+
+export interface LiveLogPing {
+    readonly type: 'ping';
+}
+
+export interface LiveLogMessage {
+    readonly type: 'message';
+    readonly time: string;
+    readonly message: string;
+    readonly level: 'debug' | 'info' | 'warning' | 'error';
+    readonly region: string;
+}
+
+export type LiveLog =
+    | LiveLogReady
+    | LiveLogPing
+    | LiveLogMessage;
+
+export interface PersistedLog {
+    readonly deploymentId: string;
+    readonly isolateId: string;
+    readonly region: string;
+    readonly level: 'debug' | 'info' | 'warning' | 'error';
+    readonly timestamp: string;
+    readonly message: string;
 }

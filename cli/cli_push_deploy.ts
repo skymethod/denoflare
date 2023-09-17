@@ -4,7 +4,7 @@ import { isValidScriptName } from '../common/config_validation.ts';
 import { bundle, commandOptionsForBundle, parseBundleOpts } from './bundle.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
 import { commandOptionsForConfigOnly, loadConfig, resolveBindings } from './config_loader.ts';
-import { DeployRequest, deploy, listProjects, negotiateAssets, setEnvironmentVariables } from '../common/deploy/deno_deploy_api.ts';
+import { DeployRequest, LogQueryRequestParams, deploy, getLogs, listProjects, negotiateAssets, queryLogs, setEnvironmentVariables } from '../common/deploy/deno_deploy_api.ts';
 import { isAbsolute, resolve } from './deps_cli.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { setEqual } from '../common/sets.ts';
@@ -16,6 +16,8 @@ export const PUSH_DEPLOY_COMMAND = denoflareCliCommand('push-deploy', 'Upload a 
     .option('accessToken', 'string', 'Personal access token from the Deploy dashboard  (or set DENO_DEPLOY_TOKEN env var)')
     .option('watch', 'boolean', 'If set, watch the local file system and automatically re-upload on script changes')
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
+    .option('getLogs', 'boolean', '')
+    .option('queryLogs', 'boolean', '')
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfigOnly)
     .include(commandOptionsForBundle)
@@ -26,7 +28,7 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
     if (PUSH_DEPLOY_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_DEPLOY_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, accessToken: accessTokenOpt, watch, watchInclude } = opt;
+    const { scriptSpec, verbose, name: nameOpt, accessToken: accessTokenOpt, watch, watchInclude, getLogs: getLogsOpt, queryLogs: queryLogsOpt } = opt;
 
     if (verbose) {
         // in cli
@@ -98,6 +100,25 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
         if (!project) throw new Error(`Create a new empty Deno Deploy project named '${scriptName}' at https://dash.deno.com/projects`);
         const projectId = project.id;
 
+        if (getLogsOpt) {
+            const deploymentId = project.productionDeployment.deployment?.id;
+            if (deploymentId === undefined) throw new Error(`No deployment found for project`);
+            const iter = getLogs({ projectId, deploymentId, apiToken });
+            for await (const log of iter) {
+                console.log(JSON.stringify(log));
+            }
+            return;
+        }
+        if (queryLogsOpt) {
+            const deploymentId = project.productionDeployment.deployment?.id;
+            if (deploymentId === undefined) throw new Error(`No deployment found for project`);
+            const params: LogQueryRequestParams = {};
+            const { logs } = await queryLogs({ projectId, deploymentId, apiToken, params });
+            for (const log of logs) {
+                console.log(JSON.stringify(log));
+            }
+            return;
+        }
         if (!setEqual(new Set(project.envVars), new Set(Object.keys(environmentVariables)))) {
             console.log('updating project environment variables');
             await setEnvironmentVariables({ projectId, variables: environmentVariables, apiToken });
