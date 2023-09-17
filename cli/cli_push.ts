@@ -1,9 +1,9 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
-import { gzip, isAbsolute, resolve, fromFileUrl, relative, systemSeparator } from './deps_cli.ts';
+import { gzip, isAbsolute, resolve } from './deps_cli.ts';
 import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
-import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
+import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
 import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
@@ -177,75 +177,10 @@ function computeSizeString(scriptContents: Uint8Array, compressedScriptContents:
 
 async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, parts: Part[]): Promise<string> {
     scriptContents = scriptContents.replace(/const\s+\{\s*connect\s*\}\s*=\s*cloudflareSockets\(\);/, `import { connect } from "cloudflare:sockets";`);
-    const p = /const\s+([a-zA-Z0-9_]+)\s*=\s*await\s+import(Wasm|Text|Binary)\d*\(\s*(importMeta\d*)\.url\s*,\s*(['"`])((https:\/|\.|\.\.)\/[\/.a-zA-Z0-9_-]+)\4\s*\)\s*;?/g;
-    let m: RegExpExecArray | null;
-    let i = 0;
-    const pieces = [];
-    while((m = p.exec(scriptContents)) !== null) {
-        const { index } = m;
-        pieces.push(scriptContents.substring(i, index));
-        const line = m[0];
-        const variableName = m[1];
-        const importType = m[2];
-        const importMetaVariableName = m[3];
-        const unquotedModuleSpecifier = m[5];
-
-        const importMetaUrl = findImportMetaUrl(importMetaVariableName, scriptContents);
-        const { relativePath, valueBytes, valueType } = await resolveImport({ importType, importMetaUrl, unquotedModuleSpecifier, rootSpecifier });
-        const value = new Blob([ valueBytes ], { type: valueType });
+    return await replaceImports(scriptContents, rootSpecifier, ({ relativePath, value, valueBytes, variableName }) => {
         parts.push({ name: relativePath, fileName: relativePath, value, valueBytes });
-        pieces.push(`import ${variableName} from ${'"'}${relativePath}";`);
-        i = index + line.length;
-    }
-    if (pieces.length === 0) return scriptContents;
-
-    pieces.push(scriptContents.substring(i));
-    return pieces.join('');
-}
-
-function findImportMetaUrl(importMetaVariableName: string, scriptContents: string): string {
-    const m = new RegExp(`.*const ${importMetaVariableName} = {\\s*url: "((file|https):.*?)".*`, 's').exec(scriptContents);
-    if (!m) throw new Error(`findImportMetaUrl: Unable to find importMetaVariableName ${importMetaVariableName}`);
-    return m[1];
-}
-
-async function resolveImport(opts: { importType: string, importMetaUrl: string, unquotedModuleSpecifier: string, rootSpecifier: string }): Promise<{ relativePath: string, valueBytes: Uint8Array, valueType: string }> {
-    const { importType, importMetaUrl, unquotedModuleSpecifier, rootSpecifier } = opts;
-    const tag = `resolveImport${importType}`;
-    const valueType = importType === 'Wasm' ? 'application/wasm'
-        : importType === 'Text' ? 'text/plain'
-        : 'application/octet-stream';
-    const isExpectedContentType: (contentType: string) => boolean =
-        importType === 'Wasm' ? (v => ['application/wasm', 'application/octet-stream'].includes(v))
-        : importType === 'Text' ? (v => v.startsWith('text/'))
-        : (_ => true);
-    const fetchContents = async (url: string) => {
-        console.log(`${tag}: Fetching ${url}`);
-        const res = await fetch(url);
-        if (res.status !== 200) throw new Error(`Bad status ${res.status}, expected 200 for ${url}`);
-        const contentType = (res.headers.get('content-type') || '').toLowerCase();
-        if (!isExpectedContentType(contentType)) throw new Error(`${tag}: Unexpected content-type ${contentType} for ${url}`);
-        const valueBytes = new Uint8Array(await res.arrayBuffer());
-        const relativePath = 'https/' + url.substring('https://'.length);
-        return { relativePath, valueBytes, valueType };
-    }
-    if (unquotedModuleSpecifier.startsWith('https://')) {
-        return await fetchContents(unquotedModuleSpecifier);
-    }
-    if (importMetaUrl.startsWith('file://')) {
-        const localPath = resolve(resolve(fromFileUrl(importMetaUrl), '..'), unquotedModuleSpecifier);
-        const rootSpecifierDir = resolve(rootSpecifier, '..');
-        let relativePath = relative(rootSpecifierDir, localPath);
-        if (systemSeparator === '\\') relativePath = relativePath.replaceAll('\\', '/');
-        const valueBytes = await Deno.readFile(localPath);
-        return { relativePath, valueBytes, valueType };
-    } else if (importMetaUrl.startsWith('https://')) {
-        const { pathname, origin } = new URL(importMetaUrl);
-        const url = origin + resolve(resolve(pathname, '..'), unquotedModuleSpecifier);
-        return await fetchContents(url);
-    } else {
-        throw new Error(`${tag}: Unsupported importMetaUrl: ${importMetaUrl}`);
-    }
+        return `import ${variableName} from ${'"'}${relativePath}";`;
+    })
 }
 
 //

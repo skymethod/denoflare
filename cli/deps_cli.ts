@@ -10,3 +10,4 @@ export { html } from 'https://deno.land/x/html_escape@v1.1.5/html.ts';
 export { default as hljs } from 'https://cdn.skypack.dev/highlight.js@11.7.0';
 export { crypto as WasmCrypto } from 'https://deno.land/std@0.201.0/crypto/mod.ts';
 export { serve } from 'https://deno.land/std@0.201.0/http/server.ts';
+export { mapValues } from 'https://deno.land/std@0.201.0/collections/map_values.ts';
