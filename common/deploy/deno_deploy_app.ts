@@ -55,7 +55,10 @@ Deno.serve(async (req, info) => {
                 // assumes Deploy waits for all background promises
             }
         };
-        return await fetch(new Request(req, { headers }), env, context);
+        const workerReq = new Request(req, { headers });
+        // deno-lint-ignore no-explicit-any
+        (workerReq as any).cf = { colo: env.DENO_REGION };
+        return await fetch(workerReq, env, context);
     } catch (e) {
         return new Response(`${e.stack || e}`, { status: 500 });
     }

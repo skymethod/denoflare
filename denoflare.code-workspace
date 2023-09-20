@@ -45,6 +45,10 @@
 			"name": "examples/mqtt-demo-worker"
 		},
 		{
+			"path": "examples/keyspace-worker",
+			"name": "examples/keyspace-worker"
+		},
+		{
 			"path": "npm/denoflare-mqtt",
 			"name": "npm/denoflare-mqtt"
 		}

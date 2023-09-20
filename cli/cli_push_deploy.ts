@@ -18,6 +18,7 @@ export const PUSH_DEPLOY_COMMAND = denoflareCliCommand('push-deploy', 'Upload a 
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
     .option('getLogs', 'boolean', '')
     .option('queryLogs', 'boolean', '')
+    .option('listProjects', 'boolean', '')
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfigOnly)
     .include(commandOptionsForBundle)
@@ -28,7 +29,7 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
     if (PUSH_DEPLOY_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_DEPLOY_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, accessToken: accessTokenOpt, watch, watchInclude, getLogs: getLogsOpt, queryLogs: queryLogsOpt } = opt;
+    const { scriptSpec, verbose, name: nameOpt, accessToken: accessTokenOpt, watch, watchInclude, getLogs: getLogsOpt, queryLogs: queryLogsOpt, listProjects: listProjectsOpt } = opt;
 
     if (verbose) {
         // in cli
@@ -116,6 +117,13 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
             const { logs } = await queryLogs({ projectId, deploymentId, apiToken, params });
             for (const log of logs) {
                 console.log(JSON.stringify(log));
+            }
+            return;
+        }
+        if (listProjectsOpt) {
+            const results = await listProjects({ apiToken });
+            for (const result of results) {
+                console.log(result);
             }
             return;
         }
