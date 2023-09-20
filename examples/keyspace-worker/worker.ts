@@ -1,28 +1,29 @@
 import { IncomingRequestCf, Kv, KvCommitError, KvCommitResult, KvKey, KvService, KvU64, makeRemoteService, Bytes } from './deps.ts';
+import { Env } from './env.ts';
+import { computeHtml } from './html.ts';
 
 export default {
 
-    async fetch(request: IncomingRequestCf, { adminIp, remoteKvUrl, remoteKvAccessToken }: Env, { kvService }: Context): Promise<Response> {
+    async fetch(request: IncomingRequestCf, env: Env, { kvService }: Context): Promise<Response> {
         const { method, headers } = request;
+        const { adminIp, remoteKvUrl, remoteKvAccessToken } = env;
         if (method !== 'GET') return new Response(`Method '${method}' not supported`, { status: 405 });
         const { pathname, searchParams} = new URL(request.url);
         const ip = headers.get('cf-connecting-ip') ?? '???';
-        const admin = adminIp && adminIp === ip;
+        const admin = !!adminIp && adminIp === ip;
 
         if (pathname === '/') {
             const service = kvService ? 'deno' : 'cloudflare';
             const { colo } = request.cf;
-            const { openKv } = kvService ?? makeRemoteService({ accessToken: remoteKvAccessToken!, debug: true });
+            const { openKv } = kvService ?? makeRemoteService({ accessToken: remoteKvAccessToken! });
 
             const times: Record<string, number> = {};
             const kv = await timed(times, 'openKv', () => openKv(kvService ? undefined : remoteKvUrl));
             try {
                 if (admin && searchParams.has('clear')) await timed(times, 'adminClear', () => adminClear(kv));
-                
-                const { visitor, commitResult, attempts } = await timed(times, 'registerVisitor', () => registerVisitor(ip, kv, service, colo));
-                
+                const { attempts } = await timed(times, 'registerVisitor', () => registerVisitor(ip, kv, service, colo));
                 const coloCounts = await timed(times, 'gatherColoCounts', () => gatherColoCounts(kv));
-                const html = `<h3>Hello ${service} ${colo} ${visitor}${admin ? ' admin' : ''}!</h3><div>${JSON.stringify(commitResult)}</div><div>${JSON.stringify({ attempts })}</div><div>${JSON.stringify({ coloCounts })}</div><div>${JSON.stringify(times)}</div>`;
+                const html = computeHtml({ service, colo, coloCounts, attempts, times, env, admin, searchParams });
                 return new Response(html, { headers: { 'content-Type': 'text/html; charset=utf-8' } });
             } finally {
                 kv.close();
@@ -36,7 +37,6 @@ export default {
 
 //
 
-type Env = { adminIp?: string, remoteKvUrl?: string, remoteKvAccessToken?: string };
 type Context = { kvService?: KvService };
 type VisitorInfo = { service: string, colo: string, updated: string };
 
@@ -73,20 +73,18 @@ async function registerVisitor(ip: string, kv: Kv, service: string, colo: string
     const visitor = (await Bytes.ofUtf8(ip).sha1()).hex();
 
     const visitorKey = [ 'visitors', visitor ];
-    const existingVisitorEntry = await kv.get(visitorKey);
-    const existingInfo = tryUnpackVisitorInfo(existingVisitorEntry.value);
-
+   
     const makeServiceCountKey = (service: string) => [ 'counts', 'service', service ];
     const makeColoCountKey = (service: string, colo: string) => [ 'counts', 'service-colo', service, colo ];
     const makeUpdatedKey = (updated: string, visitor: string ) => [ 'updated', `${updated}|${visitor}` ];
 
-    const newOperation = () => {
+    const newOperation = (existingVisitorVersionstamp: string | null, existingVisitor: VisitorInfo | undefined) => {
         const updated = new Date().toISOString();
-        const { service: oldService, colo: oldColo, updated: oldUpdated } = existingInfo ?? {};
+        const { service: oldService, colo: oldColo, updated: oldUpdated } = existingVisitor ?? {};
         const op = kv.atomic()
             .set(visitorKey, packVisitorInfo({ service, colo, updated }))
             .set(makeUpdatedKey(updated, visitor), null)
-            .check({ key: visitorKey, versionstamp: existingVisitorEntry.versionstamp })
+            .check({ key: visitorKey, versionstamp: existingVisitorVersionstamp })
             ;
         if (oldService !== service) op.sum(makeServiceCountKey(service), 1n);
         if (oldService !== service && oldService) op.sum(makeServiceCountKey(oldService), MINUS_ONE);
@@ -100,8 +98,11 @@ async function registerVisitor(ip: string, kv: Kv, service: string, colo: string
     let commitResult: KvCommitError | KvCommitResult = { ok: false };
     let attempts = 0;
     while (!commitResult.ok) {
+        const existingVisitorEntry = await kv.get(visitorKey);
+        const existingVisitor = tryUnpackVisitorInfo(existingVisitorEntry.value);
+
         attempts++;
-        commitResult = await newOperation().commit();
+        commitResult = await newOperation(existingVisitorEntry.versionstamp, existingVisitor).commit();
     }
 
     return { visitor, commitResult, attempts };

@@ -46,8 +46,9 @@ Deno.serve(async (req, info) => {
         const headers = new Headers([...req.headers, [ 'cf-connecting-ip', info.remoteAddr.hostname ] ]);
 
         const kvService = {
-            openKv: async (path?: string) =>  new DenoflareKv(await Deno.openKv(path)),
+            openKv: async (path?: string) => new DenoflareKv(await Deno.openKv(path)),
             newKvU64: (v: bigint) => new Deno.KvU64(v),
+            isKvU64: (obj: unknown): obj is Deno.KvU64 => obj instanceof Deno.KvU64,
         }
         const context = {
             kvService,
