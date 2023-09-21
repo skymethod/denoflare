@@ -85,8 +85,8 @@ async function registerVisitor(ip: string, kv: Kv, service: string, colo: string
         const op = kv.atomic()
             .set(visitorKey, packVisitorInfo({ service, colo, updated }))
             .set(makeUpdatedKey(updated, visitor), null)
+            .check({ key: visitorKey, versionstamp: existingVisitorVersionstamp })
             ;
-        if (service === 'deno' || typeof existingVisitorVersionstamp === 'string') op.check({ key: visitorKey, versionstamp: existingVisitorVersionstamp }); // TODO fix versionstamp = null case
         if (oldService !== service) op.sum(makeServiceCountKey(service), 1n);
         if (oldService !== service && oldService) op.sum(makeServiceCountKey(oldService), MINUS_ONE);
         if (oldColo !== colo) op.sum(makeColoCountKey(service, colo), 1n);
