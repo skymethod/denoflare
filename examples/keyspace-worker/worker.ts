@@ -15,13 +15,14 @@ export default {
         if (pathname === '/') {
             const service = kvService ? 'deno' : 'cloudflare';
             const { colo } = request.cf;
-            const { openKv } = kvService ?? makeRemoteService({ accessToken: remoteKvAccessToken! });
+            const { openKv } = kvService ?? makeRemoteService({ accessToken: remoteKvAccessToken!, debug: true });
 
             const times: Record<string, number> = {};
             const kv = await timed(times, 'openKv', () => openKv(kvService ? undefined : remoteKvUrl));
             try {
                 if (admin && searchParams.has('clear')) await timed(times, 'adminClear', () => adminClear(kv));
-                const { attempts } = await timed(times, 'registerVisitor', () => registerVisitor(ip, kv, service, colo));
+                const visitorIp = admin && searchParams.has('ip') ? searchParams.get('ip')! : ip;
+                const { attempts } = await timed(times, 'registerVisitor', () => registerVisitor(visitorIp, kv, service, colo));
                 const coloCounts = await timed(times, 'gatherColoCounts', () => gatherColoCounts(kv));
                 const html = computeHtml({ service, colo, coloCounts, attempts, times, env, admin, searchParams });
                 return new Response(html, { headers: { 'content-Type': 'text/html; charset=utf-8' } });
@@ -84,8 +85,8 @@ async function registerVisitor(ip: string, kv: Kv, service: string, colo: string
         const op = kv.atomic()
             .set(visitorKey, packVisitorInfo({ service, colo, updated }))
             .set(makeUpdatedKey(updated, visitor), null)
-            .check({ key: visitorKey, versionstamp: existingVisitorVersionstamp })
             ;
+        if (service === 'deno' || typeof existingVisitorVersionstamp === 'string') op.check({ key: visitorKey, versionstamp: existingVisitorVersionstamp }); // TODO fix versionstamp = null case
         if (oldService !== service) op.sum(makeServiceCountKey(service), 1n);
         if (oldService !== service && oldService) op.sum(makeServiceCountKey(oldService), MINUS_ONE);
         if (oldColo !== colo) op.sum(makeColoCountKey(service, colo), 1n);
