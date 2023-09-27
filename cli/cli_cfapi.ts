@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
 import { check } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -489,6 +489,16 @@ function cfapiCommand() {
         const { asns: asnsStr } = opts;
         const asns = asnsStr.split(',').map(v => parseInt(v));
         const value = await getAsns({ apiToken, asns });
+        console.log(value);
+    });
+
+    add(apiCommand('list-models', ''), async (accountId, apiToken, _opts) => {
+        const value = await listModels({ apiToken, accountId });
+        console.log(value);
+    });
+
+    add(apiCommand('run-model', ''), async (accountId, apiToken, _opts) => {
+        const value = await runModel({ apiToken, accountId, modelId: '@cf/openai/whisper' });
         console.log(value);
     });
 

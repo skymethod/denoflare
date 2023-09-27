@@ -162,6 +162,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Ai environment variable binding",
+                                            "required": [ "ai" ],
+                                            "properties": {
+                                                "ai": {
+                                                    "description": "Type indicator only, value is ignored.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

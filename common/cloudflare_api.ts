@@ -104,7 +104,7 @@ export async function putScript(opts: { accountId: string, scriptName: string, a
     return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -178,6 +178,11 @@ export interface SecretKeyBinding {
 
 export interface BrowserBinding {
     readonly type: 'browser';
+    readonly name: string;
+}
+
+export interface AiBinding {
+    readonly type: 'ai';
     readonly name: string;
 }
 
@@ -1411,6 +1416,51 @@ export interface Asn {
     readonly country: string;
     readonly countryName: string;
     readonly orgName: string;
+}
+
+//#endregion
+
+//#region AI
+
+
+export interface ModelTask {
+	readonly id: string;
+	readonly name: string;
+	readonly description: string;
+};
+
+export interface Model {
+	readonly id: string;
+	readonly source: number;
+	readonly task?: ModelTask;
+	readonly tags: string[];
+	readonly name: string;
+	readonly description?: string;
+};
+
+export async function listModels(opts: { accountId: string, apiToken: string, page?: number, perPage?: number }): Promise<Queue[]> {
+    const { accountId, apiToken, page, perPage } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/ai/models/search`);
+    if (typeof page === 'number') url.searchParams.set('page', page.toString());
+    if (typeof perPage === 'number') url.searchParams.set('per_page', perPage.toString());
+    return (await execute<Queue[]>('listModels', 'GET', url.toString(), apiToken)).result;
+}
+
+export type RunModelResult = Record<string, unknown>;
+
+export type ModelId =
+    | '@cf/meta/llama-2-7b-chat-int8' //  Quantized Llama 2 chat model from Meta, text-generation
+    | '@cf/openai/whisper' //  Automatic speech recognition (ASR) system from OpenAI, speech-recognition
+    | '@cf/meta/nllb-200-1.3b' //  Quantized Llama 2 chat model from Meta, text-generation
+    | '@cf/huggingface/distilbert-sst-2-int8' //  Quantized DistilBERT model finetuned for sentiment-analysis, text-classification
+    | '@cf/microsoft/resnet-50' //  Resnet50 image classification model, image-classification
+    | '@cf/baai/bge-base-en-v1.5' //  Feature extraction model, text-embeddings
+;
+
+export async function runModel(opts: { apiToken: string, accountId: string, modelId: ModelId }): Promise<RunModelResult> {
+    const { apiToken, accountId, modelId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/ai/run/${modelId}`;
+    return (await execute<RunModelResult>('runModel', 'POST', url.toString(), apiToken, { prompt: 'hello'})).result;
 }
 
 //#endregion

@@ -115,8 +115,8 @@ function checkScript(name: string, script: any): Script {
 // deno-lint-ignore no-explicit-any
 function checkBinding(name: string, binding: any) {
     checkObject(name, binding);
-    const { value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser } = binding;
-    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser ].filter(v => v !== undefined).length;
+    const { value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai } = binding;
+    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai ].filter(v => v !== undefined).length;
     if (definedCount === 1) {
         if (value !== undefined && typeof value !== 'string') throw new Error(`Bad ${name}.value: expected string, found ${typeof value}`);
         else if (secret !== undefined && typeof secret !== 'string') throw new Error(`Bad ${name}.secret: expected string, found ${typeof secret}`);
@@ -130,6 +130,7 @@ function checkBinding(name: string, binding: any) {
         else if (queueName !== undefined && typeof queueName !== 'string') throw new Error(`Bad ${name}.queueName: expected string, found ${typeof queueName}`);
         else if (secretKey !== undefined && typeof secretKey !== 'string') throw new Error(`Bad ${name}.secretKey: expected string, found ${typeof secretKey}`);
         else if (browser !== undefined && typeof browser !== 'string') throw new Error(`Bad ${name}.browser: expected string, found ${typeof browser}`);
+        else if (ai !== undefined && typeof ai !== 'string') throw new Error(`Bad ${name}.ai: expected string, found ${typeof ai}`);
     } else {
         throw new Error(`Bad ${name}: ${binding}`);
     }
