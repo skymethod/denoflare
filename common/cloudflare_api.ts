@@ -104,7 +104,7 @@ export async function putScript(opts: { accountId: string, scriptName: string, a
     return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -184,6 +184,11 @@ export interface BrowserBinding {
 export interface AiBinding {
     readonly type: 'ai';
     readonly name: string;
+}
+
+export interface HyperdriveBinding {
+    readonly type: 'hyperdrive';
+    readonly id: string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least
@@ -1461,6 +1466,59 @@ export async function runModel(opts: { apiToken: string, accountId: string, mode
     const { apiToken, accountId, modelId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/ai/run/${modelId}`;
     return (await execute<RunModelResult>('runModel', 'POST', url.toString(), apiToken, { prompt: 'hello'})).result;
+}
+
+//#endregion
+
+//#region Hyperdrive
+
+export async function listHyperdriveConfigs(opts: { accountId: string, apiToken: string }): Promise<HyperdriveConfig[]> {
+    const { accountId, apiToken } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/hyperdrive/configs`);
+    return (await execute<HyperdriveConfig[]>('listHyperdriveConfigs', 'GET', url.toString(), apiToken)).result;
+}
+
+export interface HyperdriveCachingOpts {
+	readonly disabled?: boolean;
+	readonly maxAge?: number;
+	readonly staleWhileRevalidate?: number;
+}
+
+export interface HyperdriveOrigin {
+    readonly host: string;
+    readonly port: number;
+    readonly database: string;
+    readonly user: string;
+}
+
+export interface HyperdriveOriginInput extends HyperdriveOrigin {
+    readonly scheme: string;
+    readonly password: string;
+}
+
+export interface HyperdriveConfig {
+    readonly id: string; // 32-char hex
+    readonly name: string;
+    readonly origin: HyperdriveOrigin;
+    readonly caching: HyperdriveCachingOpts;
+}
+
+export async function createHyperdriveConfig(opts: { accountId: string, apiToken: string, name: string, origin: HyperdriveOriginInput, caching: HyperdriveCachingOpts }): Promise<HyperdriveConfig> {
+    const { accountId, apiToken, ...body } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/hyperdrive/configs`;
+    return (await execute<HyperdriveConfig>('createHyperdriveConfig', 'POST', url, apiToken, body)).result;
+}
+
+export async function updateHyperdriveConfig(opts: { accountId: string, apiToken: string, id: string, name?: string, origin: Partial<HyperdriveOriginInput>, caching?: HyperdriveCachingOpts }): Promise<HyperdriveConfig> {
+    const { accountId, apiToken, id, ...body } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/hyperdrive/configs/${id}`;
+    return (await execute<HyperdriveConfig>('updateHyperdriveConfig', 'PUT', url, apiToken, body)).result;
+}
+
+export async function deleteHyperdriveConfig(opts: { accountId: string, apiToken: string, id: string }): Promise<void> {
+    const { accountId, apiToken, id } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/hyperdrive/configs/${id}`);
+    await execute<null>('deleteHyperdriveConfig', 'DELETE', url.toString(), apiToken);
 }
 
 //#endregion

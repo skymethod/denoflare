@@ -173,6 +173,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Hyperdrive environment variable binding",
+                                            "required": [ "hyperdrive" ],
+                                            "properties": {
+                                                "hyperdrive": {
+                                                    "description": "Hyperdrive config ID.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

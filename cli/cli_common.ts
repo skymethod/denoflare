@@ -148,6 +148,10 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
         const [ _, name, secretKey ] = checkMatchesReturnMatcher('secret-key-binding', secretKeyBinding, pattern);
         rt[name] = { secretKey };
     }
+    for (const hyperdriveBinding of parseOptionalStringOptions('hyperdrive-binding', options) || []) {
+        const [ _, name, hyperdrive ] = checkMatchesReturnMatcher('hyperdrive-binding', hyperdriveBinding, pattern);
+        rt[name] = { hyperdrive };
+    }
     return rt;
 }
 

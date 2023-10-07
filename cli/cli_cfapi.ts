@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
-import { check } from '../common/check.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand, SubcommandHandler } from './cli_command.ts';
@@ -502,7 +502,55 @@ function cfapiCommand() {
         console.log(value);
     });
 
+    add(apiCommand('list-hyperdrive-configs', ''), async (accountId, apiToken, _opts) => {
+        const value = await listHyperdriveConfigs({ apiToken, accountId });
+        console.log(value);
+    });
+    
+    add(apiCommand('create-hyperdrive-config', '')
+            .arg('name', 'string', 'Name of the config')
+            .arg('connectionString', 'string', 'Connection string to the database')
+            .option('disabled', 'boolean', '')
+            .option('maxAge', 'integer', '')
+            .option('staleWhileRevalidate', 'integer', '')
+        , async (accountId, apiToken, opts) => {
+        const { name, connectionString, disabled, maxAge, staleWhileRevalidate } = opts;
+        const origin = parseHyperdriveOriginFromConnectionString(connectionString);
+        const value = await createHyperdriveConfig({ accountId, apiToken, name, origin, caching: { disabled, maxAge, staleWhileRevalidate } });
+        console.log(value);
+    });
+
+    add(apiCommand('update-hyperdrive-config', '')
+            .arg('id', 'string', 'ID of the config')
+            .arg('name', 'string', 'Name of the config')
+            .arg('connectionString', 'string', 'Connection string to the database')
+            .option('disabled', 'boolean', '')
+            .option('maxAge', 'integer', '')
+            .option('staleWhileRevalidate', 'integer', '')
+        , async (accountId, apiToken, opts) => {
+        const { id, name, connectionString, disabled, maxAge, staleWhileRevalidate } = opts;
+        const origin = parseHyperdriveOriginFromConnectionString(connectionString);
+        const value = await updateHyperdriveConfig({ accountId, apiToken, id, name, origin, caching: { disabled, maxAge, staleWhileRevalidate } });
+        console.log(value);
+    });
+
+    add(apiCommand('delete-hyperdrive-config', '')
+            .arg('id', 'string', 'ID of the config')
+        , async (accountId, apiToken, opts) => {
+        const { id } = opts;
+        const value = await deleteHyperdriveConfig({ accountId, apiToken, id });
+        console.log(value);
+    });
+
     return rt;
+}
+
+function parseHyperdriveOriginFromConnectionString(connectionString: string): HyperdriveOriginInput {
+    const { username: user, password, protocol, hostname: host, port: portStr, pathname } = new URL(connectionString);
+    const port = parseInt(portStr);
+    const scheme = checkMatchesReturnMatcher('scheme', protocol, /^([a-z0-9]+):$/)[1];
+    const database = checkMatchesReturnMatcher('pathname', pathname, /^\/([^/]+)$/)[1];
+    return  { scheme, user, password, host, port, database };
 }
 
 function makeSubcommandHandler<T>(cliCommand: CliCommand<T>, apiHandler: ApiHandler<T>): SubcommandHandler {

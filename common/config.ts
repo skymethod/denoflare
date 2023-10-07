@@ -112,7 +112,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -216,6 +216,13 @@ export interface AiBinding {
     readonly ai: string;
 }
 
+/** Hyperdrive environment variable binding */
+export interface HyperdriveBinding {
+
+    /** Hyperdrive config ID. */
+    readonly hyperdrive: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -303,4 +310,9 @@ export function isBrowserBinding(binding: Binding): binding is BrowserBinding {
 export function isAiBinding(binding: Binding): binding is AiBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).ai === 'string';
+}
+
+export function isHyperdriveBinding(binding: Binding): binding is HyperdriveBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).hyperdrive === 'string';
 }
