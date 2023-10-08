@@ -271,7 +271,7 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
     } else if (isAiBinding(binding)) {
         return { type: 'ai', name };
     }  else if (isHyperdriveBinding(binding)) {
-        return { type: 'hyperdrive', id: binding.hyperdrive };
+        return { type: 'hyperdrive', name, id: binding.hyperdrive };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

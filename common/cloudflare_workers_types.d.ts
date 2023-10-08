@@ -1344,3 +1344,27 @@ export interface QueueMessageBatch {
 }
 
 //#endregion
+
+//#region Hyperdrive
+
+export interface Hyperdrive {
+    /** Full connection string to the internal hyperdrive db endpoint (only works inside workers), _not_ the origin db */
+    readonly connectionString: string; // e.g. postgresql://<username-id>:<password-id>@<subdomain-id>.hyperdrive.local:5432/<hyperdrive-config-id>?sslmode=disable
+
+    /** Hyperdrive db port */
+    readonly port: number;
+
+    /** Hyperdrive db host */
+    readonly host: string;
+
+    /** Hyperdrive db host */
+    readonly password: string;
+
+    /** Hyperdrive db user */
+    readonly user: string;
+
+    /** Hyperdrive db database name */
+    readonly database: string;
+}
+
+//#endregion

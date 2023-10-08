@@ -188,6 +188,7 @@ export interface AiBinding {
 
 export interface HyperdriveBinding {
     readonly type: 'hyperdrive';
+    readonly name: string;
     readonly id: string;
 }
 
