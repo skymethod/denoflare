@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -502,21 +502,52 @@ function cfapiCommand() {
             .option('prompt', 'string', '')
             .option('system', 'strings', '')
             .option('user', 'strings', '')
+            .option('text', 'string', '')
+            .option('texts', 'strings', '')
+            .option('from', 'string', '')
+            .option('to', 'string', '')
+            .option('url', 'string', '')
+            .option('file', 'string', '')
             , async (accountId, apiToken, opts) => {
-        const { model, prompt, system, user } = opts;
+        const { model, prompt, system, user, text, from, to, texts, url, file } = opts;
         const parseAiTextGenerationInput = (): AiTextGenerationInput => {
             if (typeof prompt === 'string') return { prompt };
             if (system !== undefined || user !== undefined) return { messages: [ ...(system ?? []).map(v => ({ role: 'system', content: v })), ...(user ?? []).map(v => ({ role: 'user', content: v })) ] };
             throw new Error(`Provide 'prompt' or 'system' or 'user' options`);
-        }
-        const models: Record<string, [ string[], () => AiModelInput ]> = {
+        };
+        const parseAiTranslationInput = (): AiTranslationInput => {
+            if (typeof text !== 'string') throw new Error(`Missing 'text' option`);
+            if (typeof to !== 'string') throw new Error(`Missing 'to' option`);
+            return { text, target_lang: to, source_lang: from };
+        };
+        const parseAiTextClassificationInput = (): AiTextClassificationInput => {
+            if (typeof text !== 'string') throw new Error(`Missing 'text' option`);
+            return { text };
+        };
+        const parseAiTextEmbeddingsInput = (): AiTextEmbeddingsInput => {
+            if (typeof text === 'string') return { text };
+            if (texts !== undefined) return { text: texts };
+            throw new Error(`Provide 'text' or 'texts' options`);
+        };
+        const parseAiImageClassificationInput = async (): Promise<AiImageClassificationInput> => {
+            if (typeof url === 'string') return { image: [...new Uint8Array(await (await fetch(url)).arrayBuffer())] };
+            if (typeof file === 'string') return { image: [...await Deno.readFile(file)] };
+            throw new Error(`Provide 'url' option`);
+        };
+        const models: Record<string, [ string[], () => AiModelInput | Promise<AiModelInput> ]> = {
             '@cf/meta/llama-2-7b-chat-int8': [ [ 'llama', 'text-generation' ], parseAiTextGenerationInput ],
+            '@cf/meta/m2m100-1.2b': [ [ 'translation' ], parseAiTranslationInput ],
+            '@cf/huggingface/distilbert-sst-2-int8': [ [ 'text-classification' ], parseAiTextClassificationInput ],
+            '@cf/baai/bge-small-en-v1.5': [ [ 'text-embeddings-small' ], parseAiTextEmbeddingsInput ],
+            '@cf/baai/bge-base-en-v1.5': [ [ 'text-embeddings' ], parseAiTextEmbeddingsInput ],
+            '@cf/baai/bge-large-en-v1.5': [ [ 'text-embeddings-large' ], parseAiTextEmbeddingsInput ],
+            '@cf/microsoft/resnet-50': [ [ 'image-classification' ], parseAiImageClassificationInput ],
         };
 
         const entry = Object.entries(models).find(v => v[0] === model || v[1][0].includes(model));
         if (!entry) throw new Error(`Unsupported model: ${model}, valid values: ${[ ...Object.keys(models), ...Object.values(models).flatMap(v => v[0]) ].join(', ')}`);
         const [ modelId, [ _aliases, parser ] ] = entry;
-        const input = parser();
+        const input = await parser();
         const value = await runAiModel({ apiToken, accountId, modelId, input });
         console.log(JSON.stringify(value, undefined, 2));
     });

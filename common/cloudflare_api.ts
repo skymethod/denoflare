@@ -1453,8 +1453,21 @@ export async function listAiModels(opts: { accountId: string, apiToken: string, 
 export type AiTextGenerationInput = { prompt: string } | { messages: { role: string, content: string }[] };
 export type AiTextGenerationOutput = { response: string };
 
-export type AiModelInput = AiTextGenerationInput | Record<string, unknown>;
-export type AiModelOutput = AiTextGenerationOutput | Record<string, unknown>;
+export type AiTranslationInput = { text: string, target_lang: string, source_lang?: string };
+export type AiTranslationOutput = { translated_text: string };
+
+export type AiTextClassificationInput = { text: string };
+export type AiTextClassificationOutput = { label?: string /* NEGATIVE or POSITIVE */,  score?: number /* 0 to 1 */ }[];
+
+export type AiTextEmbeddingsInput = { text: string | string[] };
+export type AiTextEmbeddingsOutput = {  shape: number[], data: number[][] };
+
+export type AiImageClassificationInput = { image: number[] };
+export type AiImageClassificationOutput = { score?: number, label?: string }[];
+
+export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | Record<string, unknown>;
+export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | Record<string, unknown>;
+
 
 export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput }): Promise<AiModelOutput> {
     const { apiToken, accountId, modelId, input } = opts;
