@@ -1428,45 +1428,38 @@ export interface Asn {
 
 //#region AI
 
+export interface AiModel {
+    readonly id: string; // e.g. 429b9e8b-d99e-44de-91ad-706cf8183658
+    readonly source: number; // e.g. 1
+    readonly task: {
+        readonly id: string; // e.g. 0137cdcf-162a-4108-94f2-1ca59e8c65ee
+        readonly name: string; // e.g. Text Embeddings
+        readonly description: string | null;
+    },
+    readonly tags: unknown[];
+    readonly name: string; // e.g. @cf/baai/bge-base-en-v1.5
+    readonly description: string | null;
+}
 
-export interface ModelTask {
-	readonly id: string;
-	readonly name: string;
-	readonly description: string;
-};
-
-export interface Model {
-	readonly id: string;
-	readonly source: number;
-	readonly task?: ModelTask;
-	readonly tags: string[];
-	readonly name: string;
-	readonly description?: string;
-};
-
-export async function listModels(opts: { accountId: string, apiToken: string, page?: number, perPage?: number }): Promise<Queue[]> {
+export async function listAiModels(opts: { accountId: string, apiToken: string, page?: number, perPage?: number }): Promise<AiModel[]> {
     const { accountId, apiToken, page, perPage } = opts;
     const url = new URL(`${computeAccountBaseUrl(accountId)}/ai/models/search`);
     if (typeof page === 'number') url.searchParams.set('page', page.toString());
     if (typeof perPage === 'number') url.searchParams.set('per_page', perPage.toString());
-    return (await execute<Queue[]>('listModels', 'GET', url.toString(), apiToken)).result;
+    return (await execute<AiModel[]>('listAiModels', 'GET', url.toString(), apiToken)).result;
 }
 
-export type RunModelResult = Record<string, unknown>;
 
-export type ModelId =
-    | '@cf/meta/llama-2-7b-chat-int8' //  Quantized Llama 2 chat model from Meta, text-generation
-    | '@cf/openai/whisper' //  Automatic speech recognition (ASR) system from OpenAI, speech-recognition
-    | '@cf/meta/nllb-200-1.3b' //  Quantized Llama 2 chat model from Meta, text-generation
-    | '@cf/huggingface/distilbert-sst-2-int8' //  Quantized DistilBERT model finetuned for sentiment-analysis, text-classification
-    | '@cf/microsoft/resnet-50' //  Resnet50 image classification model, image-classification
-    | '@cf/baai/bge-base-en-v1.5' //  Feature extraction model, text-embeddings
-;
+export type AiTextGenerationInput = { prompt: string } | { messages: { role: string, content: string }[] };
+export type AiTextGenerationOutput = { response: string };
 
-export async function runModel(opts: { apiToken: string, accountId: string, modelId: ModelId }): Promise<RunModelResult> {
-    const { apiToken, accountId, modelId } = opts;
+export type AiModelInput = AiTextGenerationInput | Record<string, unknown>;
+export type AiModelOutput = AiTextGenerationOutput | Record<string, unknown>;
+
+export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput }): Promise<AiModelOutput> {
+    const { apiToken, accountId, modelId, input } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/ai/run/${modelId}`;
-    return (await execute<RunModelResult>('runModel', 'POST', url.toString(), apiToken, { prompt: 'hello'})).result;
+    return (await execute<AiModelOutput>('runAiModel', 'POST', url.toString(), apiToken, input)).result;
 }
 
 //#endregion

@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -492,14 +492,33 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    add(apiCommand('list-models', ''), async (accountId, apiToken, _opts) => {
-        const value = await listModels({ apiToken, accountId });
+    add(apiCommand('list-ai-models', ''), async (accountId, apiToken, _opts) => {
+        const value = await listAiModels({ apiToken, accountId });
         console.log(value);
     });
 
-    add(apiCommand('run-model', ''), async (accountId, apiToken, _opts) => {
-        const value = await runModel({ apiToken, accountId, modelId: '@cf/openai/whisper' });
-        console.log(value);
+    add(apiCommand('run-ai-model', '')
+            .arg('model', 'string', '')
+            .option('prompt', 'string', '')
+            .option('system', 'strings', '')
+            .option('user', 'strings', '')
+            , async (accountId, apiToken, opts) => {
+        const { model, prompt, system, user } = opts;
+        const parseAiTextGenerationInput = (): AiTextGenerationInput => {
+            if (typeof prompt === 'string') return { prompt };
+            if (system !== undefined || user !== undefined) return { messages: [ ...(system ?? []).map(v => ({ role: 'system', content: v })), ...(user ?? []).map(v => ({ role: 'user', content: v })) ] };
+            throw new Error(`Provide 'prompt' or 'system' or 'user' options`);
+        }
+        const models: Record<string, [ string[], () => AiModelInput ]> = {
+            '@cf/meta/llama-2-7b-chat-int8': [ [ 'llama', 'text-generation' ], parseAiTextGenerationInput ],
+        };
+
+        const entry = Object.entries(models).find(v => v[0] === model || v[1][0].includes(model));
+        if (!entry) throw new Error(`Unsupported model: ${model}, valid values: ${[ ...Object.keys(models), ...Object.values(models).flatMap(v => v[0]) ].join(', ')}`);
+        const [ modelId, [ _aliases, parser ] ] = entry;
+        const input = parser();
+        const value = await runAiModel({ apiToken, accountId, modelId, input });
+        console.log(JSON.stringify(value, undefined, 2));
     });
 
     add(apiCommand('list-hyperdrive-configs', ''), async (accountId, apiToken, _opts) => {
