@@ -1462,12 +1462,14 @@ export type AiTextClassificationOutput = { label?: string /* NEGATIVE or POSITIV
 export type AiTextEmbeddingsInput = { text: string | string[] };
 export type AiTextEmbeddingsOutput = {  shape: number[], data: number[][] };
 
-export type AiImageClassificationInput = { image: number[] };
-export type AiImageClassificationOutput = { score?: number, label?: string }[];
+export type AiImageClassificationInput = Uint8Array;
+export type AiImageClassificationOutput = { label?: string /* EGYPTIAN CAT */, score?: number /* 0 to 1 */ }[];
 
-export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | Record<string, unknown>;
-export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | Record<string, unknown>;
+export type AiSpeechRecognitionInput = Uint8Array;
+export type AiSpeechRecognitionOutput = { text: string };
 
+export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | Record<string, unknown>;
+export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | Record<string, unknown>;
 
 export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput }): Promise<AiModelOutput> {
     const { apiToken, accountId, modelId, input } = opts;
@@ -1555,7 +1557,7 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
-type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData;
+type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData | Uint8Array;
 
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json'): Promise<CloudflareApiResponse<Result>>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'form'): Promise<FormData>;
@@ -1570,6 +1572,9 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     let bodyObj: Record<string, unknown> | Record<string, unknown>[] | undefined;
     if (typeof body === 'string') {
         headers.set('Content-Type', TEXT_PLAIN_UTF8);
+    } else if (body instanceof Uint8Array) {
+        headers.set('Content-Type', APPLICATION_OCTET_STREAM);
+        bodyObj = { bytes: body.length };
     } else if (isStringRecord(body) || Array.isArray(body)) {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
         bodyObj = body;

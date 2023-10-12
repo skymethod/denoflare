@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSpeechRecognitionInput } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -530,8 +530,13 @@ function cfapiCommand() {
             throw new Error(`Provide 'text' or 'texts' options`);
         };
         const parseAiImageClassificationInput = async (): Promise<AiImageClassificationInput> => {
-            if (typeof url === 'string') return { image: [...new Uint8Array(await (await fetch(url)).arrayBuffer())] };
-            if (typeof file === 'string') return { image: [...await Deno.readFile(file)] };
+            if (typeof url === 'string') return new Uint8Array(await (await fetch(url)).arrayBuffer());
+            if (typeof file === 'string') return await Deno.readFile(file);
+            throw new Error(`Provide 'url' option`);
+        };
+        const parseAiSpeechRecognitionInput = async (): Promise<AiSpeechRecognitionInput> => {
+            if (typeof url === 'string') return new Uint8Array(await (await fetch(url)).arrayBuffer());
+            if (typeof file === 'string') return await Deno.readFile(file);
             throw new Error(`Provide 'url' option`);
         };
         const models: Record<string, [ string[], () => AiModelInput | Promise<AiModelInput> ]> = {
@@ -542,6 +547,7 @@ function cfapiCommand() {
             '@cf/baai/bge-base-en-v1.5': [ [ 'text-embeddings' ], parseAiTextEmbeddingsInput ],
             '@cf/baai/bge-large-en-v1.5': [ [ 'text-embeddings-large' ], parseAiTextEmbeddingsInput ],
             '@cf/microsoft/resnet-50': [ [ 'image-classification' ], parseAiImageClassificationInput ],
+            '@cf/openai/whisper': [ [ 'speech-recognition', 'whisper' ], parseAiSpeechRecognitionInput ],
         };
 
         const entry = Object.entries(models).find(v => v[0] === model || v[1][0].includes(model));
