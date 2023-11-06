@@ -1368,3 +1368,28 @@ export interface Hyperdrive {
 }
 
 //#endregion
+
+//#region AI
+
+export type AiTextGenerationInput = { prompt: string } | { messages: { role: string, content: string }[] };
+export type AiTextGenerationOutput = { response: string };
+
+export type AiTranslationInput = { text: string, target_lang: string, source_lang?: string };
+export type AiTranslationOutput = { translated_text: string };
+
+export type AiTextClassificationInput = { text: string };
+export type AiTextClassificationOutput = { label?: string /* NEGATIVE or POSITIVE */,  score?: number /* 0 to 1 */ }[];
+
+export type AiTextEmbeddingsInput = { text: string | string[] };
+export type AiTextEmbeddingsOutput = {  shape: number[], data: number[][] };
+
+export type AiImageClassificationInput = { image: number[] }; // byte array
+export type AiImageClassificationOutput = { label?: string /* EGYPTIAN CAT */, score?: number /* 0 to 1 */ }[];
+
+export type AiSpeechRecognitionInput = { audio: number[] }; // byte array
+export type AiSpeechRecognitionOutput = { text: string };
+
+export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | Record<string, unknown>;
+export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | Record<string, unknown>;
+
+//#endregion

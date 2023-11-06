@@ -1109,10 +1109,23 @@ export async function createD1Database(opts: { accountId: string, apiToken: stri
     return (await execute<CreateD1DatabaseResult>('createD1Database', 'POST', url, apiToken, { name, primary_location_hint, experimental })).result;
 }
 
-export async function listD1Databases(opts: { accountId: string, apiToken: string }): Promise<readonly D1Database[]> {
-    const { accountId, apiToken } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/d1/database`;
-    return (await execute('listD1Databases', 'GET', url, apiToken) as ListD1DatabasesResponse).result;
+export async function getD1DatabaseMetadata(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<D1DatabaseMetadata> {
+    const { accountId, apiToken, databaseUuid } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}`;
+    return (await execute<D1DatabaseMetadata>('createD1Database', 'GET', url, apiToken)).result;
+}
+
+export interface D1DatabaseMetadata extends D1Database {
+    readonly num_tables: number;
+    readonly file_size: number; // in bytes
+    readonly running_in_region: string; // e.g. WNAM
+}
+
+export async function listD1Databases(opts: { accountId: string, apiToken: string, name?: string }): Promise<readonly D1Database[]> {
+    const { accountId, apiToken, name } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/d1/database`);
+    if (typeof name === 'string') url.searchParams.set('name', name);
+    return (await execute('listD1Databases', 'GET', url.toString(), apiToken) as ListD1DatabasesResponse).result;
 }
 
 export interface ListD1DatabasesResponse extends CloudflareApiResponse<readonly D1Database[]> {
@@ -1448,7 +1461,6 @@ export async function listAiModels(opts: { accountId: string, apiToken: string, 
     if (typeof perPage === 'number') url.searchParams.set('per_page', perPage.toString());
     return (await execute<AiModel[]>('listAiModels', 'GET', url.toString(), apiToken)).result;
 }
-
 
 export type AiTextGenerationInput = { prompt: string } | { messages: { role: string, content: string }[] };
 export type AiTextGenerationOutput = { response: string };

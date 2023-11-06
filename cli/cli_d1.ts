@@ -1,14 +1,21 @@
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createD1Backup, createD1Database, deleteD1Database, downloadD1Backup, listD1Backups, listD1Databases, queryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createD1Backup, createD1Database, deleteD1Database, downloadD1Backup, getD1DatabaseMetadata, listD1Backups, listD1Databases, queryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
 import { checkEqual } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { normalize } from './deps_cli.ts';
 import { join } from './deps_cli.ts';
 
 export const LIST_COMMAND = denoflareCliCommand(['d1', 'list'], `List databases`)
+    .option('name', 'string', 'A database name to search for')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#list')
+    ;
+
+export const GET_COMMAND = denoflareCliCommand(['d1', 'get'], `Get database metadata`)
+    .arg('databaseUuid', 'string', 'Database identifier')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#get')
     ;
 
 export const DROP_COMMAND = denoflareCliCommand(['d1', 'drop'], `Drop a database`)
@@ -62,6 +69,7 @@ export const DOWNLOAD_COMMAND = denoflareCliCommand(['d1', 'download'], `Downloa
 
 export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloudflare D1 databases')
     .subcommand(LIST_COMMAND, list)
+    .subcommand(GET_COMMAND, get)
     .subcommand(DROP_COMMAND, drop)
     .subcommand(CREATE_COMMAND, create)
     .subcommand(QUERY_COMMAND, query)
@@ -83,12 +91,23 @@ export async function d1(args: (string | number)[], options: Record<string, unkn
 async function list(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (LIST_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose } = LIST_COMMAND.parse(args, options);
+    const { verbose, name } = LIST_COMMAND.parse(args, options);
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
 
-    const dbs = await listD1Databases({ accountId, apiToken });
+    const dbs = await listD1Databases({ accountId, apiToken, name });
     console.log(dbs);
+}
+
+async function get(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (GET_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseUuid } = GET_COMMAND.parse(args, options);
+    if (verbose) CloudflareApi.DEBUG = true;
+    const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
+
+    const db = await getD1DatabaseMetadata({ accountId, apiToken, databaseUuid });
+    console.log(db);
 }
 
 async function drop(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
