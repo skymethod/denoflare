@@ -1,5 +1,5 @@
 import { Socket, cloudflareSockets } from './cloudflare_sockets.ts';
-import { copy } from 'https://deno.land/std@0.203.0/bytes/copy.ts'; // intended to be self-contained, don't use shared deps
+import { copy } from 'https://deno.land/std@0.206.0/bytes/copy.ts'; // intended to be self-contained, don't use shared deps
 
 const { connect } = cloudflareSockets();
 
@@ -107,6 +107,10 @@ class SocketDenoConn implements Deno.TcpConn {
 
     setKeepAlive(keepAlive?: boolean | undefined): void {
         throw new Error(`SocketDenoConn: setKeepAlive(${JSON.stringify({ keepAlive })}) not implemented`);
+    }
+
+    [Symbol.dispose](): void {
+        this.close();
     }
 
     //
