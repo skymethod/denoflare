@@ -1146,10 +1146,10 @@ export async function deleteD1Database(opts: { accountId: string, apiToken: stri
     // 200 result: null
 }
 
-export async function queryD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string, sql: string, params?: (null | number | string | ArrayBuffer)[] }): Promise<readonly D1QueryResult[]> {
+export async function queryD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string, sql: string, params?: (null | boolean | number | string | ArrayBuffer)[] }): Promise<readonly D1QueryResult[]> {
     const { accountId, apiToken, databaseUuid, sql, params = [] } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/query`;
-    const payload = { sql, params };
+    const payload = { sql, params: params.length > 0 ? params : undefined };
     return (await execute<readonly D1QueryResult[]>('queryD1Database', 'POST', url, apiToken, payload)).result;
 }
 
