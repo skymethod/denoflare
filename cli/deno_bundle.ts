@@ -67,7 +67,7 @@ async function runDenoBundle(rootSpecifier: string, opts: { noCheck?: boolean | 
     const computeBooleanOrStringArgs = (name: string, value?: boolean | string) => typeof value === 'string' ? [ `${name}=${value}` ] : value ? [ name ] : [];
     const args = [
         'bundle',
-        ...computeBooleanOrStringArgs('--noCheck', noCheck), // local type-checking is still the default in `deno bundle` in 1.23.0, the first release where it is not the default in `deno run`
+        ...computeBooleanOrStringArgs('--no-check', noCheck), // local type-checking is still the default in `deno bundle` in 1.23.0, the first release where it is not the default in `deno run`
         ...computeBooleanOrStringArgs('--check', check),
         ...(config ? ['--config', config] : []),
         rootSpecifier,
