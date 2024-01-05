@@ -158,7 +158,7 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
 export type ReplacerOpts = { line: string, variableName: string, importMetaVariableName: string, unquotedModuleSpecifier: string, relativePath: string, value: Blob, valueBytes: Uint8Array };
 
 export async function replaceImports(scriptContents: string, rootSpecifier: string, replacer: (opts: ReplacerOpts) => Promise<string> | string) : Promise<string> {
-    const p = /const\s+([a-zA-Z0-9_]+)\s*=\s*await\s+import(Wasm|Text|Binary)\d*\(\s*(importMeta\d*)\.url\s*,\s*(['"`])((https:\/|\.|\.\.)\/[\/.a-zA-Z0-9_-]+)\4\s*\)\s*;?/g;
+    const p = /const\s+([a-zA-Z0-9_]+)\s*=\s*await\s+import(Wasm|Text|Binary)\d*\(\s*(importMeta\d*)\.url\s*,\s*(['"`])((https:\/|\.|\.\.)\/[\/.a-zA-Z0-9_@-]+)\4\s*\)\s*;?/g;
     let m: RegExpExecArray | null;
     let i = 0;
     const pieces = [];
