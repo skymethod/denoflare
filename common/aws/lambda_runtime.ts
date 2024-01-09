@@ -7,7 +7,7 @@ const bootstrapTime = denoRunTime === undefined ? 0 : Math.round(parseFloat(deno
 
 const AWS_LAMBDA_RUNTIME_API = Deno.env.get('AWS_LAMBDA_RUNTIME_API');
 
-// inlined from https://deno.land/std@0.210.0/encoding/base64.ts
+// inlined from https://deno.land/std@0.211.0/encoding/base64.ts
 
 const base64abc = [
     'A',
