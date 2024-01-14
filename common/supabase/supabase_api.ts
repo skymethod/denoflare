@@ -1,4 +1,45 @@
 
+// List all secrets
+// https://supabase.com/docs/reference/api/list-all-secrets
+
+export async function listSecrets({ projectRef, token, fetcher }: { projectRef: string, token: string, fetcher?: Fetcher }): Promise<ApiResponse<readonly SecretInfo[]>> {
+    return await execute(`/v1/projects/${projectRef}/secrets`, { token, fetcher }, async res => checkArrayOf(await res.json(), checkSecretInfo));
+}
+
+export type SecretInfo = { 
+    readonly name: string, 
+    readonly value: string,
+};
+
+function isSecretInfo(obj: unknown): obj is SecretInfo {
+    return isStringRecord(obj)
+        && typeof obj.name === 'string'
+        && typeof obj.value === 'string'
+        ;
+}
+
+function checkSecretInfo(obj: unknown): SecretInfo {
+    if (!isSecretInfo(obj)) throw new Error(JSON.stringify(obj));
+    // deno-lint-ignore no-unused-vars
+    const { name, value, ...rest } = obj;
+    if (Object.keys(rest).length > 0) throw new Error(JSON.stringify(obj));
+    return obj;
+}
+
+// Bulk create secrets
+// https://supabase.com/docs/reference/api/bulk-create-secrets
+
+export async function bulkCreateSecrets({ projectRef, secrets, token, fetcher }: { projectRef: string, secrets: SecretInfo[], token: string, fetcher?: Fetcher }): Promise<ApiResponse<undefined>> {
+    return await execute(`/v1/projects/${projectRef}/secrets`, { method: 'POST', body: JSON.stringify(secrets), bodyContentType: 'application/json', token, fetcher }, _ => undefined);
+}
+
+// Bulk delete secrets
+// https://supabase.com/docs/reference/api/bulk-delete-secrets
+
+export async function bulkDeleteSecrets({ projectRef, names, token, fetcher }: { projectRef: string, names: string[], token: string, fetcher?: Fetcher }): Promise<ApiResponse<undefined>> {
+    return await execute(`/v1/projects/${projectRef}/secrets`, { method: 'DELETE', body: JSON.stringify(names), bodyContentType: 'application/json', token, fetcher }, _ => undefined);
+}
+
 // List all functions
 // https://supabase.com/docs/reference/api/list-all-functions
 
@@ -96,7 +137,7 @@ export async function executeFunction({ projectRef, slug, region, token, fetcher
 
 export type ApiResponse<TResult> = {  meta: Record<string, string>, result: TResult };
 
-export type Fetcher = (url: string, opts: { method?: string, headers?: Record<string, string>, body?: Uint8Array }) => Promise<Response>;
+export type Fetcher = (url: string, opts: { method?: string, headers?: Record<string, string>, body?: Uint8Array | string }) => Promise<Response>;
 
 //
 
@@ -110,7 +151,7 @@ function checkArrayOf<T>(obj: unknown, checkFn: (obj: unknown) => T): readonly T
     return obj.map(checkFn);
 }
 
-type ExecuteOpts = { token: string, method?: 'GET' | 'DELETE' | 'POST' | 'PATCH', queryParams?: Record<string, string | boolean | undefined>, body?: Uint8Array, bodyContentType?: string, fetcher?: Fetcher };
+type ExecuteOpts = { token: string, method?: 'GET' | 'DELETE' | 'POST' | 'PATCH', queryParams?: Record<string, string | boolean | undefined>, body?: Uint8Array | string, bodyContentType?: string, fetcher?: Fetcher };
 
 async function execute<TResult>(pathname: string, { token, method = 'GET', queryParams = {}, body, bodyContentType, fetcher = fetch }: ExecuteOpts, resultFn: (res: Response) => Promise<TResult> | TResult): Promise<ApiResponse<TResult>> {
     const url = new URL(`https://api.supabase.com${pathname}`);
