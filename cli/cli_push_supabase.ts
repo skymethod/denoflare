@@ -4,32 +4,30 @@ import { isValidScriptName } from '../common/config_validation.ts';
 import { bundle, commandOptionsForBundle, parseBundleOpts } from './bundle.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
 import { commandOptionsForConfigOnly, loadConfig, resolveBindings } from './config_loader.ts';
-import { DeployRequest, LogQueryRequestParams, deploy, getLogs, listProjects, negotiateAssets, queryLogs, setEnvironmentVariables } from '../common/deploy/deno_deploy_api.ts';
 import { isAbsolute, resolve } from './deps_cli.ts';
 import { ModuleWatcher } from './module_watcher.ts';
-import { setEqual } from '../common/sets.ts';
-import { mapValues } from 'https://deno.land/std@0.212.0/collections/map_values.ts';
+import { listFunctions, bulkCreateSecrets, listSecrets, createFunction, updateFunction } from '../common/supabase/supabase_api.ts';
+import { brotliCompressEszip, buildEszip } from '../common/supabase/eszip.ts';
 
-export const PUSH_DEPLOY_COMMAND = denoflareCliCommand('push-deploy', 'Upload a Cloudflare worker script to Deno Deploy')
+export const PUSH_SUPABASE_COMMAND = denoflareCliCommand('push-supabase', 'Upload a Cloudflare worker script to Supabase Edge Functions')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
-    .option('name', 'string', `Project name in Deno Deploy [default: Name of script defined in .denoflare config, or https url basename sans extension]`)
-    .option('accessToken', 'string', 'Personal access token from the Deploy dashboard (or set DENO_DEPLOY_TOKEN env var)')
+    .option('name', 'string', `Slug name of the Supabase Edge Function [default: Name of script defined in .denoflare config, or https url basename sans extension]`)
+    .option('accessToken', 'string', 'Supabase Personal token, from the Supabase dashboard > account > access tokens (or set SUPABASE_ACCESS_TOKEN env var)')
+    .option('projectRef', 'string', 'Supabase project reference (e.g. ) (or set SUPABASE_PROJECT_ID env var)', { hint: '20-char unique id'})
     .option('watch', 'boolean', 'If set, watch the local file system and automatically re-upload on script changes')
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
-    .option('getLogs', 'boolean', '')
-    .option('queryLogs', 'boolean', '')
-    .option('listProjects', 'boolean', '')
+    .option('listFunctions', 'boolean', '')
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfigOnly)
     .include(commandOptionsForBundle)
-    .docsLink('/cli/push-deploy')
+    .docsLink('/cli/push-supabase')
     ;
 
-export async function pushDeploy(args: (string | number)[], options: Record<string, unknown>) {
-    if (PUSH_DEPLOY_COMMAND.dumpHelp(args, options)) return;
+export async function pushSupabase(args: (string | number)[], options: Record<string, unknown>) {
+    if (PUSH_SUPABASE_COMMAND.dumpHelp(args, options)) return;
 
-    const opt = PUSH_DEPLOY_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, accessToken: accessTokenOpt, watch, watchInclude, getLogs: getLogsOpt, queryLogs: queryLogsOpt, listProjects: listProjectsOpt } = opt;
+    const opt = PUSH_SUPABASE_COMMAND.parse(args, options);
+    const { scriptSpec, verbose, name: nameOpt, accessToken: accessTokenOpt, projectRef: projectRefOpt, listFunctions: listFunctionsOpt, watch, watchInclude } = opt;
 
     if (verbose) {
         // in cli
@@ -41,21 +39,22 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
     const bundleOpts = parseBundleOpts(options);
-    const { accessToken } = (() => {
-        const { deploy } = script ?? {};
+    const { accessToken, projectRef } = (() => {
+        const { supabase } = script ?? {};
         const configOpts: Record<string, string> = {};
-        if (deploy) {
-            for (const token of deploy.trim().split(',')) {
+        if (supabase) {
+            for (const token of supabase.trim().split(',')) {
                 const m = /^([a-z-]+)=(.+?)$/.exec(token.trim());
-                if (!m) throw new Error(`Invalid deploy config: ${deploy}`);
+                if (!m) throw new Error(`Invalid supabase config: ${supabase}`);
                 const [ _, name, value ] = m;
                 configOpts[name] = value;
             }
         }
-        const accessToken = accessTokenOpt ?? configOpts['access-token'] ?? Deno.env.get('DENO_DEPLOY_TOKEN');
-        return { accessToken };
+        const accessToken = accessTokenOpt ?? configOpts['access-token'] ?? Deno.env.get('SUPABASE_ACCESS_TOKEN');
+        const projectRef = projectRefOpt ?? configOpts['project-ref'] ?? Deno.env.get('SUPABASE_PROJECT_ID');
+        return { accessToken, projectRef };
     })();
-    if (accessToken === undefined) throw new Error(`Provide access token for deploying the worker via either --access-token, in config, or DENO_DEPLOY_TOKEN env var`);
+    if (accessToken === undefined) throw new Error(`Provide access token for deploying the worker via either --access-token, in config, or SUPABASE_ACCESS_TOKEN env var`);
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -90,67 +89,56 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
 
         if (!isModule) throw new Error(`Only module-based workers are supported`);
 
-        console.log(`pushing ${isModule ? 'module' : 'script'}-based deploy worker ${scriptName}${pushIdSuffix}...`);
+        console.log(`pushing ${isModule ? 'module' : 'script'}-based supabase worker ${scriptName}${pushIdSuffix}...`);
 
         start = Date.now();
 
-        const apiToken = accessToken;
+        const token = accessToken;
 
-        const projects = await listProjects({ apiToken });
-        const project = projects.find(v => v.name === scriptName);
-        if (!project) throw new Error(`Create a new empty Deno Deploy project named '${scriptName}' at https://dash.deno.com/projects`);
-        const projectId = project.id;
-
-        if (getLogsOpt) {
-            const deploymentId = project.productionDeployment.deployment?.id;
-            if (deploymentId === undefined) throw new Error(`No deployment found for project`);
-            const iter = getLogs({ projectId, deploymentId, apiToken });
-            for await (const log of iter) {
-                console.log(JSON.stringify(log));
+        const { result: functions } = await listFunctions({ token, projectRef });
+        if (listFunctionsOpt) {
+            for (const functionInfo of functions) {
+                console.log(JSON.stringify(functionInfo));
             }
             return;
         }
-        if (queryLogsOpt) {
-            const deploymentId = project.productionDeployment.deployment?.id;
-            if (deploymentId === undefined) throw new Error(`No deployment found for project`);
-            const params: LogQueryRequestParams = {};
-            const { logs } = await queryLogs({ projectId, deploymentId, apiToken, params });
-            for (const log of logs) {
-                console.log(JSON.stringify(log));
+
+        const computeScriptScopedSecretName = (envVarName: string) => `${scriptName}-${envVarName}`;
+        const { result: secrets } = await listSecrets({ projectRef, token });
+        let updateSecrets = false;
+        for (const [ name, value ] of Object.entries(environmentVariables)) {
+            const existingHex = secrets.find(v => v.name === computeScriptScopedSecretName(name))?.value;
+            if (!existingHex || (await Bytes.ofUtf8(value).sha256()).hex() !== existingHex) {
+                updateSecrets = true;
+                break;
             }
-            return;
         }
-        if (listProjectsOpt) {
-            const results = await listProjects({ apiToken });
-            for (const result of results) {
-                console.log(result);
-            }
-            return;
+        if (updateSecrets) {
+            console.log(`updating project secrets...`);
+            const secrets = Object.entries(environmentVariables).map(v => ({ name: computeScriptScopedSecretName(v[0]), value: v[1] }));
+            await bulkCreateSecrets({ token, projectRef, secrets });
         }
-        if (!setEqual(new Set(project.envVars), new Set(Object.keys(environmentVariables)))) {
-            console.log('updating project environment variables');
-            await setEnvironmentVariables({ projectId, variables: environmentVariables, apiToken });
-        }
+        
+        console.log(`creating deployment package...`);
+        const appTs = (await (await fetch(new URL('../common/supabase/supabase_app.ts', import.meta.url))).text()).replace('${scriptName}', scriptName);
 
-        const appTsBytes = new Bytes(new Uint8Array(await (await fetch(new URL('../common/deploy/deno_deploy_app.ts', import.meta.url))).arrayBuffer()));
+        const workerTs = scriptContentsStr;
 
-        const workerTsBytes = Bytes.ofUtf8(scriptContentsStr);
+        const entry = 'file:///src/index.ts';
+        const eszipBytes = await buildEszip(entry, specifier => {
+            if (specifier === entry) return appTs;
+            if (specifier === `file:///src/worker.ts`) return workerTs;
+            return undefined;
+        });
+        const brotliCompressedEszip = brotliCompressEszip(eszipBytes);
 
-        await addFile('app.ts', appTsBytes);
-        await addFile('worker.ts', workerTsBytes);
-
-        const request: DeployRequest = {
-            url: 'file:///src/app.ts',
-            importMapUrl: null,
-            production: true,
-            manifest: { entries: mapValues(Object.fromEntries(allFiles), ({ size, gitSha1 }) => ({ kind: 'file', size, gitSha1 })) },
-        };
-
-        const updatedHashes = await negotiateAssets({ projectId, apiToken, manifest: request.manifest! });
-        const updatedFiles = [...allFiles.values()].filter(v => updatedHashes.includes(v.gitSha1)).map(v => v.bytes);
-        console.log(`updatedFiles: ${updatedFiles.length}`);
-        for await (const message of deploy({ projectId, apiToken, request, files: updatedFiles })) {
-            console.log(JSON.stringify(message));
+        const slug = scriptName;
+        if (functions.some(v => v.slug === slug)) {
+            console.log(`updating edge function...`);
+            await updateFunction({ projectRef, slug, name: slug, import_map: true, verify_jwt: false, entrypoint_path: entry, brotliCompressedEszip, token });
+        } else {
+            console.log(`creating edge function...`);
+            await createFunction({ projectRef, slug, name: slug, import_map: true, verify_jwt: false, entrypoint_path: entry, brotliCompressedEszip, token });
         }
 
         console.log(`deployed worker to ${scriptName} in ${Date.now() - start}ms`);
@@ -200,7 +188,7 @@ async function computeEnvironmentVariables(inputBindings: Record<string, Binding
         } else if (isSecretBinding(binding)) {
             rt[name] = binding.secret;
         } else {
-            throw new Error(`Env binding not supported on Deploy: ${JSON.stringify(binding)}`);
+            throw new Error(`Env binding not supported on Supabase: ${JSON.stringify(binding)}`);
         }
     }
     return rt;

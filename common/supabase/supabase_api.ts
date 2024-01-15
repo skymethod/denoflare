@@ -129,8 +129,10 @@ export async function updateFunction({ projectRef, slug, newSlug, name, verify_j
 // https://supabase.com/docs/guides/functions/regional-invocation#available-regions
 export type Region = 'ap-northeast-1' | 'ap-northeast-2' | 'ap-south-1' | 'ap-southeast-1' | 'ap-southeast-2' | 'ca-central-1' | 'eu-central-1' | 'eu-west-1' | 'eu-west-2' | 'eu-west-3' | 'sa-east-1' | 'us-east-1' | 'us-west-1' | 'us-west-2';
 
-export async function executeFunction({ projectRef, slug, region, token, fetcher = fetch }: { projectRef: string, slug: string, region?: Region, token: string, fetcher?: Fetcher }): Promise<Response> {
-    return await fetcher(`https://${projectRef}.supabase.co/functions/v1/${slug}`, { headers: { authorization: `Bearer ${token}`, ...(region ? { 'x-region': region } : {}) } });
+export type ExecuteFunctionOpts = { projectRef: string, slug: string, method?: string, pathname?: string, queryParams?: Record<string, string>, headers?: Record<string, string>, body?: Uint8Array | string, region?: Region, fetcher?: Fetcher };
+
+export async function executeFunction({ projectRef, slug, pathname = '/', method, queryParams, headers, body, region, fetcher = fetch }: ExecuteFunctionOpts): Promise<Response> {
+    return await fetcher(makeURL(`https://${projectRef}.supabase.co/functions/v1/${slug}${pathname}`, queryParams).toString(), { method, headers: { ...headers,  ...(region ? { 'x-region': region } : {}) }, body });
 }
 
 //
@@ -153,15 +155,19 @@ function checkArrayOf<T>(obj: unknown, checkFn: (obj: unknown) => T): readonly T
 
 type ExecuteOpts = { token: string, method?: 'GET' | 'DELETE' | 'POST' | 'PATCH', queryParams?: Record<string, string | boolean | undefined>, body?: Uint8Array | string, bodyContentType?: string, fetcher?: Fetcher };
 
-async function execute<TResult>(pathname: string, { token, method = 'GET', queryParams = {}, body, bodyContentType, fetcher = fetch }: ExecuteOpts, resultFn: (res: Response) => Promise<TResult> | TResult): Promise<ApiResponse<TResult>> {
-    const url = new URL(`https://api.supabase.com${pathname}`);
-    for (const [ name, value ] of Object.entries(queryParams)) {
-        if (value !== undefined) url.searchParams.set(name, value.toString());
-    }
-    const res = await fetcher(url.toString(), { method, headers: { authorization: `Bearer ${token}`, ...(bodyContentType ? { 'content-type': bodyContentType } : {}) }, body });
+async function execute<TResult>(pathname: string, { token, method = 'GET', queryParams, body, bodyContentType, fetcher = fetch }: ExecuteOpts, resultFn: (res: Response) => Promise<TResult> | TResult): Promise<ApiResponse<TResult>> {
+    const res = await fetcher(makeURL(`https://api.supabase.com${pathname}`, queryParams).toString(), { method, headers: { authorization: `Bearer ${token}`, ...(bodyContentType ? { 'content-type': bodyContentType } : {}) }, body });
     const expected = method === 'POST' ? 201 : 200;
     if (res.status !== expected && !(method === 'DELETE' && res.status === 404)) throw new Error(`Expected ${expected}, found ${res.status} ${await res.text()}`);
     const meta = Object.fromEntries(res.headers);
     const result = await resultFn(res);
     return { meta, result };
+}
+
+function makeURL(url: string, queryParams?: Record<string, string | boolean | undefined>): URL {
+    const rt = new URL(url);
+    for (const [ name, value ] of Object.entries(queryParams ?? {})) {
+        if (value !== undefined) rt.searchParams.set(name, value.toString());
+    }
+    return rt;
 }

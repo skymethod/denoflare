@@ -14,6 +14,7 @@ import { denoflareCliCommand } from './cli_common.ts';
 import { d1, D1_COMMAND } from './cli_d1.ts';
 import { AE_PROXY_COMMAND, aeProxy } from './cli_ae_proxy.ts';
 import { PUSH_DEPLOY_COMMAND, pushDeploy } from './cli_push_deploy.ts';
+import { PUSH_SUPABASE_COMMAND, pushSupabase } from './cli_push_supabase.ts';
 
 const { args, options } = parseFlags(Deno.args);
 
@@ -24,6 +25,7 @@ export const DENOFLARE_COMMAND = CliCommand.of(['denoflare'], undefined, { versi
     .subcommand(PUSH_COMMAND, push)
     .subcommand(PUSH_LAMBDA_COMMAND, pushLambda)
     .subcommand(PUSH_DEPLOY_COMMAND, pushDeploy)
+    .subcommand(PUSH_SUPABASE_COMMAND, pushSupabase)
     .subcommand(TAIL_COMMAND, tail)
     .subcommand(SITE_COMMAND, site)
     .subcommand(ANALYTICS_COMMAND, analytics)

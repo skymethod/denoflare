@@ -109,6 +109,9 @@ export interface Script {
 
     /** Name-value pairs to use when pushing to Deno Deploy. */
     readonly deploy?: string;
+
+    /** Name-value pairs to use when pushing to Supabase Edge Functions. */
+    readonly supabase?: string;
 }
 
 /** Binding definition for a worker script environment variable */
