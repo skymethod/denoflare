@@ -6,7 +6,7 @@ import { commandOptionsForInputBindings, computeContentsForScriptReference, deno
 import { commandOptionsForConfigOnly, loadConfig, resolveBindings } from './config_loader.ts';
 import { isAbsolute, resolve } from './deps_cli.ts';
 import { ModuleWatcher } from './module_watcher.ts';
-import { listFunctions, bulkCreateSecrets, listSecrets, createFunction, updateFunction } from '../common/supabase/supabase_api.ts';
+import { listFunctions, bulkCreateSecrets, listSecrets, createFunction, updateFunction, bulkDeleteSecrets } from '../common/supabase/supabase_api.ts';
 import { brotliCompressEszip, buildEszip } from '../common/supabase/eszip.ts';
 
 export const PUSH_SUPABASE_COMMAND = denoflareCliCommand('push-supabase', 'Upload a Cloudflare worker script to Supabase Edge Functions')
@@ -79,10 +79,6 @@ export async function pushSupabase(args: (string | number)[], options: Record<st
 
         const allFiles = new Map<string, FileEntry>();
 
-        const addFile = async (name: string, bytes: Bytes) => {
-            allFiles.set(name, { size: bytes.length, bytes: bytes.array(), gitSha1: await bytes.gitSha1Hex() });
-        }
-
         if (isModule) {
             scriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, allFiles);
         }
@@ -105,9 +101,12 @@ export async function pushSupabase(args: (string | number)[], options: Record<st
 
         const computeScriptScopedSecretName = (envVarName: string) => `${scriptName}-${envVarName}`;
         const { result: secrets } = await listSecrets({ projectRef, token });
+        const secretNamesToDelete = new Set(secrets.filter(v => v.name.startsWith(computeScriptScopedSecretName(''))).map(v => v.name));
         let updateSecrets = false;
         for (const [ name, value ] of Object.entries(environmentVariables)) {
-            const existingHex = secrets.find(v => v.name === computeScriptScopedSecretName(name))?.value;
+            const secretName = computeScriptScopedSecretName(name);
+            secretNamesToDelete.delete(secretName);
+            const existingHex = secrets.find(v => v.name === secretName)?.value;
             if (!existingHex || (await Bytes.ofUtf8(value).sha256()).hex() !== existingHex) {
                 updateSecrets = true;
                 break;
@@ -118,18 +117,31 @@ export async function pushSupabase(args: (string | number)[], options: Record<st
             const secrets = Object.entries(environmentVariables).map(v => ({ name: computeScriptScopedSecretName(v[0]), value: v[1] }));
             await bulkCreateSecrets({ token, projectRef, secrets });
         }
+        if (secretNamesToDelete.size > 0) {
+            console.log(`removing ${secretNamesToDelete.size} obsolete project secret${secretNamesToDelete.size > 1 ? 's' : ''}...`);
+            await bulkDeleteSecrets({ projectRef, names: [...secretNamesToDelete], token });
+        }
         
         console.log(`creating deployment package...`);
         const appTs = (await (await fetch(new URL('../common/supabase/supabase_app.ts', import.meta.url))).text()).replace('${scriptName}', scriptName);
+        const importTemplateJs = await (await fetch(new URL('../common/supabase/supabase_import_template.js', import.meta.url))).text();
 
         const workerTs = scriptContentsStr;
 
+        const additional: Record<string, string> = {};
+        for (const [ name, { bytes } ] of allFiles) {
+            const spec = `file:///src/${name}.js`;
+            const source = importTemplateJs.replace('EXPORT_B64', new Bytes(bytes).base64());
+            additional[spec] = source;
+        }
+
         const entry = 'file:///src/index.ts';
-        const eszipBytes = await buildEszip(entry, specifier => {
+        const eszipBytes = await buildEszip([ entry, ...Object.keys(additional) ], specifier => {
             if (specifier === entry) return appTs;
             if (specifier === `file:///src/worker.ts`) return workerTs;
-            return undefined;
+            return additional[specifier];
         });
+        await Deno.writeFile('/Users/js/tmp/push-supabase.eszip2', eszipBytes);
         const brotliCompressedEszip = brotliCompressEszip(eszipBytes);
 
         const slug = scriptName;
@@ -175,7 +187,9 @@ async function rewriteScriptContents(scriptContents: string, rootSpecifier: stri
         const size = bytes.length;
         const filename = `_import_${gitSha1}.dat`;
         allFiles.set(filename, { bytes, gitSha1, size });
-        return line.replace(importMetaVariableName, 'import.meta').replace(unquotedModuleSpecifier, `./${filename}`);
+        const rt = line.replace(importMetaVariableName, 'import.meta').replace(unquotedModuleSpecifier, `./${filename}`);
+        const endparen = rt.lastIndexOf(')');
+        return rt.substring(0, endparen) + `, async (url) => new Response((await import('file:///src/${filename}.js')).BYTES));`;
     });
 }
 

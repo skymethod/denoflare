@@ -10,17 +10,17 @@ import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.212.0/p
  *   `import text from "./relative/path/to/whatever.txt";`
  *   prior to Cloudflare upload, so that it works properly in Cloudflare as well.
  */
-export async function importText(importMetaUrl: string, moduleSpecifier: string): Promise<string> {
+export async function importText(importMetaUrl: string, moduleSpecifier: string, fetcher: (url: string) => Promise<Response> = fetch): Promise<string> {
     if (moduleSpecifier.startsWith('https://')) {
-        return await importTextFromHttps(moduleSpecifier);
+        return await importTextFromHttps(moduleSpecifier, fetcher);
     }
 
     if (importMetaUrl.startsWith('file://')) {
-        return await (await fetch(appendQueryHint(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier))).toString())).text();
+        return await (await fetcher(appendQueryHint(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier))).toString())).text();
     } else if (importMetaUrl.startsWith('https://')) {
         const { pathname, origin } = new URL(importMetaUrl);
         const textUrl = origin + resolve(resolve(pathname, '..'), moduleSpecifier);
-        return await importTextFromHttps(textUrl);
+        return await importTextFromHttps(textUrl, fetcher);
     } else {
         throw new Error(`importText: Unsupported importMetaUrl: ${importMetaUrl}`);
     }
@@ -33,8 +33,8 @@ function appendQueryHint(fileUrl: URL): URL {
     return fileUrl;
 }
 
-async function importTextFromHttps(url: string): Promise<string> {
-    const res = await fetch(url);
+async function importTextFromHttps(url: string, fetcher: (url: string) => Promise<Response>): Promise<string> {
+    const res = await fetcher(url);
     if (res.status !== 200) throw new Error(`importText: Bad status ${res.status}, expected 200 for ${url}`);
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
     if (contentType.startsWith('text/')) {

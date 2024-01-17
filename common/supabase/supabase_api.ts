@@ -107,6 +107,8 @@ export async function deleteFunction({ projectRef, slug, token, fetcher }: { pro
 // Create a function
 // https://supabase.com/docs/reference/api/create-a-function
 
+// edge function limitations: https://supabase.com/docs/guides/functions/debugging#limitations
+
 export type CreateFunctionOpts = { projectRef: string, slug: string, name: string, verify_jwt?: boolean, import_map?: boolean, entrypoint_path?: string, import_map_path?: string, brotliCompressedEszip: Uint8Array, token: string, fetcher?: Fetcher };
 
 export async function createFunction({ projectRef, slug, name, verify_jwt, import_map, entrypoint_path, import_map_path, brotliCompressedEszip, token, fetcher }: CreateFunctionOpts): Promise<ApiResponse<FunctionInfo>> {

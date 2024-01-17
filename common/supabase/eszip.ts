@@ -2,8 +2,7 @@ import { build, Parser } from 'https://deno.land/x/eszip@v0.57.0/mod.ts';
 import { compress } from 'https://deno.land/x/brotli@0.1.7/mod.ts';
 import { concat } from 'https://deno.land/std@0.212.0/bytes/concat.ts';
 
-export async function buildEszip(entry: string, contentFn: (spec: string) => Promise<string | undefined> | string | undefined): Promise<Uint8Array> {
-    const roots = [ entry ];
+export async function buildEszip(roots: string[], contentFn: (spec: string) => Promise<string | undefined> | string | undefined): Promise<Uint8Array> {
     return await build(roots, async specifier => {
         const content = await contentFn(specifier);
         if (content) {
