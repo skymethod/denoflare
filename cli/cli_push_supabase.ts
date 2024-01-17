@@ -141,7 +141,6 @@ export async function pushSupabase(args: (string | number)[], options: Record<st
             if (specifier === `file:///src/worker.ts`) return workerTs;
             return additional[specifier];
         });
-        await Deno.writeFile('/Users/js/tmp/push-supabase.eszip2', eszipBytes);
         const brotliCompressedEszip = brotliCompressEszip(eszipBytes);
 
         const slug = scriptName;
@@ -189,7 +188,8 @@ async function rewriteScriptContents(scriptContents: string, rootSpecifier: stri
         allFiles.set(filename, { bytes, gitSha1, size });
         const rt = line.replace(importMetaVariableName, 'import.meta').replace(unquotedModuleSpecifier, `./${filename}`);
         const endparen = rt.lastIndexOf(')');
-        return rt.substring(0, endparen) + `, async (url) => new Response((await import('file:///src/${filename}.js')).BYTES));`;
+        const wasm = line.includes('importWasm');
+        return rt.substring(0, endparen) + `, async (url) => new Response((await import('file:///src/${filename}.js')).BYTES${wasm ? `, { headers: { 'content-type': 'application/wasm' } }` : ``}));`;
     });
 }
 

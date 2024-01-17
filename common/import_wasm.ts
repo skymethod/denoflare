@@ -10,17 +10,17 @@ import { resolve, fromFileUrl, toFileUrl } from 'https://deno.land/std@0.212.0/p
  *   `import module from "./relative/path/to/whatever.wasm";`
  *   prior to Cloudflare upload, so that wasm works properly in Cloudflare as well.
  */
-export async function importWasm(importMetaUrl: string, moduleSpecifier: string): Promise<WebAssembly.Module> {
+export async function importWasm(importMetaUrl: string, moduleSpecifier: string, fetcher: (url: string) => Promise<Response> = fetch): Promise<WebAssembly.Module> {
     if (moduleSpecifier.startsWith('https://')) {
-        return await instantiateModuleFromHttps(moduleSpecifier);
+        return await instantiateModuleFromHttps(moduleSpecifier, fetcher);
     }
 
     if (importMetaUrl.startsWith('file://')) {
-        return await WebAssembly.compileStreaming(await fetch(appendQueryHint(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier))).toString()));
+        return await WebAssembly.compileStreaming(await fetcher(appendQueryHint(toFileUrl(resolve(resolve(fromFileUrl(importMetaUrl), '..'), moduleSpecifier))).toString()));
     } else if (importMetaUrl.startsWith('https://')) {
         const { pathname, origin } = new URL(importMetaUrl);
         const wasmUrl = origin + resolve(resolve(pathname, '..'), moduleSpecifier);
-        return await instantiateModuleFromHttps(wasmUrl);
+        return await instantiateModuleFromHttps(wasmUrl, fetcher);
     } else {
         throw new Error(`importWasm: Unsupported importMetaUrl: ${importMetaUrl}`);
     }
@@ -33,8 +33,8 @@ function appendQueryHint(fileUrl: URL): URL {
     return fileUrl;
 }
 
-async function instantiateModuleFromHttps(url: string): Promise<WebAssembly.Module> {
-    const res = await fetch(url);
+async function instantiateModuleFromHttps(url: string, fetcher: (url: string) => Promise<Response>): Promise<WebAssembly.Module> {
+    const res = await fetcher(url);
     if (res.status !== 200) throw new Error(`importWasm: Bad status ${res.status}, expected 200 for ${url}`);
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
     if (contentType === 'application/wasm') {
