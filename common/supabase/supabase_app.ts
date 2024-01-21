@@ -29,7 +29,12 @@ Deno.serve(async (req) => {
                 // assumes Supabase waits for all background promises
             }
         };
-        const workerReq = new Request(req);
+        const { origin } = new URL(req.url);
+        let url = req.url;
+        if (url.startsWith(origin)) {
+            url = `${env.SUPABASE_URL}/functions/v1${url.substring(origin.length)}`;
+        }
+        const workerReq = new Request(url, req);
         // deno-lint-ignore no-explicit-any
         (workerReq as any).cf = { colo: env.SB_REGION };
         return await fetch(workerReq, env, context);

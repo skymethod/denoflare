@@ -114,11 +114,11 @@ function roundToOneDecimal(value: number): number {
 }
 
 function base64Encode(buf: Uint8Array): string {
-    let string = '';
-    (buf).forEach(
-        (byte) => { string += String.fromCharCode(byte) }
-    )
-    return btoa(string);
+    const pieces = new Array<string>(buf.length);
+    for (let i = 0; i < buf.length; i++) {
+        pieces.push(String.fromCharCode(buf[i]))
+    }
+    return btoa(pieces.join(''));
 }
 
 function base64Decode(str: string, urlSafe: boolean): Uint8Array {

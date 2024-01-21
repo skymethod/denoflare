@@ -150,6 +150,7 @@ const { module, workerEnv } = await (async () => {
         }
         return { module, workerEnv };
     } catch (e) {
+        console.error(`${e.stack || e}`);
         await sendError(e, `/2018-06-01/runtime/init/error`);
         Deno.exit(1);
     }
@@ -201,7 +202,10 @@ while (true) {
                 throw new Error(`passThroughOnException not supported on lambda!`);
             }
             const context: LambdaWorkerContext = { lambda, waitUntil, passThroughOnException };
-            const moduleResponse = await module.default.fetch(new Request(url, { method, headers: requestHeaders, body: moduleRequestBody }), workerEnv, context) as Response;
+            const moduleRequest = new Request(url, { method, headers: requestHeaders, body: moduleRequestBody });
+            // deno-lint-ignore no-explicit-any
+            (moduleRequest as any).cf = { colo: envObj['AWS_REGION'] };
+            const moduleResponse = await module.default.fetch(moduleRequest, workerEnv, context) as Response;
             if (work.length > 0) await Promise.allSettled(work);
             let buf = await moduleResponse.arrayBuffer();
             const headers = Object.fromEntries(moduleResponse.headers);

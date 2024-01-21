@@ -45,6 +45,10 @@
 			"name": "examples/mqtt-demo-worker"
 		},
 		{
+			"path": "examples/multiplat-worker",
+			"name": "examples/multiplat-worker"
+		},
+		{
 			"path": "examples/keyspace-worker",
 			"name": "examples/keyspace-worker"
 		},

@@ -1,3 +1,4 @@
+import { Bytes } from '../common/bytes.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { Binding, Config, Script } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
@@ -182,6 +183,31 @@ export async function replaceImports(scriptContents: string, rootSpecifier: stri
 
     pieces.push(scriptContents.substring(i));
     return pieces.join('');
+}
+
+// Useful deployment packaging helper for Deno runtimes with a read-allowed filesystem (e.g. like Deploy, Lambda, not Supabase)
+
+export type FileEntry = { size: number, bytes: Uint8Array, gitSha1: string };
+
+export class ContentBasedFileBasedImports {
+
+    readonly allFiles = new Map<string, FileEntry>();
+
+    async addFile(name: string, bytes: Bytes) {
+        this.allFiles.set(name, { size: bytes.length, bytes: bytes.array(), gitSha1: await bytes.gitSha1Hex() });
+    }
+
+    async rewriteScriptContents(scriptContents: string, rootSpecifier: string): Promise<string> {
+        const { allFiles } = this;
+        return await replaceImports(scriptContents, rootSpecifier, async ({ valueBytes: bytes, line, importMetaVariableName, unquotedModuleSpecifier }) => {
+            const gitSha1 = await new Bytes(bytes).gitSha1Hex();
+            const size = bytes.length;
+            const filename = `_import_${gitSha1}.dat`;
+            allFiles.set(filename, { bytes, gitSha1, size });
+            return line.replace(importMetaVariableName, 'import.meta').replace(unquotedModuleSpecifier, `./${filename}`);
+        });
+    }
+
 }
 
 //

@@ -2,7 +2,7 @@ import { Bytes } from '../common/bytes.ts';
 import { Binding, isSecretBinding, isTextBinding } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { bundle, commandOptionsForBundle, parseBundleOpts } from './bundle.ts';
-import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
+import { ContentBasedFileBasedImports, commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
 import { commandOptionsForConfigOnly, loadConfig, resolveBindings } from './config_loader.ts';
 import { DeployRequest, LogQueryRequestParams, deploy, getLogs, listProjects, negotiateAssets, queryLogs, setEnvironmentVariables } from '../common/deploy/deno_deploy_api.ts';
 import { isAbsolute, resolve } from './deps_cli.ts';
@@ -78,14 +78,11 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const environmentVariables = await computeEnvironmentVariables(inputBindings, pushId);
 
-        const allFiles = new Map<string, FileEntry>();
-
-        const addFile = async (name: string, bytes: Bytes) => {
-            allFiles.set(name, { size: bytes.length, bytes: bytes.array(), gitSha1: await bytes.gitSha1Hex() });
-        }
+       
+        const imports = new ContentBasedFileBasedImports();
 
         if (isModule) {
-            scriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, allFiles);
+            scriptContentsStr = await imports.rewriteScriptContents(scriptContentsStr, rootSpecifier);
         }
 
         if (!isModule) throw new Error(`Only module-based workers are supported`);
@@ -136,18 +133,18 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
 
         const workerTsBytes = Bytes.ofUtf8(scriptContentsStr);
 
-        await addFile('app.ts', appTsBytes);
-        await addFile('worker.ts', workerTsBytes);
+        await imports.addFile('app.ts', appTsBytes);
+        await imports.addFile('worker.ts', workerTsBytes);
 
         const request: DeployRequest = {
             url: 'file:///src/app.ts',
             importMapUrl: null,
             production: true,
-            manifest: { entries: mapValues(Object.fromEntries(allFiles), ({ size, gitSha1 }) => ({ kind: 'file', size, gitSha1 })) },
+            manifest: { entries: mapValues(Object.fromEntries(imports.allFiles), ({ size, gitSha1 }) => ({ kind: 'file', size, gitSha1 })) },
         };
 
         const updatedHashes = await negotiateAssets({ projectId, apiToken, manifest: request.manifest! });
-        const updatedFiles = [...allFiles.values()].filter(v => updatedHashes.includes(v.gitSha1)).map(v => v.bytes);
+        const updatedFiles = [...imports.allFiles.values()].filter(v => updatedHashes.includes(v.gitSha1)).map(v => v.bytes);
         console.log(`updatedFiles: ${updatedFiles.length}`);
         for await (const message of deploy({ projectId, apiToken, request, files: updatedFiles })) {
             console.log(JSON.stringify(message));
@@ -178,18 +175,6 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
 }
 
 //
-
-type FileEntry = { size: number, bytes: Uint8Array, gitSha1: string };
-
-async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, allFiles: Map<string, FileEntry>): Promise<string> {
-    return await replaceImports(scriptContents, rootSpecifier, async ({ valueBytes: bytes, line, importMetaVariableName, unquotedModuleSpecifier }) => {
-        const gitSha1 = await new Bytes(bytes).gitSha1Hex();
-        const size = bytes.length;
-        const filename = `_import_${gitSha1}.dat`;
-        allFiles.set(filename, { bytes, gitSha1, size });
-        return line.replace(importMetaVariableName, 'import.meta').replace(unquotedModuleSpecifier, `./${filename}`);
-    });
-}
 
 async function computeEnvironmentVariables(inputBindings: Record<string, Binding>, pushId: string | undefined): Promise<Record<string, string>> {
     const resolvedBindings = await resolveBindings(inputBindings, { pushId });

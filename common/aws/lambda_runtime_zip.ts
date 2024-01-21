@@ -1,17 +1,17 @@
-import { BlobReader, BlobWriter, TextReader, ZipReader, ZipWriter } from 'https://deno.land/x/zipjs@v2.7.17/index.js';
+import { BlobReader, BlobWriter, TextReader, Uint8ArrayReader, ZipReader, ZipWriter } from 'https://deno.land/x/zipjs@v2.7.17/index.js';
 import { Bytes } from '../bytes.ts';
 
 export async function createDenoLayerZip({ denoZipStream } : { denoZipStream: ReadableStream<Uint8Array> }): Promise<{ zipBlob: Blob, sha1Hex: string }> {
     return await createZip({ denoZipStream });
 }
 
-export async function createRuntimeZip({ denoZipStream, runtimeTs, runtimeTypesTs, workerTs } : { denoZipStream: ReadableStream<Uint8Array> | undefined, runtimeTs: string, runtimeTypesTs: string, workerTs: string }): Promise<{ zipBlob: Blob, sha1Hex: string }> {
-    return await createZip({ denoZipStream, runtimeTs, runtimeTypesTs, workerTs });
+export async function createRuntimeZip({ denoZipStream, runtimeTs, runtimeTypesTs, workerTs, additionalBlobs } : { denoZipStream: ReadableStream<Uint8Array> | undefined, runtimeTs: string, runtimeTypesTs: string, workerTs: string, additionalBlobs?: Record<string, Uint8Array> }): Promise<{ zipBlob: Blob, sha1Hex: string }> {
+    return await createZip({ denoZipStream, runtimeTs, runtimeTypesTs, workerTs, additionalBlobs });
 }
 
 //
 
-async function createZip({ denoZipStream, runtimeTs, runtimeTypesTs, workerTs } : { denoZipStream?: ReadableStream<Uint8Array>, runtimeTs?: string, runtimeTypesTs?: string, workerTs?: string }): Promise<{ zipBlob: Blob, sha1Hex: string }> {
+async function createZip({ denoZipStream, runtimeTs, runtimeTypesTs, workerTs, additionalBlobs } : { denoZipStream?: ReadableStream<Uint8Array>, runtimeTs?: string, runtimeTypesTs?: string, workerTs?: string, additionalBlobs?: Record<string, Uint8Array> }): Promise<{ zipBlob: Blob, sha1Hex: string }> {
 
     const REGULAR =       0x80000000n; // (1 << 31)
     const OWNER_READ =    0x01000000n; // (1 << 24)
@@ -64,6 +64,13 @@ DENO_DIR=/tmp/.deno DENO_RUN_TIME=$(date +%s%N) ${denoBinDir}/deno run -A lambda
         await zipWriter.add('lambda_runtime.d.ts', new TextReader(runtimeTypesTs), { msDosCompatible, version, versionMadeBy, internalFileAttribute: INTERNAL_TEXT, externalFileAttribute: rw_r__r__, lastModDate });
         console.log(`  adding worker.ts`);
         await zipWriter.add('worker.ts', new TextReader(workerTs), { msDosCompatible, version, versionMadeBy, internalFileAttribute: INTERNAL_TEXT, externalFileAttribute: rw_r__r__, lastModDate });
+
+        if (additionalBlobs) {
+            for (const [ name, bytes ] of Object.entries(additionalBlobs)) {
+                console.log(`  adding ${name}`);
+                await zipWriter.add(name, new Uint8ArrayReader(bytes), { msDosCompatible, version, versionMadeBy, internalFileAttribute: INTERNAL_BINARY, externalFileAttribute: rwxr_xr_x, lastModDate });
+            }
+        }
     }
 
     await zipWriter.close();

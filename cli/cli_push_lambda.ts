@@ -7,6 +7,7 @@ import { Binding } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { AwsCallContext, AwsCredentials } from '../common/r2/r2.ts';
 import { bundle, commandOptionsForBundle, parseBundleOpts } from './bundle.ts';
+import { ContentBasedFileBasedImports } from './cli_common.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { commandOptionsForConfigOnly, loadAwsCredentialsForProfile, loadConfig, resolveBindings } from './config_loader.ts';
@@ -127,7 +128,7 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
 
         start = Date.now();
 
-        const runtime = 'provided.al2';
+        const runtime = 'provided.al2023'; // needed for deno > 1.35.3, includes newer glibc - also smaller and better suited to this custom runtime
         const functionName = scriptName;
         const handler = 'what.ever'; // unused in the current runtime
         const context: AwsCallContext = {
@@ -185,7 +186,10 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
         const runtimeTs = await (await fetch(new URL('../common/aws/lambda_runtime.ts', import.meta.url))).text();
         const runtimeTypesTs = await (await fetch(new URL('../common/aws/lambda_runtime.d.ts', import.meta.url))).text();
         const denoZipStream = layerVersionArn ? undefined : await computeDenoZipStream();
-        const { zipBlob, sha1Hex: _ } = await createRuntimeZip({ runtimeTs, runtimeTypesTs, workerTs: scriptContentsStr, denoZipStream });
+        const imports = new ContentBasedFileBasedImports();
+        const workerTs = await imports.rewriteScriptContents(scriptContentsStr, rootSpecifier);
+        const additionalBlobs = Object.fromEntries([...imports.allFiles.entries()].map(v => [ v[0], v[1].bytes ]));
+        const { zipBlob, sha1Hex: _ } = await createRuntimeZip({ runtimeTs, runtimeTypesTs, workerTs, denoZipStream, additionalBlobs });
         const zipFileBytes = new Bytes(new Uint8Array(await zipBlob.arrayBuffer()));
         const zipFileBase64 = zipFileBytes.base64();
         console.log(`  compressed size: ${Bytes.formatSize(zipFileBytes.length)}`);
