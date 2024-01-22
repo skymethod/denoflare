@@ -1,1 +1,1 @@
-export type { IncomingRequestCf, DurableObjectState, DurableObjectNamespace, ModuleWorkerContext, CloudflareWebSocketExtensions } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.5.12/common/cloudflare_workers_types.d.ts';
+export type { IncomingRequestCf, DurableObjectState, DurableObjectNamespace, ModuleWorkerContext, CloudflareWebSocketExtensions } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.6.0/common/cloudflare_workers_types.d.ts';
