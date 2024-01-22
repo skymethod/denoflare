@@ -21,7 +21,7 @@ export default {
             const { origin, hostname, pathname } = new URL(url);
 
             // only handle GET requests
-            if (method !== 'GET') return new Response(`not supported`, { status: 405 });
+            if (method !== 'GET') return new Response(`${method} not supported`, { status: 405 });
 
             // main route
             if (pathname === '/' || pathname.endsWith('/multiplat-example')) {
@@ -59,9 +59,7 @@ export default {
                     `Generated: ${new Date().toISOString()} on ${servedFromPlatform} (${servedFromColo}${nearCfColo === servedFromColo ? '' : `, near Cloudfare colo ${nearCfColo}`})`,
                     [ 'cloudflare', 'deploy', 'lambda', 'supabase' ].flatMap(v => platform !== v && exampleUrls[v] ? [ `\nSame worker running on ${computePlatformName(v)}: 👉 ${exampleUrls[v]}` ] : []).join(''),
                 ]
-
-                const html = lines.join('\n\n');
-                return new Response(html, { status: 200, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+                return new Response(lines.join('\n\n'), { status: 200, headers: { 'content-type': 'text/plain; charset=utf-8' } });
             }
 
             // binary image route
@@ -69,7 +67,7 @@ export default {
                 return new Response(denoPng, { status: 200, headers: { 'content-type': 'image/png' } }); 
             }
     
-            return new Response(`not found: ${url}`);
+            return new Response(`not found: ${url}`, { status: 404 });
         } catch (e) {
             return new Response(`${e.stack || e}`, { status: 500 });
         }
