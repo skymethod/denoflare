@@ -5,7 +5,7 @@ import { bundle, commandOptionsForBundle, parseBundleOpts } from './bundle.ts';
 import { ContentBasedFileBasedImports, commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
 import { commandOptionsForConfigOnly, loadConfig, resolveBindings } from './config_loader.ts';
 import { DeployRequest, LogQueryRequestParams, deploy, getLogs, listProjects, negotiateAssets, queryLogs, setEnvironmentVariables } from '../common/deploy/deno_deploy_api.ts';
-import { isAbsolute, resolve } from './deps_cli.ts';
+import { isAbsolute, resolve, sortBy } from './deps_cli.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { setEqual } from '../common/sets.ts';
 import { mapValues } from 'https://deno.land/std@0.212.0/collections/map_values.ts';
@@ -150,7 +150,8 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
             console.log(JSON.stringify(message));
         }
 
-        console.log(`deployed worker to ${scriptName} in ${Date.now() - start}ms`);
+        const shortestDomainMapping = sortBy(project.productionDeployment.deployment?.domainMappings ?? [], v => v.domain.length).at(0);
+        console.log(`deployed worker to ${shortestDomainMapping ? `https://${shortestDomainMapping.domain}/` : scriptName} in ${Date.now() - start}ms`);
         
         pushNumber++;
     }

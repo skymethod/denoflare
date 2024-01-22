@@ -152,7 +152,7 @@ export async function pushSupabase(args: (string | number)[], options: Record<st
             await createFunction({ projectRef, slug, name: slug, import_map: true, verify_jwt: false, entrypoint_path: entry, brotliCompressedEszip, token });
         }
 
-        console.log(`deployed worker to ${scriptName} in ${Date.now() - start}ms`);
+        console.log(`deployed worker to https://${projectRef}.supabase.co/functions/v1/${scriptName} in ${Date.now() - start}ms`);
         
         pushNumber++;
     }
