@@ -3,7 +3,7 @@
 Write once, run on Cloudflare Workers / Deno Deploy / AWS Lambda / Supabase Edge Functions!
 
 
-https://github.com/skymethod/denoflare/assets/47259736/c0150bde-1df0-4f9e-b9c2-e6043dee2228
+https://github.com/skymethod/denoflare/assets/47259736/bf092f42-1fc3-4d22-9bdf-7fb08f313a88
 
 
 [Denoflare](https://denoflare.dev) now has experimental support for deploying ESM-based Typescript workers not only to [Cloudflare Workers](https://workers.cloudflare.com/), but the same code to:
