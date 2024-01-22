@@ -15,7 +15,7 @@ Denoflare provides a single, common interface (the Cloudflare module-based [fetc
 
 ### This example
 
-See [`multiplat.ts`](/https://github.com/skymethod/denoflare/blob/master/examples/multiplat-worker/multiplat.ts) in this directory for a basic example worker that dumps out some environment info, runs some Wasm, serves an imported binary asset.
+See [`multiplat.ts`](https://github.com/skymethod/denoflare/blob/master/examples/multiplat-worker/multiplat.ts) in this directory for a basic example worker that dumps out some environment info, runs some Wasm, serves an imported binary asset.
 
 > See it running on Deno Deploy at [multiplat-example.deno.dev](https://multiplat-example.deno.dev), which has links to the same code running on the other platforms.
 
