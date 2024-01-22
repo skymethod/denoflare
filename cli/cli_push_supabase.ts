@@ -13,7 +13,7 @@ export const PUSH_SUPABASE_COMMAND = denoflareCliCommand('push-supabase', 'Uploa
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
     .option('name', 'string', `Slug name of the Supabase Edge Function [default: Name of script defined in .denoflare config, or https url basename sans extension]`)
     .option('accessToken', 'string', 'Supabase Personal token, from the Supabase dashboard > account > access tokens (or set SUPABASE_ACCESS_TOKEN env var)')
-    .option('projectRef', 'string', 'Supabase project reference (e.g. ) (or set SUPABASE_PROJECT_ID env var)', { hint: '20-char unique id'})
+    .option('projectRef', 'string', 'Supabase project reference (e.g. abcdwxyzabcdwxyzabcd) (or set SUPABASE_PROJECT_ID env var)', { hint: '20-char unique id'})
     .option('watch', 'boolean', 'If set, watch the local file system and automatically re-upload on script changes')
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
     .option('listFunctions', 'boolean', '')

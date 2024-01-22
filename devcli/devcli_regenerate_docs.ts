@@ -3,6 +3,9 @@ import { directoryExists } from '../cli/fs_util.ts';
 import { DENOFLARE_COMMAND } from '../cli/cli.ts';
 import { SERVE_COMMAND } from '../cli/cli_serve.ts';
 import { PUSH_COMMAND } from '../cli/cli_push.ts';
+import { PUSH_DEPLOY_COMMAND } from '../cli/cli_push_deploy.ts';
+import { PUSH_LAMBDA_COMMAND } from '../cli/cli_push_lambda.ts';
+import { PUSH_SUPABASE_COMMAND } from '../cli/cli_push_supabase.ts';
 import { TAIL_COMMAND } from '../cli/cli_tail.ts';
 import { SITE_COMMAND } from '../cli/cli_site.ts';
 import { SITE_GENERATE_COMMAND } from '../cli/cli_site_generate.ts';
@@ -11,6 +14,7 @@ import { ANALYTICS_COMMAND } from '../cli/cli_analytics.ts';
 import { ANALYTICS_DURABLE_OBJECTS_COMMAND } from '../cli/cli_analytics_durable_objects.ts';
 import { ANALYTICS_R2_COMMAND } from '../cli/cli_analytics_r2.ts';
 import { CFAPI_COMMAND } from '../cli/cli_cfapi.ts';
+import { AE_PROXY_COMMAND } from '../cli/cli_ae_proxy.ts';
 import { R2_COMMAND } from '../cli/cli_r2.ts';
 import { LIST_BUCKETS_COMMAND } from '../cli/cli_r2_list_buckets.ts';
 import { HEAD_BUCKET_COMMAND } from '../cli/cli_r2_head_bucket.ts';
@@ -72,6 +76,7 @@ export async function regenerateDocs(args: (string | number)[], options: Record<
     await replace('./cli/index.md', DENOFLARE_COMMAND);
     await replace('./cli/serve.md', SERVE_COMMAND);
     await replace('./cli/push.md', PUSH_COMMAND);
+
     await replace('./cli/tail.md', TAIL_COMMAND);
     await replace('./cli/site/index.md', SITE_COMMAND);
     await replace('./cli/site/generate.md', SITE_GENERATE_COMMAND);
@@ -80,6 +85,10 @@ export async function regenerateDocs(args: (string | number)[], options: Record<
     await replace('./cli/analytics/durable-objects.md', ANALYTICS_DURABLE_OBJECTS_COMMAND);
     await replace('./cli/analytics/r2.md', ANALYTICS_R2_COMMAND);
     await replace('./cli/cfapi.md', CFAPI_COMMAND);
+    await replace('./cli/ae-proxy.md', AE_PROXY_COMMAND);
+    await replace('./cli/push-deploy.md', PUSH_DEPLOY_COMMAND);
+    await replace('./cli/push-lambda.md', PUSH_LAMBDA_COMMAND);
+    await replace('./cli/push-supabase.md', PUSH_SUPABASE_COMMAND);
     for (const r2Command of [
         R2_COMMAND, 
 

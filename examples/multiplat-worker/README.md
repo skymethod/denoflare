@@ -15,7 +15,7 @@ Denoflare provides a single, common interface (the Cloudflare module-based [fetc
 
 ### This example
 
-See [`multiplat.ts`](/multiplat.ts) in this directory for a basic example worker that dumps out some environment info, runs some Wasm, serves an imported binary asset.
+See [`multiplat.ts`](/https://github.com/skymethod/denoflare/blob/master/examples/multiplat-worker/multiplat.ts) in this directory for a basic example worker that dumps out some environment info, runs some Wasm, serves an imported binary asset.
 
 > See it running on Deno Deploy at [multiplat-example.deno.dev](https://multiplat-example.deno.dev), which has links to the same code running on the other platforms.
 
@@ -52,7 +52,7 @@ $ denoflare push-supabase multiplat-example --watch
 
 - For Cloudflare, scripts are bundled locally and deployed via the Cloudflare REST API, all part of `denoflare push`
 
-- For Deploy, a common runtime app is used to adapt the constrained Deno runtime to the common fetch interface, packaged locally and deployed via the Deno Deploy REST API, all part of `denoflare push-deploy`
+- For Deno Deploy, a common runtime app is used to adapt the constrained Deno runtime to the common fetch interface, packaged locally and deployed via the Deno Deploy REST API, all part of `denoflare push-deploy`
 
 - For AWS Lambda, a minimal reusable [layer](https://docs.aws.amazon.com/lambda/latest/dg/chapter-layers.html) is automatically created for the given Deno version (ARM supported!), with a minimal [custom runtime](https://docs.aws.amazon.com/lambda/latest/dg/runtimes-custom.html) running on the latest [Amazon Linux 2023](https://aws.amazon.com/linux/amazon-linux-2023/) base, deployed/configured via the AWS REST API, all part of `denoflare push-lambda`
 
