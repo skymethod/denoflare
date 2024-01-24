@@ -58,10 +58,29 @@ export interface DurableObject {
 
 //#region Worker scripts
 
+// https://developers.cloudflare.com/api/operations/worker-script-list-workers
 export async function listScripts(opts: { accountId: string, apiToken: string }): Promise<readonly Script[]> {
     const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts`;
     return (await execute<readonly Script[]>('listScripts', 'GET', url, apiToken)).result;
+}
+
+// https://developers.cloudflare.com/api/operations/worker-script-get-settings
+export async function getScriptSettings(opts: { accountId: string, scriptName: string, apiToken: string }): Promise<ScriptSettings> {
+    const { accountId, scriptName, apiToken } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/settings`;
+    return (await execute<ScriptSettings>('getScriptSettings', 'GET', url, apiToken)).result;
+}
+
+export interface ScriptSettings {
+    readonly placement: { mode?: string };
+    readonly compatibility_date: string;
+    readonly compatibility_flags: string[];
+    readonly usage_model: string;
+    readonly tags: string[];
+    readonly tail_consumers: { service: string, namespace?: string, environment?: string }[];
+    readonly logpush: boolean;
+    readonly bindings: WorkerBinding[];
 }
 
 export async function putScript(opts: { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', logpush?: boolean, compatibilityDate?: string, compatibilityFlags?: string[] }): Promise<Script> {
@@ -254,8 +273,10 @@ export interface WorkerDeployment extends WorkerDeploymentSummary {
 export interface WorkerDeploymentResources {
     readonly script: { readonly etag: string, readonly handlers: readonly string[], readonly named_handlers?: readonly NamedHandler[], readonly last_deployed_from: string };
     readonly script_runtime: { readonly usage_model: string };
-    readonly bindings: readonly (Record<string, unknown> & { name: string, type: string })[];
+    readonly bindings: readonly WorkerBinding[];
 }
+
+export type WorkerBinding = Record<string, unknown> & { name: string, type: string };
 
 export interface WorkerDeploymentSummary {
     readonly id: string; // e.g. a5adf92c-7513-4011-ac1a-78a903c2cc0a

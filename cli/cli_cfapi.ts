@@ -4,6 +4,7 @@ import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand, SubcommandHandler } from './cli_command.ts';
+import { getScriptSettings } from '../common/cloudflare_api.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -28,6 +29,14 @@ function cfapiCommand() {
         .include(commandOptionsForParsePagingOptions)
     , async (accountId, apiToken) => {
         const value = await listScripts({ accountId, apiToken });
+        console.log(value);
+    });
+
+    add(apiCommand('get-script-settings', 'Get Worker script settings')
+        .arg('scriptName', 'string', 'Worker name')
+    , async (accountId, apiToken, opts) => {
+        const { scriptName } = opts;
+        const value = await getScriptSettings({ accountId, scriptName, apiToken });
         console.log(value);
     });
 
