@@ -1,6 +1,7 @@
 import { TextLineStream } from 'https://deno.land/std@0.212.0/streams/text_line_stream.ts';
+import { ApiCall, executeForEndpoint, executeJsonForEndpoint } from './deno_deploy_common_api.ts';
 
-export const DEFAULT_ENDPOINT = `https://dash.deno.com/api`;
+export const DASH_API_ENDPOINT = `https://dash.deno.com/api`;
 
 export async function getMeta(opts: { apiToken: string, endpoint?: string }): Promise<Metadata> {
     return await executeJson<Metadata>(`/meta`, opts);
@@ -51,36 +52,17 @@ export async function queryLogs(opts: { projectId: string, deploymentId: string,
 //
 
 async function executeJson<T>(pathname: string, opts: ApiCall): Promise<T> {
-    const res = await execute(pathname, opts);
-    const contentType = res.headers.get('content-type');
-    if (res.status !== 200 || contentType !== 'application/json') throw new Error(`Unexpected response: ${res.status} ${contentType} ${await res.text()}`);
-    return await res.json();
+    return await executeJsonForEndpoint<T>(pathname, opts, DASH_API_ENDPOINT);
 }
 
 async function* executeStream<T>(pathname: string, opts: ApiCall): AsyncIterable<T> {
-    const res = await execute(pathname, opts);
+    const res = await executeForEndpoint(pathname, opts, DASH_API_ENDPOINT);
     if (res.status !== 200 || !res.body) throw new Error(`Unexpected response: ${res.status} ${!res.body ? '(no body)' : await res.text()}`);
     const lines = res.body.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream());
     for await (const line of lines) {
         if (line === '') return;
         yield JSON.parse(line);
     }
-}
-
-type ApiCall = { queryParams?: Record<string, string | number | undefined>, requestBody?: unknown, method?: 'PATCH' | 'POST', apiToken: string, endpoint?: string };
-
-async function execute(pathname: string, call: ApiCall): Promise<Response> {
-    const { queryParams = {}, requestBody, method = requestBody ? 'POST' : 'GET', apiToken, endpoint = DEFAULT_ENDPOINT } = call;
-    const url = new URL(`${endpoint}${pathname}`);
-    Object.entries(queryParams).forEach(([ n, v ]) => {
-        if (v !== undefined) url.searchParams.set(n, String(v));
-    });
-    const body = requestBody instanceof FormData ? requestBody : requestBody ? JSON.stringify(requestBody) : undefined;
-    return await fetch(url.toString(), { method, body, headers: { 
-        accept: 'application/json', 
-        authorization: `Bearer ${apiToken}`,
-        ...(requestBody && !(requestBody instanceof FormData) ? { 'content-type': 'application/json' } : {}),
-    } });
 }
 
 //

@@ -4,7 +4,7 @@ import { isValidScriptName } from '../common/config_validation.ts';
 import { bundle, commandOptionsForBundle, parseBundleOpts } from './bundle.ts';
 import { ContentBasedFileBasedImports, commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions } from './cli_common.ts';
 import { commandOptionsForConfigOnly, loadConfig, resolveBindings } from './config_loader.ts';
-import { DeployRequest, LogQueryRequestParams, deploy, getLogs, listProjects, negotiateAssets, queryLogs, setEnvironmentVariables } from '../common/deploy/deno_deploy_api.ts';
+import { DeployRequest, LogQueryRequestParams, deploy, getLogs, listProjects, negotiateAssets, queryLogs, setEnvironmentVariables } from '../common/deploy/deno_deploy_dash_api.ts';
 import { isAbsolute, resolve, sortBy } from './deps_cli.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { setEqual } from '../common/sets.ts';
