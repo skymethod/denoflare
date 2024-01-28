@@ -1,5 +1,4 @@
-import { TextLineStream } from 'https://deno.land/std@0.212.0/streams/text_line_stream.ts';
-import { ApiCall, executeForEndpoint, executeJsonForEndpoint } from './deno_deploy_common_api.ts';
+import { ApiCall, executeStreamForEndpoint, executeJsonForEndpoint } from './deno_deploy_common_api.ts';
 
 export const DASH_API_ENDPOINT = `https://dash.deno.com/api`;
 
@@ -31,7 +30,7 @@ export function deploy(opts: { projectId: string, request: DeployRequest, files:
     const form = new FormData();
     form.append('request', JSON.stringify(request));
     files.forEach(v => form.append('file', new Blob([ v ])));
-    return executeStream<DeployMessage>(`/projects/${projectId}/deployment_with_assets`, { ...opts, requestBody: form });
+    return executeStreamForEndpoint<DeployMessage>(`/projects/${projectId}/deployment_with_assets`, { ...opts, requestBody: form }, DASH_API_ENDPOINT);
 }
 
 export async function setEnvironmentVariables(opts: { projectId: string, variables: Record<string, string | null>, apiToken: string, endpoint?: string }): Promise<SetEnvironmentVariablesResult> {
@@ -41,7 +40,7 @@ export async function setEnvironmentVariables(opts: { projectId: string, variabl
 
 export function getLogs(opts: { projectId: string, deploymentId: string, apiToken: string, endpoint?: string }): AsyncIterable<LiveLog> {
     const { projectId, deploymentId, apiToken, endpoint } = opts;
-    return executeStream<LiveLog>(`/projects/${projectId}/deployments/${deploymentId}/logs/`, { apiToken, endpoint });
+    return executeStreamForEndpoint<LiveLog>(`/projects/${projectId}/deployments/${deploymentId}/logs/`, { apiToken, endpoint }, DASH_API_ENDPOINT);
 }
 
 export async function queryLogs(opts: { projectId: string, deploymentId: string, params: LogQueryRequestParams, apiToken: string, endpoint?: string }): Promise<{ logs: readonly PersistedLog[] }> {
@@ -53,16 +52,6 @@ export async function queryLogs(opts: { projectId: string, deploymentId: string,
 
 async function executeJson<T>(pathname: string, opts: ApiCall): Promise<T> {
     return await executeJsonForEndpoint<T>(pathname, opts, DASH_API_ENDPOINT);
-}
-
-async function* executeStream<T>(pathname: string, opts: ApiCall): AsyncIterable<T> {
-    const res = await executeForEndpoint(pathname, opts, DASH_API_ENDPOINT);
-    if (res.status !== 200 || !res.body) throw new Error(`Unexpected response: ${res.status} ${!res.body ? '(no body)' : await res.text()}`);
-    const lines = res.body.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream());
-    for await (const line of lines) {
-        if (line === '') return;
-        yield JSON.parse(line);
-    }
 }
 
 //
