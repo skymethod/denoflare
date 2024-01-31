@@ -1,5 +1,5 @@
 import { Socket, cloudflareSockets } from './cloudflare_sockets.ts';
-import { copy } from 'https://deno.land/std@0.212.0/bytes/copy.ts'; // intended to be self-contained, don't use shared deps
+import { copy } from 'https://deno.land/std@0.213.0/bytes/copy.ts'; // intended to be self-contained, don't use shared deps
 
 const { connect } = cloudflareSockets();
 
