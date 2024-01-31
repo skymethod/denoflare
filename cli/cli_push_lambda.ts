@@ -24,7 +24,7 @@ export const PUSH_LAMBDA_COMMAND = denoflareCliCommand('push-lambda', 'Upload a 
     .option('storage', 'integer', 'Size of the /tmp directory for the lambda function, in MB (default: 512)', { hint: 'mb', min: 512, max: 10240 })
     .option('timeout', 'integer', 'How long the lambda function is allowed to run, in seconds (default: 3)', { hint: 'seconds', min: 1, max: 900 })
     .option('noLayer', 'boolean', 'Skip creating a layer, deploy the lambda as one large zip (slower for multiple pushes)')
-    .option('denoVersion', 'string', `Explicit deno version to use on lambda (default: ${Deno.version.deno})`, { hint: 'x.x.x' })
+    .option('denoVersion', 'string', `Explicit deno version to use on lambda (default: Deno.version.deno)`, { hint: 'x.x.x' })
     .option('profile', 'string', 'AWS credentials for deploying the worker, from $HOME/.aws/credentials')
     .option('accessKey', 'string', 'AWS credentials for deploying the worker (e.g. AKIA4ABC89ABC89ABC89)')
     .option('secretKey', 'string', 'AWS credentials for deploying the worker (e.g. aB98mjz0aB98mjz0aB98mjz0aB98mjz0aB98mjz0)')
