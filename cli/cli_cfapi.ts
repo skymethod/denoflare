@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSpeechRecognitionInput } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSpeechRecognitionInput, AiTextToImageInput } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -517,8 +517,10 @@ function cfapiCommand() {
             .option('to', 'string', '')
             .option('url', 'string', '')
             .option('file', 'string', '')
+            .option('steps', 'integer', '')
             , async (accountId, apiToken, opts) => {
-        const { model, prompt, system, user, text, from, to, texts, url, file } = opts;
+        const { model, prompt, system, user, text, from, to, texts, url, file, steps: num_steps } = opts;
+        let responseType: 'json' | 'bytes' = 'json';
         const parseAiTextGenerationInput = (): AiTextGenerationInput => {
             if (typeof prompt === 'string') return { prompt };
             if (system !== undefined || user !== undefined) return { messages: [ ...(system ?? []).map(v => ({ role: 'system', content: v })), ...(user ?? []).map(v => ({ role: 'user', content: v })) ] };
@@ -548,6 +550,12 @@ function cfapiCommand() {
             if (typeof file === 'string') return await Deno.readFile(file);
             throw new Error(`Provide 'url' option`);
         };
+        const parseAiTextToImageInput = (): AiTextToImageInput => {
+            if (typeof prompt !== 'string') throw new Error(`Missing 'prompt' option`);
+            if (typeof file !== 'string') throw new Error(`Missing 'file' option`);
+            responseType = 'bytes';
+            return { prompt, num_steps };
+        };
         const models: Record<string, [ string[], () => AiModelInput | Promise<AiModelInput> ]> = {
             '@cf/meta/llama-2-7b-chat-int8': [ [ 'llama', 'text-generation' ], parseAiTextGenerationInput ],
             '@cf/meta/m2m100-1.2b': [ [ 'translation' ], parseAiTranslationInput ],
@@ -557,14 +565,22 @@ function cfapiCommand() {
             '@cf/baai/bge-large-en-v1.5': [ [ 'text-embeddings-large' ], parseAiTextEmbeddingsInput ],
             '@cf/microsoft/resnet-50': [ [ 'image-classification' ], parseAiImageClassificationInput ],
             '@cf/openai/whisper': [ [ 'speech-recognition', 'whisper' ], parseAiSpeechRecognitionInput ],
+            '@cf/stabilityai/stable-diffusion-xl-base-1.0': [ [ 'text-to-image', 'stable-diffusion' ], parseAiTextToImageInput ],
         };
 
         const entry = Object.entries(models).find(v => v[0] === model || v[1][0].includes(model));
         if (!entry) throw new Error(`Unsupported model: ${model}, valid values: ${[ ...Object.keys(models), ...Object.values(models).flatMap(v => v[0]) ].join(', ')}`);
         const [ modelId, [ _aliases, parser ] ] = entry;
         const input = await parser();
-        const value = await runAiModel({ apiToken, accountId, modelId, input });
-        console.log(JSON.stringify(value, undefined, 2));
+        const value = await runAiModel({ apiToken, accountId, modelId, input, responseType });
+        if (value instanceof Uint8Array) {
+            if (file) {
+                await Deno.writeFile(file, value);
+                console.log(`Wrote ${value.length} bytes to ${file}`);
+            }
+        } else {
+            console.log(JSON.stringify(value, undefined, 2));
+        }
     });
 
     add(apiCommand('list-hyperdrive-configs', ''), async (accountId, apiToken, _opts) => {

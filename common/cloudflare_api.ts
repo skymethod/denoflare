@@ -1493,7 +1493,7 @@ export type AiTextClassificationInput = { text: string };
 export type AiTextClassificationOutput = { label?: string /* NEGATIVE or POSITIVE */,  score?: number /* 0 to 1 */ }[];
 
 export type AiTextEmbeddingsInput = { text: string | string[] };
-export type AiTextEmbeddingsOutput = {  shape: number[], data: number[][] };
+export type AiTextEmbeddingsOutput = { shape: number[], data: number[][] };
 
 export type AiImageClassificationInput = Uint8Array;
 export type AiImageClassificationOutput = { label?: string /* EGYPTIAN CAT */, score?: number /* 0 to 1 */ }[];
@@ -1501,13 +1501,17 @@ export type AiImageClassificationOutput = { label?: string /* EGYPTIAN CAT */, s
 export type AiSpeechRecognitionInput = Uint8Array;
 export type AiSpeechRecognitionOutput = { text: string };
 
-export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | Record<string, unknown>;
-export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | Record<string, unknown>;
+export type AiTextToImageInput = { prompt: string, num_steps?: number };
+export type AiTextToImageOutput = Uint8Array /* png bytes */;
 
-export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput }): Promise<AiModelOutput> {
-    const { apiToken, accountId, modelId, input } = opts;
+export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | AiTextToImageInput | Record<string, unknown>;
+export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | AiTextToImageOutput | Record<string, unknown>;
+
+export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput, responseType?: 'json' | 'bytes' }): Promise<AiModelOutput> {
+    const { apiToken, accountId, modelId, input, responseType } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/ai/run/${modelId}`;
-    return (await execute<AiModelOutput>('runAiModel', 'POST', url.toString(), apiToken, input)).result;
+    if (responseType === 'bytes') return await execute('runAiModel', 'POST', url.toString(), apiToken, input, 'bytes');
+    return (await execute<AiModelOutput>('runAiModel', 'POST', url.toString(), apiToken, input, responseType)).result;
 }
 
 //#endregion
@@ -1575,6 +1579,7 @@ export class CloudflareApi {
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=utf-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
+const IMAGE_PNG = 'image/png';
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 
 function computeBaseUrl(): string {
@@ -1619,13 +1624,14 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (CloudflareApi.DEBUG) console.log(`${fetchResponse.status} ${fetchResponse.url}`);
     if (CloudflareApi.DEBUG) console.log([...fetchResponse.headers].map(v => v.join(': ')).join('\n'));
     const contentType = fetchResponse.headers.get('Content-Type') || '';
+    const knownBinaryContentType = [ APPLICATION_OCTET_STREAM, IMAGE_PNG ].includes(contentType);
     if (responseType === 'empty' && fetchResponse.status >= 200 && fetchResponse.status < 300) {
         if (contentType !== '') throw new Error(`Unexpected content-type (expected none): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
         const text = await fetchResponse.text();
         if (text !== '') throw new Error(`Unexpected body (expected none): ${text}, fetchResponse=${fetchResponse}, body=${text}`);
         return;
     }
-    if ((responseType === 'bytes' || responseType === 'bytes?') && contentType === APPLICATION_OCTET_STREAM) {
+    if ((responseType === 'bytes' || responseType === 'bytes?') && knownBinaryContentType) {
         const buffer = await fetchResponse.arrayBuffer();
         return new Uint8Array(buffer);
     }
@@ -1639,12 +1645,12 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
         return await fetchResponse.formData();
     }
     if (![APPLICATION_JSON_UTF8.replaceAll(' ', ''), APPLICATION_JSON].includes(contentType.toLowerCase().replaceAll(' ', ''))) { // radar returns: application/json;charset=UTF-8
-        throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+        throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${knownBinaryContentType ? `<${(await fetchResponse.arrayBuffer()).byteLength} bytes>` : await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json() as CloudflareApiResponse<Result>;
     if (CloudflareApi.DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
-        if (fetchResponse.status === 404 && ['bytes?', 'json?'].includes(responseType)) return undefined;
+        if (fetchResponse.status === 404 && [ 'bytes?', 'json?' ].includes(responseType)) return undefined;
         throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
     }
     return apiResponse;
