@@ -1448,3 +1448,12 @@ export type AiTranslationModel = '@cf/meta/m2m100-1.2b';
 export type AiModel = AiTextClassicationModel | AiTextToImageModel | AiSentenceSimilarityModel | AiTextEmbeddingsModel | AiSpeechRecognitionModel | AiImageClassificationModel | AiObjectDetectionModel | AiTextGenerationModel | AiTranslationModel;
 
 //#endregion
+
+//#region Version Metadata
+
+export interface VersionMetadata {
+    readonly id: string;
+    readonly tag: string;
+}
+
+//#endregion

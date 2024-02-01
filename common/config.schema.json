@@ -184,6 +184,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Version Metadata environment variable binding",
+                                            "required": [ "versionMetadata" ],
+                                            "properties": {
+                                                "versionMetadata": {
+                                                    "description": "Type indicator only, value is ignored.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

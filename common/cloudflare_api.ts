@@ -123,7 +123,7 @@ export async function putScript(opts: { accountId: string, scriptName: string, a
     return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -211,6 +211,11 @@ export interface HyperdriveBinding {
     readonly id: string;
 }
 
+export interface VersionMetadataBinding {
+    readonly type: 'version_metadata';
+    readonly name: string;
+}
+
 // this is likely not correct, but it works to delete obsolete DO classes at least
 export interface Migrations {
     readonly tag: string;
@@ -290,6 +295,35 @@ export interface WorkerDeploymentMetadata {
     readonly source: string; // 'api' | 'dash' | 'wrangler' | 'terraform' | 'other'
     readonly author: string; // cloudflare tag (for what entity?)
     readonly author_email: string; // email address
+}
+
+//#endregion
+
+//#region Worker Versioned Deployments
+
+export async function listWorkerVersionedDeployments(opts: { accountId: string, apiToken: string, scriptName: string }): Promise<WorkerVersionedDeploymentsResult> {
+    const { accountId, apiToken, scriptName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/deployments`;
+    return (await execute<WorkerVersionedDeploymentsResult>('listWorkerVersionedDeployments', 'GET', url, apiToken)).result;
+}
+
+export interface WorkerVersionedDeploymentsResult {
+    readonly deployments: WorkerVersionedDeployment[];
+}
+
+export interface WorkerVersionedDeployment {
+    readonly id: string; // e.g. 97772553-126b-4286-b23c-f4158f82ec53
+    readonly source: string; // e.g. api
+    readonly strategy: string; // e.g. percentage
+    readonly author_email: string; // e.g. user@example.com
+    readonly annotations: Record<string, string>; // e.g. "workers/message": "Automatic deployment on upload.", "workers/triggered_by": "upload"
+    readonly versions: WorkerVersionAllocation[];
+    readonly created_on: string; // e.g. 2024-02-01T00:23:30.650801Z
+}
+
+export interface WorkerVersionAllocation {
+    readonly version_id: string; // e.g. 6870034e-c031-4b01-b141-535e3e545299
+    readonly percentage: number; // e.g. 100
 }
 
 //#endregion

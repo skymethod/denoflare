@@ -115,7 +115,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -226,6 +226,13 @@ export interface HyperdriveBinding {
     readonly hyperdrive: string;
 }
 
+/** Version Metadata environment variable binding */
+export interface VersionMetadataBinding {
+
+    /** Type indicator only, value is ignored. */
+    readonly versionMetadata: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -318,4 +325,9 @@ export function isAiBinding(binding: Binding): binding is AiBinding {
 export function isHyperdriveBinding(binding: Binding): binding is HyperdriveBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).hyperdrive === 'string';
+}
+
+export function isVersionMetadataBinding(binding: Binding): binding is VersionMetadataBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).versionMetadata === 'string';
 }
