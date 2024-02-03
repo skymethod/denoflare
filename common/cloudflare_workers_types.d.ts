@@ -493,6 +493,7 @@ export default {
     scheduled(event: ModuleWorkerScheduledEvent, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
     alarm(): Promise<void>;
     queue(batch: QueueMessageBatch, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
+    email(message: EmailMessage, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
 };
 */
 
@@ -1454,6 +1455,46 @@ export type AiModel = AiTextClassicationModel | AiTextToImageModel | AiSentenceS
 export interface VersionMetadata {
     readonly id: string;
     readonly tag: string;
+}
+
+//#endregion
+
+//#region Email Workers
+
+export interface EmailMessage {
+    /** Envelope From attribute of the email message. */
+    readonly from: string;
+
+    /** Envelope To attribute of the email message. */
+    readonly to: string;
+
+    /** Email headers */
+    readonly headers: Headers;
+
+    /** Stream of the email message content. */
+    readonly raw: ReadableStream;
+
+    /** Size of the email message content. */
+    readonly rawSize: number;
+
+    /** Reject this email message by returning a permanent SMTP error back to the connecting client, including the given reason. */
+    setReject(reason: string): void;
+
+    /** Forward this email message to a verified destination address of the account. 
+     * 
+     * If you want, you can add extra headers to the email message. Only X-* headers are allowed.
+     * 
+     * When the promise resolves, the message is confirmed to be forwarded to a verified destination address. */
+    forward(rcptTo: string, headers?: Headers): Promise<void>;
+
+    /** Reply to the sender of this email message with a new EmailMessage object.
+     * 
+     * When the promise resolves, the message is confirmed to be replied. */
+    reply(message: EmailMessage): Promise<void>;
+}
+
+export interface EmailMessageConstructable {
+    new(from: string, to: string, raw: ReadableStream | string): EmailMessage;
 }
 
 //#endregion
