@@ -286,7 +286,7 @@ const i = window, s2 = i.trustedTypes, e2 = s2 ? s2.createPolicy("lit-html", {
     ];
 };
 class C {
-    constructor({ strings: t2 , _$litType$: i2  }, e2){
+    constructor({ strings: t2, _$litType$: i2 }, e2){
         let l2;
         this.parts = [];
         let h2 = 0, d2 = 0;
@@ -366,7 +366,7 @@ class V {
     }
     v(t2) {
         var i2;
-        const { el: { content: s2  } , parts: e2  } = this._$AD, o2 = ((i2 = t2 == null ? void 0 : t2.creationScope) !== null && i2 !== void 0 ? i2 : h1).importNode(s2, true);
+        const { el: { content: s2 }, parts: e2 } = this._$AD, o2 = ((i2 = t2 == null ? void 0 : t2.creationScope) !== null && i2 !== void 0 ? i2 : h1).importNode(s2, true);
         A.currentNode = o2;
         let n2 = A.nextNode(), l2 = 0, r2 = 0, d2 = e2[0];
         for(; d2 !== void 0;){
@@ -417,7 +417,7 @@ class N {
     }
     $(t2) {
         var i2;
-        const { values: s2 , _$litType$: e2  } = t2, o2 = typeof e2 == "number" ? this._$AC(t2) : (e2.el === void 0 && (e2.el = C.createElement(e2.h, this.options)), e2);
+        const { values: s2, _$litType$: e2 } = t2, o2 = typeof e2 == "number" ? this._$AC(t2) : (e2.el === void 0 && (e2.el = C.createElement(e2.h, this.options)), e2);
         if (((i2 = this._$AH) === null || i2 === void 0 ? void 0 : i2._$AD) === o2) this._$AH.p(s2);
         else {
             const t3 = new V(o2, this), i3 = t3.v(this.options);
@@ -813,7 +813,7 @@ const i2 = globalThis.trustedTypes, s5 = i2 ? i2.createPolicy("lit-html", {
     ];
 };
 class C1 {
-    constructor({ strings: t2 , _$litType$: s2  }, n2){
+    constructor({ strings: t2, _$litType$: s2 }, n2){
         let l2;
         this.parts = [];
         let r2 = 0, d2 = 0;
@@ -893,7 +893,7 @@ class V1 {
     }
     p(t2) {
         var i2;
-        const { el: { content: s2  } , parts: e2  } = this._$AD, o2 = ((i2 = t2 == null ? void 0 : t2.creationScope) !== null && i2 !== void 0 ? i2 : l3).importNode(s2, true);
+        const { el: { content: s2 }, parts: e2 } = this._$AD, o2 = ((i2 = t2 == null ? void 0 : t2.creationScope) !== null && i2 !== void 0 ? i2 : l3).importNode(s2, true);
         A1.currentNode = o2;
         let n2 = A1.nextNode(), h2 = 0, r2 = 0, d2 = e2[0];
         for(; d2 !== void 0;){
@@ -944,7 +944,7 @@ class N1 {
     }
     $(t2) {
         var i2;
-        const { values: s2 , _$litType$: e2  } = t2, o2 = typeof e2 == "number" ? this._$AC(t2) : (e2.el === void 0 && (e2.el = C1.createElement(e2.h, this.options)), e2);
+        const { values: s2, _$litType$: e2 } = t2, o2 = typeof e2 == "number" ? this._$AC(t2) : (e2.el === void 0 && (e2.el = C1.createElement(e2.h, this.options)), e2);
         if (((i2 = this._$AH) === null || i2 === void 0 ? void 0 : i2._$AD) === o2) this._$AH.m(s2);
         else {
             const t3 = new V1(o2, this), i3 = t3.p(this.options);
@@ -1081,22 +1081,22 @@ n6 == null || n6({
 });
 ((o6 = globalThis.litElementVersions) !== null && o6 !== void 0 ? o6 : globalThis.litElementVersions = []).push("3.2.2");
 async function listDurableObjectsNamespaces(opts) {
-    const { accountId , apiToken  } = opts;
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
     return (await execute('listDurableObjectsNamespaces', 'GET', url, apiToken)).result;
 }
 async function listScripts(opts) {
-    const { accountId , apiToken  } = opts;
+    const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts`;
     return (await execute('listScripts', 'GET', url, apiToken)).result;
 }
 async function listTails(opts) {
-    const { accountId , apiToken , scriptName  } = opts;
+    const { accountId, apiToken, scriptName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
     return (await execute('listTails', 'GET', url, apiToken)).result;
 }
 async function createTail(opts) {
-    const { accountId , apiToken , scriptName  } = opts;
+    const { accountId, apiToken, scriptName } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/tails`;
     return (await execute('createTail', 'POST', url, apiToken)).result;
 }
@@ -1107,6 +1107,7 @@ class CloudflareApi {
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=utf-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
+const IMAGE_PNG = 'image/png';
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 function computeAccountBaseUrl(accountId) {
     return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4/accounts/${accountId}`);
@@ -1122,6 +1123,11 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
     let bodyObj;
     if (typeof body === 'string') {
         headers.set('Content-Type', TEXT_PLAIN_UTF8);
+    } else if (body instanceof Uint8Array) {
+        headers.set('Content-Type', APPLICATION_OCTET_STREAM);
+        bodyObj = {
+            bytes: body.length
+        };
     } else if (isStringRecord(body) || Array.isArray(body)) {
         headers.set('Content-Type', APPLICATION_JSON_UTF8);
         bodyObj = body;
@@ -1141,13 +1147,17 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
         ...fetchResponse.headers
     ].map((v)=>v.join(': ')).join('\n'));
     const contentType = fetchResponse.headers.get('Content-Type') || '';
+    const knownBinaryContentType = [
+        APPLICATION_OCTET_STREAM,
+        IMAGE_PNG
+    ].includes(contentType);
     if (responseType === 'empty' && fetchResponse.status >= 200 && fetchResponse.status < 300) {
         if (contentType !== '') throw new Error(`Unexpected content-type (expected none): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
         const text = await fetchResponse.text();
         if (text !== '') throw new Error(`Unexpected body (expected none): ${text}, fetchResponse=${fetchResponse}, body=${text}`);
         return;
     }
-    if ((responseType === 'bytes' || responseType === 'bytes?') && contentType === APPLICATION_OCTET_STREAM) {
+    if ((responseType === 'bytes' || responseType === 'bytes?') && knownBinaryContentType) {
         const buffer = await fetchResponse.arrayBuffer();
         return new Uint8Array(buffer);
     }
@@ -1161,7 +1171,7 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
         APPLICATION_JSON_UTF8.replaceAll(' ', ''),
         APPLICATION_JSON
     ].includes(contentType.toLowerCase().replaceAll(' ', ''))) {
-        throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+        throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${knownBinaryContentType ? `<${(await fetchResponse.arrayBuffer()).byteLength} bytes>` : await fetchResponse.text()}`);
     }
     const apiResponse = await fetchResponse.json();
     if (CloudflareApi.DEBUG) console.log(apiResponse);
@@ -1247,7 +1257,7 @@ function parseTailMessage(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     const objAsAny = obj;
-    const { outcome , scriptName , eventTimestamp , diagnosticsChannelEvents  } = objAsAny;
+    const { outcome, scriptName, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[
         ...KNOWN_OUTCOMES
@@ -1266,7 +1276,7 @@ function parseTailMessage(obj) {
         };
     }
     if (!(typeof eventTimestamp === 'number' && eventTimestamp > 0)) throw new Error(`Bad eventTimestamp: expected positive number, found ${JSON.stringify(eventTimestamp)}`);
-    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : objAsAny.event && objAsAny.event.queue ? parseTailMessageQueueEvent(objAsAny.event) : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event) : parseTailMessageAlarmEvent(objAsAny.event);
+    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : objAsAny.event && objAsAny.event.queue ? parseTailMessageQueueEvent(objAsAny.event) : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event) : objAsAny.event && objAsAny.event.mailFrom ? parseTailMessageEmailEvent(objAsAny.event) : objAsAny.event && objAsAny.event.type === 'overload' ? parseTailMessageOverloadEvent(objAsAny.event) : parseTailMessageAlarmEvent(objAsAny.event);
     return {
         outcome,
         scriptName,
@@ -1303,7 +1313,7 @@ function parseTailMessageLog(obj) {
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_LOG_KEYS);
     const objAsAny = obj;
     const message = parseLogMessagePartArray(objAsAny.message, 'message');
-    const { level , timestamp  } = objAsAny;
+    const { level, timestamp } = objAsAny;
     if (!(typeof level === 'string')) throw new Error(`Bad level: expected string, found ${JSON.stringify(level)}`);
     if (!(typeof timestamp === 'number' && timestamp > 0)) throw new Error(`Bad timestamp: expected positive number, found ${JSON.stringify(timestamp)}`);
     return {
@@ -1321,7 +1331,7 @@ function parseTailMessageException(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageException: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_EXCEPTION_KEYS);
     const objAsAny = obj;
-    const { name , message , timestamp  } = objAsAny;
+    const { name, message, timestamp } = objAsAny;
     if (!(typeof name === 'string')) throw new Error(`Bad name: expected string, found ${JSON.stringify(name)}`);
     if (!(typeof message === 'string')) throw new Error(`Bad message: expected string, found ${JSON.stringify(message)}`);
     if (!(typeof timestamp === 'number' && timestamp > 0)) throw new Error(`Bad timestamp: expected positive number, found ${JSON.stringify(timestamp)}`);
@@ -1344,7 +1354,7 @@ function parseTailMessageQueueEvent(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageQueueEvent: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS);
     const objAsAny = obj;
-    const { batchSize , queue  } = objAsAny;
+    const { batchSize, queue } = objAsAny;
     if (!(typeof batchSize === 'number' && batchSize > 0)) throw new Error(`Bad batchSize: expected positive number, found ${JSON.stringify(batchSize)}`);
     if (!(typeof queue === 'string')) throw new Error(`Bad queue: expected string, found ${JSON.stringify(queue)}`);
     return {
@@ -1364,7 +1374,7 @@ function parseTailMessageAlarmEvent(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageAlarmEvent: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_ALARM_EVENT_KEYS);
     const objAsAny = obj;
-    const { scheduledTime  } = objAsAny;
+    const { scheduledTime } = objAsAny;
     if (!(typeof scheduledTime === 'string')) throw new Error(`Bad scheduledTime: expected string, found ${JSON.stringify(scheduledTime)}`);
     return {
         scheduledTime
@@ -1383,12 +1393,57 @@ function parseTailMessageCronEvent(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageCronEvent: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_CRON_EVENT_KEYS);
     const objAsAny = obj;
-    const { cron , scheduledTime  } = objAsAny;
+    const { cron, scheduledTime } = objAsAny;
     if (!(typeof cron === 'string')) throw new Error(`Bad cron: expected string, found ${JSON.stringify(cron)}`);
     if (!(typeof scheduledTime === 'number' && scheduledTime > 0)) throw new Error(`Bad scheduledTime: expected positive number, found ${JSON.stringify(scheduledTime)}`);
     return {
         cron,
         scheduledTime
+    };
+}
+const REQUIRED_TAIL_MESSAGE_EMAIL_EVENT_KEYS = new Set([
+    'rawSize',
+    'rcptTo',
+    'mailFrom'
+]);
+function isTailMessageEmailEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_EMAIL_EVENT_KEYS);
+}
+function parseTailMessageEmailEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageEmailEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_EMAIL_EVENT_KEYS);
+    const objAsAny = obj;
+    const { rawSize, rcptTo, mailFrom } = objAsAny;
+    if (!(typeof rawSize === 'number' && rawSize > 0)) throw new Error(`Bad rawSize: expected positive number, found ${JSON.stringify(rawSize)}`);
+    if (!(typeof rcptTo === 'string')) throw new Error(`Bad rcptTo: expected string, found ${JSON.stringify(rcptTo)}`);
+    if (!(typeof mailFrom === 'string')) throw new Error(`Bad mailFrom: expected string, found ${JSON.stringify(mailFrom)}`);
+    return {
+        rawSize,
+        rcptTo,
+        mailFrom
+    };
+}
+const REQUIRED_TAIL_MESSAGE_OVERLOAD_EVENT_KEYS = new Set([
+    'type',
+    'message'
+]);
+function isTailMessageOverloadEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_OVERLOAD_EVENT_KEYS) && obj.type === 'overload';
+}
+function parseTailMessageOverloadEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageOverloadEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_OVERLOAD_EVENT_KEYS);
+    const objAsAny = obj;
+    const { type, message } = objAsAny;
+    if (!(type === 'overload')) throw new Error(`Bad type: expected "overload", found ${JSON.stringify(type)}`);
+    if (!(typeof message === 'string')) throw new Error(`Bad message: expected string, found ${JSON.stringify(message)}`);
+    return {
+        type,
+        message
     };
 }
 const REQUIRED_TAIL_MESSAGE_REQUEST_EVENT_KEYS = new Set([
@@ -1422,7 +1477,7 @@ function parseTailMessageEventRequest(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageEventRequest: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_EVENT_REQUEST_KEYS, ALL_TAIL_MESSAGE_EVENT_REQUEST_KEYS);
     const objAsAny = obj;
-    const { url , method  } = objAsAny;
+    const { url, method } = objAsAny;
     if (!(typeof url === 'string')) throw new Error(`Bad url: expected string, found ${JSON.stringify(url)}`);
     if (!(typeof method === 'string')) throw new Error(`Bad method: expected string, found ${JSON.stringify(method)}`);
     const headers = parseStringRecord(objAsAny.headers, 'headers');
@@ -1442,7 +1497,7 @@ function parseTailMessageEventResponse(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageEventResponse: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_EVENT_RESPONSE_KEYS);
     const objAsAny = obj;
-    const { status  } = objAsAny;
+    const { status } = objAsAny;
     if (!(typeof status === 'number')) throw new Error(`Bad status: expected number, found ${JSON.stringify(status)}`);
     return {
         status
@@ -1481,7 +1536,7 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
     const time = formatLocalYyyyMmDdHhMmSs(new Date(message.eventTimestamp));
     const outcome = PRETTY_OUTCOMES.get(message.outcome) || message.outcome;
     const outcomeColor = message.outcome === 'ok' ? 'green' : 'red';
-    const { props , remainingLogs  } = parseLogProps(message.logs);
+    const { props, remainingLogs } = parseLogProps(message.logs);
     if (isTailMessageCronEvent(message.event)) {
         const colo = props.colo || '???';
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${message.event.cron}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
@@ -1490,10 +1545,18 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${message.event.scheduledTime}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else if (isTailMessageQueueEvent(message.event)) {
         const colo = props.colo || '???';
-        const { queue , batchSize  } = message.event;
+        const { queue, batchSize } = message.event;
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageEmailEvent(message.event)) {
+        const colo = props.colo || '???';
+        const { rawSize, mailFrom, rcptTo } = message.event;
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${mailFrom} -> ${rcptTo} ${rawSize} byte${rawSize === 1 ? '' : 's'}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageOverloadEvent(message.event)) {
+        const colo = props.colo || '???';
+        const { type, message: msg } = message.event;
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${type}: ${msg}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
-        const { method , url , cf  } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) ? {
+        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) || isTailMessageEmailEvent(message.event) || isTailMessageOverloadEvent(message.event) ? {
             method: undefined,
             url: undefined,
             cf: undefined
@@ -1501,7 +1564,7 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
         const unredactedUrl = typeof props.url === 'string' ? props.url : url;
         const colo = cf?.colo || props.colo || '???';
         if (cf === undefined) {
-            const { durableObjectClass , durableObjectName , durableObjectId  } = computeDurableObjectInfo(props);
+            const { durableObjectClass, durableObjectName, durableObjectId } = computeDurableObjectInfo(props);
             const doTemplates = [];
             const doStyles = [];
             if (durableObjectClass) {
@@ -1529,28 +1592,34 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
             logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] ${method} %c${unredactedUrl}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
         }
     }
-    for (const { data  } of additionalLogs){
+    for (const { data } of additionalLogs){
         logger(...data);
     }
-    for (const { level , message: logMessage  } of remainingLogs){
+    for (const { level, message: logMessage } of remainingLogs){
         const levelColor = LOG_LEVEL_COLORS.get(level) || 'gray';
         const logMessages = logMessage.map(formatLogMessagePart).join(', ');
         logger(` %c|%c [%c${level}%c] ${logMessages}`, 'color: gray', '', `color: ${levelColor}`, '');
     }
-    for (const { name , message: exceptionMessage  } of message.exceptions){
+    for (const { name, message: exceptionMessage } of message.exceptions){
         logger(` %c|%c [%c${name}%c] %c${exceptionMessage}`, 'color: gray', '', `color: red; font-style: bold`, '', 'color: red');
     }
     if (message.event) {
         if (isTailMessageCronEvent(message.event)) {
-            const { scheduledTime , cron  } = message.event;
+            const { scheduledTime, cron } = message.event;
             const scheduledInstant = new Date(scheduledTime).toISOString();
             logger(` %c|%c [%ccron%c] %c${cron} ${scheduledInstant}`, 'color: gray', '', `color: gray`, '', 'color: gray');
         } else if (isTailMessageAlarmEvent(message.event)) {
-            const { scheduledTime  } = message.event;
+            const { scheduledTime } = message.event;
             logger(` %c|%c [%calarm%c] %c${scheduledTime}`, 'color: gray', '', `color: gray`, '', 'color: gray');
         } else if (isTailMessageQueueEvent(message.event)) {
-            const { batchSize , queue  } = message.event;
+            const { batchSize, queue } = message.event;
             logger(` %c|%c [%cqueue%c] %c${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageEmailEvent(message.event)) {
+            const { rawSize, rcptTo, mailFrom } = message.event;
+            logger(` %c|%c [%cemail%c] %c${mailFrom} -> ${rcptTo} ${rawSize} rawSize${rawSize === 1 ? '' : 's'}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageOverloadEvent(message.event)) {
+            const { type, message: msg } = message.event;
+            logger(` %c|%c [%coverload%c] %c${type}: ${msg}`, 'color: gray', '', `color: gray`, '', 'color: gray');
         } else {
             const response = message.event.response;
             if (response) {
@@ -1705,9 +1774,9 @@ class TailConnection {
     constructor(webSocketUrl, callbacks, opts){
         this.ws = new WebSocket(webSocketUrl, 'trace-v1');
         this.callbacks = callbacks;
-        const { websocketPingIntervalSeconds  } = opts;
+        const { websocketPingIntervalSeconds } = opts;
         this.ws.addEventListener('open', (event)=>{
-            const { timeStamp  } = event;
+            const { timeStamp } = event;
             this.sendOptionsIfOpen();
             if (callbacks.onOpen) {
                 callbacks.onOpen(this, timeStamp);
@@ -1723,7 +1792,7 @@ class TailConnection {
             }
         });
         this.ws.addEventListener('close', (event)=>{
-            const { code , reason , wasClean , timeStamp  } = event;
+            const { code, reason, wasClean, timeStamp } = event;
             if (TailConnection.VERBOSE) console.log(formatLocalYyyyMmDdHhMmSs(new Date()), 'TailConnection: ws close', {
                 code,
                 reason,
@@ -1736,7 +1805,7 @@ class TailConnection {
             }
         });
         this.ws.addEventListener('error', (event)=>{
-            const { timeStamp  } = event;
+            const { timeStamp } = event;
             const errorInfo = computeErrorInfo(event);
             if (TailConnection.VERBOSE) console.log(formatLocalYyyyMmDdHhMmSs(new Date()), 'TailConnection: ws error', errorInfo);
             if (callbacks.onError) {
@@ -1744,7 +1813,7 @@ class TailConnection {
             }
         });
         this.ws.addEventListener('message', async (event)=>{
-            const { timeStamp  } = event;
+            const { timeStamp } = event;
             if (event.data instanceof Blob) {
                 const text = await event.data.text();
                 const obj = JSON.parse(text);
@@ -1779,7 +1848,7 @@ class TailConnection {
 }
 function computeErrorInfo(event) {
     if (event.type === 'error') {
-        const { message , filename , lineno , colno , error  } = event;
+        const { message, filename, lineno, colno, error } = event;
         return {
             message,
             filename,
@@ -2005,7 +2074,7 @@ class CfGqlClient {
     }
 }
 async function query(profile, queryFn, variables) {
-    const { accountId , apiToken  } = profile;
+    const { accountId, apiToken } = profile;
     const q = GraphqlQuery.create().scalar('cost').object('viewer').scalar('budget').object('accounts').argObject('filter', 'accountTag', accountId).scalar('accountTag');
     queryFn(q);
     const query = q.top().toString();
@@ -2260,7 +2329,7 @@ async function _getR2OperationsByDate(profile, operationClass, startDateInclusiv
     };
 }
 async function computeDurableObjectsCostsTable(client, opts) {
-    const { start , end  } = (()=>{
+    const { start, end } = (()=>{
         if ('lookbackDays' in opts) {
             const end = utcCurrentDate();
             const start = addDaysToDate(end, -opts.lookbackDays);
@@ -2269,7 +2338,7 @@ async function computeDurableObjectsCostsTable(client, opts) {
                 end
             };
         } else {
-            const { start , end  } = opts;
+            const { start, end } = opts;
             return {
                 start,
                 end
@@ -2290,7 +2359,7 @@ async function computeDurableObjectsCostsTable(client, opts) {
     const rowsByNamespace = {};
     const rowsByDate = {};
     for (const pRow of periodic.rows){
-        const { date , namespaceId , maxActiveWebsocketConnections , sumInboundWebsocketMsgCount , sumOutboundWebsocketMsgCount , sumSubrequests , sumActiveTime , sumStorageReadUnits , sumStorageWriteUnits , sumStorageDeletes  } = pRow;
+        const { date, namespaceId, maxActiveWebsocketConnections, sumInboundWebsocketMsgCount, sumOutboundWebsocketMsgCount, sumSubrequests, sumActiveTime, sumStorageReadUnits, sumStorageWriteUnits, sumStorageDeletes } = pRow;
         let rows = rowsByNamespace[namespaceId];
         if (!rows) {
             rows = [];
@@ -2301,10 +2370,10 @@ async function computeDurableObjectsCostsTable(client, opts) {
             dateRows = [];
             rowsByDate[date] = dateRows;
         }
-        const { sumRequests  } = invocations.rows.filter((v)=>v.date === date && v.namespaceId === namespaceId)[0] || {
+        const { sumRequests } = invocations.rows.filter((v)=>v.date === date && v.namespaceId === namespaceId)[0] || {
             sumRequests: 0
         };
-        const { requestsCost , websocketsCost , subrequestsCost , activeCost , readUnitsCost , writeUnitsCost , deletesCost , totalCost , activeGbSeconds  } = computeCosts({
+        const { requestsCost, websocketsCost, subrequestsCost, activeCost, readUnitsCost, writeUnitsCost, deletesCost, totalCost, activeGbSeconds } = computeCosts({
             sumRequests,
             sumInboundWebsocketMsgCount,
             sumSubrequests,
@@ -2352,7 +2421,7 @@ async function computeDurableObjectsCostsTable(client, opts) {
     }
     const accountRows = [];
     for (const [date, dateRows] of Object.entries(rowsByDate)){
-        const { maxStoredBytes  } = storage.rows.filter((v)=>v.date === date)[0] || {
+        const { maxStoredBytes } = storage.rows.filter((v)=>v.date === date)[0] || {
             maxStoredBytes: 0
         };
         const storageGb = maxStoredBytes / 1024 / 1024 / 1024;
@@ -2382,9 +2451,9 @@ async function computeDurableObjectsCostsTable(client, opts) {
     };
 }
 function computeCosts(input) {
-    const { sumActiveTime , sumStorageReadUnits , sumStorageWriteUnits , sumStorageDeletes , excludeFreeUsage , storageCost  } = input;
-    const { sumRequests , sumInboundWebsocketMsgCount , sumSubrequests  } = function() {
-        let { sumRequests , sumInboundWebsocketMsgCount , sumSubrequests  } = input;
+    const { sumActiveTime, sumStorageReadUnits, sumStorageWriteUnits, sumStorageDeletes, excludeFreeUsage, storageCost } = input;
+    const { sumRequests, sumInboundWebsocketMsgCount, sumSubrequests } = function() {
+        let { sumRequests, sumInboundWebsocketMsgCount, sumSubrequests } = input;
         if (excludeFreeUsage) {
             let remaining = 1000000;
             let take = Math.min(remaining, sumRequests);
@@ -2506,8 +2575,8 @@ function computeEstimated30DayRow(rows, excludeFreeUsage, opts) {
     const sum = computeTotalRow('', rows.slice(0, -1), opts);
     const days = rows.length - 1;
     const estRow = multiplyRow(sum, 30 / days);
-    const { sumRequests , sumInboundWebsocketMsgCount , sumSubrequests , sumStorageReadUnits , sumStorageWriteUnits , sumStorageDeletes , sumActiveTime , maxActiveWebsocketConnections , sumOutboundWebsocketMsgCount , storageGb , storageCost  } = estRow;
-    const { requestsCost , websocketsCost , subrequestsCost , activeCost , readUnitsCost , writeUnitsCost , deletesCost , totalCost , activeGbSeconds , newStorageCost  } = computeCosts({
+    const { sumRequests, sumInboundWebsocketMsgCount, sumSubrequests, sumStorageReadUnits, sumStorageWriteUnits, sumStorageDeletes, sumActiveTime, maxActiveWebsocketConnections, sumOutboundWebsocketMsgCount, storageGb, storageCost } = estRow;
+    const { requestsCost, websocketsCost, subrequestsCost, activeCost, readUnitsCost, writeUnitsCost, deletesCost, totalCost, activeGbSeconds, newStorageCost } = computeCosts({
         sumRequests,
         sumInboundWebsocketMsgCount,
         sumSubrequests,
@@ -2802,7 +2871,7 @@ function initHeader(document1, vm, data) {
         });
     }
     const headerVersionSpan = document1.getElementById('header-version');
-    const { version  } = data;
+    const { version } = data;
     headerVersionSpan.textContent = version ? `v${version}` : '';
     const githubLogoImg = document1.getElementById('github-logo');
     githubLogoImg.src = computeGithubLogoDataUrl();
@@ -2818,7 +2887,7 @@ const GITHUB_LOGO = `<svg width="auto" height="auto" viewBox="0 0 136 133" versi
 </g>
 </svg>`;
 function actionIcon(icon, opts = {}) {
-    const { text , onclick  } = opts;
+    const { text, onclick } = opts;
     return $1`<div class="action-icon" @click=${(e)=>{
         e.preventDefault();
         onclick && onclick();
@@ -3054,7 +3123,7 @@ class TailController {
             if (online) {
                 for (const record of this.records.values()){
                     if (record.state === 'started') {
-                        const { accountId , scriptId  } = record;
+                        const { accountId, scriptId } = record;
                         this.startTailConnection(record).catch((e)=>this.callbacks.onTailFailedToStart(accountId, scriptId, 'restart-after-coming-online', e));
                     }
                 }
@@ -3068,8 +3137,8 @@ class TailController {
     async startTailConnection(record) {
         const allowedToStart = record.state === 'starting' || record.state === 'started';
         if (!allowedToStart) return;
-        const { accountId , scriptId  } = unpackTailKey(record.tailKey);
-        const { apiToken  } = record;
+        const { accountId, scriptId } = unpackTailKey(record.tailKey);
+        const { apiToken } = record;
         if (!record.tail || Date.now() > new Date(record.tail.expires_at).getTime() - 1000 * 60 * 5) {
             const tailCreatingTime = Date.now();
             this.callbacks.onTailCreating(accountId, scriptId);
@@ -3082,7 +3151,7 @@ class TailController {
             this.callbacks.onTailCreated(accountId, scriptId, Date.now() - tailCreatingTime, tail);
         }
         if (record.state === 'inactive') return;
-        const { callbacks , websocketPingIntervalSeconds  } = this;
+        const { callbacks, websocketPingIntervalSeconds } = this;
         const dis = this;
         const openingTime = Date.now();
         const tailConnectionCallbacks = {
@@ -3659,7 +3728,7 @@ class WebtailAppVM {
         const profile = this.state.profiles[profileId];
         if (!profile) throw new Error(`Profile ${profileId} not found`);
         this._selectedProfileId = profileId;
-        const { name , accountId , apiToken  } = profile;
+        const { name, accountId, apiToken } = profile;
         this.profileForm.profileId = profileId;
         this.profileForm.showing = true;
         this.profileForm.title = 'Edit Profile';
@@ -3703,8 +3772,8 @@ class WebtailAppVM {
         this.onChange();
     }
     saveProfile() {
-        const { profileForm  } = this;
-        const { profileId  } = profileForm;
+        const { profileForm } = this;
+        const { profileId } = profileForm;
         const newProfile = {
             name: profileForm.name.trim(),
             accountId: profileForm.accountId.trim(),
@@ -3714,7 +3783,7 @@ class WebtailAppVM {
     }
     editEventFilter() {
         if (this.demoMode) return;
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Event type:';
@@ -3748,7 +3817,7 @@ class WebtailAppVM {
     }
     editStatusFilter() {
         if (this.demoMode) return;
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Status:';
@@ -3782,7 +3851,7 @@ class WebtailAppVM {
     }
     editIpAddressFilter() {
         if (this.demoMode) return;
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         const isValidIpAddress = (ipAddress)=>{
             return /^(self|[\d\.:a-f]{3,})$/.test(ipAddress);
         };
@@ -3791,7 +3860,7 @@ class WebtailAppVM {
             return ipAddress;
         };
         const parseFilterIpAddressesFromFieldValue = ()=>{
-            const { fieldValue  } = filterForm;
+            const { fieldValue } = filterForm;
             const v = (fieldValue || '').trim();
             if (v === '') return [];
             return distinct(v.split(',').map((v)=>v.trim().toLowerCase()).filter((v)=>v !== '').map(checkValidIpAddress));
@@ -3820,9 +3889,9 @@ class WebtailAppVM {
     }
     editMethodFilter() {
         if (this.demoMode) return;
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         const parseFilterMethodsFromFieldValue = ()=>{
-            const { fieldValue  } = filterForm;
+            const { fieldValue } = filterForm;
             const v = (fieldValue || '').trim();
             if (v === '') return [];
             return distinct(v.split(',').map((v)=>v.trim().toUpperCase()).filter((v)=>v !== ''));
@@ -3852,14 +3921,14 @@ class WebtailAppVM {
     editSamplingRateFilter() {
         if (this.demoMode) return;
         const parseSampleRateFromFieldValue = ()=>{
-            const { fieldValue  } = filterForm;
+            const { fieldValue } = filterForm;
             const v = (fieldValue || '').trim();
             if (v === '') return 1;
             const num = parseFloat(v);
             if (!isValidSamplingRate(num)) throw new Error(`Invalid rate: ${v}`);
             return num;
         };
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Sampling rate:';
@@ -3881,7 +3950,7 @@ class WebtailAppVM {
     }
     editSearchFilter() {
         if (this.demoMode) return;
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Search text:';
@@ -3902,9 +3971,9 @@ class WebtailAppVM {
     }
     editHeaderFilter() {
         if (this.demoMode) return;
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         const parseFilterHeadersFromFieldValue = ()=>{
-            const { fieldValue  } = filterForm;
+            const { fieldValue } = filterForm;
             const v = (fieldValue || '').trim();
             if (v === '') return [];
             return distinct(v.split(',').map((v)=>v.trim()).filter((v)=>v !== ''));
@@ -3933,9 +4002,9 @@ class WebtailAppVM {
     }
     editLogpropFilter() {
         if (this.demoMode) return;
-        const { filter , filterForm  } = this;
+        const { filter, filterForm } = this;
         const parseLogpropFiltersFromFieldValue = ()=>{
-            const { fieldValue  } = filterForm;
+            const { fieldValue } = filterForm;
             const v = (fieldValue || '').trim();
             if (v === '') return [];
             return distinct(v.split(',').map((v)=>v.trim()).filter((v)=>v !== ''));
@@ -3957,7 +4026,7 @@ class WebtailAppVM {
         this.onChange();
     }
     setLogpropFilter(logpropFilters) {
-        const { filter  } = this;
+        const { filter } = this;
         if (setEqual(new Set(filter.logprop1 || []), new Set(logpropFilters))) return;
         filter.logprop1 = logpropFilters;
         this.applyFilter({
@@ -3967,8 +4036,8 @@ class WebtailAppVM {
         this.logWithPrefix(`Logprop filter changed to: ${text}`);
     }
     hasAnyFilters() {
-        const { filter  } = this;
-        const { event1  } = filter;
+        const { filter } = this;
+        const { event1 } = filter;
         return computeTailOptionsForFilter(filter).filters.length > 0 || typeof event1 === 'string' && event1 !== '' && event1 !== 'all';
     }
     resetFilters() {
@@ -3987,7 +4056,7 @@ class WebtailAppVM {
     }
     saveFilter() {
         console.log('saveFilter');
-        const { filterForm  } = this;
+        const { filterForm } = this;
         filterForm.enabled = false;
         filterForm.outputMessage = 'Checking filter...';
         this.onChange();
@@ -4009,7 +4078,7 @@ class WebtailAppVM {
     }
     editSelectionFields() {
         if (this.demoMode) return;
-        const { filterForm  } = this;
+        const { filterForm } = this;
         filterForm.showing = true;
         filterForm.enabled = true;
         filterForm.fieldName = 'Additional fields:';
@@ -4071,7 +4140,7 @@ class WebtailAppVM {
         if (this.selectedProfileId === undefined) return;
         const profile = this.state.profiles[this.selectedProfileId];
         if (profile === undefined) return;
-        const { accountId , apiToken  } = profile;
+        const { accountId, apiToken } = profile;
         this._selectedAnalyticId = analyticId;
         this.analyticsState.querying = true;
         this.analyticsState.durableObjectsCosts = undefined;
@@ -4098,7 +4167,7 @@ class WebtailAppVM {
         }
     }
     applyFilter(opts) {
-        const { save  } = opts;
+        const { save } = opts;
         this.state.filter = this.filter;
         this.state.extraFields = this.extraFields;
         if (save) saveState(this.state);
@@ -4131,7 +4200,7 @@ class WebtailAppVM {
         }
     }
     async trySaveProfile(profileId, profile) {
-        const { profileForm  } = this;
+        const { profileForm } = this;
         profileForm.enabled = false;
         profileForm.progressVisible = true;
         profileForm.outputMessage = 'Checking profile...';
@@ -4158,7 +4227,7 @@ class WebtailAppVM {
         }
     }
     reloadProfiles() {
-        const { state  } = this;
+        const { state } = this;
         this._profiles.splice(0);
         for (const [profileId, profile] of Object.entries(state.profiles)){
             const name = profile.name || '(unnamed)';
@@ -4173,7 +4242,7 @@ class WebtailAppVM {
             if (this.selectedProfileId === undefined) return;
             const profile = this.state.profiles[this.selectedProfileId];
             if (profile === undefined) return;
-            const { accountId , apiToken  } = profile;
+            const { accountId, apiToken } = profile;
             this.verboseWithPrefix(`Finding scripts for ${profile.name.toUpperCase()}...`);
             const start = Date.now();
             const scripts = await listScripts({
@@ -4226,7 +4295,7 @@ class WebtailAppVM {
         if (this.selectedProfileId === undefined) return;
         const profile = this.state.profiles[this.selectedProfileId];
         if (profile === undefined) return;
-        const { accountId , apiToken  } = profile;
+        const { accountId, apiToken } = profile;
         try {
             await this.tailController.setTails(accountId, apiToken, this._selectedScriptIds);
         } catch (e) {
@@ -4239,7 +4308,7 @@ class WebtailAppVM {
         const includeUserAgent = this.extraFields.includes('user-agent');
         const includeReferer = this.extraFields.includes('referer');
         if (includeIpAddress || includeUserAgent || includeReferer) {
-            if (message.event !== null && !isTailMessageCronEvent(message.event) && !isTailMessageAlarmEvent(message.event) && !isTailMessageQueueEvent(message.event)) {
+            if (message.event !== null && !isTailMessageCronEvent(message.event) && !isTailMessageAlarmEvent(message.event) && !isTailMessageQueueEvent(message.event) && !isTailMessageEmailEvent(message.event) && !isTailMessageOverloadEvent(message.event)) {
                 if (includeIpAddress) {
                     const ipAddress = message.event.request.headers['cf-connecting-ip'] || undefined;
                     if (ipAddress) rt.push(computeAdditionalLogForExtraField('IP address', ipAddress));
@@ -4364,7 +4433,7 @@ function loadState() {
 }
 function parseState(parsed) {
     if (typeof parsed !== 'object') throw new Error(`Expected object`);
-    const { profiles  } = parsed;
+    const { profiles } = parsed;
     if (typeof profiles !== 'object') throw new Error(`Expected profiles object`);
     for (const [profileId, profileState] of Object.entries(profiles)){
         if (typeof profileId !== 'string') throw new Error('Profile id must be string');
@@ -4374,7 +4443,7 @@ function parseState(parsed) {
 }
 function parseProfileState(parsed) {
     if (typeof parsed !== 'object' || parsed === null) throw new Error('Profile state must be object');
-    const { name , accountId , apiToken  } = parsed;
+    const { name, accountId, apiToken } = parsed;
     if (typeof name !== 'string' || name.trim().length === 0) throw new Error(`Profile state name must exist`);
     if (typeof accountId !== 'string' || accountId.trim().length === 0) throw new Error(`Profile state accountId must exist`);
     if (typeof apiToken !== 'string' || apiToken.trim().length === 0) throw new Error(`Profile state apiToken must exist`);
@@ -4464,7 +4533,7 @@ function computeMessagePassesFilter(message, filter) {
 function computeMessagePassesLogPropFilter(message, logprop1) {
     if (logprop1 === undefined || logprop1.length === 0) return true;
     const logpropFilters = logprop1.map(parseHeaderFilter);
-    const { props  } = parseLogProps(message.logs);
+    const { props } = parseLogProps(message.logs);
     for (const logpropFilter of logpropFilters){
         if (computePropsPassLogpropFilter(props, logpropFilter)) return true;
     }
@@ -5192,7 +5261,7 @@ function initConsole(document1, vm) {
             }
         }
         consoleDiv.insertBefore(lineElement, consoleLastLineElement);
-        const { scrollHeight , scrollTop , clientHeight  } = consoleDiv;
+        const { scrollHeight, scrollTop, clientHeight } = consoleDiv;
         const diff = scrollHeight - scrollTop;
         const autoscroll = diff - 16 * 4 <= clientHeight;
         if (autoscroll) {
@@ -5269,11 +5338,11 @@ const FILTERS_HTML = (vm)=>{
     }}>reset</a>)` : ''}`;
 };
 function computeEventFilterText(filter) {
-    const { event1  } = filter;
+    const { event1 } = filter;
     return event1 === 'cron' ? 'CRON trigger events' : event1 === 'http' ? 'HTTP request events' : 'all events';
 }
 function computeStatusFilterText(filter) {
-    const { status1  } = filter;
+    const { status1 } = filter;
     return status1 === 'error' ? 'error status' : status1 === 'success' ? 'success status' : 'any status';
 }
 function computeIpAddressFilterText(filter) {
@@ -5289,7 +5358,7 @@ function computeSamplingRateFilterText(filter) {
     return samplingRate1 >= 1 ? 'no sampling' : `${(Math.max(0, samplingRate1) * 100).toFixed(2)}% sampling rate`;
 }
 function computeSearchFilterText(filter) {
-    const { search1  } = filter;
+    const { search1 } = filter;
     return typeof search1 === 'string' && search1.length > 0 ? `console logs containing "${search1}"` : 'no search filter';
 }
 function computeHeaderFilterText(filter) {
@@ -5449,7 +5518,7 @@ function initAnalytics(document1, vm) {
         if (!selectedAnalytic) return;
         analyticsHeading.textContent = selectedAnalytic.text;
         analyticsSubheading.textContent = selectedAnalytic.description || '';
-        const { durableObjectsCosts , querying , error  } = vm.analyticsState;
+        const { durableObjectsCosts, querying, error } = vm.analyticsState;
         analyticsQueryingElement.style.display = querying ? 'flex' : 'none';
         analyticsErrorElement.textContent = error || '';
         analyticsFootnoteElement.style.display = durableObjectsCosts ? 'block' : 'none';

@@ -1,6 +1,6 @@
 import { createTail, sendTailHeartbeat } from '../common/cloudflare_api.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage } from '../common/tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage, isTailMessageEmailEvent, isTailMessageOverloadEvent } from '../common/tail.ts';
 import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { denoflareCliCommand } from './cli_common.ts';
@@ -118,6 +118,12 @@ function dumpMessageCompact(message: TailMessage) {
     } else if (isTailMessageQueueEvent(message.event)) {
         const { batchSize, queue } = message.event;
         console.log(` queue: ${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`);
+    } else if (isTailMessageEmailEvent(message.event)) {
+        const { rawSize, rcptTo, mailFrom } = message.event;
+        console.log(` email: ${mailFrom} -> ${rcptTo} ${rawSize} byte${rawSize === 1 ? '' : 's'}`);
+    } else if (isTailMessageOverloadEvent(message.event)) {
+        const { type, message: msg } = message.event;
+        console.log(` overload: ${type}: ${msg}`);
     } else {
         console.log(`  req: ${time} ${message.event.request.method} ${message.event.request.url}`);
         const userAgent = message.event.request.headers['user-agent'];

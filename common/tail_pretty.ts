@@ -1,4 +1,4 @@
-import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageEmailEvent, isTailMessageOverloadEvent, isTailMessageQueueEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
 
 export interface AdditionalLog {
     // deno-lint-ignore no-explicit-any
@@ -21,8 +21,16 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
         const colo = props.colo || '???';
         const { queue, batchSize } = message.event;
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageEmailEvent(message.event)) {
+        const colo = props.colo || '???';
+        const { rawSize, mailFrom, rcptTo } = message.event;
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${mailFrom} -> ${rcptTo} ${rawSize} byte${rawSize === 1 ? '' : 's'}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageOverloadEvent(message.event)) {
+        const colo = props.colo || '???';
+        const { type, message: msg } = message.event;
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${type}: ${msg}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
-        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) ? { method: undefined, url: undefined, cf: undefined } : message.event.request;
+        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) || isTailMessageEmailEvent(message.event) || isTailMessageOverloadEvent(message.event) ? { method: undefined, url: undefined, cf: undefined } : message.event.request;
         const unredactedUrl = typeof props.url === 'string' ? props.url : url;
         const colo = cf?.colo || props.colo || '???';
         if (cf === undefined) {
@@ -81,6 +89,12 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
         } else if (isTailMessageQueueEvent(message.event)) {
             const { batchSize, queue } = message.event;
             logger(` %c|%c [%cqueue%c] %c${queue} ${batchSize} message${batchSize === 1 ? '' : 's'}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageEmailEvent(message.event)) {
+            const { rawSize, rcptTo, mailFrom } = message.event;
+            logger(` %c|%c [%cemail%c] %c${mailFrom} -> ${rcptTo} ${rawSize} rawSize${rawSize === 1 ? '' : 's'}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageOverloadEvent(message.event)) {
+            const { type, message: msg } = message.event;
+            logger(` %c|%c [%coverload%c] %c${type}: ${msg}`, 'color: gray', '', `color: gray`, '', 'color: gray');
         } else {
             const response = message.event.response;
             if (response) {

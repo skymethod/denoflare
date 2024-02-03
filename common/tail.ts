@@ -54,7 +54,7 @@ export interface TailMessage {
     readonly diagnosticsChannelEvents?: unknown[];
 }
 
-export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent;
+export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent | TailMessageEmailEvent | TailMessageOverloadEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
 const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents']);
@@ -80,6 +80,8 @@ export function parseTailMessage(obj: unknown): TailMessage {
     const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event)
         : objAsAny.event && objAsAny.event.queue ? parseTailMessageQueueEvent(objAsAny.event)
         : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event)
+        : objAsAny.event && objAsAny.event.mailFrom ? parseTailMessageEmailEvent(objAsAny.event)
+        : objAsAny.event && objAsAny.event.type === 'overload' ? parseTailMessageOverloadEvent(objAsAny.event)
         : parseTailMessageAlarmEvent(objAsAny.event);
 
     return { outcome, scriptName, exceptions, logs, eventTimestamp, event, diagnosticsChannelEvents };
@@ -222,6 +224,57 @@ function parseTailMessageCronEvent(obj: unknown): TailMessageCronEvent {
     if (!(typeof cron === 'string')) throw new Error(`Bad cron: expected string, found ${JSON.stringify(cron)}`);
     if (!(typeof scheduledTime === 'number' && scheduledTime > 0)) throw new Error(`Bad scheduledTime: expected positive number, found ${JSON.stringify(scheduledTime)}`);
     return { cron, scheduledTime };
+}
+
+export interface TailMessageEmailEvent {
+    readonly rawSize: number; // e.g. 5985
+    readonly rcptTo: string; // e.g. receiver@yourcfdomain.com
+    readonly mailFrom: string; // e.g. sender@example.com
+}
+
+const REQUIRED_TAIL_MESSAGE_EMAIL_EVENT_KEYS = new Set(['rawSize', 'rcptTo', 'mailFrom']);
+
+export function isTailMessageEmailEvent(obj: unknown): obj is TailMessageEmailEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_EMAIL_EVENT_KEYS);
+}
+
+function parseTailMessageEmailEvent(obj: unknown): TailMessageEmailEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageEmailEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_EMAIL_EVENT_KEYS);
+    // deno-lint-ignore no-explicit-any
+    const objAsAny = obj as any;
+    const { rawSize, rcptTo, mailFrom } = objAsAny;
+    if (!(typeof rawSize === 'number' && rawSize > 0)) throw new Error(`Bad rawSize: expected positive number, found ${JSON.stringify(rawSize)}`);
+    if (!(typeof rcptTo === 'string')) throw new Error(`Bad rcptTo: expected string, found ${JSON.stringify(rcptTo)}`);
+    if (!(typeof mailFrom === 'string')) throw new Error(`Bad mailFrom: expected string, found ${JSON.stringify(mailFrom)}`);
+    return { rawSize, rcptTo, mailFrom };
+}
+
+export interface TailMessageOverloadEvent {
+    readonly type: string; // "overload"
+    readonly message: string; // e.g. Tail is currently in sampling mode due to the high volume of messages. To prevent messages from ...
+}
+
+const REQUIRED_TAIL_MESSAGE_OVERLOAD_EVENT_KEYS = new Set(['type', 'message']);
+
+export function isTailMessageOverloadEvent(obj: unknown): obj is TailMessageOverloadEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    // deno-lint-ignore no-explicit-any
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_OVERLOAD_EVENT_KEYS) && (obj as any).type === 'overload';
+}
+
+function parseTailMessageOverloadEvent(obj: unknown): TailMessageOverloadEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageOverloadEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_OVERLOAD_EVENT_KEYS);
+    // deno-lint-ignore no-explicit-any
+    const objAsAny = obj as any;
+    const { type, message } = objAsAny;
+    if (!(type === 'overload')) throw new Error(`Bad type: expected "overload", found ${JSON.stringify(type)}`);
+    if (!(typeof message === 'string')) throw new Error(`Bad message: expected string, found ${JSON.stringify(message)}`);
+    return { type, message };
 }
 
 //
