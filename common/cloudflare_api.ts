@@ -83,9 +83,62 @@ export interface ScriptSettings {
     readonly bindings: WorkerBinding[];
 }
 
-export async function putScript(opts: { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', logpush?: boolean, compatibilityDate?: string, compatibilityFlags?: string[] }): Promise<Script> {
-    const { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags } = opts;
+export type PutScriptOpts = { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', logpush?: boolean, compatibilityDate?: string, compatibilityFlags?: string[] };
+
+export async function putScript(opts: PutScriptOpts): Promise<Script> {
+    const { accountId, scriptName, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}`;
+    const formData = computeUploadForm(opts);
+    return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
+}
+
+export async function putScriptVersion(opts: PutScriptOpts & { messageAnnotation?: string, tagAnnotation?: string, triggeredByAnnotation?: string }): Promise<ScriptVersion> {
+    const { accountId, scriptName, apiToken, messageAnnotation, tagAnnotation, triggeredByAnnotation } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/versions`;
+    const formData = computeUploadForm(opts);
+    const annotations: Record<string, string> = {
+        ...(messageAnnotation ? { 'workers/message': messageAnnotation } : {}),
+        ...(tagAnnotation ? { 'workers/tag': tagAnnotation } : {}),
+        ...(triggeredByAnnotation ? { 'workers/triggered_by': triggeredByAnnotation } : {}),
+    };
+    if (Object.keys(annotations).length > 0) {
+        formData.set('annotations', JSON.stringify(annotations));
+    }
+    console.log(formData.get('annotations'));
+    return (await execute<ScriptVersion>('putScriptVersion', 'POST', url, apiToken, formData)).result;
+}
+
+export interface ScriptVersion {
+    readonly id: string; // e.g. 5ddf5f19-6a2f-4a9b-8f14-633549792386
+    readonly number: number; // e.g. 4
+    readonly metadata: ScriptVersionMetadata;
+    readonly annotations: Record<string, unknown>; // e.g. {}
+    readonly resources: ScriptVersionResources;
+}
+
+export interface ScriptVersionMetadata {
+    readonly created_on: string;
+    readonly modified_on: string;
+    readonly source: string; // e.g. api
+    readonly author_id: string;
+    readonly author_email: string;
+}
+
+export interface ScriptVersionResources {
+    readonly script: ScriptVersionResourcesScript,
+    readonly script_runtime: { readonly usage_model: string };
+    readonly bindings: readonly WorkerBinding[];
+}
+
+export interface ScriptVersionResourcesScript {
+    readonly etag: string;
+    readonly handlers: readonly string[]; // e.g. [ "fetch" ]
+    readonly last_deployed_from: string; // e.g. api
+}
+
+function computeUploadForm(opts: PutScriptOpts): FormData {
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags } = opts;
+
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
         bindings, 
@@ -120,7 +173,20 @@ export async function putScript(opts: { accountId: string, scriptName: string, a
             formData.set(name, value, fileName);
         }
     }
-    return (await execute<Script>('putScript', 'PUT', url, apiToken, formData)).result;
+    return formData;
+}
+
+export async function updateScriptVersionAllocation(opts: { accountId: string, apiToken: string, scriptName: string, percentages: Record<string /* version id */, number /* e.g. 100 */>}): Promise<ScriptVersionAllocationResult> {
+    const { accountId, scriptName, apiToken, percentages } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/deployments`;
+
+    const versions: WorkerVersionAllocation[] = Object.entries(percentages).map(v => ({ version_id: v[0], percentage: v[1] }));
+    const body = { versions };
+    return (await execute<ScriptVersionAllocationResult>('updateScriptVersionAllocation', 'POST', url, apiToken, body)).result;
+}
+
+export interface ScriptVersionAllocationResult {
+    readonly id: string; // versioned-deployment id
 }
 
 export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding;
@@ -244,11 +310,14 @@ export interface Script {
     readonly tag: string;
     readonly etag: string;
     readonly handlers: readonly string[];
-    readonly 'named_handlers'?: readonly NamedHandler[];
-    readonly 'modified_on': string;
-    readonly 'created_on': string;
-    readonly 'usage_model': string;
-    readonly 'last_deployed_from': string;
+    readonly named_handlers?: readonly NamedHandler[];
+    readonly modified_on: string;
+    readonly created_on: string;
+    readonly usage_model: string;
+    readonly last_deployed_from: string;
+    readonly logpush?: boolean;
+    readonly deployment_id?: string;
+    readonly tags?: readonly string[]
 }
 
 export interface NamedHandler {
@@ -316,7 +385,7 @@ export interface WorkerVersionedDeployment {
     readonly source: string; // e.g. api
     readonly strategy: string; // e.g. percentage
     readonly author_email: string; // e.g. user@example.com
-    readonly annotations: Record<string, string>; // e.g. "workers/message": "Automatic deployment on upload.", "workers/triggered_by": "upload"
+    readonly annotations: null | Record<string, string>; // e.g. "workers/message": "Automatic deployment on upload.", "workers/triggered_by": "upload"
     readonly versions: WorkerVersionAllocation[];
     readonly created_on: string; // e.g. 2024-02-01T00:23:30.650801Z
 }

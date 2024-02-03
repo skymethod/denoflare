@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -21,6 +21,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('compatibilityDate', 'string', 'Specific compatibility environment for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/')
     .option('compatibilityFlag', 'strings', 'Specific compatibility flags for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags')
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
+    .option('versionTag', 'string', 'If set, push a new version with this tag')
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
@@ -31,7 +32,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (PUSH_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, compatibilityDate: compatibilityDateOpt, compatibilityFlag: compatibilityFlagOpt, deleteClass: deleteClassOpt, watch, watchInclude } = opt;
+    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, compatibilityDate: compatibilityDateOpt, compatibilityFlag: compatibilityFlagOpt, deleteClass: deleteClassOpt, watch, watchInclude, versionTag } = opt;
 
     if (verbose) {
         // in cli
@@ -87,7 +88,13 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        await putScript({ accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags });
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags };
+        if (typeof versionTag === 'string') {
+            await putScriptVersion({ ...putScriptOpts, tagAnnotation: versionTag });
+        } else {
+            await putScript(putScriptOpts);
+        }
+        
         console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
        
         if (doNamespaces.hasPendingUpdates()) {

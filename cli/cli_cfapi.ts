@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSpeechRecognitionInput, AiTextToImageInput, listWorkerVersionedDeployments } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSpeechRecognitionInput, AiTextToImageInput, listWorkerVersionedDeployments, updateScriptVersionAllocation } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -434,6 +434,33 @@ function cfapiCommand() {
     add(apiCommand('list-worker-versioned-deployments', '').arg('script', 'string', 'Script name'), async (accountId, apiToken, opts) => {
         const { script: scriptName } = opts;
         const result = await listWorkerVersionedDeployments({ accountId, apiToken, scriptName });
+        console.log(JSON.stringify(result, undefined, 2));
+    });
+
+    add(apiCommand('update-worker-version-allocation', '').arg('script', 'string', 'Script name').arg('allocations', 'strings', 'version-id:pct'), async (accountId, apiToken, opts) => {
+        const { script: scriptName, allocations } = opts;
+        const percentages: Record<string, number> = (() => {
+            if (allocations.length === 0) throw new Error(`Provide version, or version:pct pairs`);
+            let remainderVersion: string | undefined;
+            const rt: Record<string, number> = {};
+            for (const allocation of allocations) {
+                const [ _, version, __, pctStr ] = checkMatchesReturnMatcher('allocation', allocation, /^([0-9a-f-]+)(:(\d+(\.\d+)?))?$/);
+                if (pctStr === undefined) {
+                    if (remainderVersion) throw new Error(`Can only provide one remainder version (a version without a percentage)`);
+                    remainderVersion = version;
+                } else {
+                    rt[version] = parseFloat(pctStr);
+                }
+            }
+            const sum = Object.values(rt).reduce((a, b) => a + b);
+            if (sum > 100) throw new Error('Allocations cannot exceed 100%');
+
+            if (remainderVersion) {
+                rt[remainderVersion] = 100 - sum;
+            }
+            return rt;
+        })();
+        const result = await updateScriptVersionAllocation({ accountId, apiToken, scriptName, percentages });
         console.log(JSON.stringify(result, undefined, 2));
     });
 
