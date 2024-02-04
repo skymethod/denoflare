@@ -493,7 +493,7 @@ export default {
     scheduled(event: ModuleWorkerScheduledEvent, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
     alarm(): Promise<void>;
     queue(batch: QueueMessageBatch, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
-    email(message: EmailMessage, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
+    email(message: IncomingEmailMessage, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
 };
 */
 
@@ -1467,6 +1467,9 @@ export interface EmailMessage {
 
     /** Envelope To attribute of the email message. */
     readonly to: string;
+}
+
+export interface IncomingEmailMessage extends EmailMessage {
 
     /** Email headers */
     readonly headers: Headers;
@@ -1495,6 +1498,10 @@ export interface EmailMessage {
 
 export interface EmailMessageConstructable {
     new(from: string, to: string, raw: ReadableStream | string): EmailMessage;
+}
+
+export interface EmailSender {
+    send(message: EmailMessage): Promise<void>;
 }
 
 //#endregion

@@ -115,7 +115,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -233,6 +233,13 @@ export interface VersionMetadataBinding {
     readonly versionMetadata: string;
 }
 
+/** Send Email environment variable binding */
+export interface SendEmailBinding {
+
+    /** Comma-separated allowed email addresses, or blank/"unrestricted" for no restrictions. */
+    readonly sendEmailDestinationAddresses: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -331,3 +338,9 @@ export function isVersionMetadataBinding(binding: Binding): binding is VersionMe
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).versionMetadata === 'string';
 }
+
+export function isSendEmailBinding(binding: Binding): binding is SendEmailBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).sendEmailDestinationAddresses === 'string';
+}
+

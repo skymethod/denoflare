@@ -195,6 +195,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Send Email environment variable binding",
+                                            "required": [ "sendEmailDestinationAddresses" ],
+                                            "properties": {
+                                                "sendEmailDestinationAddresses": {
+                                                    "description": "Comma-separated allowed email addresses, or blank/\"unrestricted\" for no restrictions.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

@@ -189,7 +189,7 @@ export interface ScriptVersionAllocationResult {
     readonly id: string; // versioned-deployment id
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -280,6 +280,13 @@ export interface HyperdriveBinding {
 export interface VersionMetadataBinding {
     readonly type: 'version_metadata';
     readonly name: string;
+}
+
+export interface SendEmailBinding {
+    readonly type: 'send_email';
+    readonly name: string;
+    readonly destination_address?: string;
+    readonly allowed_destination_addresses?: string[];
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least
