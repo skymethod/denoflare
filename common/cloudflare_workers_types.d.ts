@@ -1051,6 +1051,53 @@ export interface DurableObjectState {
      * 
      * For example, this can be used to perform start-up initialization in an object’s constructor. */
     blockConcurrencyWhile<T>(fn: () => Promise<T>): Promise<T>;
+
+    /** Adds a WebSocket to the set attached to this Durable Object. */
+    acceptWebSocket(ws: WebSocket, tags?: string[]): void;
+
+    /** Gets an array of accepted WebSockets matching the given tag. */
+    getWebSockets(tag?: string): WebSocket[];
+
+    /** Sets an application level auto response that does not wake hibernated WebSockets */
+    setWebSocketAutoResponse(maybeReqResp?: WebSocketRequestResponsePair): void;
+
+    /** Gets the WebSocketRequestResponsePair(request, response) currently set, or null if there is none. */
+    getWebSocketAutoResponse(): WebSocketRequestResponsePair | null;
+
+    /** Gets the most recent Date when the WebSocket received an auto-response request, or null if the given WebSocket never received an auto-response request. */
+    getWebSocketAutoResponseTimestamp(ws: WebSocket): Date | null;
+
+    /** Sets or unsets the timeout for hibernatable websocket events, preventing the execution of the event from taking longer than the specified timeout, if set.
+     * 
+     * https://github.com/cloudflare/workerd/blob/3c85053b83a5200dffc5be5ae26cbe7577cd5ea5/src/workerd/api/actor-state.h#L468
+     */
+    setHibernatableWebSocketEventTimeout(timeoutMs?: number): void;
+
+    /** Get the currently set hibernatable websocket event timeout if set. */
+    getHibernatableWebSocketEventTimeout(): number | null;
+
+    /** Gets an array of tags that this websocket was accepted with. If the given websocket is not hibernatable, we'll throw an error because regular websockets do not have tags. */
+    getTags(ws: WebSocket): string[];
+}
+
+declare class WebSocketRequestResponsePair {
+    constructor(request: string, response: string);
+    get request(): string;
+    get response(): string;
+}
+
+// https://developers.cloudflare.com/durable-objects/api/websockets/#handler-methods
+export interface DurableObjectHibernatableWebSocketsHandlers {
+    /** Called by the system when an accepted WebSocket receives a message.
+     * 
+     * This method is not called for WebSocket control frames. The system will respond to an incoming WebSocket protocol ping automatically without interrupting hibernation. */
+    webSocketMessage?(ws: WebSocket, message: string | ArrayBuffer): void | Promise<void>;
+
+    /** Called by the system when a WebSocket is closed. wasClean() is true if the connection closed cleanly, false otherwise. */
+    webSocketClose?(ws: WebSocket, code: number, reason: string, wasClean: boolean): void | Promise<void>;
+
+    /** Called by the system when any non-disconnection related errors occur. */
+    webSocketError?(ws: WebSocket, error: unknown): void | Promise<void>;
 }
 
 //#endregion
@@ -1065,6 +1112,19 @@ export interface CloudflareWebSocketExtensions {
      * */
     accept(): void;
 
+
+    /** Keeps a copy of value in memory (not on disk) to survive hibernation. The value can be any type supported by the structured clone algorithm, which is true of most types.
+     * 
+     * If you modify value after calling this method, those changes will not be retained unless you call this method again.
+     * The serialized size of value is limited to 2,048 bytes, otherwise this method will throw an error.
+     * If you need larger values to survive hibernation, use the Transactional Storage API and pass the corresponding key to this method so it can be retrieved later. */
+    // deno-lint-ignore no-explicit-any
+    serializeAttachment(attachment: any): void;
+
+    /** Retrieves the most recent value passed to serializeAttachment(), or null if none exists. */
+    // deno-lint-ignore no-explicit-any
+    deserializeAttachment(): any | null;
+    
     /**
      * Cloudflare-specific behavior:
      * 

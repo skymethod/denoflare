@@ -1,4 +1,4 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage } from './cloudflare_workers_types.d.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage, WebSocketRequestResponsePair } from './cloudflare_workers_types.d.ts';
 import { Bytes } from './bytes.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 import { consoleWarn } from './console.ts';
@@ -225,6 +225,38 @@ class LocalDurableObjectState implements DurableObjectState {
 
     blockConcurrencyWhile<T>(fn: () => Promise<T>): Promise<T> {
         return this.mutex.dispatch(fn);
+    }
+
+    acceptWebSocket(ws: WebSocket, tags?: string[]): void {
+        throw new Error(`acceptWebSocket(${JSON.stringify({ ws, tags })})`);
+    }
+
+    getWebSockets(tag?: string): WebSocket[] {
+        throw new Error(`getWebSockets(${JSON.stringify({ tag })})`);
+    }
+
+    setWebSocketAutoResponse(maybeReqResp?: WebSocketRequestResponsePair): void {
+        throw new Error(`setWebSocketAutoResponse(${JSON.stringify({ maybeReqResp })})`);
+    }
+
+    getWebSocketAutoResponse(): WebSocketRequestResponsePair | null {
+        throw new Error(`getWebSocketAutoResponse()`);
+    }
+
+    getWebSocketAutoResponseTimestamp(ws: WebSocket): Date | null {
+        throw new Error(`getWebSocketAutoResponseTimestamp(${JSON.stringify({ ws })})`);
+    }
+
+    setHibernatableWebSocketEventTimeout(timeoutMs?: number): void {
+        throw new Error(`setHibernatableWebSocketEventTimeout(${JSON.stringify({ timeoutMs })})`);
+    }
+
+    getHibernatableWebSocketEventTimeout(): number | null {
+        throw new Error(`getHibernatableWebSocketEventTimeout()`);
+    }
+
+    getTags(ws: WebSocket): string[] {
+        throw new Error(`getTags(${JSON.stringify({ ws })})`);
     }
 
 }
