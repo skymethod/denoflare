@@ -1,4 +1,4 @@
-import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageEmailEvent, isTailMessageOverloadEvent, isTailMessageQueueEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageEmailEvent, isTailMessageGetWebSocketEvent, isTailMessageOverloadEvent, isTailMessageQueueEvent, LogMessagePart, Outcome, TailMessage, TailMessageLog } from './tail.ts';
 
 export interface AdditionalLog {
     // deno-lint-ignore no-explicit-any
@@ -29,8 +29,12 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
         const colo = props.colo || '???';
         const { type, message: msg } = message.event;
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${type}: ${msg}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageGetWebSocketEvent(message.event)) {
+        const colo = props.colo || '???';
+        const { getWebSocketEvent } = message.event;
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${JSON.stringify(getWebSocketEvent)}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
-        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) || isTailMessageEmailEvent(message.event) || isTailMessageOverloadEvent(message.event) ? { method: undefined, url: undefined, cf: undefined } : message.event.request;
+        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) || isTailMessageEmailEvent(message.event) || isTailMessageOverloadEvent(message.event) || isTailMessageGetWebSocketEvent(message.event) ? { method: undefined, url: undefined, cf: undefined } : message.event.request;
         const unredactedUrl = typeof props.url === 'string' ? props.url : url;
         const colo = cf?.colo || props.colo || '???';
         if (cf === undefined) {
@@ -95,6 +99,9 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
         } else if (isTailMessageOverloadEvent(message.event)) {
             const { type, message: msg } = message.event;
             logger(` %c|%c [%coverload%c] %c${type}: ${msg}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageGetWebSocketEvent(message.event)) {
+            const { getWebSocketEvent } = message.event;
+            logger(` %c|%c [%cwebsocket%c] %c${JSON.stringify(getWebSocketEvent)}`, 'color: gray', '', `color: gray`, '', 'color: gray');
         } else {
             const response = message.event.response;
             if (response) {

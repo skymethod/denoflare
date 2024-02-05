@@ -1,6 +1,6 @@
 import { createTail, sendTailHeartbeat } from '../common/cloudflare_api.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage, isTailMessageEmailEvent, isTailMessageOverloadEvent } from '../common/tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage, isTailMessageEmailEvent, isTailMessageOverloadEvent, isTailMessageGetWebSocketEvent } from '../common/tail.ts';
 import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { denoflareCliCommand } from './cli_common.ts';
@@ -124,6 +124,9 @@ function dumpMessageCompact(message: TailMessage) {
     } else if (isTailMessageOverloadEvent(message.event)) {
         const { type, message: msg } = message.event;
         console.log(` overload: ${type}: ${msg}`);
+    } else if (isTailMessageGetWebSocketEvent(message.event)) {
+        const { getWebSocketEvent } = message.event;
+        console.log(` getWebSocketEvent: ${JSON.stringify(getWebSocketEvent)}`);
     } else {
         console.log(`  req: ${time} ${message.event.request.method} ${message.event.request.url}`);
         const userAgent = message.event.request.headers['user-agent'];

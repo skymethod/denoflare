@@ -1,3 +1,4 @@
+import { isStringRecord } from './check.ts';
 import { IncomingRequestCfProperties } from './cloudflare_workers_types.d.ts';
 import { setEqual, setSubtract, setUnion } from './sets.ts';
 
@@ -54,7 +55,7 @@ export interface TailMessage {
     readonly diagnosticsChannelEvents?: unknown[];
 }
 
-export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent | TailMessageEmailEvent | TailMessageOverloadEvent;
+export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent | TailMessageEmailEvent | TailMessageOverloadEvent | TailMessageGetWebSocketEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
 const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents']);
@@ -62,6 +63,7 @@ const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnost
 const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'unknown']);
 
 export function parseTailMessage(obj: unknown): TailMessage {
+   
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     // deno-lint-ignore no-explicit-any
@@ -82,6 +84,7 @@ export function parseTailMessage(obj: unknown): TailMessage {
         : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event)
         : objAsAny.event && objAsAny.event.mailFrom ? parseTailMessageEmailEvent(objAsAny.event)
         : objAsAny.event && objAsAny.event.type === 'overload' ? parseTailMessageOverloadEvent(objAsAny.event)
+        : objAsAny.event && objAsAny.event.getWebSocketEvent ? parseTailMessageGetWebSocketEvent(objAsAny.event)
         : parseTailMessageAlarmEvent(objAsAny.event);
 
     return { outcome, scriptName, exceptions, logs, eventTimestamp, event, diagnosticsChannelEvents };
@@ -275,6 +278,28 @@ function parseTailMessageOverloadEvent(obj: unknown): TailMessageOverloadEvent {
     if (!(type === 'overload')) throw new Error(`Bad type: expected "overload", found ${JSON.stringify(type)}`);
     if (!(typeof message === 'string')) throw new Error(`Bad message: expected string, found ${JSON.stringify(message)}`);
     return { type, message };
+}
+
+export interface TailMessageGetWebSocketEvent {
+    readonly getWebSocketEvent: Record<string, unknown>; // e.g. { wasClean: false, code: 1006, webSocketEventType: "close" }, {"webSocketEventType":"message"}
+}
+
+const REQUIRED_TAIL_MESSAGE_GET_WEB_SOCKET_EVENT_KEYS = new Set(['getWebSocketEvent']);
+
+export function isTailMessageGetWebSocketEvent(obj: unknown): obj is TailMessageGetWebSocketEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_GET_WEB_SOCKET_EVENT_KEYS);
+}
+
+function parseTailMessageGetWebSocketEvent(obj: unknown): TailMessageGetWebSocketEvent {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageGetWebSocketEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_GET_WEB_SOCKET_EVENT_KEYS);
+    // deno-lint-ignore no-explicit-any
+    const objAsAny = obj as any;
+    const { getWebSocketEvent } = objAsAny;
+    if (!(isStringRecord(getWebSocketEvent))) throw new Error(`Bad type: expected record, found ${JSON.stringify(getWebSocketEvent)}`);
+    return { getWebSocketEvent };
 }
 
 //

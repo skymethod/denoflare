@@ -1222,6 +1222,16 @@ function setEqual(lhs, rhs) {
         ...lhs
     ].every((v)=>rhs.has(v));
 }
+function checkEqual(name, value, expected) {
+    if (value !== expected) throw new Error(`Bad ${name}: expected ${expected}, found ${value}`);
+}
+function checkMatches(name, value, pattern) {
+    if (!pattern.test(value)) throw new Error(`Bad ${name}: ${value}`);
+    return value;
+}
+function isStringRecord1(obj) {
+    return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
+}
 function parseHeaderFilter(header) {
     const i = header.indexOf(':');
     if (i < 0) return {
@@ -1276,7 +1286,7 @@ function parseTailMessage(obj) {
         };
     }
     if (!(typeof eventTimestamp === 'number' && eventTimestamp > 0)) throw new Error(`Bad eventTimestamp: expected positive number, found ${JSON.stringify(eventTimestamp)}`);
-    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : objAsAny.event && objAsAny.event.queue ? parseTailMessageQueueEvent(objAsAny.event) : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event) : objAsAny.event && objAsAny.event.mailFrom ? parseTailMessageEmailEvent(objAsAny.event) : objAsAny.event && objAsAny.event.type === 'overload' ? parseTailMessageOverloadEvent(objAsAny.event) : parseTailMessageAlarmEvent(objAsAny.event);
+    const event = objAsAny.event && objAsAny.event.request ? parseTailMessageRequestEvent(objAsAny.event) : objAsAny.event && objAsAny.event.queue ? parseTailMessageQueueEvent(objAsAny.event) : objAsAny.event && objAsAny.event.cron ? parseTailMessageCronEvent(objAsAny.event) : objAsAny.event && objAsAny.event.mailFrom ? parseTailMessageEmailEvent(objAsAny.event) : objAsAny.event && objAsAny.event.type === 'overload' ? parseTailMessageOverloadEvent(objAsAny.event) : objAsAny.event && objAsAny.event.getWebSocketEvent ? parseTailMessageGetWebSocketEvent(objAsAny.event) : parseTailMessageAlarmEvent(objAsAny.event);
     return {
         outcome,
         scriptName,
@@ -1446,6 +1456,24 @@ function parseTailMessageOverloadEvent(obj) {
         message
     };
 }
+const REQUIRED_TAIL_MESSAGE_GET_WEB_SOCKET_EVENT_KEYS = new Set([
+    'getWebSocketEvent'
+]);
+function isTailMessageGetWebSocketEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return false;
+    const keys = new Set(Object.keys(obj));
+    return setEqual(keys, REQUIRED_TAIL_MESSAGE_GET_WEB_SOCKET_EVENT_KEYS);
+}
+function parseTailMessageGetWebSocketEvent(obj) {
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageGetWebSocketEvent: Expected object, found ${JSON.stringify(obj)}`);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_GET_WEB_SOCKET_EVENT_KEYS);
+    const objAsAny = obj;
+    const { getWebSocketEvent } = objAsAny;
+    if (!isStringRecord1(getWebSocketEvent)) throw new Error(`Bad type: expected record, found ${JSON.stringify(getWebSocketEvent)}`);
+    return {
+        getWebSocketEvent
+    };
+}
 const REQUIRED_TAIL_MESSAGE_REQUEST_EVENT_KEYS = new Set([
     'request'
 ]);
@@ -1555,8 +1583,12 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
         const colo = props.colo || '???';
         const { type, message: msg } = message.event;
         logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${type}: ${msg}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
+    } else if (isTailMessageGetWebSocketEvent(message.event)) {
+        const colo = props.colo || '???';
+        const { getWebSocketEvent } = message.event;
+        logger(`[%c${time}%c] [%c${colo}%c] [%c${outcome}%c] %c${JSON.stringify(getWebSocketEvent)}`, 'color: gray', '', 'color: gray', '', `color: ${outcomeColor}`, '', 'color: red; font-style: bold;');
     } else {
-        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) || isTailMessageEmailEvent(message.event) || isTailMessageOverloadEvent(message.event) ? {
+        const { method, url, cf } = message.event === null || isTailMessageCronEvent(message.event) || isTailMessageAlarmEvent(message.event) || isTailMessageQueueEvent(message.event) || isTailMessageEmailEvent(message.event) || isTailMessageOverloadEvent(message.event) || isTailMessageGetWebSocketEvent(message.event) ? {
             method: undefined,
             url: undefined,
             cf: undefined
@@ -1620,6 +1652,9 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
         } else if (isTailMessageOverloadEvent(message.event)) {
             const { type, message: msg } = message.event;
             logger(` %c|%c [%coverload%c] %c${type}: ${msg}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+        } else if (isTailMessageGetWebSocketEvent(message.event)) {
+            const { getWebSocketEvent } = message.event;
+            logger(` %c|%c [%cwebsocket%c] %c${JSON.stringify(getWebSocketEvent)}`, 'color: gray', '', `color: gray`, '', 'color: gray');
         } else {
             const response = message.event.response;
             if (response) {
@@ -1887,13 +1922,6 @@ function bytesToUuid(bytes) {
         "-",
         ...bits.slice(10, 16)
     ].join("");
-}
-function checkEqual(name, value, expected) {
-    if (value !== expected) throw new Error(`Bad ${name}: expected ${expected}, found ${value}`);
-}
-function checkMatches(name, value, pattern) {
-    if (!pattern.test(value)) throw new Error(`Bad ${name}: ${value}`);
-    return value;
 }
 class GraphqlQuery {
     _parent;
@@ -4308,7 +4336,7 @@ class WebtailAppVM {
         const includeUserAgent = this.extraFields.includes('user-agent');
         const includeReferer = this.extraFields.includes('referer');
         if (includeIpAddress || includeUserAgent || includeReferer) {
-            if (message.event !== null && !isTailMessageCronEvent(message.event) && !isTailMessageAlarmEvent(message.event) && !isTailMessageQueueEvent(message.event) && !isTailMessageEmailEvent(message.event) && !isTailMessageOverloadEvent(message.event)) {
+            if (message.event !== null && !isTailMessageCronEvent(message.event) && !isTailMessageAlarmEvent(message.event) && !isTailMessageQueueEvent(message.event) && !isTailMessageEmailEvent(message.event) && !isTailMessageOverloadEvent(message.event) && !isTailMessageGetWebSocketEvent(message.event)) {
                 if (includeIpAddress) {
                     const ipAddress = message.event.request.headers['cf-connecting-ip'] || undefined;
                     if (ipAddress) rt.push(computeAdditionalLogForExtraField('IP address', ipAddress));

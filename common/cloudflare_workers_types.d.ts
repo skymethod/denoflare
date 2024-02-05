@@ -1100,19 +1100,8 @@ export interface DurableObjectHibernatableWebSocketsHandlers {
     webSocketError?(ws: WebSocket, error: unknown): void | Promise<void>;
 }
 
-//#endregion
-
-//#region WebSockets
-
-export interface CloudflareWebSocketExtensions {
-    /** Accepts the Websocket connection and begins terminating requests for the WebSocket at Cloudflare's edge. 
-     * This effectively enables the Workers runtime to begin responding to and handling WebSocket requests. 
-     * 
-     * https://developers.cloudflare.com/workers/runtime-apis/websockets#accept
-     * */
-    accept(): void;
-
-
+/** Non-standard additions to WebSocket in durable objects */
+export interface CloudflareDurableObjectWebSocketExtensions {
     /** Keeps a copy of value in memory (not on disk) to survive hibernation. The value can be any type supported by the structured clone algorithm, which is true of most types.
      * 
      * If you modify value after calling this method, those changes will not be retained unless you call this method again.
@@ -1124,6 +1113,19 @@ export interface CloudflareWebSocketExtensions {
     /** Retrieves the most recent value passed to serializeAttachment(), or null if none exists. */
     // deno-lint-ignore no-explicit-any
     deserializeAttachment(): any | null;
+}
+
+//#endregion
+
+//#region WebSockets
+
+export interface CloudflareWebSocketExtensions {
+    /** Accepts the Websocket connection and begins terminating requests for the WebSocket at Cloudflare's edge. 
+     * This effectively enables the Workers runtime to begin responding to and handling WebSocket requests. 
+     * 
+     * https://developers.cloudflare.com/workers/runtime-apis/websockets#accept
+     * */
+    accept(): void;
     
     /**
      * Cloudflare-specific behavior:
