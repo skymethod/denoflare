@@ -1,4 +1,4 @@
-import { TextLineStream } from 'https://deno.land/std@0.214.0/streams/text_line_stream.ts';
+import { TextLineStream } from 'https://deno.land/std@0.215.0/streams/text_line_stream.ts';
 
 export type ApiCall = { queryParams?: Record<string, string | number | undefined>, requestBody?: unknown, method?: 'PATCH' | 'POST', accept?: string, apiToken: string, endpoint?: string };
 

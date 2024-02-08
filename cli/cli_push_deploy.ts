@@ -8,7 +8,7 @@ import { DeployRequest, LogQueryRequestParams, deploy, getLogs, listProjects, ne
 import { isAbsolute, resolve, sortBy } from './deps_cli.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { setEqual } from '../common/sets.ts';
-import { mapValues } from 'https://deno.land/std@0.214.0/collections/map_values.ts';
+import { mapValues } from 'https://deno.land/std@0.215.0/collections/map_values.ts';
 
 export const PUSH_DEPLOY_COMMAND = denoflareCliCommand('push-deploy', 'Upload a Cloudflare worker script to Deno Deploy')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
