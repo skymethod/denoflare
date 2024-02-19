@@ -10,6 +10,7 @@ export class DenoflareResponse {
     readonly init?: DenoflareResponseInit;
     readonly headers: Headers;
     readonly status: number;
+    readonly statusText: string;
     readonly webSocket: WebSocket | undefined;
     readonly url: string;
     readonly redirected: boolean;
@@ -20,6 +21,7 @@ export class DenoflareResponse {
         this.init = init;
         this.headers = init && init.headers ? new Headers(init.headers) : new Headers();
         this.status = init && init.status !== undefined ? init.status : 200;
+        this.statusText = init && init.statusText !== undefined ? init.statusText : '';
         this.webSocket = init?.webSocket;
 
         // we must support both generated and received responses.  Generated responses have no url or redirected, received do.
@@ -73,7 +75,6 @@ export class DenoflareResponse {
     }
 
     get ok(): boolean { throw new Error(`DenoflareResponse.ok not implemented`); }
-    get statusText(): string { throw new Error(`DenoflareResponse.statusText not implemented`); }
     get trailer(): Promise<Headers> { throw new Error(`DenoflareResponse.trailer not implemented`); }
     get type(): ResponseType { throw new Error(`DenoflareResponse.type not implemented`); }
     get bodyUsed(): boolean { throw new Error(`DenoflareResponse.bodyUsed not implemented`); }
