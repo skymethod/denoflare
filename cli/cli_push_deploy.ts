@@ -93,13 +93,16 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
 
         const apiToken = accessToken;
 
-        const projects = await listProjects({ apiToken });
-        const project = projects.find(v => v.name === scriptName);
+        const findProject = async () => {
+            const projects = await listProjects({ apiToken });
+            return projects.find(v => v.name === scriptName);
+        };
+        let project = await findProject();
         if (!project) throw new Error(`Create a new empty Deno Deploy project named '${scriptName}' at https://dash.deno.com/projects`);
         const projectId = project.id;
 
         if (getLogsOpt) {
-            const deploymentId = project.productionDeployment.deployment?.id;
+            const deploymentId = project.productionDeployment?.deployment?.id;
             if (deploymentId === undefined) throw new Error(`No deployment found for project`);
             const iter = getLogs({ projectId, deploymentId, apiToken });
             for await (const log of iter) {
@@ -108,7 +111,7 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
             return;
         }
         if (queryLogsOpt) {
-            const deploymentId = project.productionDeployment.deployment?.id;
+            const deploymentId = project.productionDeployment?.deployment?.id;
             if (deploymentId === undefined) throw new Error(`No deployment found for project`);
             const params: LogQueryRequestParams = {};
             const { logs } = await queryLogs({ projectId, deploymentId, apiToken, params });
@@ -150,7 +153,8 @@ export async function pushDeploy(args: (string | number)[], options: Record<stri
             console.log(JSON.stringify(message));
         }
 
-        const shortestDomainMapping = sortBy(project.productionDeployment.deployment?.domainMappings ?? [], v => v.domain.length).at(0);
+        if (!project.productionDeployment) project = (await findProject())!;
+        const shortestDomainMapping = sortBy(project.productionDeployment?.deployment?.domainMappings ?? [], v => v.domain.length).at(0);
         console.log(`deployed worker to ${shortestDomainMapping ? `https://${shortestDomainMapping.domain}/` : scriptName} in ${Date.now() - start}ms`);
         
         pushNumber++;

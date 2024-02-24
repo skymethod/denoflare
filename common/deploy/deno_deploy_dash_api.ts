@@ -62,7 +62,7 @@ export interface Project {
     readonly type: string; // e.g. playground, git
     readonly git: null;
     readonly playground: Playground;
-    readonly productionDeployment: ProductionDeployment;
+    readonly productionDeployment?: ProductionDeployment; // only missing on new projects
     readonly hasProductionDeployment: boolean;
     readonly organizationId: string; // Organization.id, v4 guid
     readonly organization: Organization;
