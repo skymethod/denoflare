@@ -1614,8 +1614,11 @@ export type AiSpeechRecognitionOutput = { text: string };
 export type AiTextToImageInput = { prompt: string, num_steps?: number };
 export type AiTextToImageOutput = Uint8Array /* png bytes */;
 
-export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | AiTextToImageInput | Record<string, unknown>;
-export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | AiTextToImageOutput | Record<string, unknown>;
+export type AiSentenceSimilarityInput = { source: string, sentences: string[] };
+export type AiSentenceSimilarityOutput = unknown;
+
+export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | AiTextToImageInput | AiSentenceSimilarityInput | Record<string, unknown>;
+export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | AiTextToImageOutput | AiSentenceSimilarityOutput | Record<string, unknown>;
 
 export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput, responseType?: 'json' | 'bytes' }): Promise<AiModelOutput> {
     const { apiToken, accountId, modelId, input, responseType } = opts;

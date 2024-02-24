@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSpeechRecognitionInput, AiTextToImageInput, listWorkerVersionedDeployments, updateScriptVersionAllocation } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiTextToImageInput, listWorkerVersionedDeployments, updateScriptVersionAllocation } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -534,12 +534,14 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    add(apiCommand('list-ai-models', ''), async (accountId, apiToken, _opts) => {
+    rt.subcommandGroup();
+
+    add(apiCommand('list-ai-models', 'List available AI models'), async (accountId, apiToken, _opts) => {
         const value = await listAiModels({ apiToken, accountId });
         console.log(value);
     });
 
-    add(apiCommand('run-ai-model', '')
+    add(apiCommand('run-ai-model', 'Run a specific AI model on-demand')
             .arg('model', 'string', '')
             .option('prompt', 'string', '')
             .option('system', 'strings', '')
@@ -552,7 +554,7 @@ function cfapiCommand() {
             .option('file', 'string', '')
             .option('steps', 'integer', '')
             , async (accountId, apiToken, opts) => {
-        const { model, prompt, system, user, text, from, to, texts, url, file, steps: num_steps } = opts;
+        const { model, prompt, system, user, text, from, to, texts, url, file, steps: num_steps = 20 } = opts;
         let responseType: 'json' | 'bytes' = 'json';
         const parseAiTextGenerationInput = (): AiTextGenerationInput => {
             if (typeof prompt === 'string') return { prompt };
@@ -589,6 +591,12 @@ function cfapiCommand() {
             responseType = 'bytes';
             return { prompt, num_steps };
         };
+        const parseAiSentenceSimilarityInput = (): AiSentenceSimilarityInput => {
+            if (typeof text !== 'string') throw new Error(`Missing 'text' option`);
+            const source = text;
+            const sentences = texts ?? [];
+            return { source, sentences};
+        }
         const models: Record<string, [ string[], () => AiModelInput | Promise<AiModelInput> ]> = {
             '@cf/meta/llama-2-7b-chat-int8': [ [ 'llama', 'text-generation' ], parseAiTextGenerationInput ],
             '@cf/meta/m2m100-1.2b': [ [ 'translation' ], parseAiTranslationInput ],
@@ -599,6 +607,8 @@ function cfapiCommand() {
             '@cf/microsoft/resnet-50': [ [ 'image-classification' ], parseAiImageClassificationInput ],
             '@cf/openai/whisper': [ [ 'speech-recognition', 'whisper' ], parseAiSpeechRecognitionInput ],
             '@cf/stabilityai/stable-diffusion-xl-base-1.0': [ [ 'text-to-image', 'stable-diffusion' ], parseAiTextToImageInput ],
+            '@cf/runwayml/stable-diffusion-v1-5': [ [ 'text-to-image', 'stable-diffusion-1.5' ], parseAiTextToImageInput ],
+            '@hf/sentence-transformers/all-minilm-l6-v2': [ [ 'sentence-similarity' ], parseAiSentenceSimilarityInput ],
         };
 
         const entry = Object.entries(models).find(v => v[0] === model || v[1][0].includes(model));

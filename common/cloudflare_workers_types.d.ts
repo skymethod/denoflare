@@ -1435,54 +1435,55 @@ export interface Hyperdrive {
 //#region AI
 
 // https://developers.cloudflare.com/workers-ai/models/text-generation/
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Ftext-generation.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Ftext-generation.d.ts
 export type AiTextGenerationInput = ({ prompt: string } | { messages: { role: string, content: string }[] }) & { raw?: boolean, stream?: boolean, max_tokens?: number };
 export type AiTextGenerationOutput = { response: string } | ReadableStream;
 
 // https://developers.cloudflare.com/workers-ai/models/translation/
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Ftranslation.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Ftranslation.d.ts
 export type AiTranslationInput = { text: string, target_lang: string, source_lang?: string };
 export type AiTranslationOutput = { translated_text: string };
 
 // https://developers.cloudflare.com/workers-ai/models/text-classification/
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Ftext-classification.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Ftext-classification.d.ts
 export type AiTextClassificationInput = { text: string };
 export type AiTextClassificationOutput = { label?: string /* NEGATIVE or POSITIVE */, score?: number /* 0 to 1 */ }[];
 
 // https://developers.cloudflare.com/workers-ai/models/text-embeddings/
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Ftext-embeddings.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Ftext-embeddings.d.ts
 export type AiTextEmbeddingsInput = { text: string | string[] };
-export type AiTextEmbeddingsOutput = {  shape: number[], data: number[][] };
+export type AiTextEmbeddingsOutput = { shape: number[], data: number[][] };
 
 // https://developers.cloudflare.com/workers-ai/models/image-classification/
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Fimage-classification.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Fimage-classification.d.ts
 export type AiImageClassificationInput = { image: number[] }; // byte array
 export type AiImageClassificationOutput = { label?: string /* EGYPTIAN CAT */, score?: number /* 0 to 1 */ }[];
 
 // https://developers.cloudflare.com/workers-ai/models/speech-recognition/
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Fspeech-recognition.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Fspeech-recognition.d.ts
 export type AiSpeechRecognitionInput = { audio: number[] }; // byte array
 export type AiSpeechRecognitionOutput = { text: string, word_count?: number, words?: { word: string, start: number, end: number }[] };
 
 // https://developers.cloudflare.com/workers-ai/models/text-to-image/
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Ftext-to-image.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Ftext-to-image.d.ts
 export type AiTextToImageInput = { prompt: string, num_steps?: number };
 export type AiTextToImageOutput = Uint8Array /* png bytes */;
 
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Fobject-detection.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Fobject-detection.d.ts
 export type AiObjectDetectionInput = { image: number[] }; // byte array
 export type AiObjectDetectionOutput = { score: number, label: string, box: { xmin: number, ymin: number, xmax: number, ymax: number } }[];
 
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Ftasks%2Fsentence-similarity.d.ts
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Ftasks%2Fsentence-similarity.d.ts
 export type AiSentenceSimilarityInput = { source: string, sentences: string[]  };
 export type AiSentenceSimilarityOutput = number[];
 
 export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | AiTextToImageInput | AiObjectDetectionInput | AiSentenceSimilarityInput | Record<string, unknown>;
 export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | AiTextToImageOutput | AiObjectDetectionOutput | AiSentenceSimilarityOutput | Record<string, unknown>;
 
-// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.47&file=%2Fdist%2Fcatalog.js
+// https://yarnpkg.com/package?name=%40cloudflare%2Fai&version=1.0.50&file=%2Fdist%2Fcatalog.d.ts
 export type AiTextClassicationModel = '@cf/huggingface/distilbert-sst-2-int8';
-export type AiTextToImageModel = '@cf/stabilityai/stable-diffusion-xl-base-1.0';
+export type AiTextToImageModel = '@cf/stabilityai/stable-diffusion-xl-base-1.0'
+    | '@cf/runwayml/stable-diffusion-v1-5';
 export type AiSentenceSimilarityModel = '@hf/sentence-transformers/all-minilm-l6-v2';
 export type AiTextEmbeddingsModel = '@cf/baai/bge-small-en-v1.5' 
     | '@cf/baai/bge-base-en-v1.5' 
