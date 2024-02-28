@@ -1682,6 +1682,42 @@ export async function deleteHyperdriveConfig(opts: { accountId: string, apiToken
 
 //#endregion
 
+//#region Rulesets
+
+// https://developers.cloudflare.com/api/operations/listZoneRulesets
+export interface Ruleset {
+    readonly id: string; // 32-char hex
+    readonly name: string;
+    readonly description: string;
+    readonly source?: string; // firewall_custom, firewall_managed
+    readonly kind: string; // managed, custom, root, zone
+    readonly version: string; // e.g. "56"
+    readonly last_updated: string; // e.g. 2023-10-11T14:34:33.86359Z
+    readonly phase: string; // ddos_l4 ddos_l7 http_config_settings http_custom_errors http_log_custom_fields http_ratelimit http_request_cache_settings http_request_dynamic_redirect http_request_firewall_custom http_request_firewall_managed http_request_late_transform http_request_origin http_request_redire http_request_sanitize http_request_sbfm http_request_select_configuration http_request_transform http_response_compression http_response_firewall_managed http_response_headers_transform  magic_transit magic_transit_ids_managed magic_transit_managed
+}
+
+export async function listZoneRulesets(opts: { zoneId: string, apiToken: string }): Promise<Ruleset[]> {
+    const { zoneId, apiToken } = opts;
+    const url = new URL(`${computeBaseUrl()}/zones/${zoneId}/rulesets`);
+    return (await execute<Ruleset[]>('listZoneRulesets', 'GET', url.toString(), apiToken)).result;
+}
+
+// https://developers.cloudflare.com/api/operations/updateZoneEntrypointRuleset
+export interface Rule {
+    readonly action: string; // e.g. serve_error
+    readonly action_parameters: Record<string, string>; // e.g. { content: 'not found', content_type: 'text/plain', status_code: 503 }
+    readonly expression: string; // e.g. http.response.code eq 500
+    readonly enabled: boolean;
+}
+
+export async function updateZoneEntrypointRuleset(opts: { zoneId: string, apiToken: string, rulesetPhase: string, rules: Rule[]}): Promise<unknown> {
+    const { zoneId, apiToken, rulesetPhase, rules } = opts;
+    const url = `${computeBaseUrl()}/zones/${zoneId}/rulesets/phases/${rulesetPhase}/entrypoint`;
+    return (await execute<unknown>('updateZoneEntrypointRuleset', 'PUT', url, apiToken, { rules })).result;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;

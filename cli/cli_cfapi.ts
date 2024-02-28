@@ -1,10 +1,12 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiTextToImageInput, listWorkerVersionedDeployments, updateScriptVersionAllocation } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiTextToImageInput, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand, SubcommandHandler } from './cli_command.ts';
 import { getScriptSettings } from '../common/cloudflare_api.ts';
+import { listZoneRulesets } from '../common/cloudflare_api.ts';
+import { updateZoneEntrypointRuleset } from '../common/cloudflare_api.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -595,7 +597,7 @@ function cfapiCommand() {
             if (typeof text !== 'string') throw new Error(`Missing 'text' option`);
             const source = text;
             const sentences = texts ?? [];
-            return { source, sentences};
+            return { source, sentences };
         }
         const models: Record<string, [ string[], () => AiModelInput | Promise<AiModelInput> ]> = {
             '@cf/meta/llama-2-7b-chat-int8': [ [ 'llama', 'text-generation' ], parseAiTextGenerationInput ],
@@ -663,6 +665,38 @@ function cfapiCommand() {
         , async (accountId, apiToken, opts) => {
         const { id } = opts;
         const value = await deleteHyperdriveConfig({ accountId, apiToken, id });
+        console.log(value);
+    });
+
+    rt.subcommandGroup();
+
+    add(apiCommand('list-zone-rulesets', 'List rulesets for a zone').arg('zoneId', 'string', 'ID of the zone'), async (_accountId, apiToken, opts) => {
+        const { zoneId } = opts;
+        const value = await listZoneRulesets({ apiToken, zoneId });
+        console.log(value);
+    });
+
+    add(apiCommand('create-custom-error-response', 'Create a custom error rule for a zone')
+            .arg('zoneId', 'string', 'ID of the zone')
+            .option('status', 'required-integer', 'HTTP response code')
+            .option('content', 'required-string', 'HTTP response content')
+            .option('contentType', 'required-string', 'HTTP response content-type')
+            .option('hostname', 'string', 'Limit to specific hostname/subdomain')
+        , async (_accountId, apiToken, opts) => {
+        const { zoneId, status, content, contentType, hostname } = opts;
+        const rulesetPhase = 'http_custom_errors';
+        const rules: Rule[] = [
+            {
+                action: 'serve_error',
+                action_parameters: {
+                    content,
+                    content_type: contentType,
+                },
+                expression: `http.response.code eq ${status}${hostname ? ` and http.host eq "${hostname}"` : ''}`,
+                enabled: true,
+            }
+        ]
+        const value = await updateZoneEntrypointRuleset({ apiToken, zoneId, rulesetPhase, rules });
         console.log(value);
     });
 
