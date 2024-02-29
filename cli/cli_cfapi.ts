@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, AiTextGenerationInput, AiModelInput, AiTranslationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiImageClassificationInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiTextToImageInput, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -7,6 +7,8 @@ import { CliCommand, SubcommandHandler } from './cli_command.ts';
 import { getScriptSettings } from '../common/cloudflare_api.ts';
 import { listZoneRulesets } from '../common/cloudflare_api.ts';
 import { updateZoneEntrypointRuleset } from '../common/cloudflare_api.ts';
+import { AiImageClassificationInput, AiImageToTextInput, AiModelInput, AiObjectDetectionInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiSummarizationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiTextGenerationInput, AiTextToImageInput, AiTranslationInput } from '../common/cloudflare_workers_types.d.ts';
+import { TextLineStream } from './deps_cli.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -555,12 +557,22 @@ function cfapiCommand() {
             .option('url', 'string', '')
             .option('file', 'string', '')
             .option('steps', 'integer', '')
+            .option('max', 'integer', '')
+            .option('stream', 'boolean', '')
             , async (accountId, apiToken, opts) => {
-        const { model, prompt, system, user, text, from, to, texts, url, file, steps: num_steps = 20 } = opts;
-        let responseType: 'json' | 'bytes' = 'json';
+        const { model, prompt, system, user, text, from, to, texts, url, file, steps: num_steps = 20, max, stream } = opts;
+        let responseType: 'json' | 'bytes' | 'sse' = 'json';
+        const readUrlOrFile = async (): Promise<Uint8Array> => {
+            if (typeof url === 'string') return new Uint8Array(await (await fetch(url)).arrayBuffer());
+            if (typeof file === 'string') return await Deno.readFile(file);
+            throw new Error(`Provide 'url' option`);
+        };
+        const readUrlOrFileAsNumberArray = async () => [ ...await readUrlOrFile() ];
+
         const parseAiTextGenerationInput = (): AiTextGenerationInput => {
-            if (typeof prompt === 'string') return { prompt };
-            if (system !== undefined || user !== undefined) return { messages: [ ...(system ?? []).map(v => ({ role: 'system', content: v })), ...(user ?? []).map(v => ({ role: 'user', content: v })) ] };
+            if (stream) responseType = 'sse';
+            if (typeof prompt === 'string') return { stream, prompt };
+            if (system !== undefined || user !== undefined) return { stream, messages: [ ...(system ?? []).map(v => ({ role: 'system', content: v })), ...(user ?? []).map(v => ({ role: 'user', content: v })) ] };
             throw new Error(`Provide 'prompt' or 'system' or 'user' options`);
         };
         const parseAiTranslationInput = (): AiTranslationInput => {
@@ -578,14 +590,16 @@ function cfapiCommand() {
             throw new Error(`Provide 'text' or 'texts' options`);
         };
         const parseAiImageClassificationInput = async (): Promise<AiImageClassificationInput> => {
-            if (typeof url === 'string') return new Uint8Array(await (await fetch(url)).arrayBuffer());
-            if (typeof file === 'string') return await Deno.readFile(file);
-            throw new Error(`Provide 'url' option`);
+            const image = await readUrlOrFileAsNumberArray();
+            return { image };
+        };
+        const parseAiObjectDetectionInput = async (): Promise<AiObjectDetectionInput> => {
+            const image = await readUrlOrFileAsNumberArray();
+            return { image };
         };
         const parseAiSpeechRecognitionInput = async (): Promise<AiSpeechRecognitionInput> => {
-            if (typeof url === 'string') return new Uint8Array(await (await fetch(url)).arrayBuffer());
-            if (typeof file === 'string') return await Deno.readFile(file);
-            throw new Error(`Provide 'url' option`);
+            const audio = await readUrlOrFileAsNumberArray();
+            return { audio };
         };
         const parseAiTextToImageInput = (): AiTextToImageInput => {
             if (typeof prompt !== 'string') throw new Error(`Missing 'prompt' option`);
@@ -598,19 +612,77 @@ function cfapiCommand() {
             const source = text;
             const sentences = texts ?? [];
             return { source, sentences };
-        }
+        };
+        const parseAiSummarizationInput = (): AiSummarizationInput => {
+            if (typeof text !== 'string') throw new Error(`Missing 'text' option`);
+            return { input_text: text, max_length: max };
+        };
+        const parseAiImageToTextInput = async (): Promise<AiImageToTextInput> => {
+            const image = await readUrlOrFileAsNumberArray();
+            return { image, prompt, max_tokens: max };
+        };
         const models: Record<string, [ string[], () => AiModelInput | Promise<AiModelInput> ]> = {
-            '@cf/meta/llama-2-7b-chat-int8': [ [ 'llama', 'text-generation' ], parseAiTextGenerationInput ],
-            '@cf/meta/m2m100-1.2b': [ [ 'translation' ], parseAiTranslationInput ],
             '@cf/huggingface/distilbert-sst-2-int8': [ [ 'text-classification' ], parseAiTextClassificationInput ],
+            '@cf/jpmorganchase/roberta-spam': [ [ 'text-classification-spam' ], parseAiTextClassificationInput ],
+
+            '@cf/stabilityai/stable-diffusion-xl-base-1.0': [ [ 'text-to-image', 'stable-diffusion-base' ], parseAiTextToImageInput ],
+            '@cf/bytedance/stable-diffusion-xl-lightning': [ [ 'text-to-image', 'stable-diffusion-lightning' ], parseAiTextToImageInput ],
+            '@cf/runwayml/stable-diffusion-v1-5-inpainting': [ [ 'text-to-image', 'stable-diffusion-inpainting' ], parseAiTextToImageInput ],
+            '@cf/runwayml/stable-diffusion-v1-5-img2img': [ [ 'text-to-image', 'stable-diffusion-img2img' ], parseAiTextToImageInput ],
+            '@cf/lykon/dreamshaper-8-lcm': [ [ 'text-to-image', 'dreamshaper' ], parseAiTextToImageInput ],
+
+            '@hf/sentence-transformers/all-minilm-l6-v2': [ [ 'sentence-similarity' ], parseAiSentenceSimilarityInput ],
+
             '@cf/baai/bge-small-en-v1.5': [ [ 'text-embeddings-small' ], parseAiTextEmbeddingsInput ],
             '@cf/baai/bge-base-en-v1.5': [ [ 'text-embeddings' ], parseAiTextEmbeddingsInput ],
             '@cf/baai/bge-large-en-v1.5': [ [ 'text-embeddings-large' ], parseAiTextEmbeddingsInput ],
-            '@cf/microsoft/resnet-50': [ [ 'image-classification' ], parseAiImageClassificationInput ],
+            '@hf/baai/bge-base-en-v1.5': [ [ 'text-embeddings-hf-base' ], parseAiTextEmbeddingsInput ],
+
             '@cf/openai/whisper': [ [ 'speech-recognition', 'whisper' ], parseAiSpeechRecognitionInput ],
-            '@cf/stabilityai/stable-diffusion-xl-base-1.0': [ [ 'text-to-image', 'stable-diffusion' ], parseAiTextToImageInput ],
-            '@cf/runwayml/stable-diffusion-v1-5': [ [ 'text-to-image', 'stable-diffusion-1.5' ], parseAiTextToImageInput ],
-            '@hf/sentence-transformers/all-minilm-l6-v2': [ [ 'sentence-similarity' ], parseAiSentenceSimilarityInput ],
+
+            '@cf/microsoft/resnet-50': [ [ 'image-classification' ], parseAiImageClassificationInput ],
+
+            '@cf/facebook/detr-resnet-50': [ [ 'object-detection' ], parseAiObjectDetectionInput ],
+
+            '@cf/meta/llama-2-7b-chat-int8': [ [ 'llama', 'text-generation' ], parseAiTextGenerationInput ],
+            '@cf/microsoft/phi-2': [ [ 'phi2' ], parseAiTextGenerationInput ],
+            '@cf/mistral/mistral-7b-instruct-v0.1': [ [ 'mistral' ], parseAiTextGenerationInput ],
+            ...Object.fromEntries([
+                // '@cf/meta/llama-2-7b-chat-int8',
+                // '@cf/mistral/mistral-7b-instruct-v0.1' ,
+                '@cf/meta/llama-2-7b-chat-fp16' ,
+                '@hf/thebloke/llama-2-13b-chat-awq' ,
+                '@hf/thebloke/zephyr-7b-beta-awq' ,
+                '@hf/thebloke/mistral-7b-instruct-v0.1-awq' ,
+                '@hf/thebloke/codellama-7b-instruct-awq',
+                '@hf/thebloke/openchat_3.5-awq' ,
+                '@hf/thebloke/openhermes-2.5-mistral-7b-awq' ,
+                '@hf/thebloke/starling-lm-7b-alpha-awq' ,
+                '@hf/thebloke/orca-2-13b-awq' ,
+                '@hf/thebloke/neural-chat-7b-v3-1-awq' ,
+                '@hf/thebloke/llamaguard-7b-awq' ,
+                '@hf/thebloke/deepseek-coder-6.7b-base-awq' ,
+                '@hf/thebloke/deepseek-coder-6.7b-instruct-awq',
+                '@cf/deepseek-ai/deepseek-math-7b-base',
+                '@cf/deepseek-ai/deepseek-math-7b-instruct',
+                '@cf/defog/sqlcoder-7b-2',
+                '@cf/openchat/openchat-3.5-0106',
+                '@cf/tiiuae/falcon-7b-instruct',
+                '@cf/thebloke/discolm-german-7b-v1-awq',
+                '@cf/qwen/qwen1.5-0.5b-chat',
+                '@cf/qwen/qwen1.5-1.8b-chat',
+                '@cf/qwen/qwen1.5-7b-chat-awq',
+                '@cf/qwen/qwen1.5-14b-chat-awq',
+                '@cf/tinyllama/tinyllama-1.1b-chat-v1.0',
+                // '@cf/microsoft/phi-2',
+                '@cf/thebloke/yarn-mistral-7b-64k-awq',
+            ].map(v => [ v, [ [ ], parseAiTextGenerationInput ] ])),
+
+            '@cf/meta/m2m100-1.2b': [ [ 'translation' ], parseAiTranslationInput ],
+
+            '@cf/facebook/bart-large-cnn': [ [ 'summarization' ], parseAiSummarizationInput ],
+
+            '@cf/unum/uform-gen2-qwen-500m': [ [ 'image-to-text' ], parseAiImageToTextInput ],
         };
 
         const entry = Object.entries(models).find(v => v[0] === model || v[1][0].includes(model));
@@ -623,6 +695,15 @@ function cfapiCommand() {
                 await Deno.writeFile(file, value);
                 console.log(`Wrote ${value.length} bytes to ${file}`);
             }
+        } else if (value instanceof ReadableStream) {
+            const encoder = new TextEncoder();
+            for await (const line of value.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())) {
+                const m = /^data:\s+({.*?})$/.exec(line);
+                if (!m) continue;
+                const { response } = JSON.parse(m[1]);
+                await Deno.stdout.write(encoder.encode(response));
+            }
+            await Deno.stdout.write(encoder.encode('\n'));
         } else {
             console.log(JSON.stringify(value, undefined, 2));
         }

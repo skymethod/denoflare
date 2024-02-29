@@ -1,5 +1,7 @@
 //#region Durable objects
 
+import { AiModelInput, AiModelOutput } from './cloudflare_workers_types.d.ts';
+
 export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string }): Promise<readonly DurableObjectsNamespace[]> {
     const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
@@ -1593,38 +1595,12 @@ export async function listAiModels(opts: { accountId: string, apiToken: string, 
     return (await execute<AiModel[]>('listAiModels', 'GET', url.toString(), apiToken)).result;
 }
 
-export type AiTextGenerationInput = { prompt: string } | { messages: { role: string, content: string }[] };
-export type AiTextGenerationOutput = { response: string };
-
-export type AiTranslationInput = { text: string, target_lang: string, source_lang?: string };
-export type AiTranslationOutput = { translated_text: string };
-
-export type AiTextClassificationInput = { text: string };
-export type AiTextClassificationOutput = { label?: string /* NEGATIVE or POSITIVE */,  score?: number /* 0 to 1 */ }[];
-
-export type AiTextEmbeddingsInput = { text: string | string[] };
-export type AiTextEmbeddingsOutput = { shape: number[], data: number[][] };
-
-export type AiImageClassificationInput = Uint8Array;
-export type AiImageClassificationOutput = { label?: string /* EGYPTIAN CAT */, score?: number /* 0 to 1 */ }[];
-
-export type AiSpeechRecognitionInput = Uint8Array;
-export type AiSpeechRecognitionOutput = { text: string };
-
-export type AiTextToImageInput = { prompt: string, num_steps?: number };
-export type AiTextToImageOutput = Uint8Array /* png bytes */;
-
-export type AiSentenceSimilarityInput = { source: string, sentences: string[] };
-export type AiSentenceSimilarityOutput = unknown;
-
-export type AiModelInput = AiTextGenerationInput | AiTranslationInput | AiTextClassificationInput | AiTextEmbeddingsInput | AiImageClassificationInput | AiSpeechRecognitionInput | AiTextToImageInput | AiSentenceSimilarityInput | Record<string, unknown>;
-export type AiModelOutput = AiTextGenerationOutput | AiTranslationOutput | AiTextClassificationOutput | AiTextEmbeddingsOutput | AiImageClassificationOutput | AiSpeechRecognitionOutput | AiTextToImageOutput | AiSentenceSimilarityOutput | Record<string, unknown>;
-
-export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput, responseType?: 'json' | 'bytes' }): Promise<AiModelOutput> {
+export async function runAiModel(opts: { apiToken: string, accountId: string, modelId: string, input: AiModelInput, responseType?: 'json' | 'bytes' | 'sse' }): Promise<AiModelOutput> {
     const { apiToken, accountId, modelId, input, responseType } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/ai/run/${modelId}`;
-    if (responseType === 'bytes') return await execute('runAiModel', 'POST', url.toString(), apiToken, input, 'bytes');
-    return (await execute<AiModelOutput>('runAiModel', 'POST', url.toString(), apiToken, input, responseType)).result;
+    if (responseType === 'sse') return await execute('runAiModel', 'POST', url.toString(), apiToken, input, 'sse', APPLICATION_JSON);
+    if (responseType === 'bytes') return await execute('runAiModel', 'POST', url.toString(), apiToken, input, 'bytes', APPLICATION_JSON);
+    return (await execute<AiModelOutput>('runAiModel', 'POST', url.toString(), apiToken, input, responseType, APPLICATION_JSON)).result;
 }
 
 //#endregion
@@ -1746,14 +1722,15 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
 
 type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData | Uint8Array;
 
-async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json'): Promise<CloudflareApiResponse<Result>>;
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json', requestContentType?: string): Promise<CloudflareApiResponse<Result>>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'form'): Promise<FormData>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes'): Promise<Uint8Array>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes', requestContentType?: string): Promise<Uint8Array>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'sse', requestContentType?: string): Promise<ReadableStream<Uint8Array>>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'text'): Promise<string>;
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json?'): Promise<CloudflareApiResponse<Result> | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'empty'): Promise<undefined>;
-async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'text' | 'empty' | 'form' = 'json'): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined | FormData> {
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'sse' | 'text' | 'empty' | 'form' = 'json', requestContentType?: string): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined | FormData | ReadableStream<Uint8Array>> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | Record<string, unknown>[] | undefined;
@@ -1763,7 +1740,7 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
         headers.set('Content-Type', APPLICATION_OCTET_STREAM);
         bodyObj = { bytes: body.length };
     } else if (isStringRecord(body) || Array.isArray(body)) {
-        headers.set('Content-Type', APPLICATION_JSON_UTF8);
+        headers.set('Content-Type', requestContentType ?? APPLICATION_JSON_UTF8);
         bodyObj = body;
         body = JSON.stringify(body, undefined, 2);
     }
@@ -1792,6 +1769,11 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
         // --12f64b0540f60cfc995cf4c5666ef5c4ae71b3927e4c2df3c0689552fad2
         // Content-Disposition: form-data; name="main"
         return await fetchResponse.formData();
+    }
+    if (responseType === 'sse') {
+        if (contentType !== 'text/event-stream') throw new Error(`Unexpected content-type (expected text/event-stream): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+        if (!fetchResponse.body) throw new Error(`No sse body!`);
+        return fetchResponse.body;
     }
     if (![APPLICATION_JSON_UTF8.replaceAll(' ', ''), APPLICATION_JSON].includes(contentType.toLowerCase().replaceAll(' ', ''))) { // radar returns: application/json;charset=UTF-8
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${knownBinaryContentType ? `<${(await fetchResponse.arrayBuffer()).byteLength} bytes>` : await fetchResponse.text()}`);
