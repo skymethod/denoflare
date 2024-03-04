@@ -559,15 +559,19 @@ function cfapiCommand() {
             .option('steps', 'integer', '')
             .option('max', 'integer', '')
             .option('stream', 'boolean', '')
+            .option('imageFile', 'string', '')
+            .option('imageUrl', 'string', '')
             , async (accountId, apiToken, opts) => {
-        const { model, prompt, system, user, text, from, to, texts, url, file, steps: num_steps = 20, max, stream } = opts;
+        const { model, prompt, system, user, text, from, to, texts, url, file, steps: num_steps = 20, max, stream, imageFile, imageUrl } = opts;
         let responseType: 'json' | 'bytes' | 'sse' = 'json';
-        const readUrlOrFile = async (): Promise<Uint8Array> => {
-            if (typeof url === 'string') return new Uint8Array(await (await fetch(url)).arrayBuffer());
-            if (typeof file === 'string') return await Deno.readFile(file);
-            throw new Error(`Provide 'url' option`);
+        const readUrlOrFile = async (mode?: 'image'): Promise<Uint8Array> => {
+            const urlParam = mode === 'image' ? imageUrl : url;
+            const fileParam = mode === 'image' ? imageFile : file;
+            if (typeof urlParam === 'string') return new Uint8Array(await (await fetch(urlParam)).arrayBuffer());
+            if (typeof fileParam === 'string') return await Deno.readFile(fileParam);
+            throw new Error(`Provide '${urlParam}' or '${fileParam}' option`);
         };
-        const readUrlOrFileAsNumberArray = async () => [ ...await readUrlOrFile() ];
+        const readUrlOrFileAsNumberArray = async (mode?: 'image') => [ ...await readUrlOrFile(mode) ];
 
         const parseAiTextGenerationInput = (): AiTextGenerationInput => {
             if (stream) responseType = 'sse';
@@ -601,11 +605,16 @@ function cfapiCommand() {
             const audio = await readUrlOrFileAsNumberArray();
             return { audio };
         };
-        const parseAiTextToImageInput = (): AiTextToImageInput => {
+        const parseAiTextToImageInput = async (): Promise<AiTextToImageInput> => {
             if (typeof prompt !== 'string') throw new Error(`Missing 'prompt' option`);
             if (typeof file !== 'string') throw new Error(`Missing 'file' option`);
+            const imageArr = (typeof imageFile === 'string' || typeof imageUrl === 'string')?  await readUrlOrFileAsNumberArray('image') : undefined;
             responseType = 'bytes';
-            return { prompt, num_steps };
+            return {
+                prompt,
+                image: imageArr,
+                num_steps,
+            };
         };
         const parseAiSentenceSimilarityInput = (): AiSentenceSimilarityInput => {
             if (typeof text !== 'string') throw new Error(`Missing 'text' option`);
