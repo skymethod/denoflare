@@ -1,3 +1,4 @@
+import { versionCompare } from '../cli/versions.ts';
 import { CloudflareWebSocketExtensions } from './cloudflare_workers_types.d.ts';
 import { consoleLog } from './console.ts';
 import { Constants } from './constants.ts';
@@ -8,14 +9,17 @@ import { RpcChannel } from './rpc_channel.ts';
 // https://github.com/denoland/deno/pull/16191
 type ReadableStreamReadResult<V extends ArrayBufferView> = ReadableStreamBYOBReadResult<V>
 
-export function makeFetchOverRpc(channel: RpcChannel, bodies: Bodies, webSocketResolver: WebSocketResolver): (info: RequestInfo, init?: RequestInit) => Promise<Response | DenoflareResponse> {
+export function makeFetchOverRpc(channel: RpcChannel, denoVersion: string, bodies: Bodies, webSocketResolver: WebSocketResolver): (info: RequestInfo, init?: RequestInit) => Promise<Response | DenoflareResponse> {
     return async (info: RequestInfo, init?: RequestInit) => {
         const data = packRequest(info, init, bodies);
-        return await channel.sendRequest('fetch', data, responseData => unpackResponse(responseData, makeBodyResolverOverRpc(channel), webSocketResolver));
+        return await channel.sendRequest('fetch', data, responseData => unpackResponse(responseData, makeBodyResolverOverRpc(channel, denoVersion), webSocketResolver));
     }
 }
 
-export function makeBodyResolverOverRpc(channel: RpcChannel): BodyResolver {
+export function makeBodyResolverOverRpc(channel: RpcChannel, denoVersion: string): BodyResolver {
+    // event loop workaround needed as of Deno 1.34.2, fails as of Deno 1.41.2
+    const shouldApplyEventLookWorkaround = versionCompare(denoVersion, '1.41.2') < 0;
+
     return bodyId => new ReadableStream({
         start(_controller)  {
             // consoleLog(`RpcBodyResolver(${bodyId}): start controller.desiredSize=${controller.desiredSize}`);
@@ -25,11 +29,16 @@ export function makeBodyResolverOverRpc(channel: RpcChannel): BodyResolver {
             const { value, done } = await channel.sendRequest('read-body-chunk', { bodyId }, responseData => {
                 return responseData as ReadableStreamReadResult<Uint8Array>;
             });
-            // event loop workaround needed as of Deno 1.34.2
-            setTimeout(() => {
+           
+            const finish = () => {
                 if (value !== undefined) controller.enqueue(value);
                 if (done) try { controller.close(); } catch (e) { console.warn(`Ignoring error closing rpc body stream: ${e.stack}`); }
-            }, 0);
+            }
+            if (shouldApplyEventLookWorkaround) {
+                setTimeout(finish, 0);
+            } else {
+                finish();
+            }
         },
         cancel(reason) {
             consoleLog(`RpcBodyResolver(${bodyId}): cancel reason=${reason}`);

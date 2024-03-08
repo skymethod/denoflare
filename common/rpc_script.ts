@@ -26,7 +26,7 @@ import { makeRpcCloudflareSockets } from './rpc_cloudflare_sockets.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
-        const { verbose, scriptContents, scriptType, bindings } = requestData as ScriptDef;
+        const { verbose, scriptContents, scriptType, bindings, denoVersion } = requestData as ScriptDef;
         if (verbose) {
             // in common
             RpcChannel.VERBOSE = verbose;
@@ -47,11 +47,11 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
         // redefine fetch
         // must be done before running the script, as the script might do fetches in top-level await (e.g. importWasm)
         const bodies = new Bodies();
-        globalThisAsAny.fetch = makeFetchOverRpc(channel, bodies, v => rpcStubWebSockets.unpackWebSocket(v));
+        globalThisAsAny.fetch = makeFetchOverRpc(channel, denoVersion, bodies, v => rpcStubWebSockets.unpackWebSocket(v));
         addRequestHandlerForReadBodyChunk(channel, bodies);
         channel.addRequestHandler('worker-fetch', async workerFetchData => {
             const workerFetch = workerFetchData as WorkerFetch;
-            const request = unpackRequest(workerFetch.packedRequest, makeBodyResolverOverRpc(channel));
+            const request = unpackRequest(workerFetch.packedRequest, makeBodyResolverOverRpc(channel, denoVersion));
 
             const response = await exec.fetch(request, workerFetch.opts);
             const responseData = await packResponse(response, bodies, v => rpcStubWebSockets.packWebSocket(v));
@@ -75,7 +75,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
                 if (objects === undefined) return new UnimplementedDurableObjectNamespace(doNamespace);
                 return objects.resolveDoNamespace(doNamespace)
             },
-            r2BucketProvider: bucketName => new RpcR2Bucket(bucketName, channel, makeBodyResolverOverRpc(channel), bodies),
+            r2BucketProvider: bucketName => new RpcR2Bucket(bucketName, channel, makeBodyResolverOverRpc(channel, denoVersion), bodies),
             analyticsEngineProvider: NoopAnalyticsEngine.provider,
             d1DatabaseProvider: NoopD1Database.provider,
             secretKeyProvider: cryptoKeyProvider,
@@ -106,4 +106,5 @@ export interface ScriptDef {
     readonly scriptContents: Uint8Array;
     readonly bindings: Record<string, Binding>;
     readonly verbose: boolean;
+    readonly denoVersion: string;
 }

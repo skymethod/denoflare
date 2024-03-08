@@ -22,6 +22,7 @@ export class WorkerManager {
     static VERBOSE = false;
 
     private readonly workerUrl: string;
+    private readonly denoVersion = Deno.version.deno;
 
     private currentWorker?: WorkerInfo;
 
@@ -51,6 +52,7 @@ export class WorkerManager {
 
     async run(scriptContents: Uint8Array, scriptType: 'module' | 'script', opts: { bindings: Record<string, Binding>, profile: Profile | undefined }): Promise<void> {
         const { bindings, profile } = opts;
+        const { denoVersion } = this;
 
         if (this.currentWorker) {
             this.currentWorker.worker.terminate();
@@ -82,7 +84,7 @@ export class WorkerManager {
 
         // make external fetch calls on behalf of the worker
         const bodies = new Bodies();
-        const requestBodyResolver = makeBodyResolverOverRpc(rpcChannel);
+        const requestBodyResolver = makeBodyResolverOverRpc(rpcChannel, denoVersion);
         rpcChannel.addRequestHandler('fetch', async requestData => {
             const req = unpackRequest(requestData as PackedRequest, requestBodyResolver);
             const res = await fetch(req);
@@ -115,7 +117,7 @@ export class WorkerManager {
         addRequestHandlerForRpcR2Bucket(rpcChannel, bodies, requestBodyResolver, r2BucketProvider);
 
         // run the script in the deno worker
-        await runScript({ scriptContents, scriptType, bindings, verbose: WorkerManager.VERBOSE }, rpcChannel);
+        await runScript({ scriptContents, scriptType, bindings, verbose: WorkerManager.VERBOSE, denoVersion }, rpcChannel);
 
         this.currentWorker = { worker, rpcChannel, bodies, rpcHostWebSockets };
     }
@@ -130,7 +132,7 @@ export class WorkerManager {
             opts,
         };
         const res = await rpcChannel.sendRequest('worker-fetch', workerFetch, responseData => {
-            return unpackResponse(responseData, makeBodyResolverOverRpc(rpcChannel), v => rpcHostWebSockets.unpackWebSocket(v));
+            return unpackResponse(responseData, makeBodyResolverOverRpc(rpcChannel, this.denoVersion), v => rpcHostWebSockets.unpackWebSocket(v));
         });
         return res;
     }
