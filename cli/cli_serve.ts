@@ -217,62 +217,57 @@ export async function serve(args: (string | number)[], options: Record<string, u
 
     const computeExternalIp = memoize(fetchExternalIp);
 
-    async function handle(conn: Deno.Conn) {
-        const httpConn = Deno.serveHttp(conn);
-        for await (const { request, respondWith } of httpConn) {
-            try {
-                const cfConnectingIp = await computeExternalIp();
-                const hostname = localHostname;
-                const upgrade = request.headers.get('upgrade') || undefined;
-                if (upgrade !== undefined) {
-                    // websocket upgrade request
-                    if (upgrade !== 'websocket') throw new Error(`Unsupported upgrade: ${upgrade}`);
-                    const { socket, response } = Deno.upgradeWebSocket(request);
-                    const denoWebSocketForwarder = new DenoWebSocketForwarder(socket);
-                    const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
-                    if (DenoflareResponse.is(res) && res.init && res.init.webSocket) {
-                        if (res.init?.status !== 101) throw new Error(`Bad response status: expected 101, found ${res.init?.status}`);
-                        denoWebSocketForwarder.setClientSocket(res.init.webSocket);
-                    } else {
-                        if (!DenoflareResponse.is(res)) {
-                            const txt = await res.text();
-                            console.warn('WARNING: Did not receive a DenoflareResponse back from a WS upgrade request!', res, txt);
-                        } else if (!res.init || !res.init.webSocket) {
-                            const txt = await res.text();
-                            console.warn('WARNING: Did not receive a WebSocket back from a WS upgrade request!', res, txt);
-                        }
-                    }
-                    await respondWith(response).catch(e => consoleError(`Error in respondWith`, e.stack || e));
-                } else {
-                    // normal request
-                    let res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
-                    if (DenoflareResponse.is(res)) {
-                        res = res.toRealResponse();
-                    }
-                    await respondWith(res).catch(e => consoleError(`Error in respondWith`, e.stack || e));
-                }
-            } catch (e) {
-                consoleError('Error servicing request', e.stack || e);
-            }
-        }
-    }
-    consoleLog(`Started in ${Date.now() - start}ms (isolation=${isolation})`);
-
     const protocol = certPem && keyPem ? 'https' : 'http';
-    const server = await (async () => {
+    const { cert, key } = await (async () => {
         if (certPem && keyPem) {
             const cert = await Deno.readTextFile(certPem);
             const key = await Deno.readTextFile(keyPem);
-            return Deno.listenTls({ port, cert, key })
-        } else {
-            return Deno.listen({ port });
+            return { cert, key };
         }
+        return { };
     })();
+    const server = Deno.serve({ port, cert, key }, async request => {
+        try {
+            const cfConnectingIp = await computeExternalIp();
+            const hostname = localHostname;
+            const upgrade = request.headers.get('upgrade') || undefined;
+            if (upgrade !== undefined) {
+                // websocket upgrade request
+                if (upgrade !== 'websocket') throw new Error(`Unsupported upgrade: ${upgrade}`);
+                const { socket, response } = Deno.upgradeWebSocket(request);
+                const denoWebSocketForwarder = new DenoWebSocketForwarder(socket);
+                const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
+                if (DenoflareResponse.is(res) && res.init && res.init.webSocket) {
+                    if (res.init?.status !== 101) throw new Error(`Bad response status: expected 101, found ${res.init?.status}`);
+                    denoWebSocketForwarder.setClientSocket(res.init.webSocket);
+                } else {
+                    if (!DenoflareResponse.is(res)) {
+                        const txt = await res.text();
+                        console.warn('WARNING: Did not receive a DenoflareResponse back from a WS upgrade request!', res, txt);
+                    } else if (!res.init || !res.init.webSocket) {
+                        const txt = await res.text();
+                        console.warn('WARNING: Did not receive a WebSocket back from a WS upgrade request!', res, txt);
+                    }
+                }
+                return response;
+            } else {
+                // normal request
+                let res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
+                if (DenoflareResponse.is(res)) {
+                    res = res.toRealResponse();
+                }
+                return res;
+            }
+        } catch (e) {
+            consoleError('Error servicing request', e.stack || e);
+            throw e;
+        }
+    });
+    consoleLog(`Started in ${Date.now() - start}ms (isolation=${isolation})`);
+
     consoleLog(`Local server running on ${protocol}://localhost:${port}`);
 
-    for await (const conn of server) {
-        handle(conn).catch(e => consoleError('Error in handle', e.stack || e));
-    }
+    await server.finished;
 }
 
 //
