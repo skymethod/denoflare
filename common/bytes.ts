@@ -102,7 +102,9 @@ export class Bytes {
         size = size / 1024;
         if (size < 1024) return `${sign}${roundToOneDecimal(size)}kb`;
         size = size / 1024;
-        return `${sign}${roundToOneDecimal(size)}mb`;
+        if (size < 1024) return `${sign}${roundToOneDecimal(size)}mb`;
+        size = size / 1024;
+        return `${sign}${roundToOneDecimal(size)}gb`;
     }
 
 }
