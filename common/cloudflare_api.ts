@@ -1405,6 +1405,7 @@ export async function createQueue(opts: { accountId: string, apiToken: string, q
 }
 
 export interface NewQueue {
+    readonly queue_id: string; // e.g. b15f3af7f12d497b97a64548e6dd716e
     readonly queue_name: string;
     readonly created_on: string; // 2022-10-30T16:05:14.966372Z
     readonly modified_on: string; // 2022-10-30T16:05:14.966372Z
@@ -1415,6 +1416,9 @@ export interface Queue extends NewQueue {
     readonly producers: QueueProducerInfo[];
     readonly consumers_total_count: number;
     readonly consumers: QueueConsumerInfo[];
+    readonly settings: {
+        delivery_delay: null,
+    }
 }
 
 export interface QueueProducerInfo {
@@ -1423,17 +1427,21 @@ export interface QueueProducerInfo {
 
 export interface QueueConsumerInfo {
     readonly script: string;
+    readonly dead_letter_queue?: string;
     readonly settings: QueueConsumerSettings;
+    readonly consumer_id: string; // e.g. 8b095469a65543298a85b064a764d3f1
+    readonly type: string; // e.g. worker
 }
 
-export async function putQueueConsumer(opts: { accountId: string, apiToken: string, queueName: string, scriptName: string, envName?: string, batchSize?: number, maxRetries?: number, maxWaitTimeMillis?: number, deadLetterQueue?: string }): Promise<QueueConsumer> {
-    const { accountId, apiToken, queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis, deadLetterQueue } = opts;
+export async function putQueueConsumer(opts: { accountId: string, apiToken: string, queueName: string, scriptName: string, envName?: string, batchSize?: number, maxRetries?: number, maxWaitTimeMillis?: number, maxConcurrency?: number | null, deadLetterQueue?: string }): Promise<QueueConsumer> {
+    const { accountId, apiToken, queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis, maxConcurrency, deadLetterQueue } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}/consumers/${scriptName}${typeof envName === 'string' ? `/${envName}` : ''}`;
     const payload = {
         settings: {
             batch_size: batchSize,
             max_retries: maxRetries,
             max_wait_time_ms: maxWaitTimeMillis,
+            max_concurrency: maxConcurrency,
         },
         dead_letter_queue: deadLetterQueue,
     };
@@ -1458,6 +1466,9 @@ export interface QueueConsumerSettings {
 
     /** The maximum number of millis to wait until a batch is full (max: 30 seconds). */
     readonly max_wait_time_ms?: number; // default: 5000
+
+    /** If present, the maximum concurrent consumer invocations (between 1 and 10) */
+    readonly max_concurrency?: number | null;
 }
 
 export interface QueueConsumer {

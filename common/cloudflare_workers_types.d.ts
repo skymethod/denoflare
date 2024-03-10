@@ -1363,7 +1363,7 @@ export interface Queue {
      * 
      * "v8" is the default content type.
      * */
-    send(message: unknown, contentType?: QueuesContentType): Promise<void>;
+    send(message: unknown, opts: { contentType?: QueuesContentType }): Promise<void>;
 
     /** Sends multiple messages to the Queue. */
     sendBatch(messages: Iterable<{ body: unknown, contentType?: QueuesContentType }>): Promise<void>;

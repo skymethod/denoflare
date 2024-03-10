@@ -382,33 +382,36 @@ function cfapiCommand() {
         console.log(result);
     });
 
-    add(apiCommand('list-queues', '').option('page', 'integer', 'Page number'), async (accountId, apiToken, opts) => {
+    rt.subcommandGroup();
+
+    add(apiCommand('list-queues', 'Returns the queues owned by an account').option('page', 'integer', 'Page number'), async (accountId, apiToken, opts) => {
         const { page } = opts;
         const result = await listQueues({ accountId, apiToken, page });
         console.log(JSON.stringify(result, undefined, 2));
     });
 
-    add(apiCommand('create-queue', '').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
+    add(apiCommand('create-queue', 'Creates a new queue').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
         const { queueName } = opts;
         const result = await createQueue({ accountId, apiToken, queueName });
         console.log(result);
     });
 
-    add(apiCommand('get-queue', '').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
+    add(apiCommand('get-queue', 'Get information about a specific queue').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
         const { queueName } = opts;
         const result = await getQueue({ accountId, apiToken, queueName });
         console.log(result);
     });
 
-    add(apiCommand('delete-queue', '').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
+    add(apiCommand('delete-queue', 'Deletes a queue').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
         const { queueName } = opts;
         await deleteQueue({ accountId, apiToken, queueName });
     });
 
-    add(apiCommand('put-queue-consumer', '').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name')
+    add(apiCommand('put-queue-consumer', 'Creates a new consumer for a queue').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name')
             .option('batchSize', 'integer', 'The maximum number of messages allowed in each batch')
             .option('maxRetries', 'integer', 'The maximum number of retries for a message, if it fails or retryAll() is invoked')
             .option('maxWaitTimeMillis', 'integer', 'The maximum number of millis to wait until a batch is full')
+            .option('maxConcurrency', 'integer', 'If present, the maximum concurrent consumer invocations (between 1 and 10)')
             .option('deadLetterQueue', 'string', 'Name of the dead letter queue')
             , async (accountId, apiToken, opts) => {
         const { queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis } = opts;
@@ -416,7 +419,7 @@ function cfapiCommand() {
         console.log(result);
     });
 
-    add(apiCommand('delete-queue-consumer', '').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name'), async (accountId, apiToken, opts) => {
+    add(apiCommand('delete-queue-consumer', 'Deletes the consumer for a queue').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name'), async (accountId, apiToken, opts) => {
         const { queueName, scriptName, envName } = opts;
         await deleteQueueConsumer({ accountId, apiToken, queueName, scriptName, envName });
     });
