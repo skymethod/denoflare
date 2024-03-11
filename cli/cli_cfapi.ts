@@ -411,7 +411,7 @@ function cfapiCommand() {
             .option('batchSize', 'integer', 'The maximum number of messages allowed in each batch')
             .option('maxRetries', 'integer', 'The maximum number of retries for a message, if it fails or retryAll() is invoked')
             .option('maxWaitTimeMillis', 'integer', 'The maximum number of millis to wait until a batch is full')
-            .option('maxConcurrency', 'integer', 'If present, the maximum concurrent consumer invocations (between 1 and 10)')
+            .option('maxConcurrency', 'integer', 'If present, the maximum concurrent consumer invocations (between 1 and 20)')
             .option('deadLetterQueue', 'string', 'Name of the dead letter queue')
             , async (accountId, apiToken, opts) => {
         const { queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis } = opts;

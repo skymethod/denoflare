@@ -1467,7 +1467,7 @@ export interface QueueConsumerSettings {
     /** The maximum number of millis to wait until a batch is full (max: 30 seconds). */
     readonly max_wait_time_ms?: number; // default: 5000
 
-    /** If present, the maximum concurrent consumer invocations (between 1 and 10) */
+    /** If present, the maximum concurrent consumer invocations (between 1 and 20) */
     readonly max_concurrency?: number | null;
 }
 
