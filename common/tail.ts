@@ -58,7 +58,7 @@ export interface TailMessage {
 export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent | TailMessageEmailEvent | TailMessageOverloadEvent | TailMessageGetWebSocketEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
-const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents']);
+const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents', 'scriptVersion', ]);
 
 const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'unknown']);
 
@@ -68,8 +68,9 @@ export function parseTailMessage(obj: unknown): TailMessage {
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     // deno-lint-ignore no-explicit-any
     const objAsAny = obj as any;
-    const { outcome, scriptName, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
+    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
+    if (scriptVersion !== undefined && !(isStringRecord(scriptVersion) && typeof scriptVersion.id === 'string')) throw new Error(`Unexpected scriptVersion: ${JSON.stringify(scriptVersion)}`); // scriptVersion: { id: "a5802a95-358d-4b4c-b570-44c57314fd01" },
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[...KNOWN_OUTCOMES].join(', ')}], found ${JSON.stringify(outcome)}`);
     if (scriptName !== null && typeof scriptName !== 'string') throw new Error(`Bad scriptName: expected string or null, found ${JSON.stringify(scriptName)}`);
     const logs = parseLogs(objAsAny.logs);

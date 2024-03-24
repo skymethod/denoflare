@@ -1115,7 +1115,7 @@ function computeAccountBaseUrl(accountId) {
 function isStringRecord(obj) {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
-async function execute(op, method, url, apiToken, body, responseType = 'json') {
+async function execute(op, method, url, apiToken, body, responseType = 'json', requestContentType) {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({
         'Authorization': `Bearer ${apiToken}`
@@ -1129,7 +1129,7 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
             bytes: body.length
         };
     } else if (isStringRecord(body) || Array.isArray(body)) {
-        headers.set('Content-Type', APPLICATION_JSON_UTF8);
+        headers.set('Content-Type', requestContentType ?? APPLICATION_JSON_UTF8);
         bodyObj = body;
         body = JSON.stringify(body, undefined, 2);
     }
@@ -1166,6 +1166,11 @@ async function execute(op, method, url, apiToken, body, responseType = 'json') {
     }
     if (responseType === 'form') {
         return await fetchResponse.formData();
+    }
+    if (responseType === 'sse') {
+        if (contentType !== 'text/event-stream') throw new Error(`Unexpected content-type (expected text/event-stream): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
+        if (!fetchResponse.body) throw new Error(`No sse body!`);
+        return fetchResponse.body;
     }
     if (![
         APPLICATION_JSON_UTF8.replaceAll(' ', ''),
@@ -1254,7 +1259,8 @@ const REQUIRED_TAIL_MESSAGE_KEYS = new Set([
 ]);
 const ALL_TAIL_MESSAGE_KEYS = new Set([
     ...REQUIRED_TAIL_MESSAGE_KEYS,
-    'diagnosticsChannelEvents'
+    'diagnosticsChannelEvents',
+    'scriptVersion'
 ]);
 const KNOWN_OUTCOMES = new Set([
     'ok',
@@ -1267,8 +1273,9 @@ function parseTailMessage(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     const objAsAny = obj;
-    const { outcome, scriptName, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
+    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
+    if (scriptVersion !== undefined && !(isStringRecord1(scriptVersion) && typeof scriptVersion.id === 'string')) throw new Error(`Unexpected scriptVersion: ${JSON.stringify(scriptVersion)}`);
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[
         ...KNOWN_OUTCOMES
     ].join(', ')}], found ${JSON.stringify(outcome)}`);
