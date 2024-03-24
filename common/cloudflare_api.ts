@@ -1409,6 +1409,9 @@ export interface NewQueue {
     readonly queue_name: string;
     readonly created_on: string; // 2022-10-30T16:05:14.966372Z
     readonly modified_on: string; // 2022-10-30T16:05:14.966372Z
+    readonly settings: {
+        readonly delivery_delay: number | null;
+    };
 }
 
 export interface Queue extends NewQueue {
@@ -1416,9 +1419,6 @@ export interface Queue extends NewQueue {
     readonly producers: QueueProducerInfo[];
     readonly consumers_total_count: number;
     readonly consumers: QueueConsumerInfo[];
-    readonly settings: {
-        delivery_delay: null,
-    }
 }
 
 export interface QueueProducerInfo {
@@ -1482,6 +1482,32 @@ export interface QueueConsumer {
      * If there is no Queue with the specified name, it will be created automatically. */
     readonly dead_letter_queue: string; // '' for unset
     readonly created_on: string; // 2022-10-30T16:38:22.373479Z
+}
+
+export async function pullQueueMessages(opts: { accountId: string, apiToken: string, queueId: string, visibilityTimeout?: number, batchSize?: number }): Promise<readonly QueueMessage[]> {
+    const { accountId, apiToken, queueId, visibilityTimeout, batchSize } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/pull`;
+    const payload = { ...(visibilityTimeout !== undefined ? { visibilityTimeout } : {}), ...(batchSize !== undefined ? { batchSize } : {}) };
+    return (await execute<PullQueueMessagesResponse>('pullQueueMessages', 'POST', url, apiToken, payload)).result.messages;
+}
+
+export interface PullQueueMessagesResponse {
+    readonly messages: readonly QueueMessage[];
+}
+
+export interface QueueMessage {
+    readonly body: string;
+    readonly id: string;
+    readonly timestamp_ms: number;
+    readonly attempts: number;
+    readonly lease_id: string;
+}
+
+export async function ackQueueMessages(opts: { accountId: string, apiToken: string, queueId: string, acks: string[], retries: { lease_id: string, secondsToDelayFor?: number}[] }): Promise<unknown> { // TODO
+    const { accountId, apiToken, queueId, acks, retries } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/ack`;
+    const payload = { acks, retries };
+    return (await execute<unknown>('ackQueueMessages', 'POST', url, apiToken, payload)).result;
 }
 
 //#endregion
