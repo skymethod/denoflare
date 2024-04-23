@@ -1,5 +1,5 @@
 import { Socket, cloudflareSockets } from './cloudflare_sockets.ts';
-import { copy } from 'https://deno.land/std@0.220.0/bytes/copy.ts'; // intended to be self-contained, don't use shared deps
+import { copy } from 'https://deno.land/std@0.223.0/bytes/copy.ts'; // intended to be self-contained, don't use shared deps
 
 const { connect } = cloudflareSockets();
 
@@ -34,11 +34,11 @@ class SocketDenoConn implements Deno.TcpConn {
         this.socket = socket;
     }
 
-    get localAddr(): Deno.Addr {
+    get localAddr(): Deno.NetAddr {
         throw new Error(`SocketDenoConn: localAddr() not implemented`);
     }
 
-    get remoteAddr(): Deno.Addr {
+    get remoteAddr(): Deno.NetAddr {
         throw new Error(`SocketDenoConn: remoteAddr() not implemented`);
     }
 
