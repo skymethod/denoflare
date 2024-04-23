@@ -226,7 +226,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         }
         return { };
     })();
-    const server = Deno.serve({ port, cert, key }, async request => {
+    const server = Deno.serve({ port, ...(cert && key ? { cert, key } : {}) }, async request => {
         try {
             const cfConnectingIp = await computeExternalIp();
             const hostname = localHostname;
