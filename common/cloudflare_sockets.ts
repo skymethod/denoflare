@@ -71,8 +71,8 @@ class DenoSocket implements Socket {
 
     private address: SocketAddress;
     private readonly startTlsAllowed;
-    private readonly conn: Promise<Deno.Conn>;
-    private readonly conn2?: Promise<Deno.Conn>;
+    private readonly conn: Promise<Deno.TcpConn>;
+    private readonly conn2?: Promise<Deno.Conn<Deno.NetAddr>>;
     private readonly closedSignal = new Signal<void>();
 
     private startedTls = false;
@@ -87,9 +87,9 @@ class DenoSocket implements Socket {
         const stream2 = new TransformStream<Uint8Array>();
         this.writable = stream2.writable;
         this.startTlsAllowed = secureTransport === 'starttls';
-        const connSignal = new Signal<Deno.Conn>();
+        const connSignal = new Signal<Deno.TcpConn>();
         this.conn = connSignal.promise;
-        const conn2Signal = secureTransport === 'on' ? new Signal<Deno.Conn>() : undefined;
+        const conn2Signal = secureTransport === 'on' ? new Signal<Deno.Conn<Deno.NetAddr>>() : undefined;
         this.conn2 = conn2Signal?.promise;
         (async () => {
             const { hostname, port } = address;
@@ -137,7 +137,7 @@ class DenoSocket implements Socket {
 
         const stream1 = new TransformStream<Uint8Array>();
         const stream2 = new TransformStream<Uint8Array>();
-        const conn2Signal = new Signal<Deno.Conn>();
+        const conn2Signal = new Signal<Deno.Conn<Deno.NetAddr>>();
         const closedSignal = new Signal<void>();
 
         const rt = new class implements Socket {
