@@ -103,6 +103,7 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('aeDatasetBinding', 'strings', 'Analytics Engine dataset environment variable binding, overrides config', { hint: 'name:dataset-name'})
         .option('queueBinding', 'strings', 'Queue environment variable binding, overrides config', { hint: 'name:queue-name'})
         .option('secretKeyBinding', 'strings', 'Secret key environment variable binding, overrides config', { hint: 'name:{"algorithm":{"name":"HMAC"...'})
+        .option('ratelimitBinding', 'strings', 'Ratelimit environment variable binding, overrides config', { hint: 'name:namespace-id:limit:period'})
         ;
 }
 
@@ -152,6 +153,10 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
     for (const hyperdriveBinding of parseOptionalStringOptions('hyperdrive-binding', options) || []) {
         const [ _, name, hyperdrive ] = checkMatchesReturnMatcher('hyperdrive-binding', hyperdriveBinding, pattern);
         rt[name] = { hyperdrive };
+    }
+    for (const ratelimitBinding of parseOptionalStringOptions('ratelimit-binding', options) || []) {
+        const [ _, name, ratelimit ] = checkMatchesReturnMatcher('ratelimit-binding', ratelimitBinding, pattern);
+        rt[name] = { ratelimit };
     }
     return rt;
 }
