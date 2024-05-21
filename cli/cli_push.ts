@@ -4,7 +4,7 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
@@ -211,7 +211,7 @@ class DurableObjectNamespaces {
         if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error(`Bad durable object namespace name: ${name}`);
         const className = tokens[1];
         const { accountId, apiToken } = this;
-        const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken });
+        const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken, perPage: 1000 });
         let namespace = namespaces.find(v => v.name === name);
         if (!namespace)  {
             console.log(`Creating new durable object namespace: ${name}`);
@@ -291,6 +291,11 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
             return [ undefined, addresses ];
         })();
         return { type: 'send_email', name, destination_address, allowed_destination_addresses };
+    } else if (isRatelimitBinding(binding)) {
+        const [ _, namespace_id, limitStr, periodStr ] = checkMatchesReturnMatcher('ratelimit', binding.ratelimit.trim(), /^(\d+):(\d+):(\d+)$/);
+        const limit = parseInt(limitStr);
+        const period = parseInt(periodStr);
+        return { type: 'ratelimit', name, namespace_id, simple: { limit, period } };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

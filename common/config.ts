@@ -115,7 +115,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -240,6 +240,13 @@ export interface SendEmailBinding {
     readonly sendEmailDestinationAddresses: string;
 }
 
+/** Rate Limiting environment variable binding */
+export interface RatelimitBinding {
+
+    /** Rate limit namespace, limit, and period.  e.g. 1001:100:60 */
+    readonly ratelimit: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -344,3 +351,7 @@ export function isSendEmailBinding(binding: Binding): binding is SendEmailBindin
     return typeof (binding as any).sendEmailDestinationAddresses === 'string';
 }
 
+export function isRatelimitBinding(binding: Binding): binding is RatelimitBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).ratelimit === 'string';
+}

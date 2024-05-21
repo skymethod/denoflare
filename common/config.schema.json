@@ -206,6 +206,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Rate Limiting environment variable binding",
+                                            "required": [ "ratelimit" ],
+                                            "properties": {
+                                                "ratelimit": {
+                                                    "description": "Rate limit namespace, limit, and period.  e.g. 1001:100:60",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

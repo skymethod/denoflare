@@ -2,10 +2,11 @@
 
 import { AiModelInput, AiModelOutput } from './cloudflare_workers_types.d.ts';
 
-export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string }): Promise<readonly DurableObjectsNamespace[]> {
-    const { accountId, apiToken } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
-    return (await execute<readonly DurableObjectsNamespace[]>('listDurableObjectsNamespaces', 'GET', url, apiToken)).result;
+export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string, perPage?: number }): Promise<readonly DurableObjectsNamespace[]> {
+    const { accountId, apiToken, perPage } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`);
+    if (typeof perPage === 'number') url.searchParams.set('per_page', perPage.toString());
+    return (await execute<readonly DurableObjectsNamespace[]>('listDurableObjectsNamespaces', 'GET', url.toString(), apiToken)).result;
 }
 
 export async function createDurableObjectsNamespace(opts: { accountId: string, apiToken: string, name: string, script?: string, className?: string }): Promise<DurableObjectsNamespace> {
@@ -191,7 +192,7 @@ export interface ScriptVersionAllocationResult {
     readonly id: string; // versioned-deployment id
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -289,6 +290,13 @@ export interface SendEmailBinding {
     readonly name: string;
     readonly destination_address?: string;
     readonly allowed_destination_addresses?: string[];
+}
+
+export interface RatelimitBinding {
+    readonly type: 'ratelimit';
+    readonly name: string;
+    readonly namespace_id: string;
+    readonly simple: { readonly limit: number, readonly period: number };
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least
