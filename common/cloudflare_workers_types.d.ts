@@ -497,12 +497,10 @@ export default {
 };
 */
 
-// deno-lint-ignore no-empty-interface
 export interface ModuleWorkerContext extends WorkerContextMethods {
 
 }
 
-// deno-lint-ignore no-empty-interface
 export interface ModuleWorkerScheduledEvent extends ScheduledEventProperties {
 
 }
@@ -1617,6 +1615,14 @@ export interface EmailMessageConstructable {
 
 export interface EmailSender {
     send(message: EmailMessage): Promise<void>;
+}
+
+//#endregion
+
+//#region Rate Limiting
+
+export interface Ratelimiter {
+    limit(opts: { key: string }): Promise<{ success: boolean }>;
 }
 
 //#endregion
