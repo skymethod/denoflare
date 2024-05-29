@@ -141,7 +141,7 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
             const denoZipUrl = architecture as string === 'arm64' ? `https://github.com/LukeChannings/deno-arm64/releases/download/v${denoVersion}/deno-linux-arm64.zip` 
                 : `https://github.com/denoland/deno/releases/download/v${denoVersion}/deno-x86_64-unknown-linux-gnu.zip`
             const res = await fetch(denoZipUrl);
-            if (!res.ok || !res.body) throw new Error();
+            if (!res.ok || !res.body) throw new Error(`${res.status} for ${denoZipUrl}`);
             return res.body;
         }
     
