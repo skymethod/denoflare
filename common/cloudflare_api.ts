@@ -605,6 +605,64 @@ export interface ListKVNamespacesResponse extends CloudflareApiResponse<KVNamesp
     readonly result_info: ResultInfo;
 }
 
+/**
+ * Query KV Request Analytics
+ * https://developers.cloudflare.com/api/operations/workers-kv-request-analytics-query-request-analytics
+ */
+export async function queryKvRequestAnalytics(opts: KVAnalyticsOpts): Promise<KVRequestAnalyticsResult> {
+    return await queryKvAnalytics<KVRequestAnalyticsResult>(opts, 'queryKvRequestAnalytics', '/storage/analytics');
+}
+
+export type KVRequestAnalyticsResult = KVAnalyticsResult<'accountId' | 'responseCode' | 'requestType', 'requests' |  'writeKiB' | 'readKiB'>;
+
+/**
+ * Query KV Storage Analytics
+ * https://developers.cloudflare.com/api/operations/workers-kv-stored-data-analytics-query-stored-data-analytics
+ */
+export async function queryKvStorageAnalytics(opts: KVAnalyticsOpts): Promise<KVStorageAnalyticsResult> {
+    return await queryKvAnalytics<KVStorageAnalyticsResult>(opts, 'queryKvStorageAnalytics', '/storage/analytics/stored');
+}
+
+export type KVStorageAnalyticsResult = KVAnalyticsResult<'namespaceId', 'storedBytes' | 'storedKeys'>;
+
+async function queryKvAnalytics<TResult>(opts: KVAnalyticsOpts, op: string, pathSuffix: string): Promise<TResult> {
+    const { accountId, apiToken, dimensions, filters, limit, metrics, since, until, sort } = opts;
+
+    const url = new URL(`${computeAccountBaseUrl(accountId)}${pathSuffix}`);
+
+    if (typeof limit === 'number') url.searchParams.set('limit', limit.toString());
+    if (typeof since === 'string') url.searchParams.set('since', since);
+    if (typeof until === 'string') url.searchParams.set('until', until);
+    if (typeof filters === 'string' && filters !== '') url.searchParams.set('filters', filters);
+    if (dimensions && dimensions.length > 0) url.searchParams.set('dimensions', dimensions.join(','));
+    if (metrics && metrics.length > 0) url.searchParams.set('metrics', metrics.join(','));
+    if (sort && sort.length > 0) url.searchParams.set('sort', sort.join(','));
+
+    return (await execute<TResult>(op, 'GET', url.toString(), apiToken)).result;
+}
+
+type KVAnalyticsOpts = { accountId: string, apiToken: string, dimensions?: string[], filters?: string, limit?: number, metrics?: string[], since?: string, until?: string, sort?: string[] };
+interface KVAnalyticsResult<TDimension, TMetric extends string> {
+    readonly rows: number;
+    readonly data: {
+        readonly dimensions?: string[]; // dimension value, e.g. read (for requestType)
+        readonly metrics: number[][];
+    }[];
+    readonly data_lag: number;
+    readonly min: Record<TMetric, number | undefined>;
+    readonly max: Record<TMetric, number | undefined>;
+    readonly totals: Record<TMetric, number | undefined>;
+    readonly time_intervals: [ string, string ][]; // [ [ 2024-06-09T16:00:00Z, 2024-06-09T16:00:59Z ] ...
+    readonly query: {
+        readonly dimensions: TDimension[];
+        readonly metrics: TMetric[];
+        readonly since: string; // e.g. 2024-06-09T15:26:00Z
+        readonly until: string;
+        readonly time_delta: string; // e.g. minute, day
+        readonly limit: number;
+    }
+}
+
 //#endregion
 
 //#region Workers Tails

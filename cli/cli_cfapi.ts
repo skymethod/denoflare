@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -145,6 +145,34 @@ function cfapiCommand() {
             console.log(JSON.stringify(item));
         }
         console.log(JSON.stringify(res.result_info));
+    });
+    
+    add(apiCommand('query-kv-request-analytics', `Query KV request metrics`)
+        .option('limit', 'integer', 'Limit number of returned metrics')
+        .option('since', 'string', 'Start of time interval to query, defaults to 6 hours ago')
+        .option('until', 'string', 'End of time interval to query, defaults to now')
+        .option('dimensions', 'strings', 'Can be used to break down the data by: accountId, responseCode, requestType')
+        .option('filters', 'string', 'Used to filter rows by one or more dimensions. Filters can be combined using OR and AND boolean logic')
+        .option('metrics', 'strings', 'One or more metrics to compute: requests, writeKiB, readKiB')
+        .option('sort', 'strings', 'Array of dimensions or metrics to sort by, may be prefixed by - (descending) or + (ascending')
+    , async (accountId, apiToken, opts) => {
+        const { limit, since, until, dimensions, filters, metrics, sort } = opts;
+        const res = await queryKvRequestAnalytics({ accountId, apiToken, limit, since, until, dimensions, filters, metrics, sort });
+        console.log(JSON.stringify(res, undefined, 2));
+    });
+
+    add(apiCommand('query-kv-storage-analytics', `Query KV storage metrics`)
+        .option('limit', 'integer', 'Limit number of returned metrics')
+        .option('since', 'string', 'Start of time interval to query, defaults to 6 hours ago')
+        .option('until', 'string', 'End of time interval to query, defaults to now')
+        .option('dimensions', 'strings', 'Can be used to break down the data by: namespaceId')
+        .option('filters', 'string', 'Used to filter rows by one or more dimensions. Filters can be combined using OR and AND boolean logic')
+        .option('metrics', 'strings', 'One or more metrics to compute: storedBytes, storedKeys')
+        .option('sort', 'strings', 'Array of dimensions or metrics to sort by, may be prefixed by - (descending) or + (ascending')
+    , async (accountId, apiToken, opts) => {
+        const { limit, since, until, dimensions, filters, metrics, sort } = opts;
+        const res = await queryKvStorageAnalytics({ accountId, apiToken, limit, since, until, dimensions, filters, metrics, sort });
+        console.log(JSON.stringify(res, undefined, 2));
     });
     
     rt.subcommandGroup();
