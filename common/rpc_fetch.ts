@@ -150,7 +150,12 @@ export function packRequest(info: RequestInfo, init: RequestInit | undefined, bo
                 else if (init.body instanceof ReadableStream) { bodyId = bodies.computeBodyId(init.body); }
                 else if (init.body instanceof ArrayBuffer) { bodyBytes = new Uint8Array(new Uint8Array(init.body)); }
                 else if (init.body === null) { bodyNull = true; }
-                else { throw new Error(`packRequest: init.body`); }
+                else if (init.body instanceof FormData) { 
+                    // deno-lint-ignore no-explicit-any
+                    bodyText = new URLSearchParams(init.body as any).toString();
+                    headers = headers.filter(v => v[0] !== 'content-type');
+                    headers.push([ 'content-type', 'application/x-www-form-urlencoded' ]);
+                } else { throw new Error(`packRequest: init.body`); }
             }
             if (init.cache !== undefined) throw new Error(`packRequest: init.cache`);
             if (init.credentials !== undefined) throw new Error(`packRequest: init.credentials`);
