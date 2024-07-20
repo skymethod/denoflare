@@ -15,7 +15,7 @@ export function parseCryptoKeyDef(json: string): CryptoKeyDef {
     if (!isStringRecord(algorithm)) throw new Error(`Bad algorithm: ${JSON.stringify(algorithm)} in ${JSON.stringify(obj)}`);
     const { name } = algorithm;
     if (typeof name !== 'string') throw new Error(`Bad algorithm.name: ${JSON.stringify(name)} in ${JSON.stringify(obj)}`);
-    if (!Array.isArray(usages) || !usages.every(v => typeof v === 'string')) throw new Error(`Bad usages: ${JSON.stringify(usages)} in ${JSON.stringify(obj)}`);
+    if (!Array.isArray(usages) || !usages.every(isKeyUsage)) throw new Error(`Bad usages: ${JSON.stringify(usages)} in ${JSON.stringify(obj)}`);
     if (typeof base64 !== 'string') throw new Error(`Bad base64: ${JSON.stringify(base64)} in ${JSON.stringify(obj)}`);
 
     // deno-lint-ignore no-explicit-any
@@ -32,4 +32,8 @@ export async function toCryptoKey(def: CryptoKeyDef): Promise<CryptoKey> {
 export async function cryptoKeyProvider(json: string): Promise<CryptoKey> {
     const def = parseCryptoKeyDef(json);
     return await toCryptoKey(def);
+}
+
+export function isKeyUsage(obj: unknown): obj is KeyUsage {
+    return typeof obj === 'string' && /^decrypt|deriveBits|deriveKey|encrypt|sign|unwrapKey|verify|wrapKey$/.test(obj);
 }
