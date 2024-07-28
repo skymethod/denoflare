@@ -5,11 +5,11 @@ import { resolve, toFileUrl, isAbsolute } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { Bytes } from '../common/bytes.ts';
 
-export type BundleBackend = 'builtin' | 'process' | 'module';
+export type BundleBackend = 'builtin' | 'process' | 'module' | 'esbuild';
 
 export type TypeCheckLevel = 'all' | 'local' | 'none';
 
-export type BundleOpts = { backend?: BundleBackend, check?: TypeCheckLevel, createSourceMap?: boolean, compilerOptions?: { lib?: string[] } };
+export type BundleOpts = { backend?: BundleBackend, check?: TypeCheckLevel, createSourceMap?: boolean, compilerOptions?: { lib?: string[] }, rest?: Record<string, string> };
 
 export function commandOptionsForBundle(command: CliCommand<unknown>) {
     return command
@@ -21,16 +21,16 @@ export function commandOptionsForBundle(command: CliCommand<unknown>) {
 export function parseBundleOpts(options: Record<string, unknown>): BundleOpts | undefined {
     const nvps = parseNameValuePairsOption('bundle', options);
     if (nvps === undefined) return undefined;
-    const { backend, check } = nvps;
+    const { backend, check, ...rest } = nvps;
     const supportedBackends = computeSupportedBackends();
     if (backend && !supportedBackends.includes(backend)) throw new Error(`Bad backend: ${backend}, expected one of (${supportedBackends.join(', ')})`);
-    if (check && !supportedChecks.includes(check))  throw new Error(`Bad check: ${check}, expected one of (${supportedChecks.join(', ')})`);
-    return { backend: backend as BundleBackend, check: check as TypeCheckLevel };
+    if (check && !supportedChecks.includes(check)) throw new Error(`Bad check: ${check}, expected one of (${supportedChecks.join(', ')})`);
+    return { backend: backend as BundleBackend, check: check as TypeCheckLevel, rest };
 }
 
 export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Promise<{ code: string, sourceMap?: string, backend: BundleBackend }> {
-    const { backend, check, createSourceMap, compilerOptions } = opts;
-    
+    const { backend, check, createSourceMap, compilerOptions, rest = {} } = opts;
+
     // deno-lint-ignore no-explicit-any
     const deno = Deno as any;
     if ('emit' in deno && 'formatDiagnostics' in deno && backend === undefined || backend === 'builtin') {
@@ -68,7 +68,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
 
         // dynamic import, otherwise fails pre 1.22, and avoid typecheck failures using two lines
         const moduleUrl = 'https://deno.land/x/emit@0.16.0/mod.ts';
-        const { bundle } = await import(moduleUrl);  
+        const { bundle } = await import(moduleUrl);
 
         // new 'bundle' no longer takes abs file paths
         // https://github.com/denoland/deno_emit/issues/22
@@ -97,6 +97,47 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         return { code, sourceMap, backend: 'module' };
     }
 
+    if (backend === 'esbuild') {
+        // TODO type checking! (not handled by esbuild or esbuild deno loader)
+        // TODO verify existing transformations or include in custom plugin?
+        // TODO bundle options for specifying esbuild module and/or loader version/url
+        // TODO other esbuild options?
+        let configPath: string | undefined;
+        try {
+            if (compilerOptions?.lib) {
+                configPath = await Deno.makeTempFile({ prefix: 'denoflare-esbuild-bundle', suffix: '.json'});
+                await Deno.writeTextFile(configPath, JSON.stringify({ compilerOptions }));
+            }
+            const { loader = 'native', ...unknownOptions } = rest;
+            if (Object.keys(unknownOptions).length > 0) throw new Error(`Unknown esbuild bundler option${Object.keys(unknownOptions).length === 1 ? '' : 's'}: ${JSON.stringify(unknownOptions)}`);
+
+            if (loader !== 'native' && loader !== 'portable') throw new Error(`Invalid esbuild loader: expected 'native' or 'portable'`);
+            const esbuildModuleUrl = loader === 'native' ? 'npm:esbuild@0.23.0' : 'https://deno.land/x/esbuild@v0.23.0/wasm.js';
+            const esbuild = await import(esbuildModuleUrl);
+            const loaderModuleUrl = 'jsr:@luca/esbuild-deno-loader@^0.10.3';
+            const { denoPlugins } = await import(loaderModuleUrl);
+
+            type OutputFile = { path: string, contents: Uint8Array, hash: string, text: string };
+            type BuildResult = { errors: unknown[], warnings: unknown[], outputFiles: OutputFile[], metafile: unknown, mangleCache: unknown};
+            const result = await esbuild.build({
+                plugins: [ ...denoPlugins({ loader, configPath }) ],
+                entryPoints: [ rootSpecifier ],
+                outfile: 'output.esm.js',
+                write: false,
+                bundle: true,
+                platform: 'browser',
+                format: 'esm',
+            }) as BuildResult;
+            if (result.errors.length > 0 || result.warnings.length > 0 || result.outputFiles.length !== 1) throw new Error(`Unexpected esbuild result: ${JSON.stringify(result)}`);
+
+            const code = result.outputFiles[0].text;
+            return { code, backend: 'esbuild' };
+        } finally {
+            if (configPath) {
+                await Deno.remove(configPath);
+            }
+        }
+    }
     // default: spawn 'deno bundle' process
     // deno bundle performs local type-checking by default
     const check_ = check === 'all' ? 'all' : undefined;
@@ -118,11 +159,11 @@ function computeSupportedBackends() {
     // deno-lint-ignore no-explicit-any
     const deno = Deno as any;
     const builtinSupported = 'emit' in deno && 'formatDiagnostics' in deno;
-    return [ ...(builtinSupported ? [ 'builtin'] : []), 'process', 'module' ];
+    return [ ...(builtinSupported ? [ 'builtin' ] : []), 'process', 'module', 'esbuild' ];
 }
 
 function isKnownIgnorableWarning(diag: DenoDiagnostic): boolean {
-    return isModuleJsonImportWarning(diag) 
+    return isModuleJsonImportWarning(diag)
         || isSubsequentVariableDeclarationsInDenoLibsWarning(diag);
 }
 
@@ -179,7 +220,7 @@ function isSubsequentVariableDeclarationsInDenoLibsWarning(diag: DenoDiagnostic)
 }
 
 function formatDiagnostic(diagnostic: DenoDiagnostic): string {
-    const { code, messageText, fileName, start} = diagnostic;
+    const { code, messageText, fileName, start } = diagnostic;
     const suffix = start ? `:${start.line}:${start.character}` : '';
     return `TS${code}: ${messageText}\n  at ${fileName}:${suffix}`;
 }
