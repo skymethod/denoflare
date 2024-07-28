@@ -4,6 +4,7 @@ import { denoBundle, DenoDiagnostic } from './deno_bundle.ts';
 import { resolve, toFileUrl, isAbsolute } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { Bytes } from '../common/bytes.ts';
+import { denoCheck } from './deno_check.ts';
 
 export type BundleBackend = 'builtin' | 'process' | 'module' | 'esbuild';
 
@@ -97,24 +98,36 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         return { code, sourceMap, backend: 'module' };
     }
 
+    // deno bundle is finally going away in deno 2
+    // the way forward is esbuild and esbuild-deno-loader
     if (backend === 'esbuild') {
-        // TODO type checking! (not handled by esbuild or esbuild deno loader)
         // TODO verify existing transformations or include in custom plugin?
-        // TODO bundle options for specifying esbuild module and/or loader version/url
         // TODO other esbuild options?
+
+        // deno bundle type-checked by default, so we will too (not handled by esbuild or esbuild deno loader)
+        if (check !== 'none') {
+            const all = check === 'all';
+            const { diagnostics } = await denoCheck(rootSpecifier, { all, compilerOptions });
+            if (diagnostics.length > 0) {
+                console.warn(diagnostics.map(formatDiagnostic).join('\n\n'));
+                throw new Error('deno check failed');
+            }
+        }
+
         let configPath: string | undefined;
         try {
             if (compilerOptions?.lib) {
                 configPath = await Deno.makeTempFile({ prefix: 'denoflare-esbuild-bundle', suffix: '.json'});
                 await Deno.writeTextFile(configPath, JSON.stringify({ compilerOptions }));
             }
-            const { loader = 'native', ...unknownOptions } = rest;
+            const { loader = 'native', loaderModule = '^0.10.3', esbuildModule = '0.23.0', ...unknownOptions } = rest;
             if (Object.keys(unknownOptions).length > 0) throw new Error(`Unknown esbuild bundler option${Object.keys(unknownOptions).length === 1 ? '' : 's'}: ${JSON.stringify(unknownOptions)}`);
 
             if (loader !== 'native' && loader !== 'portable') throw new Error(`Invalid esbuild loader: expected 'native' or 'portable'`);
-            const esbuildModuleUrl = loader === 'native' ? 'npm:esbuild@0.23.0' : 'https://deno.land/x/esbuild@v0.23.0/wasm.js';
+
+            const esbuildModuleUrl = tryParseUrl(esbuildModule) ? esbuildModule : loader === 'native' ? `npm:esbuild@${esbuildModule}` : `https://deno.land/x/esbuild@v${esbuildModule}/wasm.js`;
             const esbuild = await import(esbuildModuleUrl);
-            const loaderModuleUrl = 'jsr:@luca/esbuild-deno-loader@^0.10.3';
+            const loaderModuleUrl = tryParseUrl(loaderModule) ? loaderModule : `jsr:@luca/esbuild-deno-loader@${loaderModule}`;
             const { denoPlugins } = await import(loaderModuleUrl);
 
             type OutputFile = { path: string, contents: Uint8Array, hash: string, text: string };
@@ -223,4 +236,12 @@ function formatDiagnostic(diagnostic: DenoDiagnostic): string {
     const { code, messageText, fileName, start } = diagnostic;
     const suffix = start ? `:${start.line}:${start.character}` : '';
     return `TS${code}: ${messageText}\n  at ${fileName}:${suffix}`;
+}
+
+function tryParseUrl(url: string): URL | undefined {
+    try {
+        return new URL(url);
+    } catch {
+        return undefined;
+    }
 }

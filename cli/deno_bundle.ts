@@ -58,6 +58,20 @@ export async function denoBundle(rootSpecifier: string, opts: { noCheck?: boolea
     }
 }
 
+export function parseDiagnostics(err: string): DenoDiagnostic[] {
+    const rt: DenoDiagnostic[] = [];
+    if (err.length === 0) return rt;
+
+    for (const [ _, __, codeStr, inBetween, fileName, lineStr, charStr ] of [...err.matchAll(/(TS(\d+)|error:)(.*?)\s+at\s+([^\s]+):(\d+):(\d+)\n/gs)]) {
+        const messageText = inBetween.trim();
+        const code = codeStr ? parseInt(codeStr) : 0;
+        const line = parseInt(lineStr);
+        const character = parseInt(charStr);
+        rt.push({ category: 1 /*error*/, code, messageText, fileName, start: { line, character } });
+    }
+    return rt;
+}
+
 //
 
 type RunDenoBundleResult = { code: number, success: boolean, out: string, err: string };
@@ -83,16 +97,3 @@ async function runDenoBundle(rootSpecifier: string, opts: { noCheck?: boolean | 
     return { code, success, out, err };
 }
 
-function parseDiagnostics(err: string): DenoDiagnostic[] {
-    const rt: DenoDiagnostic[] = [];
-    if (err.length === 0) return rt;
-
-    for (const [ _, __, codeStr, inBetween, fileName, lineStr, charStr ] of [...err.matchAll(/(TS(\d+)|error:)(.*?)\s+at\s+([^\s]+):(\d+):(\d+)\n/gs)]) {
-        const messageText = inBetween.trim();
-        const code = codeStr ? parseInt(codeStr) : 0;
-        const line = parseInt(lineStr);
-        const character = parseInt(charStr);
-        rt.push({ category: 1 /*error*/, code, messageText, fileName, start: { line, character } });
-    }
-    return rt;
-}
