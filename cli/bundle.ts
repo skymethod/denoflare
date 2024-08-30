@@ -5,6 +5,7 @@ import { resolve, toFileUrl, isAbsolute } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoCheck } from './deno_check.ts';
+import { tryParseUrl } from '../common/check.ts';
 
 export type BundleBackend = 'builtin' | 'process' | 'module' | 'esbuild';
 
@@ -238,10 +239,3 @@ function formatDiagnostic(diagnostic: DenoDiagnostic): string {
     return `TS${code}: ${messageText}\n  at ${fileName}:${suffix}`;
 }
 
-function tryParseUrl(url: string): URL | undefined {
-    try {
-        return new URL(url);
-    } catch {
-        return undefined;
-    }
-}

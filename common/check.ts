@@ -59,3 +59,15 @@ export function isStringRecord(obj: any): obj is Record<string, unknown> {
 export function isOptionalString(obj: unknown): obj is string | undefined {
     return obj === undefined || typeof obj === 'string';
 }
+
+export function tryParseUrl(url: string): URL | undefined {
+    try {
+        return new URL(url);
+    } catch {
+        return undefined;
+    }
+}
+
+export function isValidUrl(url: string): boolean {
+    return tryParseUrl(url) !== undefined;
+}

@@ -1,11 +1,12 @@
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createD1Backup, createD1Database, D1ExportOutput, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
-import { checkEqual } from '../common/check.ts';
+import { CloudflareApi, createD1Backup, createD1Database, D1ImportAction, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
+import { checkEqual, isValidUrl } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { normalize } from './deps_cli.ts';
 import { join } from './deps_cli.ts';
 import { D1DumpOptions } from '../common/cloudflare_api.ts';
+import { computeMd5 } from './wasm_crypto.ts';
 
 export const LIST_COMMAND = denoflareCliCommand(['d1', 'list'], `List databases`)
     .option('name', 'string', 'A database name to search for')
@@ -54,6 +55,14 @@ export const EXPORT_COMMAND = denoflareCliCommand(['d1', 'export'], `Returns a U
     .docsLink('/cli/d1#export')
     ;
 
+export const IMPORT_COMMAND = denoflareCliCommand(['d1', 'import'], `Imports SQL into a database`)
+    .arg('databaseName', 'string', 'Name of the database to export')
+    .option('poll', 'boolean', 'Incremental polling for progress, useful for larger exports')
+    .option('file', 'required-string', 'Local sql file to import')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#import')
+    ;
+
 export const BACKUP_COMMAND = denoflareCliCommand(['d1', 'backup'], `Backup a database`)
     .arg('databaseName', 'string', 'Name of the database to backup')
     .include(commandOptionsForConfig)
@@ -88,6 +97,7 @@ export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloud
     .subcommand(CREATE_COMMAND, create)
     .subcommand(QUERY_COMMAND, query)
     .subcommand(EXPORT_COMMAND, export_)
+    .subcommand(IMPORT_COMMAND, import_)
     .subcommandGroup()
     .subcommand(BACKUP_COMMAND, backup)
     .subcommand(RESTORE_COMMAND, restore)
@@ -181,6 +191,54 @@ async function export_(args: (string | number)[], options: Record<string, unknow
     } 
 }
 
+async function import_(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (IMPORT_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName, file } = IMPORT_COMMAND.parse(args, options);
+
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
+  
+    const sql = await Deno.readTextFile(file);
+    const etag = (await computeMd5(Bytes.ofUtf8(sql))).hex();
+
+    const filename = await (async () => {
+        const action: D1ImportAction = {
+            action: 'init',
+            etag,
+        };
+
+        console.log('creating import...');
+        const result = await importIntoD1Database({ accountId, apiToken, databaseUuid, action });
+        console.log(JSON.stringify(result, undefined, 2));
+
+        const { success, filename, upload_url } = result;
+        if (!success) throw new Error(`Import failed`);
+        if (typeof filename !== 'string') throw new Error(`Unexpected filename: ${filename}`);
+        if (typeof upload_url !== 'string' || !isValidUrl(upload_url)) throw new Error(`Unexpected upload_url: ${upload_url}`);
+
+        console.log('uploading...');
+        const res = await fetch(upload_url, { method: 'PUT', body: sql });
+        if (res.status !== 200) {
+            console.log(res);
+            throw new Error(`Unexpected upload status: ${res.status}`);
+        }
+        return filename;
+    })();
+
+    await (async () => {
+        console.log('signal ingest...');
+        const action: D1ImportAction = {
+            action: 'ingest',
+            etag,
+            filename,
+        };
+
+        const result = await importIntoD1Database({ accountId, apiToken, databaseUuid, action });
+        console.log(JSON.stringify(result, undefined, 2));
+
+    })();
+}
+
 
 // alpha only: deprecated
 async function backup(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
@@ -267,3 +325,4 @@ async function common(databaseName: string, verbose: boolean, options: Record<st
 function isValidUuid(str: string): boolean {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(str);
 }
+

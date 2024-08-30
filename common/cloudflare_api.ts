@@ -1403,10 +1403,72 @@ export interface D1DumpOptions {
 } 
 
 export async function exportD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string, outputFormat?: 'polling', currentBookmark?: string, dumpOptions?: D1DumpOptions }): Promise<D1ExportOutput | D1ExportResult> {
-    const { accountId, apiToken, databaseUuid = [], outputFormat: output_format, currentBookmark: current_bookmark, dumpOptions: dump_options } = opts;
+    const { accountId, apiToken, databaseUuid, outputFormat: output_format, currentBookmark: current_bookmark, dumpOptions: dump_options } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/export`;
     const payload = { output_format, current_bookmark, dump_options };
     return (await execute<D1ExportResult>('exportD1Database', 'POST', url, apiToken, payload)).result;
+}
+
+export interface D1FinalImportResult {
+    /** The time-travel bookmark if you need restore your D1 to directly after the import succeeded. */
+    readonly final_bookmark: string;
+
+    readonly meta: D1QueryMetadata;
+
+    /** The total number of queries that were executed during the import. */
+    readonly num_queries: number;
+}
+
+export interface D1ImportResult {
+    /** The current time-travel bookmark for your D1, used to poll for updates. Will not change for the duration of the import. Only returned if an import process is currently running or recently finished. */
+    readonly at_bookmark?: string; // (ingest)
+
+    /** Only present when status = 'error'. Contains the error message that prevented the import from succeeding. */
+    readonly error?: string;
+
+    /** Derived from the database ID and etag, to use in avoiding repeated uploads. Only returned when for the 'init' action. */
+    readonly filename?: string; // (init)
+
+    /** Logs since the last time you polled */
+    readonly messages: string[]; // (ingest)
+
+    /** Only present when status = 'complete' */
+    readonly result?: D1FinalImportResult; // (ingest)
+
+    readonly status: string; // (ingest) complete or error
+
+    readonly success: boolean; // (init, ingest)
+
+    readonly type: string; // (ingest) "import"
+    
+    /** The R2 presigned URL to use for uploading. Only returned when for the 'init' action. */
+    readonly upload_url?: string; // (init)
+}
+
+export type D1ImportAction = {
+    /** Indicates you have a new SQL file to upload. */
+    action: 'init',
+    /** An md5 hash of the file you're uploading. Used to check if it already exists, and validate its contents before ingesting. */
+    etag: string,
+} | {
+    /** Indicates you've finished uploading to tell the D1 to start consuming it */
+    action: 'ingest',
+    /** An md5 hash of the file you're uploading. Used to check if it already exists, and validate its contents before ingesting. */
+    etag: string,
+    /** The filename you have successfully uploaded. */
+    filename: string,
+} | {
+    /** Indicates you've finished uploading to tell the D1 to start consuming it */
+    action: 'poll',
+    /** This identifies the currently-running import, checking its status. */
+    current_bookmark: string,
+};
+
+export async function importIntoD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string, action: D1ImportAction }): Promise<D1ImportResult> {
+    const { accountId, apiToken, databaseUuid, action } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/import`;
+    const payload = action;
+    return (await execute<D1ImportResult>('importIntoD1Database', 'POST', url, apiToken, payload)).result;
 }
 
 export async function listD1Backups(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<readonly D1Backup[]> {
