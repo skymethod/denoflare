@@ -1,10 +1,11 @@
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createD1Backup, createD1Database, deleteD1Database, downloadD1Backup, getD1DatabaseMetadata, listD1Backups, listD1Databases, queryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createD1Backup, createD1Database, D1ExportOutput, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
 import { checkEqual } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { normalize } from './deps_cli.ts';
 import { join } from './deps_cli.ts';
+import { D1DumpOptions } from '../common/cloudflare_api.ts';
 
 export const LIST_COMMAND = denoflareCliCommand(['d1', 'list'], `List databases`)
     .option('name', 'string', 'A database name to search for')
@@ -36,8 +37,21 @@ export const QUERY_COMMAND = denoflareCliCommand(['d1', 'query'], `Query a datab
     .arg('databaseName', 'string', 'Name of the database to query')
     .option('sql', 'string', 'SQL query to execute')
     .option('param', 'strings', 'Ordinal parameters for the query', { hint: 'value' })
+    .option('raw', 'boolean', 'Returns results as arrays instead of objects, more efficient')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#query')
+    ;
+
+export const EXPORT_COMMAND = denoflareCliCommand(['d1', 'export'], `Returns a URL where the SQL contents of your D1 can be downloaded`)
+    .arg('databaseName', 'string', 'Name of the database to export')
+    .option('poll', 'boolean', 'Incremental polling for progress, useful for larger exports')
+    .option('bookmark', 'string', 'Resume polling as of a returned last bookmark')
+    .option('noData', 'boolean', 'Export only the table definitions, not their contents')
+    .option('noSchema', 'boolean', 'Export only each table\'s contents, not its definition')
+    .option('table', 'strings', 'Filter the export to just one or more tables')
+    .option('file', 'string', 'Local file path at which to save the export sql file')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#export')
     ;
 
 export const BACKUP_COMMAND = denoflareCliCommand(['d1', 'backup'], `Backup a database`)
@@ -73,6 +87,7 @@ export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloud
     .subcommand(DROP_COMMAND, drop)
     .subcommand(CREATE_COMMAND, create)
     .subcommand(QUERY_COMMAND, query)
+    .subcommand(EXPORT_COMMAND, export_)
     .subcommandGroup()
     .subcommand(BACKUP_COMMAND, backup)
     .subcommand(RESTORE_COMMAND, restore)
@@ -133,15 +148,41 @@ async function create(args: (string | number)[], options: Record<string, unknown
 async function query(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (QUERY_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, databaseName, sql, param } = QUERY_COMMAND.parse(args, options);
+    const { verbose, databaseName, sql, param, raw } = QUERY_COMMAND.parse(args, options);
     if (!sql) throw new Error(`Provide a query with --sql`);
 
     const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
 
-    const queryResults = await queryD1Database({ accountId, apiToken, databaseUuid, sql, params: param });
+    const queryResults = raw ? await rawQueryD1Database({ accountId, apiToken, databaseUuid, sql, params: param }) : await queryD1Database({ accountId, apiToken, databaseUuid, sql, params: param });
     console.log(JSON.stringify(queryResults, undefined, 2));
 }
 
+async function export_(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (EXPORT_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName, poll, bookmark, noData, noSchema, table = [], file } = EXPORT_COMMAND.parse(args, options);
+
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
+    const outputFormat = (bookmark || poll) ? 'polling' : undefined;
+    const currentBookmark = bookmark;
+    const dumpOptions: D1DumpOptions | undefined = noData || noSchema || table.length > 0 ? { no_data: noData, no_schema: noSchema, tables: table.length > 0 ? table : undefined } : undefined;
+    const result = await exportD1Database({ accountId, apiToken, databaseUuid, outputFormat, currentBookmark, dumpOptions });
+    console.log(JSON.stringify(result, undefined, 2));
+
+    const output = 'signed_url' in result ? result : result.result;
+    if (output?.signed_url && file) {
+        console.log(`Saving to ${file}...`);
+        const start = Date.now();
+        const res = await fetch(output.signed_url);
+        if (res.status !== 200) throw new Error(`Export result had unexpected status: ${res.status}`);
+        if (!res.body) throw new Error(`Export result had no body`);
+        await Deno.writeFile(file, res.body);
+        console.log(`...saved in ${Date.now() - start}ms`);
+    } 
+}
+
+
+// alpha only: deprecated
 async function backup(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (BACKUP_COMMAND.dumpHelp(args, options)) return;
 
@@ -153,6 +194,7 @@ async function backup(args: (string | number)[], options: Record<string, unknown
     console.log(`Backup ${backup.id} (${Bytes.formatSize(backup.file_size)}) took ${Date.now() - start}ms`);
 }
 
+// alpha only: deprecated
 async function listBackups(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (BACKUP_COMMAND.dumpHelp(args, options)) return;
 
@@ -173,6 +215,7 @@ async function listBackups(args: (string | number)[], options: Record<string, un
     console.log(`${backups.length} backups`)
 }
 
+// alpha only: deprecated
 async function restore(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (RESTORE_COMMAND.dumpHelp(args, options)) return;
 
@@ -185,6 +228,7 @@ async function restore(args: (string | number)[], options: Record<string, unknow
     console.log(`Restore of backup ${backupUuid} took ${Date.now() - start}ms`);
 }
 
+// alpha only: deprecated
 async function download(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (DOWNLOAD_COMMAND.dumpHelp(args, options)) return;
 
@@ -211,10 +255,15 @@ async function download(args: (string | number)[], options: Record<string, unkno
 async function common(databaseName: string, verbose: boolean, options: Record<string, unknown>): Promise<{ databaseUuid: string, accountId: string, apiToken: string }> {
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
-
+    if (isValidUuid(databaseName)) return { databaseUuid: databaseName, accountId, apiToken };
+    
     const database = (await listD1Databases({ accountId, apiToken })).find(v => v.name === databaseName);
     if (!database) throw new Error(`Database not found: ${databaseName}`);
     const { uuid: databaseUuid } = database;
 
     return { databaseUuid, accountId, apiToken };
+}
+
+function isValidUuid(str: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(str);
 }

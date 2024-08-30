@@ -1315,8 +1315,6 @@ export async function getD1DatabaseMetadata(opts: { accountId: string, apiToken:
 }
 
 export interface D1DatabaseMetadata extends D1Database {
-    readonly num_tables: number;
-    readonly file_size: number; // in bytes
     readonly running_in_region: string; // e.g. WNAM
 }
 
@@ -1334,8 +1332,10 @@ export interface ListD1DatabasesResponse extends CloudflareApiResponse<readonly 
 export interface D1Database {
     readonly uuid: string; // dashed v4 guid
     readonly name: string;
-    readonly version: string; // e.g. "alpha" or "beta"
-    readonly created_at: string | null; // e.g. 2023-07-06T22:16:06.646959Z
+    readonly version: string; // e.g. "alpha" or "beta" or "production"
+    readonly created_at: string | null; // e.g. 2023-11-07T18:26:53.194Z
+    readonly file_size: number | null; // in bytes
+    readonly num_tables: number | null;
 }
 
 export async function deleteD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<void> {
@@ -1352,12 +1352,61 @@ export async function queryD1Database(opts: { accountId: string, apiToken: strin
     return (await execute<readonly D1QueryResult[]>('queryD1Database', 'POST', url, apiToken, payload)).result;
 }
 
-export interface D1QueryResult {
-    readonly results: Record<string, unknown>;
+export interface D1QueryMetadata {
+    readonly served_by: string; // e.g. v3-prod
     readonly duration: number; // duration of the operation in milliseconds, e.g. 0.04996099999999615
-    readonly lastRowId: number | null; // the rowid of the last row inserted or null if it doesn't apply, see https://www.sqlite.org/c3ref/last_insert_rowid.html
-    readonly changes: number | null; // total # of rows that were inserted/updated/deleted, or 0 if read-only
+    readonly last_row_id: number; // the rowid of the last row inserted or null if it doesn't apply, see https://www.sqlite.org/c3ref/last_insert_rowid.html
+    readonly changes: number; // total # of rows that were inserted/updated/deleted, or 0 if read-only
+    readonly changed_db: boolean;
+    readonly size_after: number; // in bytes
+    readonly rows_read: number; // the number of rows read (scanned) by this query
+    readonly rows_written: number; // the number of rows written by this query
+}
+
+export interface D1QueryResult {
+    readonly results: Record<string, unknown>[];
+    readonly meta: D1QueryMetadata;
     readonly success: boolean;
+}
+
+export async function rawQueryD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string, sql: string, params?: (null | boolean | number | string | ArrayBuffer)[] }): Promise<readonly D1RawQueryResult[]> {
+    const { accountId, apiToken, databaseUuid, sql, params = [] } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/raw`;
+    const payload = { sql, params: params.length > 0 ? params : undefined };
+    return (await execute<readonly D1RawQueryResult[]>('rawQueryD1Database', 'POST', url, apiToken, payload)).result;
+}
+
+export interface D1RawQueryResult {
+    readonly results: { columns: string[], rows: unknown[][] };
+    readonly meta: D1QueryMetadata;
+    readonly success: boolean;
+}
+
+export interface D1ExportOutput { 
+    readonly filename: string; // e.g. <db-uuid>-00000005-00000000-00004dfd-213698e98028fe793208cae62b632474.sql
+    readonly signed_url: string; // e.g. https://asdf.r2.cloudflarestorage.com/d1-sqlio-outgoing-prod/... expiring r2 url
+};
+
+export interface D1ExportResult {
+    readonly at_bookmark?: string; // e.g. 00000005-00000000-00004ddd-213698e980d8fe793208cae62b632473
+    readonly error?: string;
+    readonly result?: D1ExportOutput;
+    readonly status?: string; // e.g. complete
+    readonly success: boolean;
+    readonly type?: string; // e.g. export
+}
+
+export interface D1DumpOptions {
+    readonly no_data?: boolean;
+    readonly no_schema?: boolean;
+    readonly tables?: string[];
+} 
+
+export async function exportD1Database(opts: { accountId: string, apiToken: string, databaseUuid: string, outputFormat?: 'polling', currentBookmark?: string, dumpOptions?: D1DumpOptions }): Promise<D1ExportOutput | D1ExportResult> {
+    const { accountId, apiToken, databaseUuid = [], outputFormat: output_format, currentBookmark: current_bookmark, dumpOptions: dump_options } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/export`;
+    const payload = { output_format, current_bookmark, dump_options };
+    return (await execute<D1ExportResult>('exportD1Database', 'POST', url, apiToken, payload)).result;
 }
 
 export async function listD1Backups(opts: { accountId: string, apiToken: string, databaseUuid: string }): Promise<readonly D1Backup[]> {
