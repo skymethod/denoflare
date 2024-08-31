@@ -1449,12 +1449,12 @@ export type D1ImportAction = {
     /** Indicates you have a new SQL file to upload. */
     action: 'init',
     /** An md5 hash of the file you're uploading. Used to check if it already exists, and validate its contents before ingesting. */
-    etag: string,
+    etag: string | undefined,
 } | {
     /** Indicates you've finished uploading to tell the D1 to start consuming it */
     action: 'ingest',
     /** An md5 hash of the file you're uploading. Used to check if it already exists, and validate its contents before ingesting. */
-    etag: string,
+    etag: string | undefined,
     /** The filename you have successfully uploaded. */
     filename: string,
 } | {

@@ -3,7 +3,7 @@ import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_lo
 import { CloudflareApi, createD1Backup, createD1Database, D1ImportAction, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
 import { checkEqual, isValidUrl } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
-import { normalize } from './deps_cli.ts';
+import { normalize, TextLineStream } from './deps_cli.ts';
 import { join } from './deps_cli.ts';
 import { D1DumpOptions } from '../common/cloudflare_api.ts';
 import { computeMd5 } from './wasm_crypto.ts';
@@ -59,6 +59,11 @@ export const IMPORT_COMMAND = denoflareCliCommand(['d1', 'import'], `Imports SQL
     .arg('databaseName', 'string', 'Name of the database to export')
     .option('poll', 'boolean', 'Incremental polling for progress, useful for larger exports')
     .option('file', 'required-string', 'Local sql file to import')
+    .subcommandGroup()
+    .option('tsvTable', 'string', 'TSV input mode: specifies the table name')
+    .option('tsvPk', 'string', 'TSV input mode: name of the primary key column')
+    .option('tsvNoRowid', 'boolean', 'TSV input mode: create the table without rowid')
+    .option('tsvMaxRows', 'integer', 'TSV input mode: only import the first n data rows (not counting the header)')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#import')
     ;
@@ -191,14 +196,42 @@ async function export_(args: (string | number)[], options: Record<string, unknow
     } 
 }
 
+async function generateSqlFromTsvIfNecessary(file: string, { tsvTable, tsvPk, tsvNoRowid, tsvMaxRows }: { tsvTable: string | undefined, tsvPk: string | undefined, tsvNoRowid: boolean | undefined, tsvMaxRows: number | undefined }): Promise<string | undefined> {
+    if (tsvTable === undefined) return undefined;
+    const stream = await Deno.open(file);
+    type Column = { name: string, type: 'text' | 'integer' };
+    const columns: Column[] = [];
+    const lines: string[] = [];
+    for await (const line of stream.readable.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())) {
+        const tokens = line.split('\t');
+        if (columns.length === 0) {
+            columns.push(...tokens.map(v => ({ name: v, type: 'text' } as Column)));
+            continue;
+        }
+        if (tokens.length !== columns.length) throw new Error(`Bad line: ${line}`);
+        if (lines.length === 0) {
+            tokens.forEach((v, i) => {
+                if (/^\d{1,18}$/.test(v)) columns[i].type = 'integer';
+            });
+            const ddl = `CREATE TABLE IF NOT EXISTS "${tsvTable}" (${[...columns.map(v => `"${v.name}" ${v.type}`), ...(tsvPk ? [ `PRIMARY KEY("${tsvPk}")` ] : [])].join(', ')})${tsvNoRowid ? ` without rowid` : ''};`;
+            lines.push(ddl);
+        }
+        if (tsvMaxRows !== undefined && lines.length >= (tsvMaxRows + 1)) break;
+        const dml = `INSERT INTO "${tsvTable}" VALUES (${tokens.map((v, i) => `${i > 0 ? ',' : ''}${v === '' ? 'NULL' : columns[i].type === 'integer' ? v : `'${v.replaceAll(`'`, '\\\'')}'`}`).join('')});`;
+        lines.push(dml);
+    }
+    return lines.join('\n');
+}
+
 async function import_(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (IMPORT_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, databaseName, file } = IMPORT_COMMAND.parse(args, options);
+    const { verbose, databaseName, file, tsvPk, tsvTable, tsvNoRowid, tsvMaxRows } = IMPORT_COMMAND.parse(args, options);
+    if ((tsvPk !== undefined || tsvNoRowid !== undefined || tsvMaxRows !== undefined) && !tsvTable) throw new Error('--tsv-table option is required in TSV input mode');
 
     const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
   
-    const sql = await Deno.readTextFile(file);
+    const sql = await generateSqlFromTsvIfNecessary(file, { tsvPk, tsvTable, tsvNoRowid, tsvMaxRows }) ?? await Deno.readTextFile(file);
     const etag = (await computeMd5(Bytes.ofUtf8(sql))).hex();
 
     const filename = await (async () => {
