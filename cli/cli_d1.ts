@@ -1,11 +1,9 @@
+import { Bytes } from '../common/bytes.ts';
+import { checkEqual, isValidUrl } from '../common/check.ts';
+import { CloudflareApi, createD1Backup, createD1Database, D1DumpOptions, D1ImportAction, D1ImportResult, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, createD1Backup, createD1Database, D1ImportAction, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
-import { checkEqual, isValidUrl } from '../common/check.ts';
-import { Bytes } from '../common/bytes.ts';
-import { normalize, TextLineStream } from './deps_cli.ts';
-import { join } from './deps_cli.ts';
-import { D1DumpOptions } from '../common/cloudflare_api.ts';
+import { join, normalize, TextLineStream } from './deps_cli.ts';
 import { computeMd5 } from './wasm_crypto.ts';
 
 export const LIST_COMMAND = denoflareCliCommand(['d1', 'list'], `List databases`)
@@ -56,16 +54,22 @@ export const EXPORT_COMMAND = denoflareCliCommand(['d1', 'export'], `Returns a U
     ;
 
 export const IMPORT_COMMAND = denoflareCliCommand(['d1', 'import'], `Imports SQL into a database`)
-    .arg('databaseName', 'string', 'Name of the database to export')
-    .option('poll', 'boolean', 'Incremental polling for progress, useful for larger exports')
+    .arg('databaseName', 'string', 'Name of the database to import into')
     .option('file', 'required-string', 'Local sql file to import')
-    .subcommandGroup()
-    .option('tsvTable', 'string', 'TSV input mode: specifies the table name')
-    .option('tsvPk', 'string', 'TSV input mode: name of the primary key column')
-    .option('tsvNoRowid', 'boolean', 'TSV input mode: create the table without rowid')
-    .option('tsvMaxRows', 'integer', 'TSV input mode: only import the first n data rows (not counting the header)')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#import')
+    ;
+
+export const IMPORT_TSV_COMMAND = denoflareCliCommand(['d1', 'import-tsv'], `Imports TSV data into a database`)
+    .arg('databaseName', 'string', 'Name of the database to import into')
+    .option('file', 'required-string', 'Local TSV file to import')
+    .option('table', 'required-string', 'D1 table name')
+    .option('pk', 'string', 'Name of the primary key column')
+    .option('noRowid', 'boolean', 'Create the table without rowid')
+    .option('maxRows', 'integer', 'Only import the first n data rows (not counting the header)')
+    .option('skipRows', 'integer', 'Skip the first n data rows (not counting the header)')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#import-tsv')
     ;
 
 export const BACKUP_COMMAND = denoflareCliCommand(['d1', 'backup'], `Backup a database`)
@@ -103,6 +107,7 @@ export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloud
     .subcommand(QUERY_COMMAND, query)
     .subcommand(EXPORT_COMMAND, export_)
     .subcommand(IMPORT_COMMAND, import_)
+    .subcommand(IMPORT_TSV_COMMAND, importTsv)
     .subcommandGroup()
     .subcommand(BACKUP_COMMAND, backup)
     .subcommand(RESTORE_COMMAND, restore)
@@ -196,43 +201,84 @@ async function export_(args: (string | number)[], options: Record<string, unknow
     } 
 }
 
-async function generateSqlFromTsvIfNecessary(file: string, { tsvTable, tsvPk, tsvNoRowid, tsvMaxRows }: { tsvTable: string | undefined, tsvPk: string | undefined, tsvNoRowid: boolean | undefined, tsvMaxRows: number | undefined }): Promise<string | undefined> {
-    if (tsvTable === undefined) return undefined;
-    const stream = await Deno.open(file);
-    type Column = { name: string, type: 'text' | 'integer' };
-    const columns: Column[] = [];
-    const lines: string[] = [];
-    for await (const line of stream.readable.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())) {
-        const tokens = line.split('\t');
-        if (columns.length === 0) {
-            columns.push(...tokens.map(v => ({ name: v, type: 'text' } as Column)));
-            continue;
+async function importTsv(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (IMPORT_TSV_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName, file, pk, table, noRowid, maxRows, skipRows } = IMPORT_TSV_COMMAND.parse(args, options);
+
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
+
+    const generateSqlFromTsv = async (): Promise<string> => {
+        const stream = await Deno.open(file);
+        type Column = { name: string, type: 'text' | 'integer' };
+        const columns: Column[] = [];
+        const lines: string[] = [];
+        let skipRemaining = skipRows ?? 0;
+        for await (const line of stream.readable.pipeThrough(new TextDecoderStream()).pipeThrough(new TextLineStream())) {
+            const tokens = line.split('\t');
+            if (columns.length === 0) {
+                columns.push(...tokens.map(v => ({ name: v, type: 'text' } as Column)));
+                continue;
+            }
+            if (tokens.length !== columns.length) throw new Error(`Bad line: ${line}`);
+            if (lines.length === 0) {
+                tokens.forEach((v, i) => {
+                    if (/^\d{1,18}$/.test(v)) columns[i].type = 'integer';
+                });
+                const ddl = `CREATE TABLE IF NOT EXISTS "${table}" (${[...columns.map(v => `"${v.name}" ${v.type}`), ...(pk ? [ `PRIMARY KEY("${pk}")` ] : [])].join(', ')})${noRowid ? ` without rowid` : ''};`;
+                lines.push(ddl);
+            }
+            if (skipRemaining > 0) {
+                skipRemaining--;
+                continue;
+            }
+            if (maxRows !== undefined && lines.length >= (maxRows + 1)) break;
+            const dml = `INSERT INTO "${table}" VALUES (${tokens.map((v, i) => `${i > 0 ? ',' : ''}${v === '' ? 'NULL' : columns[i].type === 'integer' ? v : `'${v.replaceAll(`'`, `''`)}'`}`).join('')});`;
+            lines.push(dml);
         }
-        if (tokens.length !== columns.length) throw new Error(`Bad line: ${line}`);
-        if (lines.length === 0) {
-            tokens.forEach((v, i) => {
-                if (/^\d{1,18}$/.test(v)) columns[i].type = 'integer';
-            });
-            const ddl = `CREATE TABLE IF NOT EXISTS "${tsvTable}" (${[...columns.map(v => `"${v.name}" ${v.type}`), ...(tsvPk ? [ `PRIMARY KEY("${tsvPk}")` ] : [])].join(', ')})${tsvNoRowid ? ` without rowid` : ''};`;
-            lines.push(ddl);
-        }
-        if (tsvMaxRows !== undefined && lines.length >= (tsvMaxRows + 1)) break;
-        const dml = `INSERT INTO "${tsvTable}" VALUES (${tokens.map((v, i) => `${i > 0 ? ',' : ''}${v === '' ? 'NULL' : columns[i].type === 'integer' ? v : `'${v.replaceAll(`'`, '\\\'')}'`}`).join('')});`;
-        lines.push(dml);
+        return lines.join('\n');
     }
-    return lines.join('\n');
+
+    const sql = await generateSqlFromTsv();
+    await importCommon(sql, { verbose, accountId, apiToken, databaseUuid });
 }
 
 async function import_(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (IMPORT_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, databaseName, file, tsvPk, tsvTable, tsvNoRowid, tsvMaxRows } = IMPORT_COMMAND.parse(args, options);
-    if ((tsvPk !== undefined || tsvNoRowid !== undefined || tsvMaxRows !== undefined) && !tsvTable) throw new Error('--tsv-table option is required in TSV input mode');
+    const { verbose, databaseName, file } = IMPORT_COMMAND.parse(args, options);
 
     const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
   
-    const sql = await generateSqlFromTsvIfNecessary(file, { tsvPk, tsvTable, tsvNoRowid, tsvMaxRows }) ?? await Deno.readTextFile(file);
+    const sql = await Deno.readTextFile(file);
+    await importCommon(sql, { verbose, accountId, apiToken, databaseUuid });
+}
+
+const costFormat = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 });
+
+async function importCommon(sql: string, { verbose, accountId, apiToken, databaseUuid }: { verbose: boolean, accountId: string, apiToken: string, databaseUuid: string }) {
     const etag = (await computeMd5(Bytes.ofUtf8(sql))).hex();
+
+    const logResult = (result: D1ImportResult) => {
+        const { messages, status, result: finalResult } = result;
+        if (verbose) {
+            console.log(JSON.stringify(result, undefined, 2));
+        } else {
+            messages?.forEach(v => console.log(v));
+            if (finalResult?.meta && status === 'complete') console.log(finalResult.meta);
+        }
+        if (finalResult && status === 'complete') {
+            const { rows_read, rows_written, size_after } = finalResult.meta;
+            // $0.001 / million rows read
+            // $1.00 / million rows written
+            const importCost = rows_read / 1_000_000 * 0.001 + rows_written / 1_000_000;
+            console.log(`import cost: $${costFormat.format(importCost)}`);
+
+            // $0.75 / GB-mo
+            const monthlyStorageCost = size_after / 1_000_000_000 * 0.75;
+            console.log(`monthly storage cost: $${costFormat.format(monthlyStorageCost)}`);
+        }
+    }
 
     const filename = await (async () => {
         const action: D1ImportAction = {
@@ -240,25 +286,24 @@ async function import_(args: (string | number)[], options: Record<string, unknow
             etag,
         };
 
-        console.log('creating import...');
+        console.log('initializing import...');
         const result = await importIntoD1Database({ accountId, apiToken, databaseUuid, action });
-        console.log(JSON.stringify(result, undefined, 2));
+        logResult(result);
 
         const { success, filename, upload_url } = result;
-        if (!success) throw new Error(`Import failed`);
+        if (!success) throw new Error(`Import init failed`);
         if (typeof filename !== 'string') throw new Error(`Unexpected filename: ${filename}`);
         if (typeof upload_url !== 'string' || !isValidUrl(upload_url)) throw new Error(`Unexpected upload_url: ${upload_url}`);
 
         console.log('uploading...');
         const res = await fetch(upload_url, { method: 'PUT', body: sql });
-        if (res.status !== 200) {
-            console.log(res);
-            throw new Error(`Unexpected upload status: ${res.status}`);
-        }
+        if (res.status !== 200) throw new Error(`Unexpected upload status: ${res.status}`);
+        const resEtag = res.headers.get('etag') ?? undefined;
+        if (resEtag !== `"${etag}"`) throw new Error(`Unexpected etag: ${resEtag}`);
         return filename;
     })();
 
-    await (async () => {
+    let { status, at_bookmark } = await (async () => {
         console.log('signal ingest...');
         const action: D1ImportAction = {
             action: 'ingest',
@@ -267,11 +312,31 @@ async function import_(args: (string | number)[], options: Record<string, unknow
         };
 
         const result = await importIntoD1Database({ accountId, apiToken, databaseUuid, action });
-        console.log(JSON.stringify(result, undefined, 2));
-
+        logResult(result);
+        const { success, status, at_bookmark } = result;
+        if (!success) throw new Error(`Import ingest failed`);
+        if (status !== 'active' && status !== 'complete') throw new Error(`Unsupported status: ${status}`);
+        if (typeof at_bookmark !== 'string') throw new Error(`Unexpected at_bookmark: ${JSON.stringify(at_bookmark)}`);
+        return { at_bookmark, status };
     })();
-}
 
+    while (status !== 'complete') {
+        console.log('poll for completion...');
+        const action: D1ImportAction = {
+            action: 'poll',
+            current_bookmark: at_bookmark,
+        };
+
+        const result = await importIntoD1Database({ accountId, apiToken, databaseUuid, action });
+        logResult(result);
+        const { success } = result;
+        if (!success) throw new Error(`Import ingest failed`);
+        status = result.status;
+        if (typeof result.at_bookmark !== 'string') throw new Error(`Unexpected at_bookmark: ${JSON.stringify(result.at_bookmark)}`);
+        at_bookmark = result.at_bookmark;
+        if (status !== 'active' && status !== 'complete') throw new Error(`Unsupported status: ${status}`);
+    }
+}
 
 // alpha only: deprecated
 async function backup(args: (string | number)[], options: Record<string, unknown>): Promise<void> {

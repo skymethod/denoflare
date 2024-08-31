@@ -1421,7 +1421,7 @@ export interface D1FinalImportResult {
 
 export interface D1ImportResult {
     /** The current time-travel bookmark for your D1, used to poll for updates. Will not change for the duration of the import. Only returned if an import process is currently running or recently finished. */
-    readonly at_bookmark?: string; // (ingest)
+    readonly at_bookmark?: string; // (ingest, active)
 
     /** Only present when status = 'error'. Contains the error message that prevented the import from succeeding. */
     readonly error?: string;
@@ -1430,16 +1430,16 @@ export interface D1ImportResult {
     readonly filename?: string; // (init)
 
     /** Logs since the last time you polled */
-    readonly messages: string[]; // (ingest)
+    readonly messages?: string[]; // (ingest, active)
 
     /** Only present when status = 'complete' */
     readonly result?: D1FinalImportResult; // (ingest)
 
-    readonly status: string; // (ingest) complete or error
+    readonly status: string; // (ingest, active) complete or error
 
-    readonly success: boolean; // (init, ingest)
+    readonly success: boolean; // (init, ingest, active)
 
-    readonly type: string; // (ingest) "import"
+    readonly type: string; // (ingest, active) "import"
     
     /** The R2 presigned URL to use for uploading. Only returned when for the 'init' action. */
     readonly upload_url?: string; // (init)
