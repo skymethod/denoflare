@@ -1,6 +1,6 @@
 //#region Durable objects
 
-import { AiModelInput, AiModelOutput } from './cloudflare_workers_types.d.ts';
+import { AiModelInput, AiModelOutput, D1QueryMetadata } from './cloudflare_workers_types.d.ts';
 
 export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string, perPage?: number }): Promise<readonly DurableObjectsNamespace[]> {
     const { accountId, apiToken, perPage } = opts;
@@ -1350,17 +1350,6 @@ export async function queryD1Database(opts: { accountId: string, apiToken: strin
     const url = `${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/query`;
     const payload = { sql, params: params.length > 0 ? params : undefined };
     return (await execute<readonly D1QueryResult[]>('queryD1Database', 'POST', url, apiToken, payload)).result;
-}
-
-export interface D1QueryMetadata {
-    readonly served_by: string; // e.g. v3-prod
-    readonly duration: number; // duration of the operation in milliseconds, e.g. 0.04996099999999615
-    readonly last_row_id: number; // the rowid of the last row inserted or null if it doesn't apply, see https://www.sqlite.org/c3ref/last_insert_rowid.html
-    readonly changes: number; // total # of rows that were inserted/updated/deleted, or 0 if read-only
-    readonly changed_db: boolean;
-    readonly size_after: number; // in bytes
-    readonly rows_read: number; // the number of rows read (scanned) by this query
-    readonly rows_written: number; // the number of rows written by this query
 }
 
 export interface D1QueryResult {

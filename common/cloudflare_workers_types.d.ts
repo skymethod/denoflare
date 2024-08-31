@@ -1293,52 +1293,95 @@ export interface D1Database {
      * Prepared statements lead to overall faster execution and prevent SQL injection attacks. */
     prepare(query: string): D1PreparedStatement;
 
-    /** Dumps the entire D1 database to an SQLite compatible file inside an ArrayBuffer. */
+    /** (deprecated: alpha) Dumps the entire D1 database to an SQLite compatible file inside an ArrayBuffer. */
     dump(): Promise<ArrayBuffer>;
 
-    /** Execute a list of prepared statements and get the results in the same order. */
+    /** Execute a list of prepared statements and get the results in the same order.
+     * 
+     * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#dbbatch
+     */
     batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]>;
 
-    /** Executes one or more queries directly without prepared statements or parameters binding. 
+    /** Executes one or more queries directly without prepared statements or parameters binding.
      * 
-     * This method can have poorer performance (prepared statements can be reused in some cases) and, more importantly, is less safe. 
-     * Only use this method for maintenance and one-shot tasks (example: migration jobs). 
-     * The input can be one or multiple queries separated by \n. 
-     * If an error occurs, an exception is thrown with the query and error messages, execution stops and further statements are not executed. */
-    exec<T = unknown>(query: string): Promise<D1Result<T>>;
+     * This method can have poorer performance (prepared statements can be reused in some cases) and, more importantly, is less safe.
+     * Only use this method for maintenance and one-shot tasks (for example, migration jobs).
+     * 
+     * The input can be one or multiple queries separated by \n.
+     * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#await-dbexec
+     */
+    exec(query: string): Promise<D1ExecResult>;
 }
 
-/** D1 prepared statements */
+
+export interface D1ExecResult {
+    readonly count: number;
+    readonly duration: number;
+}
+
 export interface D1PreparedStatement {
 
-    /** bind positional parameters to values */
+    /** Bind positional parameters to values.
+     * 
+     * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#parameter-binding
+     */
     bind(...values: unknown[]): D1PreparedStatement;
 
-    /** Returns the first row of the results.
+    /** Returns the first row of the results, optionally limited to a single column.
      * 
-     * This does not return metadata like the other methods. Instead it returns the object directly. */
-    first<T = unknown>(column?: string): Promise<T>;
-
-    /** Returns all rows and metadata. */
-    all<T = unknown>(): Promise<D1Result<T>>;
-
-    /** Same as stmt.all(), but returns an array of rows instead of objects. */
-    raw<T = unknown>(): Promise<T[]>;
-
-    /** Runs the query/queries, but returns no results. 
+     * This does not return metadata like the other methods. Instead it returns the object directly.
      * 
-     * Instead, run() returns the metrics only. Useful for write operations like UPDATE, DELETE or INSERT. */
-    run<T = unknown>(): Promise<D1Result<T>>;
+     * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#await-stmtfirstcolumn
+     */
+    first<T = unknown>(column: string): Promise<T | null>;
+    first<T = Record<string, unknown>>(): Promise<T | null>;
+
+    /** Returns all rows as an array of objects, with each result row represented as an object on the results property of the D1Result type.
+     * 
+     * Includes query metadata.
+     * 
+     * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#await-stmtall
+     */
+    all<T = Record<string, unknown>>(): Promise<D1Result<T>>;
+
+    /** Returns results as an array of arrays, with each row represented by an array.
+     * 
+     * The return type is an array of column and value arrays, and does not include query metadata.
+     * 
+     * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#await-stmtraw
+     */
+    raw<T = unknown[]>(options: { columnNames: true }): Promise<[ string[], ...T[] ]>;
+    raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
+
+    /** Runs the query (or queries) and returns results.
+     * 
+     * Returns all rows as an array of objects, with each result row represented as an object on the results property of the D1Result type.
+     * 
+     * For write operations like UPDATE, DELETE or INSERT, results will be empty. 
+     * 
+     * Run is functionally equivalent to stmt.all() and can be treated as an alias.
+     * 
+     * https://developers.cloudflare.com/d1/build-with-d1/d1-client-api/#await-stmtrun
+     */
+    run<T = Record<string, unknown>>(): Promise<D1Result<T>>;
     
 }
 
-/** D1 query results and metadata */
+export interface D1QueryMetadata {
+    readonly served_by?: string; // e.g. v3-prod
+    readonly duration: number; // duration of the operation in milliseconds, e.g. 0.04996099999999615
+    readonly last_row_id: number; // the rowid of the last row inserted or null if it doesn't apply, see https://www.sqlite.org/c3ref/last_insert_rowid.html
+    readonly changes: number; // total # of rows that were inserted/updated/deleted, or 0 if read-only
+    readonly changed_db: boolean;
+    readonly size_after: number; // in bytes
+    readonly rows_read: number; // the number of rows read (scanned) by this query
+    readonly rows_written: number; // the number of rows written by this query
+}
+
 export interface D1Result<T = unknown> {
-    readonly results?: T[];
-    readonly lastRowId: number | null;
-    readonly changes: number;
-    readonly duration: number;
-    readonly error?: string;
+    readonly results: T[];
+    readonly meta: D1QueryMetadata & Record<string, unknown>;
+    readonly success: boolean; // always true, now throws on errors
 }
 
 //#endregion
