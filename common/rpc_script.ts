@@ -20,9 +20,9 @@ import { RpcStubWebSockets } from './rpc_stub_web_sockets.ts';
 import { makeRpcStubDurableObjectStorageProvider } from './rpc_stub_durable_object_storage.ts';
 import { RpcR2Bucket } from './rpc_r2_bucket.ts';
 import { NoopAnalyticsEngine } from './noop_analytics_engine.ts';
-import { NoopD1Database } from './noop_d1_database.ts';
 import { cryptoKeyProvider } from './crypto_keys.ts';
 import { makeRpcCloudflareSockets } from './rpc_cloudflare_sockets.ts';
+import { makeRpcStubD1DatabaseProvider } from './rpc_stub_d1_database.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -40,6 +40,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
         let objects: LocalDurableObjects | undefined; 
         const rpcStubWebSockets = new RpcStubWebSockets(channel);
         const rpcDurableObjectStorageProvider = makeRpcStubDurableObjectStorageProvider(channel);
+        const d1DatabaseProvider = makeRpcStubD1DatabaseProvider(channel);
 
         // deno-lint-ignore no-explicit-any
         const globalThisAsAny = (globalThis as any);
@@ -77,7 +78,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
             },
             r2BucketProvider: bucketName => new RpcR2Bucket(bucketName, channel, makeBodyResolverOverRpc(channel, denoVersion), bodies),
             analyticsEngineProvider: NoopAnalyticsEngine.provider,
-            d1DatabaseProvider: NoopD1Database.provider,
+            d1DatabaseProvider,
             secretKeyProvider: cryptoKeyProvider,
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });
