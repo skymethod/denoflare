@@ -21,11 +21,11 @@ import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_type
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { NoopAnalyticsEngine } from '../common/noop_analytics_engine.ts';
 import { R2 } from '../common/r2/r2.ts';
-import { NoopD1Database } from '../common/noop_d1_database.ts';
 import { WebStorageDurableObjectStorage } from '../common/storage/web_storage_durable_object_storage.ts';
 import { cryptoKeyProvider } from '../common/crypto_keys.ts';
 import { versionCompare } from './versions.ts';
 import { RpcHostSockets } from './rpc_host_sockets.ts';
+import { SqliteD1Database } from './sqlite_d1_database.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -150,7 +150,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 },
                 r2BucketProvider,
                 analyticsEngineProvider,
-                d1DatabaseProvider: NoopD1Database.provider,
+                d1DatabaseProvider: SqliteD1Database.provider,
                 secretKeyProvider: cryptoKeyProvider,
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };

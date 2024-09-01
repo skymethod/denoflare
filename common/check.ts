@@ -71,3 +71,7 @@ export function tryParseUrl(url: string): URL | undefined {
 export function isValidUrl(url: string): boolean {
     return tryParseUrl(url) !== undefined;
 }
+
+export function isValidUuid(str: string): boolean {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(str);
+}

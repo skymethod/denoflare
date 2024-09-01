@@ -1,5 +1,5 @@
 import { Bytes } from '../common/bytes.ts';
-import { checkEqual, isValidUrl } from '../common/check.ts';
+import { checkEqual, isValidUrl, isValidUuid } from '../common/check.ts';
 import { CloudflareApi, createD1Backup, createD1Database, D1DumpOptions, D1ImportAction, D1ImportResult, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
@@ -13,7 +13,7 @@ export const LIST_COMMAND = denoflareCliCommand(['d1', 'list'], `List databases`
     ;
 
 export const GET_COMMAND = denoflareCliCommand(['d1', 'get'], `Get database metadata`)
-    .arg('databaseUuid', 'string', 'Database identifier')
+    .arg('databaseName', 'string', 'Name of the database')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#get')
     ;
@@ -27,7 +27,6 @@ export const DROP_COMMAND = denoflareCliCommand(['d1', 'drop'], `Drop a database
 export const CREATE_COMMAND = denoflareCliCommand(['d1', 'create'], `Create a database`)
     .arg('databaseName', 'string', 'Name of the database to create')
     .option('location', 'enum', `Hint for the database's primary location`, ...Object.entries({ weur: 'Western Europe', eeur: 'Eastern Europe', apac: 'Asia Pacific', wnam: 'Western North America', enam: 'Eastern North America' }).map(v => ({ value: v[0], description: v[1] })))
-    .option('experimentalBackend', 'boolean', 'Use the new experimental database backend')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#create')
     ;
@@ -137,9 +136,8 @@ async function list(args: (string | number)[], options: Record<string, unknown>)
 async function get(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (GET_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, databaseUuid } = GET_COMMAND.parse(args, options);
-    if (verbose) CloudflareApi.DEBUG = true;
-    const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
+    const { verbose, databaseName } = GET_COMMAND.parse(args, options);
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
 
     const db = await getD1DatabaseMetadata({ accountId, apiToken, databaseUuid });
     console.log(db);
@@ -157,11 +155,11 @@ async function drop(args: (string | number)[], options: Record<string, unknown>)
 async function create(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (CREATE_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, databaseName, location, experimentalBackend } = CREATE_COMMAND.parse(args, options);
+    const { verbose, databaseName, location } = CREATE_COMMAND.parse(args, options);
     if (verbose) CloudflareApi.DEBUG = true;
     const { accountId, apiToken } = await resolveProfile(await loadConfig(options), options);
 
-    const db = await createD1Database({ accountId, apiToken, databaseName, location, experimentalBackend });
+    const db = await createD1Database({ accountId, apiToken, databaseName, location });
     console.log(db);
 }
 
@@ -419,8 +417,3 @@ async function common(databaseName: string, verbose: boolean, options: Record<st
 
     return { databaseUuid, accountId, apiToken };
 }
-
-function isValidUuid(str: string): boolean {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(str);
-}
-

@@ -63,18 +63,15 @@ class NoopD1PreparedStatement implements D1PreparedStatement {
         return Promise.resolve(computeNoopD1Result());
     }
 
-
     raw<T = unknown[]>(options: { columnNames: true }): Promise<[ string[], ...T[] ]>;
     raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>;
     raw<T = unknown[]>({ columnNames }: { columnNames?: boolean } = {}): Promise<[ string[], ...T[] ] | T[]> {
         if (columnNames) {
-            // deno-lint-ignore no-explicit-any
-            return Promise.resolve([ [], [] as any ] as [ string[], ...T[] ]);
+            return Promise.resolve([ [] ] as [ string[], ...T[] ]);
         } else {
-            return Promise.resolve([] as  T[]);
+            return Promise.resolve([] as T[]);
         }
     }
-
 
     run<T = Record<string, unknown>>(): Promise<D1Result<T>> {
         return Promise.resolve(computeNoopD1Result());
