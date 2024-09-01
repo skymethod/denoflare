@@ -1,9 +1,8 @@
 import { D1Database, D1PreparedStatement } from '../common/cloudflare_workers_types.d.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
 import { AllRequest, AllResponse, BatchRequest, BatchResponse, ErrorResponse, ExecRequest, ExecResponse, FirstRequest, FirstResponse, PackedPreparedStatement, RawRequest, RawResponse } from '../common/rpc_stub_d1_database.ts';
-import { SqliteD1Database } from './sqlite_d1_database.ts';
 
-export function makeRpcHostD1Database(channel: RpcChannel) {
+export function makeRpcHostD1Database(channel: RpcChannel, provider: (d1DatabaseUuid: string) => D1Database) {
     const cache = new Map<string, D1Database>();
     channel.addRequestHandler('d1', async data => {
         if (typeof data === 'object') {
@@ -12,7 +11,7 @@ export function makeRpcHostD1Database(channel: RpcChannel) {
                 if (method === 'exec') {
                     const { d1DatabaseUuid, query } = data as ExecRequest;
                     try {
-                        const db = locateDatabase(d1DatabaseUuid, cache);
+                        const db = locateDatabase(d1DatabaseUuid, cache, provider);
                         const result = await db.exec(query);
                         return { result } as ExecResponse;
                     } catch (e) {
@@ -21,7 +20,7 @@ export function makeRpcHostD1Database(channel: RpcChannel) {
                 } else if (method === 'batch') {
                     const { d1DatabaseUuid, statements } = data as BatchRequest;
                     try {
-                        const db = locateDatabase(d1DatabaseUuid, cache);
+                        const db = locateDatabase(d1DatabaseUuid, cache, provider);
                         const result = await db.batch(statements.map(v => unpackStatement(v, db)));
                         return { result } as BatchResponse;
                     } catch (e) {
@@ -30,7 +29,7 @@ export function makeRpcHostD1Database(channel: RpcChannel) {
                 } else if (method === 'first') {
                     const { d1DatabaseUuid, column, query, params } = data as FirstRequest;
                     try {
-                        const db = locateDatabase(d1DatabaseUuid, cache);
+                        const db = locateDatabase(d1DatabaseUuid, cache, provider);
                         const pq = unpackStatement({ query, params }, db);
                         const result = column ? await pq.first(column) : await pq.first();
                         return { result } as FirstResponse;
@@ -40,17 +39,18 @@ export function makeRpcHostD1Database(channel: RpcChannel) {
                 } else if (method === 'all') {
                     const { d1DatabaseUuid, query, params } = data as AllRequest;
                     try {
-                        const db = locateDatabase(d1DatabaseUuid, cache);
+                        const db = locateDatabase(d1DatabaseUuid, cache, provider);
                         const result = await unpackStatement({ query, params }, db).all();
                         return { result } as AllResponse;
                     } catch (e) {
                         return { error: `${e}`} as ErrorResponse;
                     }
                 } else if (method === 'raw') {
-                    const { d1DatabaseUuid, query, params } = data as RawRequest;
+                    const { d1DatabaseUuid, query, params, columnNames } = data as RawRequest;
                     try {
-                        const db = locateDatabase(d1DatabaseUuid, cache);
-                        const result = await unpackStatement({ query, params }, db).raw();
+                        const db = locateDatabase(d1DatabaseUuid, cache, provider);
+                        const pq = unpackStatement({ query, params }, db);
+                        const result = columnNames ? await pq.raw({ columnNames }) : await pq.raw();
                         return { result } as RawResponse;
                     } catch (e) {
                         return { error: `${e}`} as ErrorResponse;
@@ -65,10 +65,10 @@ export function makeRpcHostD1Database(channel: RpcChannel) {
 
 //
 
-function locateDatabase(d1DatabaseUuid: string, cache: Map<string, D1Database>): D1Database {
+function locateDatabase(d1DatabaseUuid: string, cache: Map<string, D1Database>, provider: (d1DatabaseUuid: string) => D1Database): D1Database {
     let db = cache.get(d1DatabaseUuid);
     if (!db) {
-        db = SqliteD1Database.provider()(d1DatabaseUuid);
+        db = provider(d1DatabaseUuid);
         console.log(`RpcHostD1Database: created: ${d1DatabaseUuid} -> ${db}`);
         cache.set(d1DatabaseUuid, db);
     }
