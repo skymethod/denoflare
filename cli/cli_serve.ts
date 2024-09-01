@@ -150,7 +150,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 },
                 r2BucketProvider,
                 analyticsEngineProvider,
-                d1DatabaseProvider: SqliteD1Database.provider,
+                d1DatabaseProvider: SqliteD1Database.provider(),
                 secretKeyProvider: cryptoKeyProvider,
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };

@@ -7,23 +7,26 @@ import { D1Database, D1ExecResult, D1PreparedStatement, D1QueryMetadata, D1Resul
 import { D1DatabaseProvider } from '../common/cloudflare_workers_runtime.ts';
 import { join } from './deps_cli.ts';
 
+type ComputeDbPathForDatabase = (d1DatabaseUuid: string) => string | Promise<string>;
+
 export class SqliteD1Database implements D1Database {
     private readonly d1DatabaseUuid: string;
+    private readonly dbPathForDatabase: ComputeDbPathForDatabase;
 
     private db: DB | undefined;
     private dbPath: string | undefined;
     
-    private constructor(d1DatabaseUuid: string) {
+    private constructor(d1DatabaseUuid: string, dbPathForDatabase: ComputeDbPathForDatabase) {
         this.d1DatabaseUuid = d1DatabaseUuid;
+        this.dbPathForDatabase = dbPathForDatabase;
     }
 
     prepare(query: string): D1PreparedStatement {
-        const { d1DatabaseUuid } = this;
         return new SqliteD1PreparedStatement({ 
             query, 
-            d1DatabaseUuid, 
             dbProvider: async () => await this.getOrOpenDb(), 
             sizeProvider: async () => await this.getDBSizeInBytes(),
+            params: undefined,
         });
     }
 
@@ -31,30 +34,60 @@ export class SqliteD1Database implements D1Database {
         throw new Error(`dump() not implemented`);
     }
 
-    batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
-        throw new Error(`batch(${JSON.stringify({ statements })}) not implemented`);
+    async batch<T = unknown>(statements: D1PreparedStatement[]): Promise<D1Result<T>[]> {
+        const db = await this.getOrOpenDb();
+        const rt: D1Result<T>[] = [];
+        db.transaction(() => {
+            for (const statement of statements) {
+                const result = (statement as SqliteD1PreparedStatement).runSync<T>(db);
+                rt.push(result);
+            }
+        });
+        const sizeAfter = await this.getDBSizeInBytes();
+        // deno-lint-ignore no-explicit-any
+        rt.forEach(v => (v.meta as any).size_after = sizeAfter);
+        return rt;
     }
 
-    exec(query: string): Promise<D1ExecResult> {
-        throw new Error(`exec(${JSON.stringify({ query })}) not implemented`);
+    async exec(query: string): Promise<D1ExecResult> {
+        const start = Date.now();
+        const db = await this.getOrOpenDb();
+        let count = 0;
+        for (let line of query.split('\n')) {
+            line = line.trim();
+            while (line.endsWith(';')) line = line.substring(0, line.length - 1).trim();
+            if (line === '') continue;
+            db.execute(line);
+            count++;
+        }
+        return { count, duration: Date.now() - start };
     }
 
-    static provider: D1DatabaseProvider = d1DatabaseUuid => new SqliteD1Database(d1DatabaseUuid);
+    close() {
+        this.db?.close(true);
+    }
+
+    static provider(dbPathForDatabase?: ComputeDbPathForDatabase): D1DatabaseProvider {
+        return d1DatabaseUuid => new SqliteD1Database(d1DatabaseUuid, dbPathForDatabase ?? SqliteD1Database.defaultDbPathForDatabase);
+    }
+
+    static async defaultDbPathForDatabase(d1DatabaseUuid: string): Promise<string> {
+        const { DenoDir } = await import('https://esm.sh/jsr/@deno/cache-dir@0.11.1' + '');
+        const root = DenoDir.tryResolveRootPath(undefined);
+        if (root === undefined) throw new Error(`Unable to resolve deno cache dir`);
+        const denoflareD1Dir = join(root, 'denoflare', 'd1');
+        await Deno.mkdir(denoflareD1Dir, { recursive: true });
+        return join(denoflareD1Dir, `${d1DatabaseUuid}.db`);
+    }
 
     //
 
     private async getOrOpenDb(): Promise<DB> {
         if (this.db) return this.db;
 
-        const { d1DatabaseUuid } = this;
+        const { d1DatabaseUuid, dbPathForDatabase } = this;
         const { DB } = await import('https://deno.land/x/sqlite@v3.8/mod.ts' + '');
-        const { DenoDir } = await import('https://esm.sh/jsr/@deno/cache-dir@0.11.1' + '');
-
-        const root = DenoDir.tryResolveRootPath(undefined);
-        if (root === undefined) throw new Error(`Unable to resolve deno cache dir`);
-        const denoflareD1Dir = join(root, 'denoflare', 'd1');
-        await Deno.mkdir(denoflareD1Dir, { recursive: true });
-        const dbPath = join(denoflareD1Dir, `${d1DatabaseUuid}.db`);
+        const dbPath = await dbPathForDatabase(d1DatabaseUuid);
         console.log(`SqliteD1Database: opening ${dbPath}`);
         const db = new DB(dbPath);
         this.db = db;
@@ -65,6 +98,7 @@ export class SqliteD1Database implements D1Database {
     private async getDBSizeInBytes(): Promise<number> {
         const { dbPath } = this;
         if (typeof dbPath !== 'string') throw new Error(`Cannot get size before db is opened`);
+        if (dbPath === ':memory:') return 0;
         const stat = await Deno.stat(dbPath);
         return stat.size;
     }
@@ -88,18 +122,19 @@ class SqliteD1PreparedStatement implements D1PreparedStatement {
     private readonly query: string;
     private readonly dbProvider: () => Promise<DB>;
     private readonly sizeProvider: () => Promise<number>;
+    private readonly params?: unknown[];
 
-    private params?: unknown[];
-
-    constructor({ query, dbProvider, sizeProvider }: { d1DatabaseUuid: string, query: string, dbProvider: () => Promise<DB>, sizeProvider: () => Promise<number> }) {
+    constructor({ query, dbProvider, sizeProvider, params }: { query: string, dbProvider: () => Promise<DB>, sizeProvider: () => Promise<number>, params: unknown[] | undefined }) {
         this.query = query;
         this.dbProvider = dbProvider;
         this.sizeProvider = sizeProvider;
+        this.params = params;
     }
 
     bind(...values: unknown[]): D1PreparedStatement {
-        this.params = values.map(convertBindParamToQueryParameter)
-        return this;
+        const { query, dbProvider, sizeProvider } = this;
+        const params =  values.map(convertBindParamToQueryParameter);
+        return new SqliteD1PreparedStatement({ query, dbProvider, sizeProvider, params });
     }
 
     first<T = unknown>(column: string): Promise<T | null>;
@@ -109,10 +144,8 @@ class SqliteD1PreparedStatement implements D1PreparedStatement {
         const db = await dbProvider();
         const pq = db.prepareQuery(query);
         try {
-            const i = pq.columns().findIndex((v: { name: string }) => v.name === column);
-            if (column && i < 0) throw new Error(`Unable to find column: ${column}`);
-            for (const row of pq.iter(params)) {
-                return (i < 0 ? row : row[i]) as T;
+            for (const row of pq.iterEntries(params)) {
+                return (column ? row[column] : row) as T;
             }
             return null;
         } finally {
@@ -131,19 +164,10 @@ class SqliteD1PreparedStatement implements D1PreparedStatement {
         const pq = db.prepareQuery(query);
         try {
             const results: T[] = [];
-            for (const row of pq.iter(params)) {
+            for (const row of pq.iterEntries(params)) {
                 results.push(row as T);
             }
-            const meta: D1QueryMetadata & Record<string, unknown> = {
-                changed_db: db.changes > 0,
-                changes: db.changes,
-                duration: Date.now() - start,
-                last_row_id: db.lastInsertRowId,
-                rows_read: 0,
-                rows_written: 0,
-                size_after: await sizeProvider(),
-                served_by: 'denoflare'
-            }
+            const meta = newMeta(query, db, start, await sizeProvider());
             return { success: true, meta, results };
         } finally {
             pq.finalize();
@@ -170,4 +194,36 @@ class SqliteD1PreparedStatement implements D1PreparedStatement {
         }
     }
 
+    //
+
+    runSync<T = Record<string, unknown>>(db: DB): D1Result<T> {
+        const { query, params } = this;
+        const start = Date.now();
+        const pq = db.prepareQuery(query);
+        try {
+            const results: T[] = [];
+            for (const row of pq.iterEntries(params)) {
+                results.push(row as T);
+            }
+            const meta = newMeta(query, db, start, 0);
+            return { success: true, meta, results };
+        } finally {
+            pq.finalize();
+        }
+    }
+
+}
+
+function newMeta(query: string, db: DB, start: number, sizeAfter: number): D1QueryMetadata & Record<string, unknown> {
+    const changed_db = /^(create|drop|insert|update|delete|replace)\s+/i.test(query.trim());
+    return {
+        changed_db,
+        changes: changed_db ? db.changes : 0,
+        duration: Date.now() - start,
+        last_row_id: db.lastInsertRowId,
+        rows_read: 0,
+        rows_written: 0,
+        size_after: sizeAfter,
+        served_by: 'denoflare'
+    }
 }

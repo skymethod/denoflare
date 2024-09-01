@@ -39,7 +39,7 @@ class RpcD1Database implements D1Database {
 
     prepare(query: string): D1PreparedStatement {
         const { channel, d1DatabaseUuid } = this;
-        return new RpcD1PreparedStatement(channel, { d1DatabaseUuid, query });
+        return new RpcD1PreparedStatement(channel, { d1DatabaseUuid, query, params: [] });
     }
 
     dump(): Promise<ArrayBuffer> {
@@ -77,17 +77,19 @@ class RpcD1PreparedStatement implements D1PreparedStatement {
 
     readonly d1DatabaseUuid: string;
     readonly query: string;
-    params: PackedParamValue[] = [];
+    readonly params: PackedParamValue[];
 
-    constructor(channel: RpcChannel, { query, d1DatabaseUuid }: { query: string, d1DatabaseUuid: string }) {
+    constructor(channel: RpcChannel, { query, d1DatabaseUuid, params }: { query: string, d1DatabaseUuid: string, params: PackedParamValue[] }) {
         this.channel = channel;
         this.d1DatabaseUuid = d1DatabaseUuid;
         this.query = query;
+        this.params = params;
     }
 
     bind(...values: unknown[]): D1PreparedStatement {
-        this.params = values.map(checkParamValue);
-        return this;
+        const { channel, query, d1DatabaseUuid } = this;
+        const params = values.map(checkParamValue);
+        return new RpcD1PreparedStatement(channel, { query, d1DatabaseUuid, params });
     }
 
     first<T = unknown>(column: string): Promise<T | null>;

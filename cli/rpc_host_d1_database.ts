@@ -68,7 +68,7 @@ export function makeRpcHostD1Database(channel: RpcChannel) {
 function locateDatabase(d1DatabaseUuid: string, cache: Map<string, D1Database>): D1Database {
     let db = cache.get(d1DatabaseUuid);
     if (!db) {
-        db = SqliteD1Database.provider(d1DatabaseUuid);
+        db = SqliteD1Database.provider()(d1DatabaseUuid);
         console.log(`RpcHostD1Database: created: ${d1DatabaseUuid} -> ${db}`);
         cache.set(d1DatabaseUuid, db);
     }
