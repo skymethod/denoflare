@@ -53,12 +53,13 @@ export interface TailMessage {
     readonly eventTimestamp: number; // epoch millis (null for DO alarm callbacks, filled in client-side)
     readonly event: TailMessageEvent | null; // null for DO alarm callbacks
     readonly diagnosticsChannelEvents?: unknown[];
+    readonly truncated?: boolean;
 }
 
 export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent | TailMessageEmailEvent | TailMessageOverloadEvent | TailMessageGetWebSocketEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
-const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents', 'scriptVersion', ]);
+const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents', 'scriptVersion', 'truncated' ]);
 
 const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'unknown']);
 
@@ -68,11 +69,12 @@ export function parseTailMessage(obj: unknown): TailMessage {
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     // deno-lint-ignore no-explicit-any
     const objAsAny = obj as any;
-    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
+    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (scriptVersion !== undefined && !(isStringRecord(scriptVersion) && typeof scriptVersion.id === 'string')) throw new Error(`Unexpected scriptVersion: ${JSON.stringify(scriptVersion)}`); // scriptVersion: { id: "a5802a95-358d-4b4c-b570-44c57314fd01" },
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[...KNOWN_OUTCOMES].join(', ')}], found ${JSON.stringify(outcome)}`);
     if (scriptName !== null && typeof scriptName !== 'string') throw new Error(`Bad scriptName: expected string or null, found ${JSON.stringify(scriptName)}`);
+    if (!(truncated === undefined || typeof truncated === 'boolean')) throw new Error(`Bad truncated: expected boolean, found ${JSON.stringify(truncated)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);
     if (eventTimestamp === null && objAsAny.event === null) {
@@ -88,7 +90,7 @@ export function parseTailMessage(obj: unknown): TailMessage {
         : objAsAny.event && objAsAny.event.getWebSocketEvent ? parseTailMessageGetWebSocketEvent(objAsAny.event)
         : parseTailMessageAlarmEvent(objAsAny.event);
 
-    return { outcome, scriptName, exceptions, logs, eventTimestamp, event, diagnosticsChannelEvents };
+    return { outcome, scriptName, exceptions, logs, eventTimestamp, event, diagnosticsChannelEvents, truncated };
 }
 
 function parseLogs(obj: unknown): readonly TailMessageLog[] {
