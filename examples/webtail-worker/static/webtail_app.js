@@ -1081,9 +1081,10 @@ n6 == null || n6({
 });
 ((o6 = globalThis.litElementVersions) !== null && o6 !== void 0 ? o6 : globalThis.litElementVersions = []).push("3.2.2");
 async function listDurableObjectsNamespaces(opts) {
-    const { accountId, apiToken } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
-    return (await execute('listDurableObjectsNamespaces', 'GET', url, apiToken)).result;
+    const { accountId, apiToken, perPage } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`);
+    if (typeof perPage === 'number') url.searchParams.set('per_page', perPage.toString());
+    return (await execute('listDurableObjectsNamespaces', 'GET', url.toString(), apiToken)).result;
 }
 async function listScripts(opts) {
     const { accountId, apiToken } = opts;
@@ -1260,7 +1261,8 @@ const REQUIRED_TAIL_MESSAGE_KEYS = new Set([
 const ALL_TAIL_MESSAGE_KEYS = new Set([
     ...REQUIRED_TAIL_MESSAGE_KEYS,
     'diagnosticsChannelEvents',
-    'scriptVersion'
+    'scriptVersion',
+    'truncated'
 ]);
 const KNOWN_OUTCOMES = new Set([
     'ok',
@@ -1273,13 +1275,14 @@ function parseTailMessage(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     const objAsAny = obj;
-    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents } = objAsAny;
+    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (scriptVersion !== undefined && !(isStringRecord1(scriptVersion) && typeof scriptVersion.id === 'string')) throw new Error(`Unexpected scriptVersion: ${JSON.stringify(scriptVersion)}`);
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[
         ...KNOWN_OUTCOMES
     ].join(', ')}], found ${JSON.stringify(outcome)}`);
     if (scriptName !== null && typeof scriptName !== 'string') throw new Error(`Bad scriptName: expected string or null, found ${JSON.stringify(scriptName)}`);
+    if (!(truncated === undefined || typeof truncated === 'boolean')) throw new Error(`Bad truncated: expected boolean, found ${JSON.stringify(truncated)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);
     if (eventTimestamp === null && objAsAny.event === null) {
@@ -1301,7 +1304,8 @@ function parseTailMessage(obj) {
         logs,
         eventTimestamp,
         event,
-        diagnosticsChannelEvents
+        diagnosticsChannelEvents,
+        truncated
     };
 }
 function parseLogs(obj) {
