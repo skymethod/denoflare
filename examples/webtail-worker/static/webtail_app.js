@@ -1348,18 +1348,23 @@ const REQUIRED_TAIL_MESSAGE_EXCEPTION_KEYS = new Set([
     'message',
     'timestamp'
 ]);
+const ALL_TAIL_MESSAGE_EXCEPTION_KEYS = setUnion(REQUIRED_TAIL_MESSAGE_EXCEPTION_KEYS, new Set([
+    'stack'
+]));
 function parseTailMessageException(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessageException: Expected object, found ${JSON.stringify(obj)}`);
-    checkKeys(obj, REQUIRED_TAIL_MESSAGE_EXCEPTION_KEYS);
+    checkKeys(obj, REQUIRED_TAIL_MESSAGE_EXCEPTION_KEYS, ALL_TAIL_MESSAGE_EXCEPTION_KEYS);
     const objAsAny = obj;
-    const { name, message, timestamp } = objAsAny;
+    const { name, message, timestamp, stack } = objAsAny;
     if (!(typeof name === 'string')) throw new Error(`Bad name: expected string, found ${JSON.stringify(name)}`);
     if (!(typeof message === 'string')) throw new Error(`Bad message: expected string, found ${JSON.stringify(message)}`);
     if (!(typeof timestamp === 'number' && timestamp > 0)) throw new Error(`Bad timestamp: expected positive number, found ${JSON.stringify(timestamp)}`);
+    if (!(stack === undefined || typeof stack === 'string')) throw new Error(`Bad stack: expected string, found ${JSON.stringify(stack)}`);
     return {
         name,
         message,
-        timestamp
+        timestamp,
+        stack
     };
 }
 const REQUIRED_TAIL_MESSAGE_QUEUE_EVENT_KEYS = new Set([
