@@ -1,5 +1,5 @@
-import { Binding, isAnalyticsEngineBinding, isD1DatabaseBinding, isDONamespaceBinding, isKVNamespaceBinding, isR2BucketBinding, isSecretBinding, isSecretKeyBinding, isTextBinding } from './config.ts';
-import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair, R2Bucket, AnalyticsEngine, D1Database } from './cloudflare_workers_types.d.ts';
+import { Binding, isAnalyticsEngineBinding, isD1DatabaseBinding, isDONamespaceBinding, isKVNamespaceBinding, isR2BucketBinding, isSecretBinding, isSecretKeyBinding, isSendEmailBinding, isTextBinding } from './config.ts';
+import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair, R2Bucket, AnalyticsEngine, D1Database, EmailSender } from './cloudflare_workers_types.d.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 
 export type GlobalCachesProvider = () => CfGlobalCaches;
@@ -10,6 +10,7 @@ export type AnalyticsEngineProvider = (dataset: string) => AnalyticsEngine;
 export type D1DatabaseProvider = (d1DatabaseUuid: string) => D1Database;
 export type SecretKeyProvider = (secretKey: string) => Promise<CryptoKey>;
 export type WebSocketPairProvider = () => { server: WebSocket & CloudflareWebSocketExtensions, client: WebSocket };
+export type EmailSenderProvider = (destinationAddresses: string) => EmailSender;
 
 export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider, webSocketPairProvider: WebSocketPairProvider) {
     defineGlobalCaches(globalCachesProvider);
@@ -18,14 +19,14 @@ export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider, 
     patchGlobalRequest();
 }
 
-export async function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider) {
+export async function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider) {
     for (const [ name, binding ] of Object.entries(bindings)) {
-        target[name] = await computeBindingValue(binding, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider);
+        target[name] = await computeBindingValue(binding, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider);
     }
 }
 
-export async function defineScriptGlobals(bindings: Record<string, Binding>, globalCachesProvider: GlobalCachesProvider, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider) {
-    await applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider);
+export async function defineScriptGlobals(bindings: Record<string, Binding>, globalCachesProvider: GlobalCachesProvider, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider) {
+    await applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider);
     defineGlobalCaches(globalCachesProvider);
     redefineGlobalResponse();
     patchGlobalRequest();
@@ -64,7 +65,7 @@ function globalThisAsAny(): any {
     return globalThis;
 }
 
-async function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider): Promise<string | KVNamespace | DurableObjectNamespace | R2Bucket | AnalyticsEngine | D1Database | CryptoKey> {
+async function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider): Promise<string | KVNamespace | DurableObjectNamespace | R2Bucket | AnalyticsEngine | D1Database | CryptoKey | EmailSender> {
     if (isTextBinding(binding)) return binding.value;
     if (isSecretBinding(binding)) return binding.secret;
     if (isKVNamespaceBinding(binding)) return kvNamespaceProvider(binding.kvNamespace);
@@ -73,6 +74,7 @@ async function computeBindingValue(binding: Binding, kvNamespaceProvider: KVName
     if (isAnalyticsEngineBinding(binding)) return analyticsEngineProvider(binding.dataset);
     if (isD1DatabaseBinding(binding)) return d1DatabaseProvider(binding.d1DatabaseUuid);
     if (isSecretKeyBinding(binding)) return await secretKeyProvider(binding.secretKey);
+    if (isSendEmailBinding(binding)) return emailSenderProvider(binding.sendEmailDestinationAddresses);
     throw new Error(`TODO implement binding ${JSON.stringify(binding)}`);
 }
 

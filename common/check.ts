@@ -60,6 +60,10 @@ export function isOptionalString(obj: unknown): obj is string | undefined {
     return obj === undefined || typeof obj === 'string';
 }
 
+export function isOptional<T>(obj: unknown, validator: (obj: unknown) => obj is T): obj is T | undefined {
+    return obj === undefined || validator(obj);
+}
+
 export function tryParseUrl(url: string): URL | undefined {
     try {
         return new URL(url);

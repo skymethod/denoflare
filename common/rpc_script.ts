@@ -23,6 +23,7 @@ import { NoopAnalyticsEngine } from './noop_analytics_engine.ts';
 import { cryptoKeyProvider } from './crypto_keys.ts';
 import { makeRpcCloudflareSockets } from './rpc_cloudflare_sockets.ts';
 import { makeRpcStubD1DatabaseProvider } from './rpc_stub_d1_database.ts';
+import { NoopEmailSender } from './noop_email_sender.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -80,6 +81,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
             analyticsEngineProvider: NoopAnalyticsEngine.provider,
             d1DatabaseProvider,
             secretKeyProvider: cryptoKeyProvider,
+            emailSenderProvider: NoopEmailSender.provider,
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });
     });

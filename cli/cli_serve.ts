@@ -20,6 +20,7 @@ import { LocalWebSockets } from '../common/local_web_sockets.ts';
 import { CloudflareWebSocketExtensions } from '../common/cloudflare_workers_types.d.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { NoopAnalyticsEngine } from '../common/noop_analytics_engine.ts';
+import { NoopEmailSender } from '../common/noop_email_sender.ts';
 import { R2 } from '../common/r2/r2.ts';
 import { WebStorageDurableObjectStorage } from '../common/storage/web_storage_durable_object_storage.ts';
 import { cryptoKeyProvider } from '../common/crypto_keys.ts';
@@ -152,6 +153,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 analyticsEngineProvider,
                 d1DatabaseProvider: SqliteD1Database.provider(),
                 secretKeyProvider: cryptoKeyProvider,
+                emailSenderProvider: NoopEmailSender.provider,
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
            
