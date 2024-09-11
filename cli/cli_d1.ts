@@ -1,10 +1,12 @@
 import { Bytes } from '../common/bytes.ts';
-import { checkEqual, isValidUrl, isValidUuid } from '../common/check.ts';
-import { CloudflareApi, createD1Backup, createD1Database, D1DumpOptions, D1ImportAction, D1ImportResult, deleteD1Database, downloadD1Backup, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Backups, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1Backup } from '../common/cloudflare_api.ts';
+import { isValidUrl, isValidUuid } from '../common/check.ts';
+import { CloudflareApi, createD1Database, D1DumpOptions, D1ImportAction, D1ImportResult, deleteD1Database, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Databases, queryD1Database, rawQueryD1Database } from '../common/cloudflare_api.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { join, normalize, TextLineStream } from './deps_cli.ts';
+import { TextLineStream } from './deps_cli.ts';
 import { computeMd5 } from './wasm_crypto.ts';
+// only import if used
+// import { DB } from 'https://deno.land/x/sqlite@v3.8/mod.ts';
 
 export const LIST_COMMAND = denoflareCliCommand(['d1', 'list'], `List databases`)
     .option('name', 'string', 'A database name to search for')
@@ -40,16 +42,35 @@ export const QUERY_COMMAND = denoflareCliCommand(['d1', 'query'], `Query a datab
     .docsLink('/cli/d1#query')
     ;
 
-export const EXPORT_COMMAND = denoflareCliCommand(['d1', 'export'], `Returns a URL where the SQL contents of your D1 can be downloaded`)
+export const EXPORT_COMMAND = denoflareCliCommand(['d1', 'export'], `Returns a signed url to the sql contents of a database`)
     .arg('databaseName', 'string', 'Name of the database to export')
     .option('poll', 'boolean', 'Incremental polling for progress, useful for larger exports')
     .option('bookmark', 'string', 'Resume polling as of a returned last bookmark')
     .option('noData', 'boolean', 'Export only the table definitions, not their contents')
     .option('noSchema', 'boolean', 'Export only each table\'s contents, not its definition')
     .option('table', 'strings', 'Filter the export to just one or more tables')
-    .option('file', 'string', 'Local file path at which to save the export sql file')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#export')
+    ;
+
+export const EXPORT_SQL_COMMAND = denoflareCliCommand(['d1', 'export-sql'], `Downloads a database as a SQL file`)
+    .arg('databaseName', 'string', 'Name of the database to export')
+    .option('file', 'required-string', 'Local file path at which to save the export sql file')
+    .option('noData', 'boolean', 'Export only the table definitions, not their contents')
+    .option('noSchema', 'boolean', 'Export only each table\'s contents, not its definition')
+    .option('table', 'strings', 'Filter the export to just one or more tables')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#export-sql')
+    ;
+
+export const EXPORT_DB_COMMAND = denoflareCliCommand(['d1', 'export-db'], `Downloads a database as a sqlite3 db file`)
+    .arg('databaseName', 'string', 'Name of the database to export')
+    .option('file', 'required-string', 'Local file path at which to save the export sqlite3 db file')
+    .option('noData', 'boolean', 'Export only the table definitions, not their contents')
+    .option('noSchema', 'boolean', 'Export only each table\'s contents, not its definition')
+    .option('table', 'strings', 'Filter the export to just one or more tables')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#export-db')
     ;
 
 export const IMPORT_COMMAND = denoflareCliCommand(['d1', 'import'], `Imports SQL into a database`)
@@ -71,47 +92,18 @@ export const IMPORT_TSV_COMMAND = denoflareCliCommand(['d1', 'import-tsv'], `Imp
     .docsLink('/cli/d1#import-tsv')
     ;
 
-export const BACKUP_COMMAND = denoflareCliCommand(['d1', 'backup'], `Backup a database`)
-    .arg('databaseName', 'string', 'Name of the database to backup')
-    .include(commandOptionsForConfig)
-    .docsLink('/cli/d1#backup')
-    ;
-
-export const LIST_BACKUPS_COMMAND = denoflareCliCommand(['d1', 'list-backups'], `List all backups for a database`)
-    .arg('databaseName', 'string', 'Name of the database')
-    .include(commandOptionsForConfig)
-    .docsLink('/cli/d1#list-backups')
-    ;
-
-export const RESTORE_COMMAND = denoflareCliCommand(['d1', 'restore'], `Restore a database from a previous backup`)
-    .arg('databaseName', 'string', 'Name of the database to backup')
-    .option('backupId', 'required-string', 'Uuid of the backup to restore')
-    .include(commandOptionsForConfig)
-    .docsLink('/cli/d1#restore')
-    ;
-
-export const DOWNLOAD_COMMAND = denoflareCliCommand(['d1', 'download'], `Download a database as a sqlite3 db file`)
-    .arg('databaseName', 'string', 'Name of the database to download')
-    .option('file', 'required-string', 'Local file path at which to save the sqlite db file')
-    .option('backupId', 'string', 'Uuid of the backup to download (default: take a new backup and download that)')
-    .include(commandOptionsForConfig)
-    .docsLink('/cli/d1#download')
-    ;
-
 export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloudflare D1 databases')
     .subcommand(LIST_COMMAND, list)
     .subcommand(GET_COMMAND, get)
     .subcommand(DROP_COMMAND, drop)
     .subcommand(CREATE_COMMAND, create)
     .subcommand(QUERY_COMMAND, query)
+    .subcommandGroup()
     .subcommand(EXPORT_COMMAND, export_)
+    .subcommand(EXPORT_SQL_COMMAND, exportSql)
+    .subcommand(EXPORT_DB_COMMAND, exportDb)
     .subcommand(IMPORT_COMMAND, import_)
     .subcommand(IMPORT_TSV_COMMAND, importTsv)
-    .subcommandGroup()
-    .subcommand(BACKUP_COMMAND, backup)
-    .subcommand(RESTORE_COMMAND, restore)
-    .subcommand(DOWNLOAD_COMMAND, download)
-    .subcommand(LIST_BACKUPS_COMMAND, listBackups)
 
     .docsLink('/cli/d1')
     ;
@@ -178,7 +170,7 @@ async function query(args: (string | number)[], options: Record<string, unknown>
 async function export_(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
     if (EXPORT_COMMAND.dumpHelp(args, options)) return;
 
-    const { verbose, databaseName, poll, bookmark, noData, noSchema, table = [], file } = EXPORT_COMMAND.parse(args, options);
+    const { verbose, databaseName, poll, bookmark, noData, noSchema, table = [] } = EXPORT_COMMAND.parse(args, options);
 
     const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
     const outputFormat = (bookmark || poll) ? 'polling' : undefined;
@@ -186,17 +178,84 @@ async function export_(args: (string | number)[], options: Record<string, unknow
     const dumpOptions: D1DumpOptions | undefined = noData || noSchema || table.length > 0 ? { no_data: noData, no_schema: noSchema, tables: table.length > 0 ? table : undefined } : undefined;
     const result = await exportD1Database({ accountId, apiToken, databaseUuid, outputFormat, currentBookmark, dumpOptions });
     console.log(JSON.stringify(result, undefined, 2));
+}
 
-    const output = 'signed_url' in result ? result : result.result;
-    if (output?.signed_url && file) {
-        console.log(`Saving to ${file}...`);
-        const start = Date.now();
-        const res = await fetch(output.signed_url);
-        if (res.status !== 200) throw new Error(`Export result had unexpected status: ${res.status}`);
-        if (!res.body) throw new Error(`Export result had no body`);
-        await Deno.writeFile(file, res.body);
-        console.log(`...saved in ${Date.now() - start}ms`);
-    } 
+async function exportSql(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (EXPORT_SQL_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName, noData, noSchema, table = [], file } = EXPORT_SQL_COMMAND.parse(args, options);
+
+    await commonExportSql({ databaseName, verbose, options, noData, noSchema, table, file });
+}
+
+async function commonExportSql({ databaseName, verbose, options, noData, noSchema, table, file }: { databaseName: string, verbose: boolean, options: Record<string, unknown>, noData: boolean | undefined, noSchema: boolean | undefined, table: string[], file: string }) {
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
+    const dumpOptions: D1DumpOptions | undefined = noData || noSchema || table.length > 0 ? { no_data: noData, no_schema: noSchema, tables: table.length > 0 ? table : undefined } : undefined;
+    let currentBookmark = undefined;
+    let signedUrl: string | undefined;
+    console.log(`Exporting...`);
+    let start = Date.now();
+    while (true) {
+        const result = await exportD1Database({ accountId, apiToken, databaseUuid, outputFormat: 'polling', currentBookmark, dumpOptions });
+        if ('signed_url' in result) {
+            signedUrl = result.signed_url;
+            break;
+        }
+        const { messages, at_bookmark, result: finalResult, status, error } = result;
+        for (const message of messages ?? []) {
+            console.log(message);
+        }
+        if (finalResult && typeof finalResult.signed_url === 'string') {
+            signedUrl = finalResult.signed_url;
+            break;
+        }
+        if (status === 'error') {
+            throw new Error(`Failed: ${error}`);
+        }
+        if (typeof at_bookmark === 'string') {
+            currentBookmark = at_bookmark
+        } else {
+            throw new Error(`Can't continue polling without a bookmark`);
+        }
+    }
+    if (!signedUrl) throw new Error(`Did not produce a signed url!`);
+    console.log(`...exported in ${Date.now() - start}ms`);
+
+    console.log(`Saving to ${file}...`);
+    start = Date.now();
+    const res = await fetch(signedUrl);
+    if (res.status !== 200) throw new Error(`Export result had unexpected status: ${res.status}`);
+    if (!res.body) throw new Error(`Export result had no body`);
+    await Deno.writeFile(file, res.body);
+    console.log(`...saved in ${Date.now() - start}ms`);
+}
+
+async function exportDb(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (EXPORT_DB_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName, noData, noSchema, table = [], file } = EXPORT_DB_COMMAND.parse(args, options);
+
+    try { await Deno.remove(file); } catch (e) { if (!(e instanceof Deno.errors.NotFound )) throw e; }
+
+    const { DB } = await import('https://deno.land/x/sqlite@v3.8/mod.ts' + '');
+
+    const sqlFile = `${file}.sql`;
+    await commonExportSql({ databaseName, verbose, options, noData, noSchema, table, file: sqlFile });
+
+    const start = Date.now();
+    const lineStream = (await Deno.open(sqlFile)).readable
+        .pipeThrough(new TextDecoderStream())
+        .pipeThrough(new TextLineStream());
+    
+    console.log(`Creating ${file}...`);
+    
+    const db = new DB(file);
+    for await (const line of lineStream) {
+        db.execute(line);
+    }
+    db.close();
+    console.log(`...created sqlite db in ${Date.now() - start}ms`);
+    await Deno.remove(sqlFile);
 }
 
 async function importTsv(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
@@ -334,74 +393,6 @@ async function importCommon(sql: string, { verbose, accountId, apiToken, databas
         at_bookmark = result.at_bookmark;
         if (status !== 'active' && status !== 'complete') throw new Error(`Unsupported status: ${status}`);
     }
-}
-
-// alpha only: deprecated
-async function backup(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    if (BACKUP_COMMAND.dumpHelp(args, options)) return;
-
-    const { verbose, databaseName } = BACKUP_COMMAND.parse(args, options);
-    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
-
-    const start = Date.now();
-    const backup = await createD1Backup({ accountId, apiToken, databaseUuid });
-    console.log(`Backup ${backup.id} (${Bytes.formatSize(backup.file_size)}) took ${Date.now() - start}ms`);
-}
-
-// alpha only: deprecated
-async function listBackups(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    if (BACKUP_COMMAND.dumpHelp(args, options)) return;
-
-    const { verbose, databaseName } = BACKUP_COMMAND.parse(args, options);
-    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
-
-    const backups = await listD1Backups({ accountId, apiToken, databaseUuid });
-    const sorted = [...backups].sort((a, b) =>  a.created_at.localeCompare(b.created_at));
-    let prevDay: string | undefined;
-    for (const backup of sorted) {
-        checkEqual('backup.database_id', backup.database_id, databaseUuid);
-        const time = backup.created_at.substring(0, `2022-07-02T00:37:22`.length);
-        const day = time.substring(0, `2022-07-02`.length);
-        if (prevDay && day !== prevDay) console.log();
-        console.log(`${backup.id} ${time} state=${backup.state} tables=${backup.num_tables} size=${Bytes.formatSize(backup.file_size)}`);
-        prevDay = day;
-    }
-    console.log(`${backups.length} backups`)
-}
-
-// alpha only: deprecated
-async function restore(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    if (RESTORE_COMMAND.dumpHelp(args, options)) return;
-
-    const { verbose, databaseName, backupId: backupUuid } = RESTORE_COMMAND.parse(args, options);
-
-    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
-
-    const start = Date.now();
-    await restoreD1Backup({ accountId, apiToken, databaseUuid, backupUuid });
-    console.log(`Restore of backup ${backupUuid} took ${Date.now() - start}ms`);
-}
-
-// alpha only: deprecated
-async function download(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
-    if (DOWNLOAD_COMMAND.dumpHelp(args, options)) return;
-
-    const { verbose, databaseName, backupId, file } = DOWNLOAD_COMMAND.parse(args, options);
-
-    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
-
-    const backupUuid = backupId ?? await (async () => {
-        const start = Date.now();
-        const backup = await createD1Backup({ accountId, apiToken, databaseUuid });
-        console.log(`Backup ${backup.id} (${Bytes.formatSize(backup.file_size)}) took ${Date.now() - start}ms`);
-        return backup.id;
-    })();
-    const start = Date.now();
-    const bytes = await downloadD1Backup({ accountId, apiToken, databaseUuid, backupUuid });
-    console.log(`Download of backup ${backupUuid} (${Bytes.formatSize(bytes.length)}) took ${Date.now() - start}ms`);
-
-    await Deno.writeFile(file, bytes);
-    console.log(`Saved to ${normalize(join(Deno.cwd(), file))}`);
 }
 
 //

@@ -1380,9 +1380,10 @@ export interface D1ExportResult {
     readonly at_bookmark?: string; // e.g. 00000005-00000000-00004ddd-213698e980d8fe793208cae62b632473
     readonly error?: string;
     readonly result?: D1ExportOutput;
-    readonly status?: string; // e.g. complete
+    readonly status?: string; // e.g. complete, active, error
     readonly success: boolean;
     readonly type?: string; // e.g. export
+    readonly messages?: string[];
 }
 
 export interface D1DumpOptions {
