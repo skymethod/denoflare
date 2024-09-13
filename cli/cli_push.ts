@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -20,6 +20,8 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('logpush', 'boolean', 'Enable or disable logpush for the worker')
     .option('compatibilityDate', 'string', 'Specific compatibility environment for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/')
     .option('compatibilityFlag', 'strings', 'Specific compatibility flags for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags')
+    .option('observability', 'boolean', 'Enable or disable observability for the worker')
+    .option('observabilitySampleRate', 'string', 'Observability sample rate, from 0 (0%) to 1 (100%)')
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
     .option('versionTag', 'string', 'If set, push a new version with this tag')
     .include(commandOptionsForInputBindings)
@@ -32,7 +34,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (PUSH_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, compatibilityDate: compatibilityDateOpt, compatibilityFlag: compatibilityFlagOpt, deleteClass: deleteClassOpt, watch, watchInclude, versionTag } = opt;
+    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, compatibilityDate: compatibilityDateOpt, compatibilityFlag: compatibilityFlagOpt, deleteClass: deleteClassOpt, watch, watchInclude, versionTag, observability: observabilityOpt, observabilitySampleRate } = opt;
 
     if (verbose) {
         // in cli
@@ -70,6 +72,9 @@ export async function push(args: (string | number)[], options: Record<string, un
         const logpush = typeof logpushOpt === 'boolean' ? logpushOpt : script?.logpush;
         const compatibilityDate = typeof compatibilityDateOpt === 'string' ? compatibilityDateOpt : script?.compatibilityDate;
         const compatibilityFlags = compatibilityFlagOpt || script?.compatibilityFlags;
+        const observability: Observability | undefined = (typeof observabilityOpt === 'boolean' || typeof observabilitySampleRate === 'string') ? { enabled: observabilityOpt ?? true, head_sampling_rate: typeof observabilitySampleRate === 'string' ? parseFloat(observabilitySampleRate) : undefined } 
+            : typeof script?.observability === 'boolean' ? { enabled: script.observability, head_sampling_rate: script.observabilitySampleRate }
+            : undefined; 
         const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
@@ -88,7 +93,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability };
         if (typeof versionTag === 'string') {
             await putScriptVersion({ ...putScriptOpts, tagAnnotation: versionTag });
         } else {

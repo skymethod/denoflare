@@ -104,6 +104,12 @@ export interface Script {
      * See https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags */
     readonly compatibilityFlags?: string[];
 
+    /** Whether or not observability is enabled for this worker. */
+    readonly observability?: boolean;
+
+    /** Observability sample rate, from 0 to 1 (100%, default) */
+    readonly observabilitySampleRate?: number;
+
     /** Name-value pairs to use when pushing to AWS Lambda. */
     readonly lambda?: string;
 

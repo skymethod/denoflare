@@ -86,7 +86,12 @@ export interface ScriptSettings {
     readonly bindings: WorkerBinding[];
 }
 
-export type PutScriptOpts = { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', logpush?: boolean, compatibilityDate?: string, compatibilityFlags?: string[] };
+export type Observability = {
+    enabled: boolean,
+    head_sampling_rate?: number, // between 0 and 1 (default)
+}
+
+export type PutScriptOpts = { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', logpush?: boolean, compatibilityDate?: string, compatibilityFlags?: string[], observability?: Observability };
 
 export async function putScript(opts: PutScriptOpts): Promise<Script> {
     const { accountId, scriptName, apiToken } = opts;
@@ -140,7 +145,7 @@ export interface ScriptVersionResourcesScript {
 }
 
 function computeUploadForm(opts: PutScriptOpts): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags } = opts;
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -150,6 +155,7 @@ function computeUploadForm(opts: PutScriptOpts): FormData {
         logpush,
         compatibility_date: compatibilityDate,
         compatibility_flags: compatibilityFlags,
+        observability,
     };
 
     if (isModule) {
@@ -1898,6 +1904,96 @@ export async function updateZoneEntrypointRuleset(opts: { zoneId: string, apiTok
 
 //#endregion
 
+//#region Observability
+
+type Filter = {
+    key: string, // e.g. $baselime.service
+    type: string, // e.g. string
+    value: string, // e.g. my-worker-name
+    operation: string, // e.g. =
+};
+
+export type ObservabilityTelemetryQuery = {
+    dry?: boolean,
+    limit?: number, // e.g. 20  (default: 50)
+    view?: string, // e.g. events
+    queryId: string, // e.g. test-query
+    timeframe: { from: number /* oldest */, to: number /* newest */ }, // epoch millis
+    parameters: {
+        datasets?: string[], // e.g. cloudflare-workers
+        filters?: Filter[],
+        needle?: {
+            value: string, // e.g. my search term
+        }
+    },
+};
+
+type Statistics = {
+    elapsed: number,
+    rows_read: number,
+    bytes_read: number,
+};
+
+export type ObservabilityTelemetryQueryResult = {
+    message: string, // e.g. Successful request
+    data: {
+        previous: unknown,
+        events: {
+            events: unknown[],
+            fields: unknown[],
+            count: number,
+            series: unknown[],
+        },
+        patterns: unknown,
+        queryRun: {
+            id: string,
+            query: unknown,
+            workspaceId: string,
+            environmentId: string,
+            timeframe: { from: number, to: number },
+            userId: string,
+            status: string,
+            granularity: number,
+            dry?: boolean,
+            statistics: Statistics,
+        },
+        statistics: Statistics,
+    }
+};
+
+export async function observabilityTelemetryQuery(opts: { accountId: string, apiToken: string, query: ObservabilityTelemetryQuery }): Promise<ObservabilityTelemetryQueryResult> {
+    const { accountId, apiToken, query } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/observability/telemetry/query-run`;
+    return (await execute<ObservabilityTelemetryQueryResult>('observabilityTelemetryQuery', 'POST', url, apiToken, query, 'json', undefined, { nonStandardResponse: true })).result;
+}
+
+export type ObservabilityTelemetryKeysRequest = {
+    datasets?: string[], // e.g. cloudflare-workers
+    filters?: Filter[],
+    from: number, // epoch millis, oldest
+    to: number, // epoch millis, newest
+    limit?: number, // e.g. 100
+};
+
+type TypedKeys = {
+    keys: string[], // e.g. "$cloudflare.event.cron", "$cloudflare.scriptName"
+    type: string, // e.g. string
+    dataset: string, // e.g. cloudflare-workers
+};
+
+export type ObservabilityTelemetryKeysResult = {
+    message: string, // e.g. Successful request
+    keys: TypedKeys[],
+};
+
+export async function observabilityTelemetryKeys(opts: { accountId: string, apiToken: string, request: ObservabilityTelemetryKeysRequest }): Promise<ObservabilityTelemetryKeysResult> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/observability/telemetry/keys`;
+    return (await execute<ObservabilityTelemetryKeysResult>('observabilityTelemetryKeys', 'POST', url, apiToken, request, 'json', undefined, { nonStandardResponse: true })).result;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
@@ -1926,7 +2022,7 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
 
 type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData | Uint8Array;
 
-async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json', requestContentType?: string): Promise<CloudflareApiResponse<Result>>;
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json', requestContentType?: string, opts?: { nonStandardResponse?: boolean }): Promise<CloudflareApiResponse<Result>>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'form'): Promise<FormData>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes', requestContentType?: string): Promise<Uint8Array>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'sse', requestContentType?: string): Promise<ReadableStream<Uint8Array>>;
@@ -1934,7 +2030,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | '
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'text'): Promise<string>;
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json?'): Promise<CloudflareApiResponse<Result> | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'empty'): Promise<undefined>;
-async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'sse' | 'text' | 'empty' | 'form' = 'json', requestContentType?: string): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined | FormData | ReadableStream<Uint8Array>> {
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'sse' | 'text' | 'empty' | 'form' = 'json', requestContentType?: string, { nonStandardResponse }: { nonStandardResponse?: boolean } = {}): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined | FormData | ReadableStream<Uint8Array>> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | Record<string, unknown>[] | undefined;
@@ -1982,7 +2078,19 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (![APPLICATION_JSON_UTF8.replaceAll(' ', ''), APPLICATION_JSON].includes(contentType.toLowerCase().replaceAll(' ', ''))) { // radar returns: application/json;charset=UTF-8
         throw new Error(`Unexpected content-type: ${contentType}, fetchResponse=${fetchResponse}, body=${knownBinaryContentType ? `<${(await fetchResponse.arrayBuffer()).byteLength} bytes>` : await fetchResponse.text()}`);
     }
-    const apiResponse = await fetchResponse.json() as CloudflareApiResponse<Result>;
+    const response = await fetchResponse.json();
+    if (nonStandardResponse) {
+        if (fetchResponse.status === 200) {
+            const synthetic: CloudflareApiResponse<Result> = {
+                success: true,
+                result: response,
+                errors: [],
+            }
+            return synthetic;
+        }
+        throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, body=${JSON.stringify(response)}`, fetchResponse.status, []);
+    }
+    const apiResponse = response as CloudflareApiResponse<Result>;
     if (CloudflareApi.DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
         if (fetchResponse.status === 404 && [ 'bytes?', 'json?' ].includes(responseType)) return undefined;
