@@ -1425,11 +1425,19 @@ export interface QueueMessage {
     */
     readonly body: unknown;
 
+    /** The number of delivery attempts made. */
+    readonly attempts: number;
+
     /** Marks a message as successfully delivered, regardless of whether your queue() consumer handler returns successfully or not. */
     ack(): void;
 
     /** Marks a message to be retried in the next batch. */
-    retry(): void;
+    retry(opts?: QueueRetryOpts): void;
+}
+
+export interface QueueRetryOpts {
+    /** Retry the message or batch after a specified number of seconds. */
+    readonly delaySeconds?: number;
 }
 
 /** A batch of messages that are sent to a consumer Worker. */
@@ -1441,7 +1449,7 @@ export interface QueueMessageBatch {
     readonly messages: readonly QueueMessage[];
 
     /** Marks every message to be retried in the next batch. */
-    retryAll(): void;
+    retryAll(opts?: QueueRetryOpts): void;
 
     /** Marks every message as successfully delivered, regardless of whether your queue() consumer handler returns successfully or not. */
     ackAll(): void;
