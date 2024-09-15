@@ -4,10 +4,11 @@ import { AwsCallBody, AwsCallContext, computeBucketUrl, s3Fetch, throwIfUnexpect
 export type PutObjectOpts = { bucket: string, key: string, body: AwsCallBody, origin: string, region: string, urlStyle?: UrlStyle,
     cacheControl?: string, contentDisposition?: string, contentEncoding?: string, contentLanguage?: string, expires?: string, contentMd5?: string, contentType?: string, customMetadata?: Record<string, string>,
     ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string
+    ssecAlgorithm?: string, ssecKey?: string, ssecKeyMd5?: string,
 };
 
 export async function putObject(opts: PutObjectOpts, context: AwsCallContext): Promise<void> {
-    const { bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince } = opts;
+    const { bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, expires, contentMd5, contentType, customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, ssecAlgorithm, ssecKey, ssecKeyMd5 } = opts;
     const method = 'PUT';
     const url = computeBucketUrl({ origin, bucket, key, urlStyle });
     const headers = new Headers();
@@ -26,6 +27,10 @@ export async function putObject(opts: PutObjectOpts, context: AwsCallContext): P
     if (typeof ifModifiedSince === 'string') headers.set('if-modified-since', ifModifiedSince);
     if (typeof ifUnmodifiedSince === 'string') headers.set('if-unmodified-since', ifUnmodifiedSince);
 
+    if (typeof ssecAlgorithm === 'string') headers.set('x-amz-server-side-encryption-customer-algorithm', ssecAlgorithm);
+    if (typeof ssecKey === 'string') headers.set('x-amz-server-side-encryption-customer-key', ssecKey);
+    if (typeof ssecKeyMd5 === 'string') headers.set('x-amz-server-side-encryption-customer-key-md5', ssecKeyMd5);
+    
     if (typeof body !== 'string' && !(body instanceof Bytes)) {
         // required only for stream bodies
         headers.set('content-length', String(body.length))

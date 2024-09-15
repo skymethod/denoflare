@@ -111,6 +111,27 @@ export function surroundWithDoubleQuotesIfNecessary(value: string | undefined): 
     return value;
 }
 
+export function commandOptionsForSsec(command: CliCommand<unknown>) {
+    return command
+        .optionGroup()
+        .option('ssecKeyBytes', 'string', 'Customer-provided AES256 encryption key', { hint: 'base64' })
+        .option('ssecKeyFile', 'string', 'Customer-provided AES256 encryption key file', { hint: 'path' })
+        ;
+}
+
+export async function loadSsecOptions(options: Record<string, unknown>, computeMd5?: (input: Bytes) => Promise<Bytes>): Promise<{ ssecAlgorithm?: string, ssecKey?: string, ssecKeyMd5?: string }> {
+    const ssecKeyBytes = parseOptionalStringOption('ssec-key-bytes', options);
+    const ssecKeyFile = parseOptionalStringOption('ssec-key-file', options);
+    if (ssecKeyBytes !== undefined && ssecKeyFile !== undefined) throw new Error(`Specify --ssec-key-bytes or --ssec-key-file, not both`);
+    const bytes = ssecKeyBytes !== undefined ? Bytes.ofBase64(ssecKeyBytes)
+        : ssecKeyFile !== undefined ? new Bytes(await Deno.readFile(ssecKeyFile))
+        : undefined;
+    const ssecAlgorithm = bytes ? 'AES256' : undefined;
+    const ssecKey = bytes ? bytes.base64() : undefined;
+    const ssecKeyMd5 = bytes && computeMd5 ? (await computeMd5(bytes)).base64() : undefined;
+    return { ssecAlgorithm, ssecKey, ssecKeyMd5 };
+}
+
 export function commandOptionsForLoadBodyFromOptions(command: CliCommand<unknown>) {
     return command
         .optionGroup()

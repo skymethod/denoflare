@@ -1,6 +1,7 @@
 import { computeAwsCallBodyLength, putObject as putObjectR2, R2 } from '../common/r2/r2.ts';
 import { CliStats, denoflareCliCommand } from './cli_common.ts';
-import { commandOptionsForLoadBodyFromOptions, commandOptionsForR2, loadBodyFromOptions, loadR2Options } from './cli_r2.ts';
+import { commandOptionsForLoadBodyFromOptions, commandOptionsForR2, commandOptionsForSsec, loadBodyFromOptions, loadR2Options, loadSsecOptions } from './cli_r2.ts';
+import { computeMd5 } from './wasm_crypto.ts';
 
 export const PUT_OBJECT_COMMAND = denoflareCliCommand(['r2', 'put-object'], 'Put R2 object for a given key')
     .arg('bucket', 'string', 'Name of the R2 bucket')
@@ -17,6 +18,7 @@ export const PUT_OBJECT_COMMAND = denoflareCliCommand(['r2', 'put-object'], 'Put
     .option('ifModifiedSince', 'string', 'Put the object only if it has been modified since the specified time')
     .option('ifUnmodifiedSince', 'string', 'Put the object only if it has not been modified since the specified time')
     .include(commandOptionsForLoadBodyFromOptions)
+    .include(commandOptionsForSsec)
     .include(commandOptionsForR2())
     .docsLink('/cli/r2#put-object')
     ;
@@ -32,9 +34,11 @@ export async function putObject(args: (string | number)[], options: Record<strin
 
     const { origin, region, context, urlStyle } = await loadR2Options(options);
 
+    const { ssecAlgorithm, ssecKey, ssecKeyMd5 } = await loadSsecOptions(options, computeMd5);
+
     const { body, contentMd5 } = await loadBodyFromOptions(options, context.unsignedPayload);
 
-    await putObjectR2({ bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince }, context);
+    await putObjectR2({ bucket, key, body, origin, region, urlStyle, cacheControl, contentDisposition, contentEncoding, contentLanguage, contentMd5, expires, contentType, customMetadata, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, ssecAlgorithm, ssecKey, ssecKeyMd5 }, context);
     const millis = Date.now() - CliStats.launchTime;
     console.log(`put ${computeAwsCallBodyLength(body)} bytes in ${millis}ms`);
 }

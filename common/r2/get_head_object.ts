@@ -1,6 +1,6 @@
 import { AwsCallContext, computeBucketUrl, s3Fetch, throwIfUnexpectedStatus, UrlStyle } from './r2.ts';
 
-export type GetObjectOpts = { bucket: string, key: string, origin: string, region: string, urlStyle?: UrlStyle, ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string, partNumber?: number, range?: string, acceptEncoding?: string };
+export type GetObjectOpts = { bucket: string, key: string, origin: string, region: string, urlStyle?: UrlStyle, ifMatch?: string, ifNoneMatch?: string, ifModifiedSince?: string, ifUnmodifiedSince?: string, partNumber?: number, range?: string, acceptEncoding?: string, ssecAlgorithm?: string, ssecKey?: string, ssecKeyMd5?: string };
 
 export async function getObject(opts: GetObjectOpts, context: AwsCallContext): Promise<Response | undefined> {
     return await getOrHeadObject('GET', opts, context);
@@ -13,7 +13,7 @@ export async function headObject(opts: HeadObjectOpts, context: AwsCallContext):
 }
 
 export function computeGetOrHeadObjectRequest(opts: GetObjectOpts | HeadObjectOpts): { url: URL, headers: Headers, region: string } {
-    const { bucket, key, origin, region, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range, acceptEncoding } = opts;
+    const { bucket, key, origin, region, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range, acceptEncoding, ssecAlgorithm, ssecKey, ssecKeyMd5 } = opts;
     const url = computeBucketUrl({ origin, bucket, key, urlStyle });
     const headers = new Headers();
     if (typeof acceptEncoding === 'string') headers.set('accept-encoding', acceptEncoding);
@@ -23,6 +23,9 @@ export function computeGetOrHeadObjectRequest(opts: GetObjectOpts | HeadObjectOp
     if (typeof ifUnmodifiedSince === 'string') headers.set('if-unmodified-since', ifUnmodifiedSince);
     if (typeof range === 'string') headers.set('range', range);
     if (typeof partNumber === 'number') url.searchParams.set('partNumber', String(partNumber));
+    if (typeof ssecAlgorithm === 'string') headers.set('x-amz-server-side-encryption-customer-algorithm', ssecAlgorithm);
+    if (typeof ssecKey === 'string') headers.set('x-amz-server-side-encryption-customer-key', ssecKey);
+    if (typeof ssecKeyMd5 === 'string') headers.set('x-amz-server-side-encryption-customer-key-md5', ssecKeyMd5);
     return { url, headers, region };
 }
 

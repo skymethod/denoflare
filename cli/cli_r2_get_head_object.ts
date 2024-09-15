@@ -1,8 +1,9 @@
 import { computeHeadersString, getObject as getObjectR2, headObject as headObjectR2, R2 } from '../common/r2/r2.ts';
 import { denoflareCliCommand, parseOptionalStringOption } from './cli_common.ts';
-import { commandOptionsForR2, loadR2Options, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
+import { commandOptionsForR2, commandOptionsForSsec, loadR2Options, loadSsecOptions, surroundWithDoubleQuotesIfNecessary } from './cli_r2.ts';
 import { join } from './deps_cli.ts';
 import { directoryExists } from './fs_util.ts';
+import { computeMd5 } from './wasm_crypto.ts';
 
 export const HEAD_OBJECT_COMMAND = getOrHeadCommand('head-object', 'Get R2 object (metadata only) for a given key');
 
@@ -35,6 +36,7 @@ function getOrHeadCommand(name: string, description: string) {
         .option('range', 'string', 'Downloads the specified range bytes of an object, e.g. bytes=0-100')
         .option('partNumber', 'integer', 'Part number of the object being read, effectively performs a ranged GET request for the part specified', { min: 1, max: 10000 })
         .include(v => name === 'get-object' ? v.optionGroup().option('file', 'string', 'If specified, save object body to a local file', { hint: 'path' }) : v)
+        .include(commandOptionsForSsec)
         .include(commandOptionsForR2())
         .docsLink('/cli/r2#' + name)
         ;
@@ -50,13 +52,15 @@ async function getOrHeadObject(method: 'GET' | 'HEAD', options: Record<string, u
     const ifMatch = surroundWithDoubleQuotesIfNecessary(ifMatchOpt);
     const ifNoneMatch = surroundWithDoubleQuotesIfNecessary(ifNoneMatchOpt);
 
+    const { ssecAlgorithm, ssecKey, ssecKeyMd5 } = await loadSsecOptions(options, computeMd5);
+    
     const { origin, region, context, urlStyle } = await loadR2Options(options);
     const file = method === 'GET' ? parseOptionalStringOption('file', options) : undefined;
     if (file) {
         const parent = join(file, '..');
         if (!await directoryExists(parent)) throw new Error(`Bad file: parent directory must exist`);
     }
-    const response = await (method === 'GET' ? getObjectR2 : headObjectR2)({ bucket, key, origin, region, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range }, context);
+    const response = await (method === 'GET' ? getObjectR2 : headObjectR2)({ bucket, key, origin, region, urlStyle, ifMatch, ifNoneMatch, ifModifiedSince, ifUnmodifiedSince, partNumber, range, ssecAlgorithm, ssecKey, ssecKeyMd5 }, context);
     if (!response) {
         console.log('(not found)');
         return;
