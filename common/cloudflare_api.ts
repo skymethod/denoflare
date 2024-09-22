@@ -1502,6 +1502,31 @@ export async function downloadD1Backup(opts: { accountId: string, apiToken: stri
     return await execute('downloadD1Backup', 'GET', url, apiToken, undefined, 'bytes');
 }
 
+export interface D1TimeTravelBookmarkResult {
+    readonly bookmark: string;
+}
+
+export async function getD1TimeTravelBookmark(opts: { accountId: string, apiToken: string, databaseUuid: string, timestamp?: string }): Promise<D1TimeTravelBookmarkResult> {
+    const { accountId, apiToken, databaseUuid, timestamp } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/time_travel/bookmark`);
+    if (timestamp !== undefined) url.searchParams.set('timestamp', timestamp);
+    return (await execute<D1TimeTravelBookmarkResult>('getD1TimeTravelBookmark', 'GET', url.toString(), apiToken)).result;
+}
+
+export interface D1TimeTravelRestoreResult {
+    readonly bookmark: string;
+    readonly previous_bookmark: string;
+    readonly message: string; // e.g. Resetting Durable Object to restore database to bookmark: <bookmark>
+}
+
+export async function restoreD1TimeTravel(opts: { accountId: string, apiToken: string, databaseUuid: string, bookmark?: string, timestamp?: string }): Promise<D1TimeTravelRestoreResult> {
+    const { accountId, apiToken, databaseUuid, bookmark, timestamp } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/d1/database/${databaseUuid}/time_travel/restore`);
+    if (bookmark !== undefined) url.searchParams.set('bookmark', bookmark);
+    if (timestamp !== undefined) url.searchParams.set('timestamp', timestamp);
+    return (await execute<D1TimeTravelRestoreResult>('restoreD1TimeTravel', 'POST', url.toString(), apiToken)).result;
+}
+
 //#endregion
 
 //#region Trace workers

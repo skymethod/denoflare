@@ -1,6 +1,6 @@
 import { Bytes } from '../common/bytes.ts';
 import { isValidUrl, isValidUuid } from '../common/check.ts';
-import { CloudflareApi, createD1Database, D1DumpOptions, D1ImportAction, D1ImportResult, deleteD1Database, exportD1Database, getD1DatabaseMetadata, importIntoD1Database, listD1Databases, queryD1Database, rawQueryD1Database } from '../common/cloudflare_api.ts';
+import { CloudflareApi, createD1Database, D1DumpOptions, D1ImportAction, D1ImportResult, deleteD1Database, exportD1Database, getD1DatabaseMetadata, getD1TimeTravelBookmark, importIntoD1Database, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1TimeTravel } from '../common/cloudflare_api.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
 import { TextLineStream } from './deps_cli.ts';
@@ -92,6 +92,21 @@ export const IMPORT_TSV_COMMAND = denoflareCliCommand(['d1', 'import-tsv'], `Imp
     .docsLink('/cli/d1#import-tsv')
     ;
 
+export const TIME_TRAVEL_BOOKMARK_COMMAND = denoflareCliCommand(['d1', 'time-travel-bookmark'], `Obtain a time travel bookmark for a database`)
+    .arg('databaseName', 'string', 'Name of the database')
+    .option('timestamp', 'string', 'ISO time of the database state')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#time-travel-bookmark')
+    ;
+
+export const TIME_TRAVEL_RESTORE_COMMAND = denoflareCliCommand(['d1', 'time-travel-restore'], `Restore a database to a specific timestamp or bookmark`)
+    .arg('databaseName', 'string', 'Name of the database')
+    .option('timestamp', 'string', 'ISO time of the database state')
+    .option('bookmark', 'string', 'A specific bookmark')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#time-travel-restore')
+    ;
+
 export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloudflare D1 databases')
     .subcommand(LIST_COMMAND, list)
     .subcommand(GET_COMMAND, get)
@@ -104,6 +119,9 @@ export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloud
     .subcommand(EXPORT_DB_COMMAND, exportDb)
     .subcommand(IMPORT_COMMAND, import_)
     .subcommand(IMPORT_TSV_COMMAND, importTsv)
+    .subcommandGroup()
+    .subcommand(TIME_TRAVEL_BOOKMARK_COMMAND, timeTravelBookmark)
+    .subcommand(TIME_TRAVEL_RESTORE_COMMAND, timeTravelRestore)
 
     .docsLink('/cli/d1')
     ;
@@ -393,6 +411,30 @@ async function importCommon(sql: string, { verbose, accountId, apiToken, databas
         at_bookmark = result.at_bookmark;
         if (status !== 'active' && status !== 'complete') throw new Error(`Unsupported status: ${status}`);
     }
+}
+
+async function timeTravelBookmark(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (TIME_TRAVEL_BOOKMARK_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName, timestamp } = TIME_TRAVEL_BOOKMARK_COMMAND.parse(args, options);
+
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
+
+    const result = await getD1TimeTravelBookmark({ accountId, apiToken, databaseUuid, timestamp });
+    console.log(JSON.stringify(result, undefined, 2));
+}
+
+async function timeTravelRestore(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (TIME_TRAVEL_RESTORE_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName, timestamp, bookmark } = TIME_TRAVEL_RESTORE_COMMAND.parse(args, options);
+    if (timestamp === undefined && bookmark === undefined) throw new Error(`Restore to either a 'timestamp' or 'bookmark'`);
+    if (timestamp !== undefined && bookmark !== undefined) throw new Error(`You can specify 'timestamp' or 'bookmark', but not both`);
+
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
+
+    const result = await restoreD1TimeTravel({ accountId, apiToken, databaseUuid, bookmark, timestamp });
+    console.log(JSON.stringify(result, undefined, 2));
 }
 
 //
