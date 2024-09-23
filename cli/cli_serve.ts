@@ -236,7 +236,8 @@ export async function serve(args: (string | number)[], options: Record<string, u
             if (upgrade !== undefined) {
                 // websocket upgrade request
                 if (upgrade !== 'websocket') throw new Error(`Unsupported upgrade: ${upgrade}`);
-                const { socket, response } = Deno.upgradeWebSocket(request);
+                const protocol = request.headers.get('sec-websocket-protocol') ?? undefined; // chrome/brave will kill the connection if this is not returned (safari, firefox don't need it)
+                const { socket, response } = Deno.upgradeWebSocket(request, { protocol });
                 const denoWebSocketForwarder = new DenoWebSocketForwarder(socket);
                 const res = await localRequestServer.fetch(request, { cfConnectingIp, hostname });
                 if (DenoflareResponse.is(res) && res.init && res.init.webSocket) {
@@ -291,7 +292,11 @@ class DenoWebSocketForwarder {
         };
         socket.onmessage = event => {
             if (DenoWebSocketForwarder.VERBOSE) consoleLog('DenoWebSocketForwarder: socket onmessage:', event.data);
-            this.ensureClientSocket().send(event.data);
+            try {
+                this.ensureClientSocket().send(event.data);
+            } catch (e) {
+                console.warn(`DenoWebSocketForwarder: error handling message: ${e.stack || e}`, event.data);
+            }
         };
         socket.onerror = event => {
             consoleLog('DenoWebSocketForwarder: socket onerror:', event);
@@ -300,7 +305,11 @@ class DenoWebSocketForwarder {
         socket.onclose = event => {
             const { code, reason } = event;
             if (DenoWebSocketForwarder.VERBOSE) consoleLog('DenoWebSocketForwarder: socket onclose');
-            this.ensureClientSocket().close(code, reason);
+            try {
+                this.ensureClientSocket().close(code, reason);
+            } catch (e) {
+                console.warn(`DenoWebSocketForwarder: error handling close: ${e.stack || e}`);
+            }
         };
         this.socket = socket;
     }
