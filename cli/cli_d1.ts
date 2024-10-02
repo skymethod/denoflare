@@ -1,6 +1,7 @@
 import { Bytes } from '../common/bytes.ts';
 import { isValidUrl, isValidUuid } from '../common/check.ts';
 import { CloudflareApi, createD1Database, D1DumpOptions, D1ImportAction, D1ImportResult, deleteD1Database, exportD1Database, getD1DatabaseMetadata, getD1TimeTravelBookmark, importIntoD1Database, listD1Databases, queryD1Database, rawQueryD1Database, restoreD1TimeTravel } from '../common/cloudflare_api.ts';
+import { D1QueryMetadata } from '../common/cloudflare_workers_types.d.ts';
 import { denoflareCliCommand } from './cli_common.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
 import { TextLineStream } from './deps_cli.ts';
@@ -40,6 +41,12 @@ export const QUERY_COMMAND = denoflareCliCommand(['d1', 'query'], `Query a datab
     .option('raw', 'boolean', 'Returns results as arrays instead of objects, more efficient')
     .include(commandOptionsForConfig)
     .docsLink('/cli/d1#query')
+    ;
+
+export const CLEAR_COMMAND = denoflareCliCommand(['d1', 'clear'], `Clear out a database (drop all objects)`)
+    .arg('databaseName', 'string', 'Name of the database to clear')
+    .include(commandOptionsForConfig)
+    .docsLink('/cli/d1#clear')
     ;
 
 export const EXPORT_COMMAND = denoflareCliCommand(['d1', 'export'], `Returns a signed url to the sql contents of a database`)
@@ -113,6 +120,7 @@ export const D1_COMMAND = denoflareCliCommand('d1', 'Manage and query your Cloud
     .subcommand(DROP_COMMAND, drop)
     .subcommand(CREATE_COMMAND, create)
     .subcommand(QUERY_COMMAND, query)
+    .subcommand(CLEAR_COMMAND, clear)
     .subcommandGroup()
     .subcommand(EXPORT_COMMAND, export_)
     .subcommand(EXPORT_SQL_COMMAND, exportSql)
@@ -183,6 +191,49 @@ async function query(args: (string | number)[], options: Record<string, unknown>
 
     const queryResults = raw ? await rawQueryD1Database({ accountId, apiToken, databaseUuid, sql, params: param }) : await queryD1Database({ accountId, apiToken, databaseUuid, sql, params: param });
     console.log(JSON.stringify(queryResults, undefined, 2));
+}
+
+async function clear(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
+    if (CLEAR_COMMAND.dumpHelp(args, options)) return;
+
+    const { verbose, databaseName } = CLEAR_COMMAND.parse(args, options);
+
+    const { databaseUuid, accountId, apiToken } = await common(databaseName, verbose, options);
+
+    const queryResults = await queryD1Database({ accountId, apiToken, databaseUuid, sql: `select type, name from sqlite_master where type in ('table', 'view') and name not in ('_cf_KV', 'sqlite_sequence') order by name` });
+    
+    let calls = 0;
+    let size_before: number | undefined;
+    let totalMeta: D1QueryMetadata = { changed_db: false, changes: 0, duration: 0, last_row_id: 0, rows_read: 0, rows_written: 0, size_after: -1 };
+    const processMeta = ({ changed_db, changes, duration, last_row_id, rows_read, rows_written, size_after }: D1QueryMetadata) => {
+        calls++;
+        if (size_before === undefined) size_before = size_after;
+        totalMeta = { 
+            changed_db: totalMeta.changed_db || changed_db, 
+            changes: totalMeta.changes + changes,
+            duration: totalMeta.duration + duration,
+            last_row_id,
+            rows_read: totalMeta.rows_read + rows_read,
+            rows_written: totalMeta.rows_written + rows_written,
+            size_after,
+        };
+    }
+    for (const { meta, results, success } of queryResults) {
+        if (!success) throw new Error(`sqlite_master query failed`);
+        processMeta(meta);
+        const statements: string[] = [ 'PRAGMA foreign_keys=OFF' ];
+        for (const { type, name } of results as { type: string, name: string }[]) {
+            console.log(`${type} ${name}`);
+            statements.push(`drop ${type} if exists ${name}`);
+        }
+        console.log('dropping...');
+        const queryResults = await queryD1Database({ accountId, apiToken, databaseUuid, sql: statements.join(`;\n`) });
+        for (const { meta, success } of queryResults) { 
+            if (!success) throw new Error(`dropping objects failed`);
+            processMeta(meta);
+        }
+    }
+    console.log(JSON.stringify({ size_before, ...totalMeta, calls }, undefined, 2));
 }
 
 async function export_(args: (string | number)[], options: Record<string, unknown>): Promise<void> {
