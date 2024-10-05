@@ -14,7 +14,7 @@ export class ModuleWorkerExecution {
     }
 
     static async create(scriptPath: string, bindings: Record<string, Binding>, callbacks: WorkerExecutionCallbacks): Promise<ModuleWorkerExecution> {
-        const { globalCachesProvider, webSocketPairProvider, onModuleWorkerInfo, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider } = callbacks;
+        const { globalCachesProvider, webSocketPairProvider, onModuleWorkerInfo, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider, queueProvider } = callbacks;
         defineModuleGlobals(globalCachesProvider, webSocketPairProvider);
         const module = await import(scriptPath);
         if (ModuleWorkerExecution.VERBOSE) consoleLog('ModuleWorkerExecution: module', module);
@@ -26,7 +26,7 @@ export class ModuleWorkerExecution {
         }
         const moduleWorkerEnv: Record<string, unknown> = {};
         if (onModuleWorkerInfo) onModuleWorkerInfo({ moduleWorkerExportedFunctions, moduleWorkerEnv });
-        await applyWorkerEnv(moduleWorkerEnv, bindings, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider);
+        await applyWorkerEnv(moduleWorkerEnv, bindings, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider, queueProvider);
         if (module === undefined) throw new Error('Bad module: undefined');
         if (module.default === undefined) throw new Error('Bad module.default: undefined');
         if (typeof module.default.fetch !== 'function') throw new Error(`Bad module.default.fetch: ${typeof module.default.fetch}`);

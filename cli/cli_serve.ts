@@ -27,6 +27,7 @@ import { cryptoKeyProvider } from '../common/crypto_keys.ts';
 import { versionCompare } from './versions.ts';
 import { RpcHostSockets } from './rpc_host_sockets.ts';
 import { SqliteD1Database } from './sqlite_d1_database.ts';
+import { NoopQueue } from '../common/noop_queue.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -154,6 +155,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 d1DatabaseProvider: SqliteD1Database.provider(),
                 secretKeyProvider: cryptoKeyProvider,
                 emailSenderProvider: NoopEmailSender.provider,
+                queueProvider: NoopQueue.provider,
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
            
