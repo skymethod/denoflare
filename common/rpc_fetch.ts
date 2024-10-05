@@ -7,7 +7,8 @@ import { RpcChannel } from './rpc_channel.ts';
 
 // ReadableStreamReadResult removed in deno 1.28.3
 // https://github.com/denoland/deno/pull/16191
-type ReadableStreamReadResult<V extends ArrayBufferView> = ReadableStreamBYOBReadResult<V>
+// type ReadableStreamReadResult<V extends ArrayBufferView> = ReadableStreamBYOBReadResult<V>
+// found again in 1.46.3
 
 export function makeFetchOverRpc(channel: RpcChannel, denoVersion: string, bodies: Bodies, webSocketResolver: WebSocketResolver): (info: RequestInfo, init?: RequestInit) => Promise<Response | DenoflareResponse> {
     return async (info: RequestInfo, init?: RequestInit) => {
