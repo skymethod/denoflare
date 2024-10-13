@@ -961,6 +961,76 @@ export interface DurableObjectStorage extends DurableObjectStorageMethods {
      * This is similar to normal behavior from automatic write coalescing. If there are any pending writes in the write buffer (including those submitted with allowUnconfirmed),
      * the returned promise will resolve when they complete. If there are no pending writes, the returned promise will be already resolved. */
     sync(): Promise<void>;
+
+    /** Use SQLite in Durable Objects.
+     * 
+     * SQL API methods accessed with .sql are only allowed on Durable Object classes with SQLite storage backend and will return an error if called on Durable Object classes with a key-value storage backend. */
+    get sql(): SqlStorage;
+
+    /** Similar to .transaction, but not async */
+    transactionSync<T>(closure: () => T): T;
+
+    /** Returns a bookmark representing the current point in time in the object’s history */
+    getCurrentBookmark(): Promise<string>;
+
+    /** Returns a bookmark representing approximately the given point in time, which must be within the last 30 days. */
+    getBookmarkForTime(timestamp: number | Date): Promise<string>;
+
+    /** Configure the Durable Object so that the next time it restarts, it should restore its storage to exactly match what the storage contained at the given bookmark.
+     * 
+     * After calling this, the application should typically invoke state.abort() to restart the Durable Object, thus completing the point-in-time recovery. */
+    onNextSessionRestoreBookmark(bookmark: string): Promise<string>;
+}
+
+export interface SqlStorage {
+    /** Execute one or more sql queries.
+     * 
+     * `query` can contain ? placeholders for parameter bindings.
+     * 
+     * Multiple SQL statements, separated with a semicolon, can be executed in the query.
+     * 
+     * With multiple SQL statements, any parameter bindings are applied to the last SQL statement in the query, and the returned cursor is only for the last SQL statement. */
+    // deno-lint-ignore no-explicit-any
+    exec<T extends Record<string, SqlStorageValue>>(query: string, ...bindings: any[]): SqlStorageCursor<T>;
+
+    /** The current SQLite database size in bytes. */
+    get databaseSize(): number;
+}
+
+export type SqlStorageValue = ArrayBuffer | string | number | null;
+
+export interface SqlStorageCursor<T extends Record<string, SqlStorageValue>> {
+    /** Returns an object representing the next value of the cursor.
+     * 
+     * The returned object has done and value properties adhering to the JavaScript Iterator.
+     * 
+     * `done` is set to false when a next value is present, and `value` is set to the next row object in the query result.
+     * `done` is set to true when the entire cursor is consumed, and no `value` is set. */
+    next(): { done?: false, value: T } | { done: true, value?: never };
+
+    /** Iterates through remaining cursor value(s) and returns an array of returned row objects. */
+    toArray(): T[];
+
+    /** Returns a row object if query result has exactly one row. If query result has zero rows or more than one row, one() throws an exception. */
+    one(): T;
+
+    /** Returns an Iterator over the same query results, with each row as an array of column values (with no column names) rather than an object.
+     * 
+     * Returned Iterator supports next(), toArray(), and one() methods above.
+     * 
+     * Returned cursor and raw() iterator iterate over the same query results and can be combined. */
+    raw<U extends SqlStorageValue[]>(): IterableIterator<U>;
+
+    /** The column names of the query in the order they appear in each row array returned by the raw iterator. */
+    get columnNames(): string[];
+
+    /** The number of rows read so far as part of this SQL query. This may increase as you iterate the cursor. The final value is used for SQL billing. */
+    get rowsRead(): number;
+
+    /** The number of rows written so far as part of this SQL query. This may increase as you iterate the cursor. The final value is used for SQL billing. */
+    get rowsWritten(): number;
+
+    [Symbol.iterator](): IterableIterator<T>;
 }
 
 /** Provides access to the put(), get(), delete() and list() methods documented above to run in the current transaction context. 
@@ -1076,6 +1146,11 @@ export interface DurableObjectState {
 
     /** Gets an array of tags that this websocket was accepted with. If the given websocket is not hibernatable, we'll throw an error because regular websockets do not have tags. */
     getTags(ws: WebSocket): string[];
+
+    /** Forcibly reset a Durable Object.
+     * 
+     * A JavaScript Error with the message passed as a parameter will be logged. This error is not able to be caught within the application code. */
+    abort(reason?: string): void;
 }
 
 declare class WebSocketRequestResponsePair {

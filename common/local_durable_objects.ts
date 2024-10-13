@@ -259,4 +259,8 @@ class LocalDurableObjectState implements DurableObjectState {
         throw new Error(`getTags(${JSON.stringify({ ws })})`);
     }
 
+    abort(reason?: string): void {
+        throw new Error(`abort(${JSON.stringify({ reason })})`);
+    }
+
 }

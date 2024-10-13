@@ -88,7 +88,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const compressedScriptContents = gzip(scriptContents);
 
         console.log(`putting ${isModule ? 'module' : 'script'}-based ${usageModel ? `${usageModel} worker` : 'worker' } ${scriptName}${pushIdSuffix}... ${computeSizeString(scriptContents, compressedScriptContents, parts)}`);
-        if (migrations && migrations.deleted_classes.length > 0) {
+        if (migrations && 'deleted_classes' in migrations && migrations.deleted_classes.length > 0) {
             console.log(`  migration will delete durable object class(es): ${migrations.deleted_classes.join(', ')}`);
         }
         start = Date.now();
@@ -172,7 +172,9 @@ async function ensureCustomDomainExists(customDomain: string, opts: { zones: rea
 
 function computeMigrations(deleteClassOpt: string[] | undefined): Migrations | undefined {
     const deleted_classes = deleteClassOpt ?? [];
-    return deleted_classes.length > 0 ? { tag: `delete-${deleted_classes.join('-')}`, deleted_classes } : undefined;
+    if (deleted_classes.length > 0) {
+        return { tag: `delete-${deleted_classes.join('-')}`, deleted_classes };
+    }
 }
 
 function computeSizeString(scriptContents: Uint8Array, compressedScriptContents: Uint8Array, parts: Part[]): string {
@@ -211,16 +213,30 @@ class DurableObjectNamespaces {
 
     async getOrCreateNamespaceId(namespaceSpec: string, scriptName: string): Promise<string> {
         const tokens = namespaceSpec.split(':');
-        if (tokens.length !== 2) throw new Error(`Bad durable object namespace spec: ${namespaceSpec}`);
+        if (tokens.length !== 2 && tokens.length !== 3) throw new Error(`Bad durable object namespace spec: ${namespaceSpec}`);
         const name = tokens[0];
         if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error(`Bad durable object namespace name: ${name}`);
         const className = tokens[1];
+        let useSqlite: boolean | undefined;
+        const opts = tokens[2];
+        if (typeof opts === 'string') {
+            for (const pair of opts.split(',')) {
+                const [ _, name, value ] = checkMatchesReturnMatcher('pair', pair, /^([a-z]+)=([a-z]+)$/);
+                if (name === 'backend') {
+                    if (value === 'sql') {
+                        useSqlite = true;
+                    } else if (value !== 'kv') {
+                        throw new Error(`Bad 'backend' option value: ${value} (must be 'sql' or 'kv')`);
+                    }
+                }
+            }
+        }
         const { accountId, apiToken } = this;
         const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken, perPage: 1000 });
         let namespace = namespaces.find(v => v.name === name);
         if (!namespace)  {
             console.log(`Creating new durable object namespace: ${name}`);
-            namespace = await createDurableObjectsNamespace({ accountId, apiToken, name });
+            namespace = await createDurableObjectsNamespace({ accountId, apiToken, name, useSqlite });
         }
         if (namespace.class !== className || namespace.script !== scriptName) {
             this.pendingUpdates.push({ id: namespace.id, name, script: scriptName, class: className });

@@ -183,7 +183,7 @@ function getDemoNamespace(index: number): DurableObjectsNamespace {
     if (demoNamespaces.length === 0) {
         [ 'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta', 'iota', 'kappa' ].forEach((name, i) => {
             const id = new Bytes(crypto.getRandomValues(new Uint8Array(16))).hex();
-            demoNamespaces.push({ id, name: `name${i + 1}`, script: `script${i + 1}`, class: `${name.substring(0, 1).toUpperCase()}${name.substring(1)}DO` });
+            demoNamespaces.push({ id, name: `name${i + 1}`, script: `script${i + 1}`, class: `${name.substring(0, 1).toUpperCase()}${name.substring(1)}DO`, use_sqlite: false });
         });
     }
     return demoNamespaces[index % demoNamespaces.length];

@@ -9,10 +9,10 @@ export async function listDurableObjectsNamespaces(opts: { accountId: string, ap
     return (await execute<readonly DurableObjectsNamespace[]>('listDurableObjectsNamespaces', 'GET', url.toString(), apiToken)).result;
 }
 
-export async function createDurableObjectsNamespace(opts: { accountId: string, apiToken: string, name: string, script?: string, className?: string }): Promise<DurableObjectsNamespace> {
-    const { accountId, apiToken, name, script, className } = opts;
+export async function createDurableObjectsNamespace(opts: { accountId: string, apiToken: string, name: string, script?: string, className?: string, useSqlite?: boolean }): Promise<DurableObjectsNamespace> {
+    const { accountId, apiToken, name, script, className, useSqlite } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/durable_objects/namespaces`;
-    return (await execute<DurableObjectsNamespace>('createDurableObjectsNamespace', 'POST', url, apiToken, { name, script, class: className })).result;
+    return (await execute<DurableObjectsNamespace>('createDurableObjectsNamespace', 'POST', url, apiToken, { name, script, class: className, use_sqlite: useSqlite })).result;
 }
 
 export async function updateDurableObjectsNamespace(opts: { accountId: string, apiToken: string, id: string, name?: string, script?: string, className?: string }): Promise<DurableObjectsNamespace> {
@@ -32,6 +32,7 @@ export interface DurableObjectsNamespace {
     readonly name: string;
     readonly script: string | null;
     readonly class: string | undefined;
+    readonly use_sqlite: boolean;
 }
 
 export async function listDurableObjects(opts: { accountId: string, namespaceId: string, apiToken: string, limit?: number, cursor?: string }): Promise<{ objects: readonly DurableObject[], cursor?: string }> {
@@ -306,10 +307,26 @@ export interface RatelimitBinding {
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least
-export interface Migrations {
+export interface OldMigrations {
     readonly tag: string;
     readonly deleted_classes: string[];
 }
+
+export interface NewMigrations {
+    readonly old_tag?: string;
+    readonly new_tag: string;
+    readonly steps: {
+		readonly new_classes?: string[];
+		readonly new_sqlite_classes?: string[];
+		readonly renamed_classes?: {
+			readonly from: string;
+			readonly to: string;
+		}[];
+		readonly deleted_classes?: string[];
+    }[];
+}
+
+export type Migrations = OldMigrations | NewMigrations;
 
 export interface Part {
     readonly name: string;

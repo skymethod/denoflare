@@ -1,6 +1,6 @@
 import { Bytes } from '../bytes.ts';
 import { isStringArray } from '../check.ts';
-import { DurableObjectGetAlarmOptions, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions } from '../cloudflare_workers_types.d.ts';
+import { DurableObjectGetAlarmOptions, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions, SqlStorage } from '../cloudflare_workers_types.d.ts';
 
 export class InMemoryDurableObjectStorage implements DurableObjectStorage {
     static VERBOSE = false;
@@ -196,6 +196,25 @@ export class InMemoryDurableObjectStorage implements DurableObjectStorage {
         throw new Error(`InMemoryDurableObjectStorage.deleteAlarm not implemented options=${JSON.stringify(options)}`);
     }
 
+    getBookmarkForTime(timestamp: number | Date): Promise<string> {
+        throw new Error(`InMemoryDurableObjectStorage.getBookmarkForTime(${JSON.stringify({ timestamp })}) not implemented`);
+    }
+
+    getCurrentBookmark(): Promise<string> {
+        throw new Error(`InMemoryDurableObjectStorage.getCurrentBookmark() not implemented`);
+    }
+
+    onNextSessionRestoreBookmark(bookmark: string): Promise<string> {
+        throw new Error(`InMemoryDurableObjectStorage.onNextSessionRestoreBookmark(${JSON.stringify({ bookmark })}) not implemented`);
+    }
+
+    transactionSync<T>(_closure: () => T): T {
+        throw new Error(`InMemoryDurableObjectStorage.transactionSync() not implemented`);
+    }
+
+    get sql(): SqlStorage {
+        throw new Error(`InMemoryDurableObjectStorage.sql not implemented`);
+    }
 }
 
 //
