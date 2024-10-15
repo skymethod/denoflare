@@ -1019,7 +1019,7 @@ export interface SqlStorageCursor<T extends Record<string, SqlStorageValue>> {
      * Returned Iterator supports next(), toArray(), and one() methods above.
      * 
      * Returned cursor and raw() iterator iterate over the same query results and can be combined. */
-    raw<U extends SqlStorageValue[]>(): IterableIterator<U>;
+    raw<U extends SqlStorageValue[]>(): IterableIterator<U> & { toArray(): U[], one(): U };
 
     /** The column names of the query in the order they appear in each row array returned by the raw iterator. */
     get columnNames(): string[];
