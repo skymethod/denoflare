@@ -6,6 +6,7 @@ import { fileExists } from './fs_util.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoCheck } from './deno_check.ts';
 import { tryParseUrl } from '../common/check.ts';
+import { versionCompare } from './versions.ts';
 
 export type BundleBackend = 'builtin' | 'process' | 'module' | 'esbuild';
 
@@ -101,7 +102,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
 
     // deno bundle is finally going away in deno 2
     // the way forward is esbuild and esbuild-deno-loader
-    if (backend === 'esbuild') {
+    if (backend === 'esbuild' || versionCompare(Deno.version.deno, '2.0.0') >= 0) {
         // TODO verify existing transformations or include in custom plugin?
         // TODO other esbuild options?
 
