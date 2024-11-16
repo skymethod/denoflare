@@ -136,7 +136,7 @@ async function loadConfigFromFile(path: string): Promise<Config> {
         }
         return checkConfig(config);
     } catch (e) {
-        throw new Error(`Error loading config (path=${path}): ${e.message || e}`);
+        throw new Error(`Error loading config (path=${path}): ${(e as Error).message || e}`);
     }
 }
 
@@ -181,7 +181,7 @@ async function findProfile(config: Config, options: Record<string, unknown>, scr
             if (verbose) console.log(`Using api-token from options, and located corresponding account-id: ${accountId}`);
             return { accountId, apiToken };
         } catch (e) {
-            console.warn(`Error calling listAccounts: ${e.stack || e}`);
+            console.warn(`Error calling listAccounts: ${(e as Error).stack || e}`);
             throw new Error(`Failed locating account-id from api-token`, { cause: e });
         }
     }

@@ -44,7 +44,7 @@ export class RpcChannel {
                         responseData = responseData.data;
                     }
                 } catch (e) {
-                    error = e;
+                    error = e as Error;
                 }
                 if (error) {
                     this.postMessage({ responseKind: 'error', num, rpcMethod, error: { message: error.message, name: error.name, stack: error.stack } } as RpcErrorResponse, transfer);

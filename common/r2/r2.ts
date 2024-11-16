@@ -140,7 +140,7 @@ export async function throwIfUnexpectedStatus(res: Response, ...expectedStatus: 
                 const result = parseErrorResultXml(xml);
                 errorMessage += `, code=${result.code}, message=${result.message}`;
             } catch (e) {
-                errorMessage += ` parseError=${e.stack || e} body=${text}`;
+                errorMessage += ` parseError=${(e as Error).stack || e} body=${text}`;
             }
         }
     }

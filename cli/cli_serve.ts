@@ -174,7 +174,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 try {
                     await workerManager.run(scriptContents, scriptType, { bindings, profile });
                 } catch (e) {
-                    consoleError('Error running script', e.stack || e);
+                    consoleError('Error running script', (e as Error).stack || e);
                     Deno.exit(1);
                 }
             };
@@ -186,7 +186,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                     try {
                         await runScript();
                     } catch (e) {
-                        consoleError('Error recompiling script', e.stack || e);
+                        consoleError('Error recompiling script', (e as Error).stack || e);
                     }
                 };
                 const _moduleWatcher = new ModuleWatcher(rootSpecifier, tryRunScript, watchInclude);
@@ -264,7 +264,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 return res;
             }
         } catch (e) {
-            consoleError('Error servicing request', e.stack || e);
+            consoleError('Error servicing request', (e as Error).stack || e);
             throw e;
         }
     });
@@ -297,7 +297,7 @@ class DenoWebSocketForwarder {
             try {
                 this.ensureClientSocket().send(event.data);
             } catch (e) {
-                console.warn(`DenoWebSocketForwarder: error handling message: ${e.stack || e}`, event.data);
+                console.warn(`DenoWebSocketForwarder: error handling message: ${(e as Error).stack || e}`, event.data);
             }
         };
         socket.onerror = event => {
@@ -310,7 +310,7 @@ class DenoWebSocketForwarder {
             try {
                 this.ensureClientSocket().close(code, reason);
             } catch (e) {
-                console.warn(`DenoWebSocketForwarder: error handling close: ${e.stack || e}`);
+                console.warn(`DenoWebSocketForwarder: error handling close: ${(e as Error).stack || e}`);
             }
         };
         this.socket = socket;

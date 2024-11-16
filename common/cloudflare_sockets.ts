@@ -150,7 +150,7 @@ class DenoSocket implements Socket {
                     const conn = await conn2Signal.promise;
                     conn.close();
                 } catch (e) {
-                    console.warn(`Error closing tls connection to ${hostname}:${port}: ${e.stack || e}`);
+                    console.warn(`Error closing tls connection to ${hostname}:${port}: ${(e as Error).stack || e}`);
                 } finally {
                     closedSignal.resolve(undefined);
                 }

@@ -57,7 +57,7 @@ export class TailConnection {
                 try {
                     message = parseTailMessage(obj);
                 } catch (e) {
-                    callbacks.onUnparsedMessage(this, timeStamp, obj, e);
+                    callbacks.onUnparsedMessage(this, timeStamp, obj, e as Error);
                     return;
                 }
                 callbacks.onTailMessage(this, timeStamp, message);

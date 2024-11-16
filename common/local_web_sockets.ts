@@ -62,16 +62,16 @@ class LocalWebSocket extends FakeWebSocket implements CloudflareWebSocketExtensi
 
     //
 
-    get onmessage(): ((this: WebSocket, ev: MessageEvent) => any) | null { return this._onmessage; }
-    set onmessage(value: ((this: WebSocket, ev: MessageEvent) => any) | null) { this._onmessage = value; }
-    get onopen(): ((this: WebSocket, ev: Event) => any) | null { return this._onopen; }
-    set onopen(value: ((this: WebSocket, ev: Event) => any) | null) { this._onopen = value; }
-    get onclose(): ((this: WebSocket, ev: CloseEvent) => any) | null { return this._onclose; }
-    set onclose(value: ((this: WebSocket, ev: CloseEvent) => any) | null) { this._onclose = value; }
-    get onerror(): ((this: WebSocket, ev: Event | ErrorEvent) => any) | null { return this._onerror; }
-    set onerror(value: ((this: WebSocket, ev: Event | ErrorEvent) => any) | null) { this._onerror = value; }
+    override get onmessage(): ((this: WebSocket, ev: MessageEvent) => any) | null { return this._onmessage; }
+    override set onmessage(value: ((this: WebSocket, ev: MessageEvent) => any) | null) { this._onmessage = value; }
+    override get onopen(): ((this: WebSocket, ev: Event) => any) | null { return this._onopen; }
+    override set onopen(value: ((this: WebSocket, ev: Event) => any) | null) { this._onopen = value; }
+    override get onclose(): ((this: WebSocket, ev: CloseEvent) => any) | null { return this._onclose; }
+    override set onclose(value: ((this: WebSocket, ev: CloseEvent) => any) | null) { this._onclose = value; }
+    override get onerror(): ((this: WebSocket, ev: Event | ErrorEvent) => any) | null { return this._onerror; }
+    override set onerror(value: ((this: WebSocket, ev: Event | ErrorEvent) => any) | null) { this._onerror = value; }
 
-    get readyState(): number {
+    override get readyState(): number {
         return this._readyState;
     }
 
@@ -86,7 +86,7 @@ class LocalWebSocket extends FakeWebSocket implements CloudflareWebSocketExtensi
         this.pendingMessageEvents.splice(0);
     }
 
-    addEventListener(
+    override addEventListener(
         type: string,
         listener: EventListenerOrEventListenerObject | null,
         options?: boolean | AddEventListenerOptions,
@@ -104,7 +104,7 @@ class LocalWebSocket extends FakeWebSocket implements CloudflareWebSocketExtensi
         }
     }
 
-    send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void { 
+    override send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void { 
         if (LocalWebSockets.VERBOSE) console.log(`${this._className}.${this.id}: send ${data}`);
         if (!this._accepted) throw new Error(`${this._className}: Cannot send() before accept()`);
         this.sockets.dispatch(this.id, this.side === 'client' ? 'server' : 'client', data);

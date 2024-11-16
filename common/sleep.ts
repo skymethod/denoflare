@@ -14,9 +14,9 @@ export async function executeWithRetries<T>(fn: () => Promise<T>, opts: { tag: s
             }
             return await fn();
         } catch (e) {
-            if (isRetryable(e)) {
+            if (isRetryable(e as Error)) {
                 if (retries >= maxRetries) {
-                    throw new Error(`${tag}: Out of retries (max=${maxRetries}): ${e.stack || e}`);
+                    throw new Error(`${tag}: Out of retries (max=${maxRetries}): ${(e as Error).stack || e}`);
                 }
                 retries++;
             } else {

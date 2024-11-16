@@ -117,7 +117,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
 
     const headings: Heading[] = [];
     const renderer = new class extends marked.Renderer {
-        link(href: string | null, title: string | null, text: string): string {
+        override link(href: string | null, title: string | null, text: string): string {
             if (typeof href === 'string' && /^https?:\/\//.test(href)) {
                 return computeExternalAnchorHtml(href, text);
             }
@@ -127,7 +127,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
             a += `><span class="markdown-link-content">${encodeXml(text)}</span></a>`;
             return a;
         }
-        heading(text: string, level: 1 | 2 | 3 | 4 | 5 | 6, _raw: string, slugger: marked.Slugger): string {
+        override heading(text: string, level: 1 | 2 | 3 | 4 | 5 | 6, _raw: string, slugger: marked.Slugger): string {
             const textEscaped = encodeXml(text);
             if (level === 1) return `<h1>${textEscaped}</h1>`;
 
@@ -143,7 +143,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
     <span>${textEscaped}</span>
 </h${level}>`;
         }
-        code(code: string, language: string | undefined, _isEscaped: boolean): string {
+        override code(code: string, language: string | undefined, _isEscaped: boolean): string {
             if ((language || '').length === 0) {
                 const codeHtml: string[] = [];
                 const p = /\[(.*?)\]\((\/.*?)\)/g;
@@ -164,7 +164,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
             const highlightedCodeHtml = hljs.highlight(code, { language }).value;
             return `<pre class="code-block code-block-scrolls-horizontally"><code>${highlightedCodeHtml}</code></pre>`;
         }
-        codespan(code: string): string {
+        override codespan(code: string): string {
             return `<code class="inline-code">${code}</code>`;
         }
     }();

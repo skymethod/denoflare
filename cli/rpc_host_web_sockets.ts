@@ -129,27 +129,27 @@ class RpcHostWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
         console.log(`${this._className}: local accepted`);
     }
 
-    get onmessage(): ((this: WebSocket, ev: MessageEvent) => any) | null {
+    override get onmessage(): ((this: WebSocket, ev: MessageEvent) => any) | null {
         if (!this.accepted) throw new Error(`${this._className}: onmessage called before accept`);
         return this._onmessage; 
     }
 
-    set onmessage(value: ((this: WebSocket, ev: MessageEvent) => any) | null) { 
+    override set onmessage(value: ((this: WebSocket, ev: MessageEvent) => any) | null) { 
         if (!this.accepted) throw new Error(`${this._className}: onmessage called before accept`);
         this._onmessage = value;
     }
 
-    get onclose(): ((this: WebSocket, ev: CloseEvent) => any) | null { 
+    override get onclose(): ((this: WebSocket, ev: CloseEvent) => any) | null { 
         if (!this.accepted) throw new Error(`${this._className}: onclose called before accept`);
         return this._onclose;
      }
 
-    set onclose(value: ((this: WebSocket, ev: CloseEvent) => any) | null) { 
+    override set onclose(value: ((this: WebSocket, ev: CloseEvent) => any) | null) { 
         if (!this.accepted) throw new Error(`${this._className}: onclose called before accept`);
         this._onclose = value;
     }
 
-    send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+    override send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
         if (this.side !== 'client') throw new Error(`${this._className}: send can only be called on client sockets`);
         if (!this.accepted) throw new Error(`${this._className}: send called before accept`);
         const { isolateId, id } = this;
@@ -157,7 +157,7 @@ class RpcHostWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
         this.channel.fireRequest('ws-to-stub', { method: 'send', data, isolateId, id, to });
     }
 
-    close(code?: number, reason?: string): void {
+    override close(code?: number, reason?: string): void {
         if (this.side !== 'client') throw new Error(`${this._className}: close can only be called on client sockets`);
         if (!this.accepted) throw new Error(`${this._className}: close called before accept`);
         const to = this.side === 'client' ? 'server' : 'client';

@@ -33,7 +33,7 @@ export function makeBodyResolverOverRpc(channel: RpcChannel, denoVersion: string
            
             const finish = () => {
                 if (value !== undefined) controller.enqueue(value);
-                if (done) try { controller.close(); } catch (e) { console.warn(`Ignoring error closing rpc body stream: ${e.stack}`); }
+                if (done) try { controller.close(); } catch (e) { console.warn(`Ignoring error closing rpc body stream: ${(e as Error).stack}`); }
             }
             if (shouldApplyEventLookWorkaround) {
                 setTimeout(finish, 0);

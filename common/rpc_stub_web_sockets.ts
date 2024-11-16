@@ -122,20 +122,20 @@ class RpcStubWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
         this.side = side;
     }
 
-    get onmessage(): ((this: WebSocket, ev: MessageEvent) => any) | null { return this._onmessage; }
-    set onmessage(value: ((this: WebSocket, ev: MessageEvent) => any) | null) { this._onmessage = value; }
+    override get onmessage(): ((this: WebSocket, ev: MessageEvent) => any) | null { return this._onmessage; }
+    override set onmessage(value: ((this: WebSocket, ev: MessageEvent) => any) | null) { this._onmessage = value; }
 
-    get onclose(): ((this: WebSocket, ev: CloseEvent) => any) | null { return this._onclose; }
-    set onclose(value: ((this: WebSocket, ev: CloseEvent) => any) | null) { this._onclose = value; }
+    override get onclose(): ((this: WebSocket, ev: CloseEvent) => any) | null { return this._onclose; }
+    override set onclose(value: ((this: WebSocket, ev: CloseEvent) => any) | null) { this._onclose = value; }
 
-    get onopen(): ((this: WebSocket, ev: Event) => any) | null { return this._onopen; }
-    set onopen(value: ((this: WebSocket, ev: Event) => any) | null) { this._onopen = value; dumpOpenWarning(); }
+    override get onopen(): ((this: WebSocket, ev: Event) => any) | null { return this._onopen; }
+    override set onopen(value: ((this: WebSocket, ev: Event) => any) | null) { this._onopen = value; dumpOpenWarning(); }
 
     // not implemented yet, but don't crash
-    get onerror(): ((this: WebSocket, ev: Event | ErrorEvent) => any) | null { return this._onerror; }
-    set onerror(value: ((this: WebSocket, ev: Event | ErrorEvent) => any) | null) { this._onerror = value; }
+    override get onerror(): ((this: WebSocket, ev: Event | ErrorEvent) => any) | null { return this._onerror; }
+    override set onerror(value: ((this: WebSocket, ev: Event | ErrorEvent) => any) | null) { this._onerror = value; }
 
-    get binaryType(): BinaryType {
+    override get binaryType(): BinaryType {
         return 'arraybuffer'; // default for Deno.  CF runtime returns undefined, but in practice uses ArrayBuffer as the message event data.
     }
 
@@ -145,7 +145,7 @@ class RpcStubWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
         this.channel.fireRequest('ws-from-stub', { method: 'accept', id, isolateId, seq, side });
     }
 
-    addEventListener(
+    override addEventListener(
         type: string,
         listener: EventListenerOrEventListenerObject | null,
         options?: boolean | AddEventListenerOptions,
@@ -166,7 +166,7 @@ class RpcStubWebSocket extends FakeWebSocket implements CloudflareWebSocketExten
         }
     }
 
-    send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
+    override send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
         const { isolateId, id, side } = this;
         const seq = this.nextSeq++;
         // console.log(`${this._className}.send: '${JSON.stringify({ isolateId, id, side, data })}`);

@@ -49,7 +49,7 @@ export class RpcHostSockets {
             try {
                 (conn2 ?? conn).close();
             } catch (e) {
-                console.warn(`Error closing connection to ${hostname}:${port}: ${e.stack}`)
+                console.warn(`Error closing connection to ${hostname}:${port}: ${(e as Error).stack}`);
             } finally {
                 this.records.delete(id);
             }
