@@ -13,6 +13,7 @@ import { CLI_VERSION } from './cli_version.ts';
 import { commandOptionsForConfigOnly, loadAwsCredentialsForProfile, loadConfig, resolveBindings } from './config_loader.ts';
 import { isAbsolute, resolve } from './deps_cli.ts';
 import { ModuleWatcher } from './module_watcher.ts';
+import { versionCompare } from './versions.ts';
 
 export const PUSH_LAMBDA_COMMAND = denoflareCliCommand('push-lambda', 'Upload a Cloudflare worker script to AWS Lambda + public function URL')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
@@ -138,7 +139,7 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
         const layerName = `deno-${denoVersion.replaceAll('.', '_')}-${architecture}`;
      
         const computeDenoZipStream = async () => {
-            const denoZipUrl = architecture as string === 'arm64' ? `https://github.com/LukeChannings/deno-arm64/releases/download/v${denoVersion}/deno-linux-arm64.zip` 
+            const denoZipUrl = architecture as string === 'arm64' ? (versionCompare(denoVersion, '1.40.5') <= 0 ? `https://github.com/LukeChannings/deno-arm64/releases/download/v${denoVersion}/deno-linux-arm64.zip` : `https://github.com/denoland/deno/releases/download/v${denoVersion}/deno-aarch64-unknown-linux-gnu.zip`)
                 : `https://github.com/denoland/deno/releases/download/v${denoVersion}/deno-x86_64-unknown-linux-gnu.zip`
             const res = await fetch(denoZipUrl);
             if (!res.ok || !res.body) throw new Error(`${res.status} for ${denoZipUrl}`);
