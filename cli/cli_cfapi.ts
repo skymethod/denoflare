@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteQueueConsumer, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putQueueConsumer, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer } from '../common/cloudflare_api.ts';
 import { check, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -425,44 +425,153 @@ function cfapiCommand() {
         console.log(result);
     });
 
-    add(apiCommand('get-queue', 'Get information about a specific queue').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
-        const { queueName } = opts;
-        const result = await getQueue({ accountId, apiToken, queueName });
+    const findQueueId = async ({ accountId, apiToken, opts }: { accountId: string, apiToken: string, opts: { queueNameOrId: string } }): Promise<string> => {
+        const { queueNameOrId } = opts;
+        if (/^[0-9a-f]{32}$/.test(queueNameOrId)) return queueNameOrId;
+        const queues = await listQueues({ accountId, apiToken });
+        const queue = queues.find(v => v.queue_name === queueNameOrId);
+        if (!queue) throw new Error(`Unable to find queue with name: ${queueNameOrId}`);
+        return queue.queue_id;
+    }
+
+    add(apiCommand('get-queue', 'Get information about a specific queue').arg('queueNameOrId', 'string', 'Queue name (or id)'), async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const result = await getQueue({ accountId, apiToken, queueId });
         console.log(result);
     });
 
-    add(apiCommand('delete-queue', 'Deletes a queue').arg('queueName', 'string', 'Queue name'), async (accountId, apiToken, opts) => {
-        const { queueName } = opts;
-        await deleteQueue({ accountId, apiToken, queueName });
+    add(apiCommand('update-queue', 'Update a queue, does not support partial updates').arg('queueNameOrId', 'string', 'Queue name (or id)')
+            .option('queueName', 'string', 'The queue name (or id)')
+            .option('deliveryDelay', 'integer', 'Number of seconds to delay delivery of all messages to consumers')
+            .option('messageRetentionPeriod', 'integer', 'Number of seconds after which an unconsumed message will be delayed')
+            , async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { deliveryDelay, messageRetentionPeriod } = opts;
+        const queueName = opts.queueName ?? (/^[0-9a-f]{32}$/.test(opts.queueNameOrId) ? undefined : opts.queueNameOrId);
+        const result = await updateQueue({ accountId, apiToken, queueId, queueName, deliveryDelay, messageRetentionPeriod });
+        console.log(result);
     });
 
-    add(apiCommand('put-queue-consumer', 'Creates a new consumer for a queue').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name')
+    add(apiCommand('delete-queue', 'Deletes a queue').arg('queueNameOrId', 'string', 'Queue name (or id)'), async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        await deleteQueue({ accountId, apiToken, queueId });
+    });
+
+    add(apiCommand('create-queue-consumer', 'Creates a new consumer for a queue').arg('queueNameOrId', 'string', 'Queue name (or id)')
+            .option('script', 'string', '(worker consumer) Script name (elide for pull consumer)')
             .option('batchSize', 'integer', 'The maximum number of messages allowed in each batch')
-            .option('maxRetries', 'integer', 'The maximum number of retries for a message, if it fails or retryAll() is invoked')
-            .option('maxWaitTimeMillis', 'integer', 'The maximum number of millis to wait until a batch is full')
-            .option('maxConcurrency', 'integer', 'If present, the maximum concurrent consumer invocations (between 1 and 20)')
+            .option('maxRetries', 'integer', 'The maximum number of retries for a message')
+            .option('retryDelay', 'integer', 'The number of seconds to delay before making the message available for another attempt')
+            .option('maxWaitTimeMillis', 'integer', '(worker consumer) The maximum number of millis to wait until a batch is full')
+            .option('maxConcurrency', 'integer', '(worker consumer) If present, the maximum concurrent consumer invocations (between 1 and 20)')
+            .option('visibilityTimeoutMillis', 'integer', '(pull consumer) The number of milliseconds that a message is exclusively leased. After the timeout, the message becomes available for another attempt.')
             .option('deadLetterQueue', 'string', 'Name of the dead letter queue')
             , async (accountId, apiToken, opts) => {
-        const { queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis } = opts;
-        const result = await putQueueConsumer({ accountId, apiToken, queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis });
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { script, batchSize, maxRetries, maxWaitTimeMillis, maxConcurrency, retryDelay, visibilityTimeoutMillis, deadLetterQueue } = opts;
+        const consumer: NewQueueConsumer = typeof script === 'string' ? {
+            type: 'worker',
+            script,
+            dead_letter_queue: deadLetterQueue,
+            settings: {
+                batch_size: batchSize,
+                max_retries: maxRetries,
+                retry_delay: retryDelay,
+                max_wait_time_ms: maxWaitTimeMillis,
+                max_concurrency: maxConcurrency,
+            },
+        } : {
+            type: 'http_pull',
+            dead_letter_queue: deadLetterQueue,
+            settings: {
+                batch_size: batchSize,
+                max_retries: maxRetries,
+                retry_delay: retryDelay,
+                visibility_timeout_ms: visibilityTimeoutMillis,
+            }
+        };
+        const result = await createQueueConsumer({ accountId, apiToken, queueId, consumer });
         console.log(result);
     });
 
-    add(apiCommand('delete-queue-consumer', 'Deletes the consumer for a queue').arg('queueName', 'string', 'Queue name').arg('scriptName', 'string', 'Script name').option('envName', 'string', 'Environment name'), async (accountId, apiToken, opts) => {
-        const { queueName, scriptName, envName } = opts;
-        await deleteQueueConsumer({ accountId, apiToken, queueName, scriptName, envName });
-    });
-
-    add(apiCommand('pull-queue-messages', 'Pulls queue messages').arg('queueId', 'string', 'Queue ID').option('batchSize', 'integer', 'Wait till this number of messages are available').option('visibilityTimeout', 'integer', 'How long you have to acknowledge the message'), async (accountId, apiToken, opts) => {
-        const { queueId, batchSize, visibilityTimeout } = opts;
-        const result = await pullQueueMessages({ accountId, apiToken, queueId, batchSize, visibilityTimeout });
+    add(apiCommand('list-queue-consumers', 'List consumers for a queue').arg('queueNameOrId', 'string', 'Queue name (or id)'), async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const result = await listQueueConsumers({ accountId, apiToken, queueId });
         console.log(result);
     });
 
-    add(apiCommand('ack-queue-messages', 'Acknowledge or retry queue messages').arg('queueId', 'string', 'Queue ID'), async (accountId, apiToken, opts) => {
-        const { queueId } = opts;
+    add(apiCommand('update-queue-consumer', 'Update an existing queue consumer').arg('queueNameOrId', 'string', 'Queue name (or id)').arg('consumerId', 'string', 'Queue consumer id')
+            .option('script', 'string', '(worker consumer) Script name (elide for pull consumer)')
+            .option('batchSize', 'integer', 'The maximum number of messages allowed in each batch')
+            .option('maxRetries', 'integer', 'The maximum number of retries for a message')
+            .option('retryDelay', 'integer', 'The number of seconds to delay before making the message available for another attempt')
+            .option('maxWaitTimeMillis', 'integer', '(worker consumer) The maximum number of millis to wait until a batch is full')
+            .option('maxConcurrency', 'integer', '(worker consumer) If present, the maximum concurrent consumer invocations (between 1 and 20)')
+            .option('visibilityTimeoutMillis', 'integer', '(pull consumer) The number of milliseconds that a message is exclusively leased. After the timeout, the message becomes available for another attempt.')
+            .option('deadLetterQueue', 'string', 'Name of the dead letter queue')
+            , async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { script, batchSize, maxRetries, maxWaitTimeMillis, maxConcurrency, retryDelay, visibilityTimeoutMillis, deadLetterQueue, consumerId } = opts;
+        const consumer: NewQueueConsumer = typeof script === 'string' ? {
+            type: 'worker',
+            script,
+            dead_letter_queue: deadLetterQueue,
+            settings: {
+                batch_size: batchSize,
+                max_retries: maxRetries,
+                retry_delay: retryDelay,
+                max_wait_time_ms: maxWaitTimeMillis,
+                max_concurrency: maxConcurrency,
+            },
+        } : {
+            type: 'http_pull',
+            dead_letter_queue: deadLetterQueue,
+            settings: {
+                batch_size: batchSize,
+                max_retries: maxRetries,
+                retry_delay: retryDelay,
+                visibility_timeout_ms: visibilityTimeoutMillis,
+            }
+        };
+        const result = await updateQueueConsumer({ accountId, apiToken, queueId, consumerId, consumer });
+        console.log(result);
+    });
 
-        const result = await ackQueueMessages({ accountId, apiToken, queueId, acks: [], retries: [] }); // TODO
+    add(apiCommand('delete-queue-consumer', 'Delete a queue consumer').arg('queueNameOrId', 'string', 'Queue name (or id)').arg('consumerId', 'string', 'Queue consumer id'), async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { consumerId } = opts;
+        await deleteQueueConsumer({ accountId, apiToken, queueId, consumerId });
+    });
+
+    add(apiCommand('pull-queue-messages', 'Pulls queue messages').arg('queueNameOrId', 'string', 'Queue name (or id)')
+            .option('batchSize', 'integer', 'The maximum number of messages to include in a batch')
+            .option('visibilityTimeoutMillis', 'integer', 'The number of milliseconds that a message is exclusively leased. After the timeout, the message becomes available for another attempt')
+            , async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { batchSize, visibilityTimeoutMillis } = opts;
+        const result = await pullQueueMessages({ accountId, apiToken, queueId, batchSize, visibilityTimeoutMillis });
+        console.log(result);
+    });
+
+    add(apiCommand('ack-queue-messages', 'Acknowledge or retry queue messages').arg('queueNameOrId', 'string', 'Queue name (or id)')
+            .option('ack', 'strings', 'Lease IDs to acknowledge')
+            .option('retry', 'strings', 'Lease IDs to retry (append :<delay-seconds> to delay reappearance)')
+            , async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { ack = [], retry = [] } = opts;
+
+        const splitRetry = (input: string) => {
+            const tokens = input.split(':');
+            if (tokens.length === 1) return { leaseId: input };
+            if (tokens.length === 2) {
+                const [ leaseId, delaySecondsStr ] = tokens;
+                if (!/^\d+$/.test(delaySecondsStr)) throw new Error(`Delay seconds must be a non-negative integer`);
+                return { leaseId, delaySeconds: parseInt(delaySecondsStr) };
+            }
+            throw new Error(`either <lease-id> or <lease-id>:<delay-seconds>`);
+        }
+
+        const result = await ackQueueMessages({ accountId, apiToken, queueId, acks: ack.map(v => ({ leaseId: v })), retries: retry.map(splitRetry) });
         console.log(result);
     });
 

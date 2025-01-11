@@ -1592,31 +1592,91 @@ export async function listUserBillingHistory(opts: { apiToken: string }): Promis
 
 //#region Queues
 
+// https://developers.cloudflare.com/api/resources/queues/methods/list/
 export async function listQueues(opts: { accountId: string, apiToken: string, page?: number }): Promise<Queue[]> {
     const { accountId, apiToken, page } = opts;
-    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/queues`);
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/queues`);
     if (typeof page === 'number') url.searchParams.set('page', page.toString());
     return (await execute<Queue[]>('listQueues', 'GET', url.toString(), apiToken)).result;
 }
 
-export async function getQueue(opts: { accountId: string, apiToken: string, queueName: string }): Promise<Queue> {
-    const { accountId, apiToken, queueName } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}`;
+// https://developers.cloudflare.com/api/resources/queues/methods/get/
+export async function getQueue(opts: { accountId: string, apiToken: string, queueId: string }): Promise<Queue> {
+    const { accountId, apiToken, queueId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}`;
     return (await execute<Queue>('getQueue', 'GET', url.toString(), apiToken)).result;
 }
 
-export async function deleteQueue(opts: { accountId: string, apiToken: string, queueName: string }): Promise<void> {
-    const { accountId, apiToken, queueName } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}`;
+// https://developers.cloudflare.com/api/resources/queues/methods/delete/
+export async function deleteQueue(opts: { accountId: string, apiToken: string, queueId: string }): Promise<void> {
+    const { accountId, apiToken, queueId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}`;
     await execute<Queue>('deleteQueue', 'DELETE', url.toString(), apiToken);
     // 200 result: null
 }
 
+// https://developers.cloudflare.com/api/resources/queues/methods/create/
 export async function createQueue(opts: { accountId: string, apiToken: string, queueName: string }): Promise<NewQueue> {
     const { accountId, apiToken, queueName } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/workers/queues`;
+    const url = `${computeAccountBaseUrl(accountId)}/queues`;
     const payload = { queue_name: queueName };
     return (await execute<NewQueue>('createQueue', 'POST', url, apiToken, payload)).result;
+}
+
+// https://developers.cloudflare.com/api/resources/queues/methods/update/
+export async function updateQueue(opts: { accountId: string, apiToken: string, queueId: string, queueName?: string, deliveryDelay?: number, messageRetentionPeriod?: number }): Promise<NewQueue> {
+    const { accountId, apiToken, queueId, queueName, deliveryDelay, messageRetentionPeriod } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}`;
+    const payload = { queue_name: queueName, settings: { delivery_delay: deliveryDelay, message_retention_period: messageRetentionPeriod } };
+    return (await execute<Queue>('updateQueue', 'PUT', url, apiToken, payload)).result;
+}
+
+// https://developers.cloudflare.com/api/resources/queues/subresources/consumers/methods/create/
+export async function createQueueConsumer(opts: { accountId: string, apiToken: string, queueId: string, consumer: NewQueueConsumer }): Promise<QueueConsumer> {
+    const { accountId, apiToken, queueId, consumer } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/consumers`;
+    return (await execute<QueueConsumer>('createQueueConsumer', 'POST', url, apiToken, consumer as unknown as Record<string, unknown>)).result;
+}
+
+// https://developers.cloudflare.com/api/resources/queues/subresources/consumers/methods/get/
+export async function listQueueConsumers(opts: { accountId: string, apiToken: string, queueId: string }): Promise<QueueConsumer[]> {
+    const { accountId, apiToken, queueId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/consumers`;
+    return (await execute<QueueConsumer[]>('listQueueConsumers', 'GET', url, apiToken)).result;
+}
+
+// https://developers.cloudflare.com/api/resources/queues/subresources/consumers/methods/update/
+export async function updateQueueConsumer(opts: { accountId: string, apiToken: string, queueId: string, consumerId: string, consumer: NewQueueConsumer }): Promise<QueueConsumer> {
+    const { accountId, apiToken, queueId, consumerId, consumer } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/consumers/${consumerId}`;
+    return (await execute<QueueConsumer>('updateQueueConsumer', 'PUT', url, apiToken, consumer as unknown as Record<string, unknown>)).result;
+}
+
+// https://developers.cloudflare.com/api/resources/queues/subresources/consumers/methods/delete/
+export async function deleteQueueConsumer(opts: { accountId: string, apiToken: string, queueId: string, consumerId: string }): Promise<void> {
+    const { accountId, apiToken, queueId, consumerId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/consumers/${consumerId}`;
+    await execute<QueueConsumer>('deleteQueueConsumer', 'DELETE', url, apiToken);
+    // 200 result: null
+}
+
+// https://developers.cloudflare.com/api/resources/queues/subresources/messages/methods/pull/
+export async function pullQueueMessages(opts: { accountId: string, apiToken: string, queueId: string, visibilityTimeoutMillis?: number, batchSize?: number }): Promise<PullQueueMessagesResponse> {
+    const { accountId, apiToken, queueId, visibilityTimeoutMillis, batchSize } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/pull`;
+    const payload = { 
+        ...(visibilityTimeoutMillis !== undefined ? { visibility_timeout_ms: visibilityTimeoutMillis } : {}), 
+        ...(batchSize !== undefined ? { batch_size: batchSize } : {}),
+    };
+    return (await execute<PullQueueMessagesResponse>('pullQueueMessages', 'POST', url, apiToken, payload)).result;
+}
+
+// https://developers.cloudflare.com/api/resources/queues/subresources/messages/methods/ack/
+export async function ackQueueMessages(opts: { accountId: string, apiToken: string, queueId: string, acks: { leaseId: string }[], retries: { leaseId: string, delaySeconds?: number}[] }): Promise<AckQueueMessagesResponse> {
+    const { accountId, apiToken, queueId, acks, retries } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/ack`;
+    const payload = { acks: acks.map(v => ({ lease_id: v.leaseId })), retries: retries.map(v => ({ lease_id: v.leaseId, delay_seconds: v.delaySeconds })) };
+    return (await execute<AckQueueMessagesResponse>('ackQueueMessages', 'POST', url, apiToken, payload)).result;
 }
 
 export interface NewQueue {
@@ -1625,54 +1685,58 @@ export interface NewQueue {
     readonly created_on: string; // 2022-10-30T16:05:14.966372Z
     readonly modified_on: string; // 2022-10-30T16:05:14.966372Z
     readonly settings: {
-        readonly delivery_delay: number | null;
+        /** Number of seconds to delay delivery of all messages to consumers. */
+        readonly delivery_delay?: number | null;
+
+        /** Number of seconds after which an unconsumed message will be delayed. */
+        readonly message_retention_period?: number | null;
     };
 }
 
 export interface Queue extends NewQueue {
     readonly producers_total_count: number;
-    readonly producers: QueueProducerInfo[];
+    readonly producers: QueueProducer[];
     readonly consumers_total_count: number;
-    readonly consumers: QueueConsumerInfo[];
+    readonly consumers: QueueConsumer[];
 }
 
-export interface QueueProducerInfo {
+export type QueueProducer = WorkerQueueProducer | R2BucketQueueProducer;
+
+export interface WorkerQueueProducer {
+    readonly type: 'worker';
     readonly script: string;
 }
 
-export interface QueueConsumerInfo {
-    readonly script: string;
+export interface R2BucketQueueProducer {
+    readonly type: 'r2_bucket';
+    readonly bucket_name: string;
+}
+
+export type QueueConsumer = WorkerQueueConsumer | HttpPullQueueConsumer;
+
+export type NewQueueConsumer = NewWorkerQueueConsumer | NewHttpPullQueueConsumer;
+
+interface BaseQueueConsumer {
+    readonly consumer_id: string; // A Resource identifier.
+    readonly created_on: string; // 2022-10-30T16:38:22.373479Z
+    readonly queue_id: string; // A Resource identifier. (missing on initial create?)
+    readonly queue_name: string;
     readonly dead_letter_queue?: string;
-    readonly settings: QueueConsumerSettings;
-    readonly consumer_id: string; // e.g. 8b095469a65543298a85b064a764d3f1
-    readonly type: string; // e.g. worker
+}
+export interface WorkerQueueConsumer extends BaseQueueConsumer {
+    readonly type: 'worker';
+    readonly script?: string;
+    readonly settings: WorkerQueueConsumerSettings;
 }
 
-export async function putQueueConsumer(opts: { accountId: string, apiToken: string, queueName: string, scriptName: string, envName?: string, batchSize?: number, maxRetries?: number, maxWaitTimeMillis?: number, maxConcurrency?: number | null, deadLetterQueue?: string }): Promise<QueueConsumer> {
-    const { accountId, apiToken, queueName, scriptName, envName, batchSize, maxRetries, maxWaitTimeMillis, maxConcurrency, deadLetterQueue } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}/consumers/${scriptName}${typeof envName === 'string' ? `/${envName}` : ''}`;
-    const payload = {
-        settings: {
-            batch_size: batchSize,
-            max_retries: maxRetries,
-            max_wait_time_ms: maxWaitTimeMillis,
-            max_concurrency: maxConcurrency,
-        },
-        dead_letter_queue: deadLetterQueue,
-    };
-    return (await execute<QueueConsumer>('putQueueConsumer', 'PUT', url, apiToken, payload)).result;
+export interface NewWorkerQueueConsumer {
+    readonly type: 'worker';
+    readonly script?: string;
+    readonly dead_letter_queue?: string;
+    readonly settings?: WorkerQueueConsumerSettings;
 }
 
-export async function deleteQueueConsumer(opts: { accountId: string, apiToken: string, queueName: string, scriptName: string, envName?: string }): Promise<void> {
-    const { accountId, apiToken, queueName, scriptName, envName } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/workers/queues/${queueName}/consumers/${scriptName}${typeof envName === 'string' ? `/${envName}` : ''}`;
-    
-    await execute('deleteQueueConsumer', 'DELETE', url, apiToken);
-    // 200 result: null
-}
-
-
-export interface QueueConsumerSettings {
+export interface WorkerQueueConsumerSettings {
     /** The maximum number of messages allowed in each batch. */
     readonly batch_size?: number; // default: 10
 
@@ -1684,45 +1748,55 @@ export interface QueueConsumerSettings {
 
     /** If present, the maximum concurrent consumer invocations (between 1 and 20) */
     readonly max_concurrency?: number | null;
+
+    /** The number of seconds to delay before making the message available for another attempt. */
+    readonly retry_delay?: number | null;
 }
 
-export interface QueueConsumer {
-    readonly queue_name: string;
-    readonly script_name: string;
-    readonly environment_name?: string;
-    readonly settings: QueueConsumerSettings;
-    /** The name of another Queue to send a message if it fails processing at least max_retries times. 
-     * 
-     * If a dead_letter_queue is not defined, messages that repeatedly fail processing will eventually be discarded. 
-     * If there is no Queue with the specified name, it will be created automatically. */
-    readonly dead_letter_queue: string; // '' for unset
-    readonly created_on: string; // 2022-10-30T16:38:22.373479Z
+export interface HttpPullQueueConsumer extends BaseQueueConsumer {
+    readonly type: 'http_pull';
+    readonly settings: HttpPullQueueConsumerSettings;
 }
 
-export async function pullQueueMessages(opts: { accountId: string, apiToken: string, queueId: string, visibilityTimeout?: number, batchSize?: number }): Promise<readonly QueueMessage[]> {
-    const { accountId, apiToken, queueId, visibilityTimeout, batchSize } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/pull`;
-    const payload = { ...(visibilityTimeout !== undefined ? { visibilityTimeout } : {}), ...(batchSize !== undefined ? { batchSize } : {}) };
-    return (await execute<PullQueueMessagesResponse>('pullQueueMessages', 'POST', url, apiToken, payload)).result.messages;
+export interface NewHttpPullQueueConsumer {
+    readonly type: 'http_pull';
+    readonly dead_letter_queue?: string;
+    readonly settings?: HttpPullQueueConsumerSettings;
+}
+
+export interface HttpPullQueueConsumerSettings {
+    /** The maximum number of messages allowed in each batch. */
+    readonly batch_size?: number; // default: 10
+
+    /** The maximum number of retries. */
+    readonly max_retries?: number; // default: 3
+
+    /** The number of seconds to delay before making the message available for another attempt. */
+    readonly retry_delay?: number | null;
+
+    /** The number of milliseconds that a message is exclusively leased. After the timeout, the message becomes available for another attempt */
+    readonly visibility_timeout_ms?: number;
 }
 
 export interface PullQueueMessagesResponse {
+    readonly message_backlog_count: number;
     readonly messages: readonly QueueMessage[];
 }
 
 export interface QueueMessage {
+    readonly id: string; // e.g. eb868d636bc0dc7b448f8192410573c7
+    readonly timestamp_ms: number; // e.g. 1736608302662
     readonly body: string;
-    readonly id: string;
-    readonly timestamp_ms: number;
-    readonly attempts: number;
+    readonly attempts: number; // e.g. 1
+    readonly metadata: Record<string, string>; // e.g. { "CF-Content-Type": "json", "CF-msg-delay-secs": "20" }
     readonly lease_id: string;
 }
 
-export async function ackQueueMessages(opts: { accountId: string, apiToken: string, queueId: string, acks: string[], retries: { lease_id: string, secondsToDelayFor?: number}[] }): Promise<unknown> { // TODO
-    const { accountId, apiToken, queueId, acks, retries } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/ack`;
-    const payload = { acks, retries };
-    return (await execute<unknown>('ackQueueMessages', 'POST', url, apiToken, payload)).result;
+export interface AckQueueMessagesResponse {
+    readonly ackCount: number;
+    readonly retryCount: number;
+    readonly warnings: Record<string, string>; // { leaseId: warning }
+    readonly errors?: string[];
 }
 
 //#endregion
