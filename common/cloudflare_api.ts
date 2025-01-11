@@ -1611,7 +1611,7 @@ export async function getQueue(opts: { accountId: string, apiToken: string, queu
 export async function deleteQueue(opts: { accountId: string, apiToken: string, queueId: string }): Promise<void> {
     const { accountId, apiToken, queueId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}`;
-    await execute<Queue>('deleteQueue', 'DELETE', url.toString(), apiToken);
+    await execute('deleteQueue', 'DELETE', url.toString(), apiToken);
     // 200 result: null
 }
 
@@ -1677,6 +1677,24 @@ export async function ackQueueMessages(opts: { accountId: string, apiToken: stri
     const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/ack`;
     const payload = { acks: acks.map(v => ({ lease_id: v.leaseId })), retries: retries.map(v => ({ lease_id: v.leaseId, delay_seconds: v.delaySeconds })) };
     return (await execute<AckQueueMessagesResponse>('ackQueueMessages', 'POST', url, apiToken, payload)).result;
+}
+
+// undocumented
+export async function previewQueueMessages(opts: { accountId: string, apiToken: string, queueId: string, batchSize?: number }): Promise<PreviewQueueMessagesResponse> {
+    const { accountId, apiToken, queueId, batchSize } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/preview`;
+    const payload = { 
+        ...(batchSize !== undefined ? { batch_size: batchSize } : {}),
+    };
+    return (await execute<PreviewQueueMessagesResponse>('previewQueueMessages', 'POST', url, apiToken, payload)).result;
+}
+
+// undocumented
+export async function sendQueueMessage(opts: { accountId: string, apiToken: string, queueId: string, message: Record<string, string> }): Promise<void> {
+    const { accountId, apiToken, queueId, message } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages`;
+    await execute('sendQueueMessage', 'POST', url, apiToken, message);
+    // 200 result: null
 }
 
 export interface NewQueue {
@@ -1788,7 +1806,7 @@ export interface QueueMessage {
     readonly timestamp_ms: number; // e.g. 1736608302662
     readonly body: string;
     readonly attempts: number; // e.g. 1
-    readonly metadata: Record<string, string>; // e.g. { "CF-Content-Type": "json", "CF-msg-delay-secs": "20" }
+    readonly metadata?: Record<string, string>; // e.g. { "CF-Content-Type": "json", "CF-msg-delay-secs": "20" }
     readonly lease_id: string;
 }
 
@@ -1797,6 +1815,10 @@ export interface AckQueueMessagesResponse {
     readonly retryCount: number;
     readonly warnings: Record<string, string>; // { leaseId: warning }
     readonly errors?: string[];
+}
+
+export interface PreviewQueueMessagesResponse {
+    readonly messages: readonly QueueMessage[];
 }
 
 //#endregion
