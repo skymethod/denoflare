@@ -804,6 +804,66 @@ export interface R2BucketUsageSummary {
     readonly uploadCount: string // e.g. 0
 }
 
+// https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/domains/subresources/managed/methods/list/
+export async function listR2EventNotificationRules(opts: { accountId: string, bucketName: string, apiToken: string }): Promise<R2EventNotificationRules>  {
+    const { accountId, apiToken, bucketName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/event_notifications/r2/${bucketName}/configuration`;
+    return (await execute<R2EventNotificationRules>('listR2EventNotificationRules', 'GET', url, apiToken)).result;
+}
+
+// https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/event_notifications/subresources/configuration/subresources/queues/methods/update/
+export async function createR2EventNotificationRule(opts: { accountId: string, apiToken: string, bucketName: string, queueId: string, rules: EventNotificationRuleInput[] }): Promise<void>  {
+    const { accountId, apiToken, bucketName, queueId, rules } = opts;
+    const payload = { rules };
+    const url = `${computeAccountBaseUrl(accountId)}/event_notifications/r2/${bucketName}/configuration/queues/${queueId}`;
+    await execute('createR2EventNotificationRule', 'PUT', url, apiToken, payload);
+    // 200 null
+}
+
+// https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/event_notifications/subresources/configuration/subresources/queues/methods/delete/
+export async function deleteR2EventNotificationRule(opts: { accountId: string, apiToken: string, bucketName: string, queueId: string, ruleIds?: string[] }): Promise<void>  {
+    const { accountId, apiToken, bucketName, queueId, ruleIds = [] } = opts;
+    const payload = ruleIds.length > 0 ? { ruleIds } : undefined;
+    const url = `${computeAccountBaseUrl(accountId)}/event_notifications/r2/${bucketName}/configuration/queues/${queueId}`;
+    await execute('deleteR2EventNotificationRule', 'DELETE', url, apiToken, payload);
+    // 200 null
+}
+
+export interface R2EventNotificationRules {
+    readonly bucketName: string;
+    readonly queues: QueueNotificationInfo[];
+}
+
+export interface QueueNotificationInfo {
+    readonly queueId: string;
+    readonly queueName: string;
+    readonly rules: QueueRule[];
+}
+
+export interface QueueRule {
+    readonly prefix: string; // blank if undefined
+    readonly suffix: string; // blank if undefined
+    readonly actions: R2EvenNotificationAction[];
+    readonly ruleId: string; // resource id
+    readonly createdAt: string; // e.g. 2025-01-11T18:13:44.518Z
+}
+
+export type R2EvenNotificationAction = 'PutObject' | 'CopyObject' | 'DeleteObject' | 'CompleteMultipartUpload' | 'LifecycleDeletion';
+
+export interface EventNotificationRuleInput {
+    /** Array of R2 object actions that will trigger notifications */
+    readonly actions: R2EvenNotificationAction[];
+
+    /** A description that can be used to identify the event notification rule after creation */
+    readonly description?: string;
+
+    /** Notifications will be sent only for objects with this prefix */
+    readonly prefix?: string;
+
+    /** Notifications will be sent only for objects with this suffix */
+    readonly suffix?: string;
+};
+
 //#endregion
 
 //#region Flags

@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage } from '../common/cloudflare_api.ts';
-import { check, checkMatchesReturnMatcher } from '../common/check.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction } from '../common/cloudflare_api.ts';
+import { check, checkMatches, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand, SubcommandHandler } from './cli_command.ts';
@@ -244,6 +244,41 @@ function cfapiCommand() {
         const { bucketName } = opts;
         const value = await getR2BucketUsageSummary({ accountId, bucketName, apiToken });
         console.log(value);
+    });
+
+    add(apiCommand('list-event-notification-rules', 'List all event notification rules for an R2 bucket').arg('bucketName', 'string', 'Name of the bucket'), async (accountId, apiToken, opts) => {
+        const { bucketName } = opts;
+        const value = await listR2EventNotificationRules({ accountId, bucketName, apiToken });
+        console.log(JSON.stringify(value, undefined, 2));
+    });
+
+    add(apiCommand('create-event-notification-rule', 'Create an event notification rule for an R2 bucket').arg('bucketName', 'string', 'Name of the bucket').arg('queueNameOrId', 'string', 'Queue name (or id)')
+            .option('action', 'strings', 'R2 action: PutObject, CopyObject, DeleteObject, CompleteMultipartUpload, LifecycleDeletion (or All)')
+            .option('description', 'string', 'A description that can be used to identify the event notification rule after creation')
+            .option('prefix', 'string', 'Notifications will be sent only for objects with this prefix')
+            .option('suffix', 'string', 'Notifications will be sent only for objects with this suffix')
+            , async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { bucketName, action = [], description, prefix, suffix } = opts;
+        const actions = action
+            .flatMap(action => action === 'All' ? [ 'PutObject', 'CopyObject', 'DeleteObject', 'CompleteMultipartUpload', 'LifecycleDeletion' ] : [ action ], action)
+            .map(v => checkMatches('action', v, /^PutObject|CopyObject|DeleteObject|CompleteMultipartUpload|LifecycleDeletion$/) as R2EvenNotificationAction);
+
+        const rules: EventNotificationRuleInput[] = [
+            {
+                actions,
+                description,
+                prefix,
+                suffix,
+            }
+        ];
+        await createR2EventNotificationRule({ accountId, bucketName, apiToken, queueId, rules });
+    });
+
+    add(apiCommand('delete-event-notification-rule', 'Delete an event notification rule for an R2 bucket').arg('bucketName', 'string', 'Name of the bucket').arg('queueNameOrId', 'string', 'Queue name (or id)').option('ruleId', 'strings', 'Rule to delete (otherwise all are deleted)'), async (accountId, apiToken, opts) => {
+        const queueId = await findQueueId({ accountId, apiToken, opts });
+        const { bucketName, ruleId } = opts;
+        await deleteR2EventNotificationRule({ accountId, bucketName, apiToken, queueId, ruleIds: ruleId });
     });
 
     rt.subcommandGroup();
@@ -595,7 +630,7 @@ function cfapiCommand() {
             : typeof text === 'string' ? text
             : undefined;
         if (message === undefined) throw new Error(`Provide the message using one of the 'json' or 'text' options`);
-        
+
         const result = await sendQueueMessage({ accountId, apiToken, queueId, message });
         console.log(result);
     });
