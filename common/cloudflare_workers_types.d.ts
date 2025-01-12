@@ -1752,3 +1752,15 @@ export interface Ratelimiter {
 }
 
 //#endregion
+
+//#region Pipelines
+
+export interface Pipeline {
+    send(data: object[]): Promise<void>;
+}
+
+export interface PipelineTransform {
+    transformJson(data: object[]): Promise<object[]>;
+}
+
+//#endregion

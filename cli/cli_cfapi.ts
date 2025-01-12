@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -279,6 +279,150 @@ function cfapiCommand() {
         const queueId = await findQueueId({ accountId, apiToken, opts });
         const { bucketName, ruleId } = opts;
         await deleteR2EventNotificationRule({ accountId, bucketName, apiToken, queueId, ruleIds: ruleId });
+    });
+
+    rt.subcommandGroup();
+
+    add(apiCommand('list-pipelines', 'List pipelines')
+            , async (accountId, apiToken) => {
+        const value = await listPipelines({ apiToken, accountId });
+        console.log(value);
+    });
+
+    const unpackTransform = (transform: string): PipelineTransformConfig => {
+        const [ _, script, entrypoint ] = checkMatchesReturnMatcher('transform', transform, /^([^.]+?)\.([^.]+?)$/);
+        return { script, entrypoint };
+    }
+
+    add(apiCommand('create-pipeline', 'Create a pipeline').arg('pipelineName', 'string', 'Name of the pipeline').arg('bucketName', 'string', 'Name of the destination R2 bucket')
+                .option('serviceTokenAccessKeyId', 'string', 'Service token access-key-id (if missing, will prompt to generate one)')
+                .option('serviceTokenSecretAccessKey', 'string', 'Service token secret-access-key')
+                .option('maxRows', 'integer', 'The approximate maximum number of rows in a batch before flushing (range: 100 - 1000000)')
+                .option('maxAgeSeconds', 'integer', 'The approximate maximum age (in seconds) of a batch before flushing (range: 1 - 300)')
+                .option('maxBytes', 'integer', 'The approximate maximum size for each batch before flushing (range: 1mb - 100mb)')
+                .option('compression', 'enum', 'The compression format of output files', { value: 'gzip', default: true }, { value: 'deflate' }, { value: 'none' })
+                .option('prefix', 'string', 'Optional base path to store files in the destination bucket')
+                .option('filepath', 'string', 'The path to store partitioned files in the destination bucket. (default: event_date=${date}/hr=${hr})')
+                .option('filename', 'string', 'The name of each unique file in the bucket. Must contain "${slug}". File extension is optional. (default: ${slug}${extension})')
+                .option('transform', 'strings', 'Worker script and transform type', { hint: 'script or script.entrypoint' })
+            , async (accountId, apiToken, opts) => {
+        const { pipelineName, bucketName, maxRows, maxAgeSeconds, maxBytes, compression, prefix, filepath, filename, transform = [] } = opts;
+        let { serviceTokenAccessKeyId, serviceTokenSecretAccessKey } = opts;
+
+        if (typeof serviceTokenAccessKeyId !== 'string' || typeof serviceTokenSecretAccessKey !== 'string') {
+            console.log(`no service token credentials provided, authorize a pair here: https://oauth.pipelines.cloudflare.com/oauth/login?accountId=${accountId}&bucketName=${bucketName}&pipelineName=${pipelineName}`);
+            const server = Deno.serve(req => {
+                const { method } = req;
+                const { pathname, searchParams } = new URL(req.url);
+                if (method === 'GET' && pathname === '/') {
+                    const { 'access-key-id': accessKeyId, 'secret-access-key': secretAccessKey } = Object.fromEntries(searchParams);
+                    if (typeof accessKeyId !== 'string' || typeof secretAccessKey !== 'string') {
+                        return new Response('unexpected callback', { status: 400 });
+                    }
+                    serviceTokenAccessKeyId = accessKeyId;
+                    serviceTokenSecretAccessKey = secretAccessKey;
+                    console.log(`Granted! For future reference:`);
+                    console.log(`  serviceTokenAccessKeyId: ${serviceTokenAccessKeyId}`);
+                    console.log(`  serviceTokenSecretAccessKey: ${serviceTokenSecretAccessKey}`);
+                    server.shutdown();
+                }
+                return new Response('not found', { status: 404 });
+            });
+            await server.finished;
+        }
+        if (typeof serviceTokenAccessKeyId !== 'string' || typeof serviceTokenSecretAccessKey !== 'string') {
+            throw new Error(`Must provide valid service token credentials`);
+        }
+
+        const format = 'json'; // only valid value the server takes at the moment
+        const config: PipelineConfig = {
+            name: pipelineName,
+            metadata: {},
+            source: [
+                { type: 'binding', format },
+                { type: 'http', format, authentication: false },
+            ],
+            transforms: transform?.map(unpackTransform),
+            destination: {
+                type: 'r2',
+                format,
+                compression: {
+                    type: (compression ?? 'gzip') as PipelineCompressionType,
+                },
+                batch: {
+                    max_rows: maxRows,
+                    max_duration_s: maxAgeSeconds,
+                    max_bytes: maxBytes,
+                },
+                path: {
+                    bucket: bucketName,
+                    prefix,
+                    filepath,
+                    filename,
+                },
+                credentials: {
+                    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+                    access_key_id: serviceTokenAccessKeyId,
+                    secret_access_key: serviceTokenSecretAccessKey,
+                }
+            }
+        };
+        const value = await createPipeline({ apiToken, accountId, config });
+        console.log(value);
+    });
+
+    add(apiCommand('get-pipeline', 'Get details for an existing pipeline').arg('pipelineName', 'string', 'Name of the pipeline')
+            , async (accountId, apiToken, { pipelineName }) => {
+        const value = await getPipeline({ apiToken, accountId, pipelineName });
+        console.log(value);
+    });
+
+    add(apiCommand('update-pipeline', 'Update an existing pipeline').arg('pipelineName', 'string', 'Name of the pipeline')
+            .option('maxRows', 'integer', 'The approximate maximum number of rows in a batch before flushing (range: 100 - 1000000)')
+            .option('maxAgeSeconds', 'integer', 'The approximate maximum age (in seconds) of a batch before flushing (range: 1 - 300)')
+            .option('maxBytes', 'integer', 'The approximate maximum size for each batch before flushing (range: 1mb - 100mb)')
+            .option('compression', 'enum', 'The compression format of output files', { value: 'gzip', default: true }, { value: 'deflate' }, { value: 'none' })
+            .option('prefix', 'string', 'Optional base path to store files in the destination bucket')
+            .option('filepath', 'string', 'The path to store partitioned files in the destination bucket. (default: event_date=${date}/hr=${hr})')
+            .option('filename', 'string', 'The name of each unique file in the bucket. Must contain "${slug}". File extension is optional. (default: ${slug}${extension})')
+            .option('transform', 'strings', 'Worker script and transform entrypoint', { hint: 'script.entrypoint' })
+        , async (accountId, apiToken, opts) => {
+        const { pipelineName, maxRows, maxAgeSeconds, maxBytes, compression, prefix, filepath, filename, transform } = opts;
+
+        let pipeline: Pipeline = await getPipeline({ accountId, apiToken, pipelineName });
+
+        if (maxRows !== undefined) {
+            pipeline = { ...pipeline, destination: { ...pipeline.destination, batch: { ...pipeline.destination.batch, max_rows: maxRows } } };
+        }
+        if (maxAgeSeconds !== undefined) {
+            pipeline = { ...pipeline, destination: { ...pipeline.destination, batch: { ...pipeline.destination.batch, max_duration_s: maxAgeSeconds } } };
+        }
+        if (maxBytes !== undefined) {
+            pipeline = { ...pipeline, destination: { ...pipeline.destination, batch: { ...pipeline.destination.batch, max_bytes: maxBytes } } };
+        }
+        if (compression !== undefined) {
+            pipeline = { ...pipeline, destination: { ...pipeline.destination, compression: { ...pipeline.destination.compression, type: compression as PipelineCompressionType } } };
+        }
+        if (prefix !== undefined) {
+            pipeline = { ...pipeline, destination: { ...pipeline.destination, path: { ...pipeline.destination.path, prefix } } };
+        }
+        if (filepath !== undefined) {
+            pipeline = { ...pipeline, destination: { ...pipeline.destination, path: { ...pipeline.destination.path, filepath } } };
+        }
+        if (filename !== undefined) {
+            pipeline = { ...pipeline, destination: { ...pipeline.destination, path: { ...pipeline.destination.path, filename } } };
+        }
+        if (transform !== undefined) {
+            pipeline = { ...pipeline, transforms: transform.map(unpackTransform) };
+        }
+
+        const value = await updatePipeline({ apiToken, accountId, config: pipeline });
+        console.log(value);
+    });
+
+    add(apiCommand('delete-pipeline', 'Delete an existing pipeline').arg('pipelineName', 'string', 'Name of the pipeline')
+            , async (accountId, apiToken, { pipelineName }) => {
+        await deletePipeline({ apiToken, accountId, pipelineName });
     });
 
     rt.subcommandGroup();

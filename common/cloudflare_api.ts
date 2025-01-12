@@ -2192,6 +2192,121 @@ export async function observabilityTelemetryKeys(opts: { accountId: string, apiT
 
 //#endregion
 
+//#region Pipelines
+
+export async function listPipelines(opts: { accountId: string, apiToken: string }): Promise<PipelineInfo[]> {
+    const { accountId, apiToken } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/pipelines`;
+    return (await execute<PipelineInfo[]>('listPipelines', 'GET', url, apiToken)).result;
+}
+
+export async function getPipeline(opts: { accountId: string, apiToken: string, pipelineName: string }): Promise<Pipeline> {
+    const { accountId, apiToken, pipelineName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/pipelines/${pipelineName}`;
+    return (await execute<Pipeline>('getPipeline', 'GET', url, apiToken)).result;
+}
+
+export async function createPipeline(opts: { accountId: string, apiToken: string, config: PipelineConfig }): Promise<Pipeline> {
+    const { accountId, apiToken, config } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/pipelines`;
+    return (await execute<Pipeline>('createPipeline', 'POST', url, apiToken, config)).result;
+}
+
+export async function updatePipeline(opts: { accountId: string, apiToken: string, config: PipelineConfigUpdate }): Promise<Pipeline> {
+    const { accountId, apiToken, config } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/pipelines/${config.name}`;
+    return (await execute<Pipeline>('updatePipeline', 'PUT', url, apiToken, config)).result;
+}
+
+export async function deletePipeline(opts: { accountId: string, apiToken: string, pipelineName: string }): Promise<void> {
+    const { accountId, apiToken, pipelineName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/pipelines/${pipelineName}`;
+    await execute('deletePipeline', 'DELETE', url, apiToken);
+    // 200 {}
+}
+
+export type HttpPipelineSource = {
+	readonly type: 'http';
+	readonly format: string;
+	readonly schema?: string;
+    /** Require authentication (Cloudflare API Token) to send data to the HTTPS endpoint */
+	readonly authentication?: boolean;
+}
+
+export type BindingPipelineSource = {
+	readonly type: 'binding';
+	readonly format: string;
+	readonly schema?: string;
+}
+
+export type PipelineSource = HttpPipelineSource | BindingPipelineSource;
+
+export type PipelineTransformConfig = {
+	readonly script: string;
+	readonly entrypoint: string;
+}
+
+export type PipelineCompressionType = 'none' | 'gzip' | 'deflate';
+
+export type PipelineConfig = {
+    readonly name: string;
+	readonly metadata: Record<string, string>;
+	readonly source: PipelineSource[];
+    /** The worker and entrypoint of the PipelineTransform implementation in the format "worker.entrypoint" */
+	readonly transforms: PipelineTransformConfig[];
+	readonly destination: {
+		readonly type: string;
+		readonly format: string;
+		readonly compression: {
+            /** Sets the compression format of output files (default: gzip) */
+			readonly type: PipelineCompressionType;
+		};
+		readonly batch: {
+            /** The approximate maximum age (in seconds) of a batch before flushing (range: 1 - 300) */
+			readonly max_duration_s?: number;
+            /** The approximate maximum size for each batch before flushing (range: 1mb - 100mb, default: 100mb) */
+			readonly max_bytes?: number;
+            /** The approximate maximum number of rows in a batch before flushing (range: 100 - 10_000_000, default: 10_000_000) */
+			readonly max_rows?: number;
+		};
+		readonly path: {
+			readonly bucket: string;
+            /** Optional base path to store files in the destination bucket */
+			readonly prefix?: string;
+            /** The path to store partitioned files in the destination bucket. (default: event_date=${date}/hr=${hr}) */
+			readonly filepath?: string;
+            /** The name of each unique file in the bucket. Must contain "${slug}". File extension is optional. (default: ${slug}${extension}) */
+			readonly filename?: string;
+		};
+		readonly credentials: {
+			readonly endpoint: string;
+			readonly secret_access_key: string;
+			readonly access_key_id: string;
+		};
+	};
+}
+
+// https://stackoverflow.com/a/51365037
+type RecursivePartial<T> = {
+    [P in keyof T]?:
+      T[P] extends (infer U)[] ? RecursivePartial<U>[] :
+      T[P] extends object | undefined ? RecursivePartial<T[P]> :
+      T[P];
+};
+
+export type PipelineConfigUpdate = RecursivePartial<PipelineConfig> & Pick<PipelineConfig, 'name'>;
+
+export type Pipeline = Omit<PipelineConfig, 'destination'> & {
+    readonly id: string; // resource id
+    readonly version: number; // e.g. 1
+    readonly endpoint?: string; // e.g. https://${pipelineId}.pipelines.cloudflare.com
+    readonly destination: Omit<PipelineConfig['destination'], 'credentials'>;
+}
+
+export type PipelineInfo = Pick<Pipeline, 'id' | 'name' | 'endpoint'>;
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;

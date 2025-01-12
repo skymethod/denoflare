@@ -192,6 +192,7 @@ function computeSizeString(scriptContents: Uint8Array, compressedScriptContents:
 async function rewriteScriptContents(scriptContents: string, rootSpecifier: string, parts: Part[]): Promise<string> {
     scriptContents = scriptContents.replace(/const\s+\{\s*connect\s*\}\s*=\s*cloudflareSockets\(\);/, `import { connect } from "cloudflare:sockets";`);
     scriptContents = scriptContents.replace(/const\s+\{\s*EmailMessage\s*\}\s*=\s*cloudflareEmail\(\);/, `import { EmailMessage } from "cloudflare:email";`);
+    scriptContents = scriptContents.replace(/const\s+\{\s*PipelineTransform\s*\}\s*=\s*cloudflarePipelineTransform\(\);/, `import { PipelineTransform } from "cloudflare:pipeline-transform";`);
     return await replaceImports(scriptContents, rootSpecifier, ({ relativePath, value, valueBytes, variableName }) => {
         parts.push({ name: relativePath, fileName: relativePath, value, valueBytes });
         return `import ${variableName} from ${'"'}${relativePath}";`;
