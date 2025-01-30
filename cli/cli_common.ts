@@ -26,8 +26,9 @@ export async function computeContentsForScriptReference(scriptSpec: string, conf
         const scriptName = nameFromOptions || scriptSpec;
         const rootSpecifier = script.path;
         return { scriptName, rootSpecifier, script };
-    } else if (scriptSpec.startsWith('https://') || await fileExists(scriptSpec)) {
-        const scriptName = nameFromOptions || computeScriptNameFromPath(scriptSpec);
+    } else if (scriptSpec.startsWith('https://') || await fileExists(scriptSpec) || scriptSpec.startsWith('file://') && await fileExists(fromFileUrl(scriptSpec))) {
+        const path = scriptSpec.startsWith('file://') ? fromFileUrl(scriptSpec) : scriptSpec;
+        const scriptName = nameFromOptions || computeScriptNameFromPath(path);
         const rootSpecifier = scriptSpec;
         return { scriptName, rootSpecifier };
     } else {
