@@ -2307,6 +2307,31 @@ export type PipelineInfo = Pick<Pipeline, 'id' | 'name' | 'endpoint'>;
 
 //#endregion
 
+//#region Cloudchamber
+
+export async function listApplications(opts: { accountId: string, apiToken: string, name?: string, image?: string, labels?: string[] }): Promise<unknown[]> {
+    const { accountId, apiToken, name, image, labels } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/cloudchamber/applications`);
+    if (typeof name === 'string') url.searchParams.set('name', name);
+    if (typeof image === 'string') url.searchParams.set('image', image);
+    if (labels) labels.forEach(v => url.searchParams.append('label', v));
+    return (await execute<unknown[]>('listApplications', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function getApplication(opts: { accountId: string, apiToken: string, applicationId: string }): Promise<unknown> {
+    const { accountId, apiToken, applicationId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications/${applicationId}`;
+    return (await execute<unknown>('getApplication', 'GET', url, apiToken)).result;
+}
+
+export async function getCloudchamberCustomer(opts: { accountId: string, apiToken: string }): Promise<unknown> {
+    const { accountId, apiToken } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/me`;
+    return (await execute<unknown>('getCloudchamberCustomer', 'GET', url, apiToken)).result;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
@@ -2407,6 +2432,7 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (CloudflareApi.DEBUG) console.log(apiResponse);
     if (!apiResponse.success) {
         if (fetchResponse.status === 404 && [ 'bytes?', 'json?' ].includes(responseType)) return undefined;
+        if ('error' in apiResponse && typeof apiResponse.error === 'string') throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, error=${apiResponse.error}`, fetchResponse.status, [ { code: fetchResponse.status, message: apiResponse.error } ]);
         throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
     }
     return apiResponse;
