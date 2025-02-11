@@ -1150,7 +1150,15 @@ function cfapiCommand() {
 
     rt.subcommandGroup();
 
-    add(apiCommand('list-cc-applications', 'List Cloudchamber applications')
+    const ccCommand = (name: string, description: string) => denoflareCliCommand([ 'cfapi', 'cc', name ], description);
+
+    const cc = denoflareCliCommand([ 'cfapi', 'cc' ], 'Cloudchamber-specific APIs');
+
+    function addCc<T>(c: CliCommand<T>, handler: ApiHandler<T>) {
+        cc.subcommand(c.include(commandOptionsForConfig), makeSubcommandHandler(c, handler));
+    }
+
+    addCc(ccCommand('list-applications', 'List applications')
             .option('name', 'string', 'Filter by name')
             .option('image', 'string', 'Filter by image')
             .option('label', 'strings', 'Filter by label')
@@ -1160,17 +1168,21 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    add(apiCommand('get-cc-application', 'Get Cloudchamber application').arg('applicationId', 'string', 'Application ID')
+    addCc(ccCommand('get-application', 'Get a single application').arg('applicationId', 'string', 'Application ID')
         , async (accountId, apiToken, opts) => {
         const { applicationId } = opts;
         const value = await getApplication({ accountId, apiToken, applicationId });
         console.log(value);
     });
 
-    add(apiCommand('get-cc-customer', 'Get Cloudchamber customer')
+    addCc(ccCommand('get-customer', 'Get customer info')
         , async (accountId, apiToken) => {
         const value = await getCloudchamberCustomer({ accountId, apiToken });
         console.log(value);
+    });
+
+    rt.subcommand(cc, (args, options) => {
+        cc.routeSubcommand(args, options);
     });
 
     return rt;
