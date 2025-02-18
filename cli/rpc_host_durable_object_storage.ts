@@ -12,7 +12,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 if (method === 'get1') {
                     const { reference, key, opts } = data as Get1;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         const value = await storage.get(key, opts);
                         return { value };
                     } catch (e) {
@@ -21,7 +21,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'get2') {
                     const { reference, keys, opts } = data as Get2;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         const value = await storage.get(keys, opts);
                         return { value };
                     } catch (e) {
@@ -30,7 +30,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'put1') {
                     const { reference, key, value, opts } = data as Put1;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         await storage.put(key, value, opts);
                         return { };
                     } catch (e) {
@@ -39,7 +39,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'put2') {
                     const { reference, entries, opts } = data as Put2;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         await storage.put(entries, opts);
                         return { };
                     } catch (e) {
@@ -48,7 +48,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'delete-all') {
                     const { reference } = data as DeleteAll;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         await storage.deleteAll();
                         return { };
                     } catch (e) {
@@ -57,7 +57,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'sync') {
                     const { reference } = data as Sync;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         await storage.sync();
                         return { };
                     } catch (e) {
@@ -66,7 +66,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'list') {
                     const { reference, options } = data as List;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         const value = await storage.list(options);
                         return { value };
                     } catch (e) {
@@ -75,7 +75,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'delete1') {
                     const { reference, key, opts } = data as Delete1;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         const value = await storage.delete(key, opts);
                         return { value };
                     } catch (e) {
@@ -84,7 +84,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                 } else if (method === 'delete2') {
                     const { reference, keys, opts } = data as Delete2;
                     try {
-                        const storage = locateStorage(reference, cache);
+                        const storage = await locateStorage(reference, cache);
                         const value = await storage.delete(keys, opts);
                         return { value };
                     } catch (e) {
@@ -100,7 +100,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
 
 //
 
-function locateStorage(reference: DurableObjectStorageReference, cache: Map<string, DurableObjectStorage>): DurableObjectStorage {
+async function locateStorage(reference: DurableObjectStorageReference, cache: Map<string, DurableObjectStorage>): Promise<DurableObjectStorage> {
     const { className, id, options } = reference;
     const optionsKey = Object.keys(options).sort().map(v => `${v}=${options[v]}`).join(',');
     const cacheKey = `${optionsKey}:${className}:${id.toString()}`;
@@ -110,7 +110,7 @@ function locateStorage(reference: DurableObjectStorageReference, cache: Map<stri
             // TODO implement
             console.log(`RpcHostDurableObjectStorage: dispatchAlarm`, { className, id });
         }
-        storage = LocalDurableObjects.newDurableObjectStorage(className, id, options, dispatchAlarm);
+        storage = await LocalDurableObjects.newDurableObjectStorage(className, id, options, dispatchAlarm);
         console.log(`RpcHostDurableObjectStorage: created: ${cacheKey} -> ${storage}`);
         cache.set(cacheKey, storage);
     }

@@ -4,7 +4,7 @@ import { DenoflareResponse } from './denoflare_response.ts';
 
 export type GlobalCachesProvider = () => CfGlobalCaches;
 export type KVNamespaceProvider = (kvNamespace: string) => KVNamespace;
-export type DONamespaceProvider = (doNamespace: string) => DurableObjectNamespace;
+export type DONamespaceProvider = (doNamespace: string) => DurableObjectNamespace | Promise<DurableObjectNamespace>;
 export type R2BucketProvider = (bucketName: string) => R2Bucket;
 export type AnalyticsEngineProvider = (dataset: string) => AnalyticsEngine;
 export type D1DatabaseProvider = (d1DatabaseUuid: string) => D1Database;
@@ -70,7 +70,7 @@ async function computeBindingValue(binding: Binding, kvNamespaceProvider: KVName
     if (isTextBinding(binding)) return binding.value;
     if (isSecretBinding(binding)) return binding.secret;
     if (isKVNamespaceBinding(binding)) return kvNamespaceProvider(binding.kvNamespace);
-    if (isDONamespaceBinding(binding)) return doNamespaceProvider(binding.doNamespace);
+    if (isDONamespaceBinding(binding)) return await doNamespaceProvider(binding.doNamespace);
     if (isR2BucketBinding(binding)) return r2BucketProvider(binding.bucketName);
     if (isAnalyticsEngineBinding(binding)) return analyticsEngineProvider(binding.dataset);
     if (isD1DatabaseBinding(binding)) return d1DatabaseProvider(binding.d1DatabaseUuid);

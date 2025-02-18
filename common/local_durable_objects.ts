@@ -55,7 +55,7 @@ export class LocalDurableObjects {
         return ctor;
     }
 
-    private resolveDurableObject(className: string, id: DurableObjectId, options: Record<string, string>): DurableObject {
+    private async resolveDurableObject(className: string, id: DurableObjectId, options: Record<string, string>): Promise<DurableObject> {
         const idStr = id.toString();
         let classObjects = this.durableObjects.get(className);
         if (classObjects !== undefined) {
@@ -74,7 +74,7 @@ export class LocalDurableObjects {
                 console.error(`LocalDurableObjects: error dispatching alarm`, e);
             }
         }
-        const storage = this.storageProvider(className, id, options, dispatchAlarm);
+        const storage = await this.storageProvider(className, id, options, dispatchAlarm);
         const mutex = new Mutex();
         const state: DurableObjectState = new LocalDurableObjectState(id, storage, mutex);
         const durableObject = new ctor(state, this.moduleWorkerEnv);
@@ -101,7 +101,7 @@ export interface DurableObject {
     alarm?(): Promise<void>;
 }
 
-export type DurableObjectStorageProvider = (className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) => DurableObjectStorage;
+export type DurableObjectStorageProvider = (className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) => DurableObjectStorage | Promise<DurableObjectStorage>;
 
 //
 
@@ -167,7 +167,7 @@ class LocalDurableObjectNamespace implements DurableObjectNamespace {
     }
 }
 
-type DurableObjectResolver = (className: string, id: DurableObjectId, options: Record<string, string>) => DurableObject;
+type DurableObjectResolver = (className: string, id: DurableObjectId, options: Record<string, string>) => DurableObject | Promise<DurableObject>;
 
 class LocalDurableObjectStub implements DurableObjectStub {
     private readonly className: string;
@@ -182,12 +182,13 @@ class LocalDurableObjectStub implements DurableObjectStub {
         this.resolver = resolver;
     }
 
-    fetch(url: RequestInfo, init?: RequestInit): Promise<Response> {
+    async fetch(url: RequestInfo, init?: RequestInit): Promise<Response> {
         if (typeof url === 'string' && url.startsWith('/')) {
             url = 'https://fake-host' + url;
         }
         const req = typeof url === 'string' ? new Request(url, init) : init ? new Request(url, init) : url;
-        return this.resolver(this.className, this.id, this.options).fetch(req);
+        const resolver = await this.resolver(this.className, this.id, this.options);
+        return resolver.fetch(req);
     }
 
 }

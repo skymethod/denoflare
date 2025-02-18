@@ -465,8 +465,9 @@ function cfapiCommand() {
     });
 
     add(apiCommand('list-durable-objects-namespaces', 'List Durable Objects namespaces')
-    , async (accountId, apiToken) => {
-        const value = await listDurableObjectsNamespaces({ accountId, apiToken });
+        .option('perPage', 'integer', 'Namespaces per page')
+    , async (accountId, apiToken, { perPage }) => {
+        const value = await listDurableObjectsNamespaces({ accountId, apiToken, perPage });
         console.log(value);
     });
 

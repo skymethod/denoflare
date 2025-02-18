@@ -1,6 +1,8 @@
 import { Bytes } from './bytes.ts';
 import { CloudflareResponseInitExtensions } from './cloudflare_workers_types.d.ts';
 
+const _Response = Response;
+
 type DenoflareResponseInit = ResponseInit & CloudflareResponseInitExtensions & { url?: string, redirected?: boolean };
 
 export class DenoflareResponse {
@@ -81,6 +83,8 @@ export class DenoflareResponse {
     get blob(): Promise<Blob> { throw new Error(`DenoflareResponse.blob() not implemented`); }
     get formData(): Promise<FormData> { throw new Error(`DenoflareResponse.formData() not implemented`); }
 
+    static json = _Response.json
+
     //
 
     toRealResponse(): Response {
@@ -95,8 +99,6 @@ export class DenoflareResponse {
 }
 
 //
-
-const _Response = Response;
 
 function cloneBodyInit(bodyInit: BodyInit | null | undefined): BodyInit | null | undefined {
     if (bodyInit == undefined || bodyInit === null || typeof bodyInit === 'string') return bodyInit;

@@ -28,6 +28,7 @@ import { versionCompare } from './versions.ts';
 import { RpcHostSockets } from './rpc_host_sockets.ts';
 import { SqliteD1Database } from './sqlite_d1_database.ts';
 import { NoopQueue } from '../common/noop_queue.ts';
+import { SqliteDurableObjectStorage } from './sqlite_durable_object_storage.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -74,8 +75,9 @@ export async function serve(args: (string | number)[], options: Record<string, u
     const scriptUrl = rootSpecifier.startsWith('https://') ? new URL(rootSpecifier) : undefined;
     if (scriptUrl && !scriptUrl.pathname.endsWith('.ts')) throw new Error('Url-based module workers must end in .ts');
     
-    // support webstorage in both isolation modes
+    // support webstorage + sqlite in both isolation modes
     LocalDurableObjects.storageProviderFactories.set('webstorage', WebStorageDurableObjectStorage.provider);
+    LocalDurableObjects.storageProviderFactories.set('sqlite', SqliteDurableObjectStorage.provider);
 
     // read the script-based cloudflare worker contents
     let port = DEFAULT_PORT;
