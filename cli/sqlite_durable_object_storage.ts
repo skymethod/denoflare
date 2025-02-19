@@ -6,7 +6,7 @@ type DB = any; type QueryParameter = any;
 import { checkMatches, isStringRecord } from '../common/check.ts';
 import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions, SqlStorage, SqlStorageCursor, SqlStorageValue } from '../common/cloudflare_workers_types.d.ts';
 import { InMemoryAlarms } from '../common/storage/in_memory_alarms.ts';
-import { join } from './deps_cli.ts';
+import { join, zip } from './deps_cli.ts';
 
 export type ComputeDbPathForInstance = (opts: { container: string, className: string, id: string }) => string | Promise<string>;
 
@@ -20,7 +20,7 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
     constructor(db: DB, dispatchAlarm: () => void) {
         this.db = db;
         this.alarms = new InMemoryAlarms(dispatchAlarm);
-        this.sqlStorage = new SqliteSqlStorage(this);
+        this.sqlStorage = new SqliteSqlStorage(db);
         this.init();
     }
 
@@ -57,6 +57,7 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
     deleteAll(): Promise<void> {
         const { db } = this;
         const names = db.query(`select name from sqlite_master where type = 'table' order by name asc`) as [ string ][];
+        let dropped = 0;
         for (const [ name ] of names) {
             const skip = name.startsWith('sqlite_');
             if (skip) {
@@ -64,7 +65,9 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
                 continue;
             }
             db.execute(`drop table ${name}`);
+            dropped++;
         }
+        if (dropped > 0) db.execute('vacuum'); // TODO but will fail in a transaction
         this.init();
         return Promise.resolve();
     }
@@ -311,19 +314,125 @@ class SqliteDurableObjectStorageTransaction implements DurableObjectStorageTrans
 }
 
 class SqliteSqlStorage implements SqlStorage {
-    private readonly storage: SqliteDurableObjectStorage;
+    private readonly db: DB;
 
-    constructor(storage: SqliteDurableObjectStorage) {
-        this.storage = storage;
+    constructor(db: DB) {
+        this.db = db;
     }
 
     exec<T extends Record<string, SqlStorageValue>>(query: string, ...bindings: unknown[]): SqlStorageCursor<T> {
-        throw new Error(`SqliteSqlStorage.exec(${JSON.stringify({ query, bindings })}) not implemented`);
+        return new SqliteSqlStorageCursor(this.db, query, bindings);
     }
 
     get databaseSize(): number {
-        const [ [ size ] ] = this.storage.db.query(`select page_count * page_size from pragma_page_count(), pragma_page_size()`) as [ number ][];
+        const [ [ size ] ] = this.db.query(`select page_count * page_size from pragma_page_count(), pragma_page_size()`) as [ number ][];
         return size;
     }
 
+}
+
+class SqliteSqlStorageCursor<T extends Record<string, SqlStorageValue>> implements SqlStorageCursor<T> {
+
+    private readonly db: DB;
+    private readonly query: string;
+    private readonly bindings: unknown[];
+
+    private readonly columns: string[] = [];
+    private readonly rows: unknown[][] = [];
+    private nextRowIndex = -1;
+
+    constructor(db: DB, query: string, bindings: unknown[]) {
+        this.db = db;
+        this.query = query;
+        this.bindings = bindings;
+    }
+
+    next(): { done?: false; value: T; } | { done: true; value?: never; } {
+        this.executeIfNecessary();
+        const { rows, columns } = this;
+        if (this.nextRowIndex >= rows.length) return { done: true };
+        const row = rows[this.nextRowIndex++];
+        if (row.length !== columns.length) throw new Error();
+        return { done: false, value: Object.fromEntries(zip(columns, row)) as T };
+    }
+
+    toArray(): T[] {
+        this.executeIfNecessary();
+        const rt: T[] = [];
+        while (true) {
+            const result = this.next();
+            if (result.done) return rt;
+            rt.push(result.value);
+        }
+    }
+
+    one(): T {
+        this.executeIfNecessary();
+        const arr = this.toArray();
+        if (arr.length === 0) throw new Error('Expected exactly one result from SQL query, but got no results.');
+        if (arr.length > 1) throw new Error('Expected exactly one result from SQL query, but got multiple results.');
+        return arr[0];
+    }
+
+    raw<U extends SqlStorageValue[]>(): IterableIterator<U> & { toArray(): U[]; } {
+        this.executeIfNecessary();
+        throw new Error(`SqliteSqlStorageCursor.raw() not implemented`);
+    }
+
+    get columnNames(): string[] {
+        this.executeIfNecessary();
+        return [ ...this.columns ];
+    }
+
+    get rowsRead(): number {
+        this.executeIfNecessary();
+        return this.nextRowIndex;
+    }
+
+    get rowsWritten(): number {
+        this.executeIfNecessary();
+        return 0; // TODO how?
+    }
+
+    [Symbol.iterator](): IterableIterator<T> {
+        this.executeIfNecessary();
+        // deno-lint-ignore no-this-alias
+        const thiz = this;
+        return {
+            next(): IteratorResult<T> {
+                return thiz.next() as IteratorResult<T>;
+            },
+            [Symbol.iterator](): IterableIterator<T> {
+                return this;
+            }
+        }
+    }
+
+    //
+
+    private executeIfNecessary() {
+        if (this.nextRowIndex >= 0) return;
+
+        // read all values immediately for now so we can finalize the pq
+        const pq = this.db.prepareQuery(this.query);
+        try {
+            this.columns.push(...(pq.columns() as { name: string}[]).map(v => v.name));
+            const iter = pq.iter(this.bindings.map(v => { 
+                if (!isQueryParameter(v)) throw new Error(`Unsupported query parameter: ${v}`);
+                return v;
+            }));
+            for (const row of iter) {
+                this.rows.push(row);
+            }
+            this.nextRowIndex = 0;
+        } finally {
+            pq.finalize();
+        }
+    }
+
+}
+
+function isQueryParameter(obj: unknown): obj is QueryParameter {
+    return typeof obj === 'boolean' || typeof obj === 'number' || typeof obj === 'bigint' || typeof obj === 'string' || obj === null || obj === undefined 
+        || (typeof obj === 'object' && (obj instanceof Date || obj instanceof Uint8Array));
 }
