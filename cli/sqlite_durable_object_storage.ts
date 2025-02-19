@@ -14,8 +14,9 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
 
     private readonly alarms: InMemoryAlarms;
     private readonly sqlStorage: SqliteSqlStorage;
-    
     readonly db: DB;
+
+    private asyncTransactionDepth = 0;
 
     constructor(db: DB, dispatchAlarm: () => void) {
         this.db = db;
@@ -47,7 +48,11 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
 
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
         const txn = new SqliteDurableObjectStorageTransaction(this);
-        return await Promise.resolve(closure(txn));
+        return await this.asyncTransaction(async () => await closure(txn));
+    }
+
+    transactionSync<T>(closure: () => T): T {
+        return this.db.transaction(closure);
     }
 
     sync(): Promise<void> {
@@ -201,10 +206,6 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
         throw new Error(`SqliteDurableObjectStorage.onNextSessionRestoreBookmark(${JSON.stringify({ bookmark })}) not implemented`);
     }
 
-    transactionSync<T>(closure: () => T): T {
-        throw new Error(`SqliteDurableObjectStorage.transactionSync(${JSON.stringify({ closure })}) not implemented`);
-    }
-
     get sql(): SqlStorage {
         return this.sqlStorage;
     }
@@ -213,6 +214,20 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
 
     private init() {
         this.db.execute(`create table if not exists ${KV_TABLE}(key blob primary key, type integer not null, value text not null) without rowid`);
+    }
+
+    private async asyncTransaction<V>(closure: () => Promise<V>): Promise<V> {
+        this.asyncTransactionDepth += 1;
+        this.db.execute(`SAVEPOINT _denoflare_sqlite_sp_${this.asyncTransactionDepth}`);
+        try {
+            return await closure();
+        } catch (err) {
+            this.db.execute(`ROLLBACK TO _denoflare_sqlite_sp_${this.asyncTransactionDepth}`);
+            throw err;
+        } finally {
+            this.db.execute(`RELEASE _denoflare_sqlite_sp_${this.asyncTransactionDepth}`);
+            this.asyncTransactionDepth -= 1;
+        }
     }
 
 }
@@ -376,7 +391,27 @@ class SqliteSqlStorageCursor<T extends Record<string, SqlStorageValue>> implemen
 
     raw<U extends SqlStorageValue[]>(): IterableIterator<U> & { toArray(): U[]; } {
         this.executeIfNecessary();
-        throw new Error(`SqliteSqlStorageCursor.raw() not implemented`);
+        const { rows } = this;
+        // deno-lint-ignore no-this-alias
+        const thiz = this;
+        return {
+            next(): IteratorResult<U> {
+                if (thiz.nextRowIndex >= rows.length) return { done: true } as IteratorResult<U>;
+                const row = rows[thiz.nextRowIndex++];
+                return { done: false, value: row } as IteratorResult<U>;
+            },
+            [Symbol.iterator](): IterableIterator<U> {
+                return this;
+            },
+            toArray(): U[] {
+                const rt: U[] = [];
+                while (true) {
+                    const result = this.next();
+                    if (result.done) return rt;
+                    rt.push(result.value);
+                }
+            },
+        }
     }
 
     get columnNames(): string[] {
