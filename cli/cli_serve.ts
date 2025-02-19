@@ -165,7 +165,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
             return await WorkerExecution.start(rootSpecifier, scriptType, bindings, callbacks);
         } else {
             // start the host for the permissionless deno workers
-            const workerManager = await WorkerManager.start(bundleOpts);
+            const workerManager = await WorkerManager.start(bundleOpts, await bindingsProvider());
         
             // run the cloudflare worker script inside deno worker
             const runScript = async () => {

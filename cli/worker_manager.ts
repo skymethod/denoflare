@@ -19,6 +19,8 @@ import { InMemoryR2Bucket } from './in_memory_r2_bucket.ts';
 import { RpcHostSockets } from './rpc_host_sockets.ts';
 import { makeRpcHostD1Database } from './rpc_host_d1_database.ts';
 import { SqliteD1Database } from './sqlite_d1_database.ts';
+import { isDONamespaceBinding } from '../common/config.ts';
+import { computeSqliteDosqlDirectory } from './sqlite_dbpath_for_instance.ts';
 
 export class WorkerManager {
     static VERBOSE = false;
@@ -32,7 +34,7 @@ export class WorkerManager {
         this.workerUrl = workerUrl;
     }
 
-    static async start(opts: BundleOpts | undefined): Promise<WorkerManager> {
+    static async start(opts: BundleOpts | undefined, bindings: Record<string, Binding>): Promise<WorkerManager> {
         // compile the permissionless deno worker (once)
         const webworkerRootSpecifier = computeWebworkerRootSpecifier();
         consoleLog(`Compiling ${webworkerRootSpecifier} into worker contents...`);
@@ -42,7 +44,11 @@ export class WorkerManager {
         newOpts.compilerOptions = { lib: [ 'deno.worker' ] };
         let { code: workerJs, backend } = await bundle(webworkerRootSpecifier, newOpts);
         if (!canWorkerOptionsRemoveDenoNamespace()) {
-            workerJs = 'delete globalThis.Deno;\n' + workerJs;
+            if (hasDosqlBinding(bindings)) {
+                workerJs = 'globalThis._Deno=globalThis.Deno;delete globalThis.Deno;\n' + workerJs;
+            } else {
+                workerJs = 'delete globalThis.Deno;\n' + workerJs;
+            }
         }
         if (WorkerManager.VERBOSE) consoleLog(workerJs);
         const contents = new TextEncoder().encode(workerJs);
@@ -62,7 +68,18 @@ export class WorkerManager {
         }
 
         // instantiate the permissionless deno worker
-        const workerOptions: WorkerOptions = { deno: { permissions: 'none' }, type: 'module' };
+        const permissions = await (async (): Promise<Deno.PermissionOptions> => {
+            if (hasDosqlBinding(bindings)) {
+                const doSqlDir = await computeSqliteDosqlDirectory();
+                return {
+                    net: [ 'deno.land:443' ],
+                    read: [ doSqlDir ],
+                    write: [ doSqlDir ],
+                }
+            }
+            return 'none';
+        })();
+        const workerOptions: WorkerOptions = { deno: { permissions }, type: 'module' };
         if (canWorkerOptionsRemoveDenoNamespace()) {
             // deno-lint-ignore no-explicit-any
             (workerOptions.deno as any).namespace = false;
@@ -187,6 +204,10 @@ function computeWebworkerRootSpecifier() {
 
 function canWorkerOptionsRemoveDenoNamespace() {
     return versionCompare(Deno.version.deno, '1.22') < 0;
+}
+
+function hasDosqlBinding(bindings: Record<string, Binding>): boolean {
+    return Object.values(bindings).some(v => isDONamespaceBinding(v) && v.doNamespace.split(':').includes('storage=sqlite'));
 }
 
 //

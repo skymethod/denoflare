@@ -4,10 +4,22 @@ import { DurableObjectStorageProvider } from './local_durable_objects.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { InMemoryAlarms } from './storage/in_memory_alarms.ts';
 import { InMemoryDurableObjectStorage } from './storage/in_memory_durable_object_storage.ts';
+import { SqliteDurableObjectStorage } from './storage/sqlite_durable_object_storage.ts';
 
 export function makeRpcStubDurableObjectStorageProvider(channel: RpcChannel): DurableObjectStorageProvider {
     return (className, id, options, dispatchAlarm) => {
-        if ((options.storage || 'memory') === 'memory') return new InMemoryDurableObjectStorage(); // optimization, right now memory impl functions the same in either isolate
+        // optimization, right now memory impl functions the same in either isolate
+        if ((options.storage || 'memory') === 'memory') return new InMemoryDurableObjectStorage();
+        // sqlite needs to run in the worker isolate, since SqlStorage is sync and cannot be proxied over the async rpc channel
+        if (options.storage === 'sqlite') return SqliteDurableObjectStorage.provider(className, id, options, dispatchAlarm, async ({ container, className, id }) => {
+            const sqliteDbPath: SqliteDbPath = { method: 'sqlite-db-path', container, className, id };
+            return await channel.sendRequest('do-storage', sqliteDbPath, data => {
+                const { error, value } = data;
+                if (typeof error === 'string') throw new Error(error);
+                return value;
+            });
+        });
+        // otherwise rpc stub
         return new RpcStubDurableObjectStorage(channel, { className, id, options }, dispatchAlarm);
     }
 }
@@ -21,6 +33,7 @@ export type Put2 = { method: 'put2', reference: DurableObjectStorageReference, e
 export type List = { method: 'list', reference: DurableObjectStorageReference, options: DurableObjectStorageListOptions & DurableObjectStorageReadOptions };
 export type Delete1 = { method: 'delete1', reference: DurableObjectStorageReference, key: string, opts?: DurableObjectStorageWriteOptions };
 export type Delete2 = { method: 'delete2', reference: DurableObjectStorageReference, keys: readonly string[], opts?: DurableObjectStorageWriteOptions };
+export type SqliteDbPath = { method: 'sqlite-db-path', container: string, className: string, id: string };
 
 export interface DurableObjectStorageReference {
     readonly className: string;

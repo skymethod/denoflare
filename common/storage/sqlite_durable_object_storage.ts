@@ -30,12 +30,13 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
             id: checkMatches('id', id.toString(), DB_PATH_TOKEN),
         });
         console.log(`new SqliteDurableObjectStorage(${dbPath})`);
+        // deno-lint-ignore no-explicit-any
+        const globalThisAny = globalThis as any;
+        if (!globalThisAny.Deno && globalThisAny._Deno) globalThisAny.Deno = globalThisAny._Deno;
         const { DB } = await import('https://deno.land/x/sqlite@v3.8/mod.ts' + '');
         const db = new DB(dbPath);
         return new SqliteDurableObjectStorage(db, dispatchAlarm);
     }
-
-
 
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
         const txn = new SqliteDurableObjectStorageTransaction(this);

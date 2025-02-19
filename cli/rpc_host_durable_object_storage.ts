@@ -1,7 +1,8 @@
 import { DurableObjectStorage } from '../common/cloudflare_workers_types.d.ts';
 import { LocalDurableObjects } from '../common/local_durable_objects.ts';
 import { RpcChannel } from '../common/rpc_channel.ts';
-import { Delete1, Delete2, DeleteAll, DurableObjectStorageReference, Get1, Get2, List, Put1, Put2, Sync } from '../common/rpc_stub_durable_object_storage.ts';
+import { Delete1, Delete2, DeleteAll, DurableObjectStorageReference, Get1, Get2, List, Put1, Put2, SqliteDbPath, Sync } from '../common/rpc_stub_durable_object_storage.ts';
+import { sqliteDbPathForInstance } from './sqlite_dbpath_for_instance.ts';
 
 export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
     const cache = new Map<string, DurableObjectStorage>();
@@ -86,6 +87,14 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
                     try {
                         const storage = await locateStorage(reference, cache);
                         const value = await storage.delete(keys, opts);
+                        return { value };
+                    } catch (e) {
+                        return { error: `${e}`};
+                    }
+                } else if (method === 'sqlite-db-path') {
+                    const { container, className, id } = data as SqliteDbPath;
+                    try {
+                        const value = await sqliteDbPathForInstance({ container, className, id });
                         return { value };
                     } catch (e) {
                         return { error: `${e}`};
