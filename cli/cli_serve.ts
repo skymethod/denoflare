@@ -28,7 +28,8 @@ import { versionCompare } from './versions.ts';
 import { RpcHostSockets } from './rpc_host_sockets.ts';
 import { SqliteD1Database } from './sqlite_d1_database.ts';
 import { NoopQueue } from '../common/noop_queue.ts';
-import { SqliteDurableObjectStorage } from './sqlite_durable_object_storage.ts';
+import { SqliteDurableObjectStorage } from '../common/storage/sqlite_durable_object_storage.ts';
+import { sqliteDbPathForInstance } from './sqlite_dbpath_for_instance.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -77,7 +78,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
     
     // support webstorage + sqlite in both isolation modes
     LocalDurableObjects.storageProviderFactories.set('webstorage', WebStorageDurableObjectStorage.provider);
-    LocalDurableObjects.storageProviderFactories.set('sqlite', SqliteDurableObjectStorage.provider);
+    LocalDurableObjects.storageProviderFactories.set('sqlite', (className, id, options, dispatchAlarm) => SqliteDurableObjectStorage.provider(className, id, options, dispatchAlarm, sqliteDbPathForInstance));
 
     // read the script-based cloudflare worker contents
     let port = DEFAULT_PORT;

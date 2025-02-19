@@ -1,12 +1,10 @@
 // only import if used
-// import { DenoDir } from 'https://esm.sh/jsr/@deno/cache-dir@0.11.1';
 // import { DB, QueryParameter } from 'https://deno.land/x/sqlite@v3.8/mod.ts';
 // deno-lint-ignore no-explicit-any
 type DB = any; type QueryParameter = any;
-import { checkMatches, isStringRecord } from '../common/check.ts';
-import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions, SqlStorage, SqlStorageCursor, SqlStorageValue } from '../common/cloudflare_workers_types.d.ts';
-import { InMemoryAlarms } from '../common/storage/in_memory_alarms.ts';
-import { join, zip } from './deps_cli.ts';
+import { checkMatches, isStringRecord } from '../check.ts';
+import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions, SqlStorage, SqlStorageCursor, SqlStorageValue } from '../cloudflare_workers_types.d.ts';
+import { InMemoryAlarms } from './in_memory_alarms.ts';
 
 export type ComputeDbPathForInstance = (opts: { container: string, className: string, id: string }) => string | Promise<string>;
 
@@ -25,7 +23,7 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
         this.init();
     }
 
-    static async provider(className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void, dbPathForInstance: ComputeDbPathForInstance = SqliteDurableObjectStorage.defaultDbPathForInstance) {
+    static async provider(className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void, dbPathForInstance: ComputeDbPathForInstance) {
         const dbPath = await dbPathForInstance({ 
             container: checkMatches('container', options.container || 'default', DB_PATH_TOKEN), 
             className: checkMatches('className', className, DB_PATH_TOKEN),
@@ -37,14 +35,7 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
         return new SqliteDurableObjectStorage(db, dispatchAlarm);
     }
 
-    static async defaultDbPathForInstance({ container, className, id }: { container: string, className: string, id: string }): Promise<string> {
-        const { DenoDir } = await import('https://esm.sh/jsr/@deno/cache-dir@0.11.1' + '');
-        const root = DenoDir.tryResolveRootPath(undefined);
-        if (root === undefined) throw new Error(`Unable to resolve deno cache dir`);
-        const denoflareDosqlDir = join(root, 'denoflare', 'dosql');
-        await Deno.mkdir(denoflareDosqlDir, { recursive: true });
-        return join(denoflareDosqlDir, `${container}-${className}-${id}.db`);
-    }
+
 
     async transaction<T>(closure: (txn: DurableObjectStorageTransaction) => T | PromiseLike<T>): Promise<T> {
         const txn = new SqliteDurableObjectStorageTransaction(this);
@@ -368,7 +359,7 @@ class SqliteSqlStorageCursor<T extends Record<string, SqlStorageValue>> implemen
         if (this.nextRowIndex >= rows.length) return { done: true };
         const row = rows[this.nextRowIndex++];
         if (row.length !== columns.length) throw new Error();
-        return { done: false, value: Object.fromEntries(zip(columns, row)) as T };
+        return { done: false, value: Object.fromEntries(columns.map((v, i) => [ v, row[i] ])) as T };
     }
 
     toArray(): T[] {
