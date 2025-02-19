@@ -120,7 +120,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         try {
             if (compilerOptions?.lib) {
                 configPath = await Deno.makeTempFile({ prefix: 'denoflare-esbuild-bundle', suffix: '.json'});
-                await Deno.writeTextFile(configPath, JSON.stringify({ compilerOptions }));
+                await Deno.writeTextFile(configPath, JSON.stringify({ compilerOptions, lock: false }));
             }
             const { loader = 'native', loaderModule = '^0.11.0', esbuildModule = '0.23.0', ...unknownOptions } = rest;
             if (Object.keys(unknownOptions).length > 0) throw new Error(`Unknown esbuild bundler option${Object.keys(unknownOptions).length === 1 ? '' : 's'}: ${JSON.stringify(unknownOptions)}`);

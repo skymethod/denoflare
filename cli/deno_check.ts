@@ -47,6 +47,8 @@ async function runDenoCheck(rootSpecifier: string, opts: { all?: boolean, config
     const { all, config } = opts;
     const args = [
         'check',
+        '--allow-import',
+        '--no-lock',
         ...(all ? [ '--all' ] : []),
         ...(config ? ['--config', config] : []),
         rootSpecifier,

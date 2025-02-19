@@ -7,7 +7,7 @@ import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_lo
 import { TextLineStream } from './deps_cli.ts';
 import { computeMd5 } from './wasm_crypto.ts';
 // only import if used
-// import { DB } from 'https://deno.land/x/sqlite@v3.8/mod.ts';
+// import { DB } from 'https://deno.land/x/sqlite@v3.9.1/mod.ts';
 
 export const LIST_COMMAND = denoflareCliCommand(['d1', 'list'], `List databases`)
     .option('name', 'string', 'A database name to search for')
@@ -306,7 +306,7 @@ async function exportDb(args: (string | number)[], options: Record<string, unkno
 
     try { await Deno.remove(file); } catch (e) { if (!(e instanceof Deno.errors.NotFound )) throw e; }
 
-    const { DB } = await import('https://deno.land/x/sqlite@v3.8/mod.ts' + '');
+    const { DB } = await import('https://deno.land/x/sqlite@v3.9.1/mod.ts' + '');
 
     const sqlFile = `${file}.sql`;
     await commonExportSql({ databaseName, verbose, options, noData, noSchema, table, file: sqlFile });

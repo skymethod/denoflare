@@ -1,6 +1,6 @@
 // only import if used
 // import { DenoDir } from 'https://esm.sh/jsr/@deno/cache-dir@0.11.1';
-// import { DB, QueryParameter } from 'https://deno.land/x/sqlite@v3.8/mod.ts';
+// import { DB, QueryParameter } from 'https://deno.land/x/sqlite@v3.9.1/mod.ts';
 // deno-lint-ignore no-explicit-any
 type DB = any;
 import { D1Database, D1ExecResult, D1PreparedStatement, D1QueryMetadata, D1Result } from '../common/cloudflare_workers_types.d.ts';
@@ -86,7 +86,7 @@ export class SqliteD1Database implements D1Database {
         if (this.db) return this.db;
 
         const { d1DatabaseUuid, dbPathForDatabase } = this;
-        const { DB } = await import('https://deno.land/x/sqlite@v3.8/mod.ts' + '');
+        const { DB } = await import('https://deno.land/x/sqlite@v3.9.1/mod.ts' + '');
         const dbPath = await dbPathForDatabase(d1DatabaseUuid);
         console.log(`SqliteD1Database: opening ${dbPath}`);
         const db = new DB(dbPath);

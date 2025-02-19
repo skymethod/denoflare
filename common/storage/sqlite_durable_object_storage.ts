@@ -1,5 +1,5 @@
 // only import if used
-// import { DB, QueryParameter } from 'https://deno.land/x/sqlite@v3.8/mod.ts';
+// import { DB, QueryParameter } from 'https://deno.land/x/sqlite@v3.9.1/mod.ts';
 // deno-lint-ignore no-explicit-any
 type DB = any; type QueryParameter = any;
 import { checkMatches, isStringRecord } from '../check.ts';
@@ -33,7 +33,7 @@ export class SqliteDurableObjectStorage implements DurableObjectStorage {
         // deno-lint-ignore no-explicit-any
         const globalThisAny = globalThis as any;
         if (!globalThisAny.Deno && globalThisAny._Deno) globalThisAny.Deno = globalThisAny._Deno;
-        const { DB } = await import('https://deno.land/x/sqlite@v3.8/mod.ts' + '');
+        const { DB } = await import('https://deno.land/x/sqlite@v3.9.1/mod.ts' + '');
         const db = new DB(dbPath);
         return new SqliteDurableObjectStorage(db, dispatchAlarm);
     }
