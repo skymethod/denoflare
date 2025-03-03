@@ -54,7 +54,11 @@ Deno.serve(async (req, info) => {
             kvService,
             waitUntil: (_promise: Promise<unknown>): void => {
                 // assumes Deploy waits for all background promises
-            }
+            },
+            upgradeWebSocket: (): Deno.WebSocketUpgrade | undefined => {
+                if (req.headers.get('upgrade') !== 'websocket') return undefined;
+                return Deno.upgradeWebSocket(req);
+            },
         };
         const workerReq = new Request(req, { headers });
         // deno-lint-ignore no-explicit-any
