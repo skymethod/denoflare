@@ -192,6 +192,32 @@ export function tryParseAmazonDate(amazonDate: string): Date | undefined {
     return m ? new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`) : undefined;
 }
 
+export async function signAwsCallV2(call: AwsCall, context: AwsCallContext): Promise<{ signedUrl: URL }> {
+    const { method, url } = call;
+    const { credentials } = context;
+
+    const signedUrl = new URL(url);
+ 
+    signedUrl.searchParams.set('AWSAccessKeyId', credentials.accessKey);
+    signedUrl.searchParams.set('SignatureMethod', 'HmacSHA256');
+    signedUrl.searchParams.set('SignatureVersion', '2');
+    signedUrl.searchParams.set('Timestamp', new Date().toISOString());
+
+    const stringToSign = [
+        method, 
+        url.hostname, 
+        url.pathname === '' ? '/' : url.pathname, 
+        [...signedUrl.searchParams].sort((lhs, rhs) => compareBytes(encoder.encode(lhs[0]), encoder.encode(rhs[0]))).map(([n, v]) => `${n}=${uriEncode(v)}`).join('&'),
+    ].join('\n');
+
+    if (R2.DEBUG) console.log(`stringToSign=<<<${stringToSign}>>>`);
+
+    const signature = (await Bytes.ofUtf8(stringToSign).hmacSha256(Bytes.ofUtf8(credentials.secretKey))).base64();
+    signedUrl.searchParams.set('Signature', signature);
+
+    return { signedUrl };
+}
+
 //
 
 export interface AwsCallContext {
@@ -227,6 +253,8 @@ export interface BucketResultOwner {
 }
 
 //
+
+const encoder = new TextEncoder();
 
 function uriEncode(value: string): string {
     if (value === '') return value;
@@ -360,6 +388,28 @@ async function computeBodyInfo(body: AwsCallBody, unsignedPayload: boolean | und
         if (!unsignedPayload) bodySha256Hex = body.sha256Hex;
         return { body: body.stream, bodySha256Hex: bodySha256Hex, bodyLength: body.length };
     }
+}
+
+function compareBytes(a: Uint8Array, b: Uint8Array): number {
+    for (let i = 0; i < a.byteLength; i++) {
+        if (a[i] < b[i]) {
+            return -1;
+        }
+
+        if (a[i] > b[i]) {
+            return 1;
+        }
+    }
+
+    if (a.byteLength > b.byteLength) {
+        return 1;
+    }
+
+    if (a.byteLength < b.byteLength) {
+        return -1;
+    }
+
+    return 0;
 }
 
 //
