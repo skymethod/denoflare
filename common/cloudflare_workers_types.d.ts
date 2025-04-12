@@ -1110,6 +1110,8 @@ export interface DurableObjectState {
      * See Transactional Storage API for a detailed reference. */
     readonly storage: DurableObjectStorage;
 
+    readonly container?: DurableObjectContainer;
+
     /** Notifies the runtime to wait for the completion of asynchronous tasks that may complete after a response has already been sent. 
      * 
      * See [waitUntil()](https://developer.mozilla.org/en-US/docs/Web/API/ExtendableEvent/waitUntil) for a detailed reference. */
@@ -1151,6 +1153,15 @@ export interface DurableObjectState {
      * 
      * A JavaScript Error with the message passed as a parameter will be logged. This error is not able to be caught within the application code. */
     abort(reason?: string): void;
+}
+
+export interface DurableObjectContainer {
+    get running(): boolean;
+    start(options?: { entrypoint?: string[], enableInternet: boolean, env?: Record<string, string> }): void;
+    monitor(): Promise<void>;
+    destroy(error?: unknown): Promise<void>;
+    signal(signo: number): void;
+    getTcpPort(port: number): typeof fetch;
 }
 
 declare class WebSocketRequestResponsePair {

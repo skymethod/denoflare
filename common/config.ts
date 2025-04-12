@@ -85,6 +85,10 @@ export interface Script {
      */
     readonly customDomains?: string[];
 
+    /** The class names for any container-bound durable objects.
+     */
+    readonly containerClassNames?: string[];
+
     /** If specified, enable or disable the workers.dev route for this worker when deploying to Cloudflare. */
     readonly workersDev?: boolean;
 

@@ -92,7 +92,22 @@ export type Observability = {
     head_sampling_rate?: number, // between 0 and 1 (default)
 }
 
-export type PutScriptOpts = { accountId: string, scriptName: string, apiToken: string, scriptContents: Uint8Array, bindings?: Binding[], migrations?: Migrations, parts?: Part[], isModule: boolean, usageModel?: 'bundled' | 'unbound', logpush?: boolean, compatibilityDate?: string, compatibilityFlags?: string[], observability?: Observability };
+export type PutScriptOpts = { 
+    accountId: string,
+    scriptName: string,
+    apiToken: string,
+    scriptContents: Uint8Array,
+    bindings?: Binding[],
+    migrations?: Migrations,
+    parts?: Part[],
+    isModule: boolean,
+    usageModel?: 'bundled' | 'unbound',
+    logpush?: boolean,
+    compatibilityDate?: string,
+    compatibilityFlags?: string[],
+    observability?: Observability,
+    containers?: { class_name: string }[],
+};
 
 export async function putScript(opts: PutScriptOpts): Promise<Script> {
     const { accountId, scriptName, apiToken } = opts;
@@ -146,7 +161,7 @@ export interface ScriptVersionResourcesScript {
 }
 
 function computeUploadForm(opts: PutScriptOpts): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability } = opts;
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -157,6 +172,7 @@ function computeUploadForm(opts: PutScriptOpts): FormData {
         compatibility_date: compatibilityDate,
         compatibility_flags: compatibilityFlags,
         observability,
+        containers,
     };
 
     if (isModule) {
@@ -2374,7 +2390,7 @@ export type CloudchamberApplicationBase = {
         ssh_public_key_ids?: string[], // ssh public key id
         secrets?: CloudchamberSecretDef[],
         vcpu?: number,
-        memory?: ByteUnits,
+        memory?: ByteUnits, // min 128MB
         disk?: CloudchamberDisk,
         environment_variables?: NameValuePair[],
         labels?: NameValuePair[],
@@ -2389,6 +2405,7 @@ export type CloudchamberApplicationBase = {
         ports?: {
             name: string,
             port?: number,
+            network: string, // must be 'host-internal' for now
         }[],
         checks?: CloudchamberDeploymentCheck[],
         provisioner?: 'none' | 'cloudinit',
@@ -2451,6 +2468,12 @@ export async function createCloudchamberApplication(opts: { accountId: string, a
     const { accountId, apiToken, input } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications`;
     return (await execute<CloudchamberApplication>('createCloudchamberApplication', 'POST', url, apiToken, input, undefined, undefined, { nonStandardResponse: true })).result;
+}
+
+export async function deleteCloudchamberApplication(opts: { accountId: string, apiToken: string, applicationId: string }): Promise<void> {
+    const { accountId, apiToken, applicationId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications/${applicationId}`;
+    await execute('deleteCloudchamberApplication', 'DELETE', url, apiToken, undefined, undefined, undefined, { nonStandardResponse: true });
 }
 
 type IpAssignment = 'none' | 'predefined' | 'account';
@@ -2543,7 +2566,7 @@ export async function getCloudchamberCustomer(opts: { accountId: string, apiToke
     return (await execute<CloudchamberCustomer>('getCloudchamberCustomer', 'GET', url, apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
 }
 
-export type ByteUnits = `${number}GB`; // e.g. 2GB or 40GB
+export type ByteUnits = `${number}${'MB' | 'GB'}`; // e.g. 2GB or 40GB
 
 type CloudchamberNodeGroup = 'metal' | 'cloudchamber';
 

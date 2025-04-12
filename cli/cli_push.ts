@@ -74,7 +74,8 @@ export async function push(args: (string | number)[], options: Record<string, un
         const compatibilityFlags = compatibilityFlagOpt || script?.compatibilityFlags;
         const observability: Observability | undefined = (typeof observabilityOpt === 'boolean' || typeof observabilitySampleRate === 'string') ? { enabled: observabilityOpt ?? true, head_sampling_rate: typeof observabilitySampleRate === 'string' ? parseFloat(observabilitySampleRate) : undefined } 
             : typeof script?.observability === 'boolean' ? { enabled: script.observability, head_sampling_rate: script.observabilitySampleRate }
-            : undefined; 
+            : undefined;
+        const containers = Array.isArray(script?.containerClassNames) ? script.containerClassNames.map(v => ({ class_name: v })) : undefined;
         const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
@@ -93,7 +94,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers };
         if (typeof versionTag === 'string') {
             await putScriptVersion({ ...putScriptOpts, tagAnnotation: versionTag });
         } else {
