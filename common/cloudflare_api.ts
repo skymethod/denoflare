@@ -2315,76 +2315,84 @@ export async function listCloudchamberApplications(opts: { accountId: string, ap
     if (typeof name === 'string') url.searchParams.set('name', name);
     if (typeof image === 'string') url.searchParams.set('image', image);
     if (labels) labels.forEach(v => url.searchParams.append('label', v));
-    return (await execute<CloudchamberApplication[]>('listCloudchamberApplications', 'GET', url.toString(), apiToken)).result;
+    return (await execute<CloudchamberApplication[]>('listCloudchamberApplications', 'GET', url.toString(), apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
 }
 
-export type CloudflareApplicationSchedulingPolicy = 'moon' | 'gpu' | 'regional';
+export type CloudchamberApplicationSchedulingPolicy = 'moon' | 'gpu' | 'regional';
+
+type CloudchamberSecretDef = {
+    name: string, // name of secret within container
+    type: 'env',
+    secret: string, // secret name from the account
+}
+
+type NameValuePair = {
+    name: string,
+    value: string,
+}
+
+type CloudchamberDisk = {
+    size: ByteUnits,
+}
+
+type CloudchamberDnsConfig = {
+    servers?: string[], // max 3
+    searches?: string[], // max 6
+}
+
+type CloudchamberDeploymentCheck = {
+    name?: string,
+    type: 'tcp' | 'http',
+    tls?: boolean,
+    port: string,
+    http?: {
+        method?: string,
+        body?: string,
+        path?: string,
+        headers?: Record<string, unknown>,
+    },
+    interval: Duration,
+    timeout: Duration;
+    attempts_before_failure?: number,
+    kind: 'health' | 'ready',
+    grace_period?: Duration,
+}
+
+type CloudchamberObservability = {
+    logging: {
+        enabled?: boolean,
+    }
+}
 
 export type CloudchamberApplicationBase = {
     name: string,
     instances: number,
 	max_instances?: number,
-    scheduling_policy: CloudflareApplicationSchedulingPolicy,
+    scheduling_policy: CloudchamberApplicationSchedulingPolicy,
 	configuration: {
         image: string,
         ssh_public_key_ids?: string[], // ssh public key id
-        secrets?: {
-            name: string, // name of secret within container
-            type: 'env',
-            secret: string, // secret name from the account
-        }[];
+        secrets?: CloudchamberSecretDef[],
         vcpu?: number,
         memory?: ByteUnits,
-        disk?: {
-            size: ByteUnits,
-        },
-        environment_variables?: {
-            name: string,
-            value: string,
-        }[],
-        labels?: {
-            name: string,
-            value: string,
-        }[],
+        disk?: CloudchamberDisk,
+        environment_variables?: NameValuePair[],
+        labels?: NameValuePair[],
         network?: {
             assign_ipv4?: IpAssignment,
             assign_ipv6?: IpAssignment,
             mode?: 'public' | 'private', // public: assigned at least an IPv6, and an IPv4 if "assign_ipv4": true. private: no accessible public IPs, however it will be able to access the internet.
-        };
-        runtime?: string, // 'firecracker'
+        },
         command?: string[],
         entrypoint?: string[],
-        dns?: {
-            servers?: string[], // max 3
-            searches?: string[], // max 6
-        },
+        dns?: CloudchamberDnsConfig,
         ports?: {
             name: string,
             port?: number,
         }[],
-        checks?: {
-            name?: string,
-            type: 'tcp' | 'http',
-            tls?: boolean,
-            port: string,
-            http?: {
-                method?: string,
-                body?: string,
-                path?: string,
-                headers?: Record<string, unknown>,
-            },
-            interval: Duration,
-            timeout: Duration;
-            attempts_before_failure?: number,
-            kind: 'health' | 'ready',
-            grace_period?: Duration,
-        }[],
+        checks?: CloudchamberDeploymentCheck[],
         provisioner?: 'none' | 'cloudinit',
-        observability?: {
-            logging: {
-                enabled?: boolean,
-            }
-        },
+        observability?: CloudchamberObservability,
     },
     constraints?: {
         region?: string,
@@ -2409,6 +2417,7 @@ export type CloudchamberApplication = CloudchamberApplicationBase & {
 	created_at: string,
 	account_id: string,
 	version: number, // starts at 1
+    runtime: string, // 'firecracker'
 	scheduling_hint?: {
         current: {
             instances: number,
@@ -2448,6 +2457,86 @@ type IpAssignment = 'none' | 'predefined' | 'account';
 
 type Duration = 'string'; //  in the form "3d1h3m". Leading zero units are omitted. As a special case, durations less than one second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure that the leading digit is non-zero.
 
+export type CloudchamberDeploymentState = 'running' | 'stopped' | 'starting' | 'stopping';
+
+export async function listCloudchamberDeployments(opts: { accountId: string, apiToken: string, app_id?: string, location?: string, image?: string, state?: CloudchamberDeploymentState, ipv4?: string, label?: string[] }): Promise<CloudchamberDeployment[]> {
+    const { accountId, apiToken, app_id, location, image, state, ipv4, label } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/cloudchamber/deployments/v2`);
+    for (const [ name, value ] of Object.entries({ app_id, location, image, state, ipv4, label })) {
+        if (typeof value === 'string') {
+            url.searchParams.set(name, value);
+        } else if (Array.isArray(value)) {
+            value.forEach(v => url.searchParams.append(name, v));
+        }
+    }
+    return (await execute<CloudchamberDeployment[]>('listCloudchamberDeployments', 'GET', url.toString(), apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
+}
+
+type CloudchamberDeploymentQueuedReason = 'unknown' | 'location_overprovisioned';
+
+export type CloudchamberDeployment = {
+	id: string, // guid
+	app_id?: string, // guid
+	app_version?: number,
+	created_at: string,
+	account_id: string,
+	version: number,
+	type: 'default' | 'jobs' | 'durable_object',
+	image: string, // e.g. docker.io/cloudflare/hello-world:1.0
+	location: {
+        name: string, // e.g. jog01
+        enabled: boolean,
+        region?: string,
+    },
+	ssh_public_key_ids?: string[],
+	secrets?: CloudchamberSecretDef[],
+    environment_variables?: NameValuePair[],
+    labels?: NameValuePair[],
+	current_placement?: CloudchamberPlacement,
+	placements_ref: string, // e.g. /deployments/<guid>/placement
+	vcpu: number,
+	memory: ByteUnits,
+	node_group: CloudchamberNodeGroup,
+	disk?: CloudchamberDisk,
+	network?: {
+        ipv4?: string,
+        ipv6?: string,
+    },
+	gpu_memory?: ByteUnits,
+	command?: string[],
+	entrypoint?: string[],
+	dns?: CloudchamberDnsConfig,
+    checks?: CloudchamberDeploymentCheck[],
+    runtime: string, // 'firecracker'
+	state?: {
+        current: 'scheduled' | 'placed',
+        last_updated: string,
+        queued_details?: {
+            gpu?: CloudchamberDeploymentQueuedReason,
+            cpu?: CloudchamberDeploymentQueuedReason,
+            memory?: CloudchamberDeploymentQueuedReason,
+            disk?: CloudchamberDeploymentQueuedReason,
+            unknown?: CloudchamberDeploymentQueuedReason,
+        },
+    },
+	observability?: CloudchamberObservability,
+}
+
+export type CloudchamberPlacement = {
+	id: string, // guid
+	created_at: string,
+	deployment_id: string,
+	deployment_version: number,
+	terminate: boolean,
+	status: {
+        health: 'placed' | 'stopping' | 'running' | 'failed' | 'stopped' | 'unhealthy' | 'do_connected',
+        ready?: boolean,
+        durable_object?: 'connected' | 'disconnected',
+    } & Record<string, unknown>,
+	last_update?: string,
+	durable_object_actor_id?: string,
+}
+
 export async function getCloudchamberCustomer(opts: { accountId: string, apiToken: string }): Promise<CloudchamberCustomer> {
     const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/me`;
@@ -2455,6 +2544,8 @@ export async function getCloudchamberCustomer(opts: { accountId: string, apiToke
 }
 
 export type ByteUnits = `${number}GB`; // e.g. 2GB or 40GB
+
+type CloudchamberNodeGroup = 'metal' | 'cloudchamber';
 
 export type CloudchamberCustomer = {
     legacy_identity: string,
@@ -2468,7 +2559,7 @@ export type CloudchamberCustomer = {
         account_id: string, // cf account id
         vcpu_per_deployment: number,
         total_vcpu: number,
-        node_group: string, // e.g. 'metal'
+        node_group: CloudchamberNodeGroup,
         disk_per_deployment: ByteUnits,
         memory_per_deployment: ByteUnits,
         total_memory: ByteUnits,

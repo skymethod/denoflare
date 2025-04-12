@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, restoreD1Backup, createCloudchamberApplication, createCloudchamberImageRegistry, CloudflareApplicationSchedulingPolicy, CloudchamberApplicationBase } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, restoreD1Backup, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationBase, listCloudchamberDeployments, CloudchamberDeploymentState } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1179,20 +1179,46 @@ function cfapiCommand() {
     addCc(ccCommand('create-application', 'Create a new application')
             .arg('name', 'string', 'Application Name')
             .arg('image', 'string', 'Container image (e.g. docker.io/cloudflare/hello-world:1.0)')
-            .option('instances', 'required-integer', 'Number of instances')
+            .option('instances', 'integer', 'Number of instances')
             .option('schedulingPolicy', 'enum', 'Scheduling policy', { value: 'regional', default: true }, { value: 'moon' }, { value: 'gpu' })
+            .option('network', 'enum', 'IP address configuration', { value: 'public-v6'  }, { value: 'public-v4' })
+            .option('tier', 'integer', 'Tier constraint')
+            .option('city', 'strings', 'City constraint')
+            .option('region', 'strings', 'Region constraint')
         , async (accountId, apiToken, opts) => {
-        const { name, image, instances, schedulingPolicy = 'regional' } = opts;
+        const { name, image, instances = 1, schedulingPolicy = 'regional', network, tier, city, region } = opts;
         const input: CloudchamberApplicationBase = {
             name,
             instances,
             configuration: {
                 image,
+                network: {
+                    assign_ipv4: network === 'public-v4' ? 'predefined' : undefined,
+                    assign_ipv6: network === 'public-v6' ? 'predefined' : undefined,
+                    mode: network === 'public-v6' || network === 'public-v4' ? 'public' : undefined,
+                },
             },
-            scheduling_policy: schedulingPolicy as CloudflareApplicationSchedulingPolicy,
+            scheduling_policy: schedulingPolicy as CloudchamberApplicationSchedulingPolicy,
+            constraints: {
+                tier,
+                cities: city,
+                regions: region,
+            }
         };
         const application = await createCloudchamberApplication({ accountId, apiToken, input });
         console.log(application);
+    });
+
+    addCc(ccCommand('list-deployments', 'List deployments')
+            .option('appId', 'string', 'Application ID (guid)')
+            .option('image', 'string', 'Container image')
+            .option('ipv4', 'string', 'IP address (v4)')
+            .option('label', 'strings', 'Label')
+            .option('location', 'string', 'Location')
+            .option('state', 'string', 'Deployment state')
+        , async (accountId, apiToken, { appId: app_id, image, ipv4, label, location, state }) => {
+        const value = await listCloudchamberDeployments({ accountId, apiToken, app_id, image, ipv4, label, location, state: state as CloudchamberDeploymentState });
+        console.log(value);
     });
 
     addCc(ccCommand('get-customer', 'Get customer info')
