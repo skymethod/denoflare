@@ -2348,7 +2348,7 @@ type NameValuePair = {
 }
 
 export type CloudchamberDisk = {
-    size: ByteUnits,
+    size: ByteUnits, // min 512MB
 }
 
 type CloudchamberDnsConfig = {
@@ -2380,36 +2380,41 @@ type CloudchamberObservability = {
     }
 }
 
-export type CloudchamberApplicationBase = {
-    name: string,
-    instances: number,
+export type CloudchamberApplicationConfiguration = {
+    image: string,
+    ssh_public_key_ids?: string[], // ssh public key id
+    secrets?: CloudchamberSecretDef[],
+    vcpu?: number,
+    memory?: ByteUnits, // min 128MB
+    disk?: CloudchamberDisk,
+    environment_variables?: NameValuePair[],
+    labels?: NameValuePair[],
+    network?: {
+        assign_ipv4?: IpAssignment,
+        assign_ipv6?: IpAssignment,
+        mode?: 'public' | 'private', // public: assigned at least an IPv6, and an IPv4 if "assign_ipv4": true. private: no accessible public IPs, however it will be able to access the internet.
+    },
+    command?: string[],
+    entrypoint?: string[],
+    dns?: CloudchamberDnsConfig,
+    ports?: {
+        name: string,
+        port?: number,
+        network: string, // must be 'host-internal' for now
+    }[],
+    checks?: CloudchamberDeploymentCheck[],
+    provisioner?: 'none' | 'cloudinit',
+    observability?: CloudchamberObservability,
+};
+
+type CloudchamberApplicationCommon = {
+    instances?: number,
 	max_instances?: number,
-    scheduling_policy: CloudchamberApplicationSchedulingPolicy,
-	configuration: {
-        image: string,
-        ssh_public_key_ids?: string[], // ssh public key id
-        secrets?: CloudchamberSecretDef[],
-        vcpu?: number,
-        memory?: ByteUnits, // min 128MB
-        disk?: CloudchamberDisk,
-        environment_variables?: NameValuePair[],
-        labels?: NameValuePair[],
-        network?: {
-            assign_ipv4?: IpAssignment,
-            assign_ipv6?: IpAssignment,
-            mode?: 'public' | 'private', // public: assigned at least an IPv6, and an IPv4 if "assign_ipv4": true. private: no accessible public IPs, however it will be able to access the internet.
-        },
-        command?: string[],
-        entrypoint?: string[],
-        dns?: CloudchamberDnsConfig,
-        ports?: {
-            name: string,
-            port?: number,
-            network: string, // must be 'host-internal' for now
-        }[],
-        checks?: CloudchamberDeploymentCheck[],
-        provisioner?: 'none' | 'cloudinit',
-        observability?: CloudchamberObservability,
+    affinities?: {
+        colocation?: 'datacenter',
+    },
+    priorities?: {
+        default: number;
     },
     constraints?: {
         region?: string,
@@ -2417,19 +2422,26 @@ export type CloudchamberApplicationBase = {
         regions?: string[],
         cities?: string[], // city code like MAD
     },
+}
+
+export type CloudchamberApplicationInput = CloudchamberApplicationCommon & {
+    name: string,
+    instances: number,
+	max_instances?: number,
+    scheduling_policy: CloudchamberApplicationSchedulingPolicy,
+	configuration: CloudchamberApplicationConfiguration,
     jobs?: boolean,
-    affinities?: {
-        colocation?: 'datacenter',
-    },
-    priorities?: {
-        default: number;
-    },
     durable_objects?: {
         namespace_id: string,
     },
 }
 
-export type CloudchamberApplication = CloudchamberApplicationBase & {
+export type CloudchamberApplicationUpdate = CloudchamberApplicationCommon & {
+	scheduling_policy?: CloudchamberApplicationSchedulingPolicy,
+	configuration?: Partial<CloudchamberApplicationConfiguration>,
+}
+
+export type CloudchamberApplication = CloudchamberApplicationInput & {
 	id: string, // guid
 	created_at: string,
 	account_id: string,
@@ -2456,7 +2468,7 @@ export type CloudchamberApplication = CloudchamberApplicationBase & {
             scheduling: number,
         },
     },
-};
+}
 
 export async function getCloudchamberApplication(opts: { accountId: string, apiToken: string, applicationId: string }): Promise<CloudchamberApplication> {
     const { accountId, apiToken, applicationId } = opts;
@@ -2464,7 +2476,7 @@ export async function getCloudchamberApplication(opts: { accountId: string, apiT
     return (await execute<CloudchamberApplication>('getCloudchamberApplication', 'GET', url, apiToken)).result;
 }
 
-export async function createCloudchamberApplication(opts: { accountId: string, apiToken: string, input: CloudchamberApplicationBase }): Promise<CloudchamberApplication> {
+export async function createCloudchamberApplication(opts: { accountId: string, apiToken: string, input: CloudchamberApplicationInput }): Promise<CloudchamberApplication> {
     const { accountId, apiToken, input } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications`;
     return (await execute<CloudchamberApplication>('createCloudchamberApplication', 'POST', url, apiToken, input, undefined, undefined, { nonStandardResponse: true })).result;
@@ -2474,6 +2486,12 @@ export async function deleteCloudchamberApplication(opts: { accountId: string, a
     const { accountId, apiToken, applicationId } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications/${applicationId}`;
     await execute('deleteCloudchamberApplication', 'DELETE', url, apiToken, undefined, undefined, undefined, { nonStandardResponse: true });
+}
+
+export async function updateCloudchamberApplication(opts: { accountId: string, apiToken: string, applicationId: string, input: CloudchamberApplicationUpdate }): Promise<CloudchamberApplication> {
+    const { accountId, apiToken, applicationId, input } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications/${applicationId}`;
+    return (await execute<CloudchamberApplication>('updateCloudchamberApplication', 'PATCH', url, apiToken, input, undefined, undefined, { nonStandardResponse: true })).result;
 }
 
 type IpAssignment = 'none' | 'predefined' | 'account';
@@ -2493,6 +2511,12 @@ export async function listCloudchamberDeployments(opts: { accountId: string, api
         }
     }
     return (await execute<CloudchamberDeployment[]>('listCloudchamberDeployments', 'GET', url.toString(), apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
+}
+
+export async function deleteCloudchamberDeployment(opts: { accountId: string, apiToken: string, deploymentId: string }): Promise<void> {
+    const { accountId, apiToken, deploymentId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/deployments/${deploymentId}/v2`;
+    await execute('deleteCloudchamberDeployment', 'DELETE', url, apiToken, undefined, undefined, undefined, { nonStandardResponse: true });
 }
 
 type CloudchamberDeploymentQueuedReason = 'unknown' | 'location_overprovisioned';
