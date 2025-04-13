@@ -2347,7 +2347,7 @@ type NameValuePair = {
     value: string,
 }
 
-type CloudchamberDisk = {
+export type CloudchamberDisk = {
     size: ByteUnits,
 }
 
@@ -2603,8 +2603,10 @@ export type CloudchamberCustomer = {
 
 export type CloudchamberImageRegistryCredentialPermission = 'push' | 'pull';
 
+export const CLOUDFLARE_MANAGED_REGISTRY = 'registry.cloudchamber.cfdata.org';
+
 export async function generateCloudchamberImageRegistryCredentials(opts: { accountId: string, apiToken: string, expiration_minutes: number, permissions: CloudchamberImageRegistryCredentialPermission[], domain?: string  }): Promise<CloudchamberImageRegistryCredentials> {
-    const { accountId, apiToken, expiration_minutes, permissions, domain = 'registry.cloudchamber.cfdata.org' } = opts;
+    const { accountId, apiToken, expiration_minutes, permissions, domain = CLOUDFLARE_MANAGED_REGISTRY } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/registries/${domain}/credentials`;
     return (await execute<CloudchamberImageRegistryCredentials>('generateCloudchamberImageRegistryCredentials', 'POST', url, apiToken, { expiration_minutes, permissions }, undefined, undefined, { nonStandardResponse: true })).result;
 }

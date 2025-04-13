@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listCloudchamberApplications, createCloudchamberApplication, CloudchamberApplicationBase, CLOUDFLARE_MANAGED_REGISTRY, CloudchamberDisk, ByteUnits } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -75,9 +75,88 @@ export async function push(args: (string | number)[], options: Record<string, un
         const observability: Observability | undefined = (typeof observabilityOpt === 'boolean' || typeof observabilitySampleRate === 'string') ? { enabled: observabilityOpt ?? true, head_sampling_rate: typeof observabilitySampleRate === 'string' ? parseFloat(observabilitySampleRate) : undefined } 
             : typeof script?.observability === 'boolean' ? { enabled: script.observability, head_sampling_rate: script.observabilitySampleRate }
             : undefined;
-        const containers = Array.isArray(script?.containerClassNames) ? script.containerClassNames.map(v => ({ class_name: v })) : undefined;
         const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
+        const containers = doNamespaces.containerClassNames.length > 0 ? doNamespaces.containerClassNames.map(v => ({ class_name: v })) : undefined;
         console.log(`computed bindings in ${Date.now() - start}ms`);
+
+        if (containers?.length ?? 0 > 0) {
+            console.log('ensuring container applications exist...');
+            for (const [ namespaceId, containerSpec ] of doNamespaces.namespaceIdsToContainerSpecs) {
+                const namespaceName = doNamespaces.namespaceIdsToNamespaceNames.get(namespaceId);
+                if (typeof namespaceName !== 'string') throw new Error();
+                const params = containerSpec.split(',').map(v => v.split('='));
+                const {
+                    instances: instancesParam,
+                    'max-instances': maxInstancesParam,
+                    image: imageParam,
+                    'disk-size': diskSizeParam,
+                    memory: memoryParam,
+                    vcpu: vcpuParam,
+                    tier: tierParam,
+                    name: nameParam,
+                    ...rest
+                } = Object.fromEntries(params) as Record<string, string>;
+
+                const applications = await listCloudchamberApplications({ accountId, apiToken });
+                const existing = applications.find(v => v.durable_objects?.namespace_id === namespaceId);
+
+                const instances = typeof instancesParam === 'string' ? parseInt(instancesParam) : 0;
+                const max_instances = typeof maxInstancesParam === 'string' ? parseInt(maxInstancesParam) : undefined;
+                const scheduling_policy = 'regional';
+                let image = imageParam;
+                if (typeof image !== 'string') throw new Error(`Must specific 'image' container param`);
+                if (!image.includes('/')) image = `${CLOUDFLARE_MANAGED_REGISTRY}/${image}`;
+                const parseByteUnits = (paramName: string, paramValue: string): ByteUnits => {
+                    const upper = paramValue.toUpperCase();
+                    if (!/^\d+(MB|GB)$/.test(upper)) throw new Error(`Invalid container ${paramName}: ${paramValue}`);
+                    return upper as ByteUnits;
+                }
+                const disk = typeof diskSizeParam === 'string' ? { size: parseByteUnits('disk-size', diskSizeParam) } : undefined;
+                const memory = typeof memoryParam === 'string' ? parseByteUnits('memory', memoryParam) : undefined;
+                const vcpu = typeof vcpuParam === 'string' ? parseInt(vcpuParam) : undefined;
+                const environment_variables = Object.entries(rest).filter(v => v[0].startsWith('env-')).map(v => ({ name: v[0].substring(4), value: v[1] }));
+                const tier = typeof tierParam === 'string' ? parseInt(tierParam) : undefined;
+                const getMulti = (name: string): string[] | undefined => {
+                    const rt = params.filter(v => v[0] === name).map(v => v[1]);
+                    return rt.length > 0 ? rt : undefined;
+                }
+                const regions = getMulti('region');
+                const cities = getMulti('city');
+                const computeAutogeneratedName = () => {
+                    return `${scriptName}-${namespaceName}-${namespaceId}`;
+                };
+                const name = typeof nameParam === 'string' ? nameParam : computeAutogeneratedName();
+
+                if (existing) {
+                    throw new Error('TODO update!');
+                } else {
+                    console.log('creating new container application...')
+                    const input: CloudchamberApplicationBase = {
+                        name,
+                        instances,
+                        max_instances,
+                        scheduling_policy,
+                        configuration: {
+                            image,
+                            disk,
+                            memory,
+                            vcpu,
+                            environment_variables,
+                        },
+                        constraints: {
+                            tier,
+                            regions,
+                            cities,
+                        },
+                        durable_objects: {
+                            namespace_id: namespaceId,
+                        },
+                    }
+                    await createCloudchamberApplication({ accountId, apiToken, input });
+                    console.log(`...created new container application: ${name}`);
+                }
+            }
+        }
 
         // only perform migrations on first upload, not on subsequent --watch uploads
         const migrations = pushNumber === 1 ? computeMigrations(deleteClassOpt) : undefined;
@@ -208,12 +287,16 @@ class DurableObjectNamespaces {
 
     private readonly pendingUpdates: { id: string, name?: string, script?: string, class?: string }[] = [];
 
+    readonly containerClassNames: string[] = [];
+    readonly namespaceIdsToContainerSpecs = new Map<string, string>();
+    readonly namespaceIdsToNamespaceNames = new Map<string, string>();
+
     constructor(accountId: string, apiToken: string) {
         this.accountId = accountId;
         this.apiToken = apiToken;
     }
 
-    async getOrCreateNamespaceId(namespaceSpec: string, scriptName: string): Promise<string> {
+    async getOrCreateNamespaceId(namespaceSpec: string, scriptName: string, containerSpec: string | undefined): Promise<string> {
         const tokens = namespaceSpec.split(':');
         if (tokens.length !== 2 && tokens.length !== 3) throw new Error(`Bad durable object namespace spec: ${namespaceSpec}`);
         const name = tokens[0];
@@ -233,7 +316,7 @@ class DurableObjectNamespaces {
                 }
             }
         }
-        const { accountId, apiToken } = this;
+        const { accountId, apiToken,containerClassNames, namespaceIdsToContainerSpecs, namespaceIdsToNamespaceNames } = this;
         const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken, perPage: 1000 });
         let namespace = namespaces.find(v => v.name === name);
         if (!namespace)  {
@@ -243,6 +326,11 @@ class DurableObjectNamespaces {
         if (namespace.class !== className || namespace.script !== scriptName) {
             this.pendingUpdates.push({ id: namespace.id, name, script: scriptName, class: className });
         }
+        if (typeof containerSpec === 'string') {
+            if (!containerClassNames.includes(className)) containerClassNames.push(className);
+            namespaceIdsToContainerSpecs.set(namespace.id, containerSpec);
+        }
+        namespaceIdsToNamespaceNames.set(namespace.id, name);
         return namespace.id;
     }
 
@@ -280,7 +368,7 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
     } else if (isKVNamespaceBinding(binding)) {
         return { type: 'kv_namespace', name, namespace_id: binding.kvNamespace };
     } else if (isDONamespaceBinding(binding)) {
-        return { type: 'durable_object_namespace', name, namespace_id: await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName) };
+        return { type: 'durable_object_namespace', name, namespace_id: await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName, binding.container) };
     } else if (isWasmModuleBinding(binding)) {
         return { type: 'wasm_module', name, part: await computeWasmModulePart(binding.wasmModule, parts, name) };
     } else if (isServiceBinding(binding)) {

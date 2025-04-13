@@ -85,10 +85,6 @@ export interface Script {
      */
     readonly customDomains?: string[];
 
-    /** The class names for any container-bound durable objects.
-     */
-    readonly containerClassNames?: string[];
-
     /** If specified, enable or disable the workers.dev route for this worker when deploying to Cloudflare. */
     readonly workersDev?: boolean;
 
@@ -164,6 +160,22 @@ export interface DONamespaceBinding {
      * - `local:<DOClassName>`: Pointer to a Durable Object class name defined in the same worker script. e.g. `local:MyCounterDO`
      */
     readonly doNamespace: string;
+
+    /**
+     * Container config as comma-delimited parameters:
+     * image=(<domain>/)<repo>:<tag>   // only required parameter, domain defaults to cf managed registry
+     * max-instances=<number>
+     * instances=<number>
+     * vcpu=<number>
+     * memory=<byteunits> // e.g. 128mb
+     * disk-size=<byteunits>
+     * env-<name>=<value>
+     * tier=<number>
+     * region=<string>
+     * city=<string>
+     * name=<string>  // defaults to <script>-<do-namespace-name>-<do-namespace-id>
+     */
+    readonly container?: string;
 }
 
 /** Wasm module environment variable binding */
