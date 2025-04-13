@@ -2601,7 +2601,9 @@ export type CloudchamberCustomer = {
     }[],
 }
 
-export async function generateCloudchamberImageRegistryCredentials(opts: { accountId: string, apiToken: string, expiration_minutes: number, permissions: ('push' | 'pull')[], domain?: string  }): Promise<CloudchamberImageRegistryCredentials> {
+export type CloudchamberImageRegistryCredentialPermission = 'push' | 'pull';
+
+export async function generateCloudchamberImageRegistryCredentials(opts: { accountId: string, apiToken: string, expiration_minutes: number, permissions: CloudchamberImageRegistryCredentialPermission[], domain?: string  }): Promise<CloudchamberImageRegistryCredentials> {
     const { accountId, apiToken, expiration_minutes, permissions, domain = 'registry.cloudchamber.cfdata.org' } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/registries/${domain}/credentials`;
     return (await execute<CloudchamberImageRegistryCredentials>('generateCloudchamberImageRegistryCredentials', 'POST', url, apiToken, { expiration_minutes, permissions }, undefined, undefined, { nonStandardResponse: true })).result;

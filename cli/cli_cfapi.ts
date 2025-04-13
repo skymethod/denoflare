@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, restoreD1Backup, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationBase, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, restoreD1Backup, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationBase, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1194,6 +1194,7 @@ function cfapiCommand() {
             .arg('name', 'string', 'Application Name')
             .arg('image', 'string', 'Container image (e.g. docker.io/cloudflare/hello-world:1.0)')
             .option('instances', 'integer', 'Number of instances')
+            .option('maxInstances', 'integer', 'Maximum number of instances (if autoscaling)')
             .option('schedulingPolicy', 'enum', 'Scheduling policy', { value: 'regional', default: true }, { value: 'moon' }, { value: 'gpu' })
             .option('network', 'enum', 'IP address configuration', { value: 'public-v6'  }, { value: 'public-v4' })
             .option('tier', 'integer', 'Tier constraint')
@@ -1202,10 +1203,11 @@ function cfapiCommand() {
             .option('memory', 'string', 'Memory size (min: 128MB)')
             .option('namespaceId', 'string', 'Durable object namespace ID')
         , async (accountId, apiToken, opts) => {
-        const { name, image, instances = 1, schedulingPolicy = 'regional', network, tier, city, region, memory, namespaceId } = opts;
+        const { name, image, instances = 0, maxInstances: max_instances, schedulingPolicy = 'regional', network, tier, city, region, memory, namespaceId } = opts;
         const input: CloudchamberApplicationBase = {
             name,
             instances,
+            max_instances,
             configuration: {
                 image,
                 network: {
@@ -1255,12 +1257,33 @@ function cfapiCommand() {
         }
     });
 
+    const generatePullCreds = async ({ accountId, apiToken }: { accountId: string, apiToken: string }) => {
+        const { registry_host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: [ 'pull' ] });
+        const authorization = `Basic ${Bytes.ofUtf8(`${username}:${password}`).base64()}`;
+        return { registry_host, authorization };
+    }
+
     addCc(ccCommand('list-images', 'List images')
         , async (accountId, apiToken) => {
-        const { registry_host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: [ 'pull', 'push' ] });
-        const authorization = `Basic ${Bytes.ofUtf8(`${username}:${password}`).base64()}`;
+        const { registry_host, authorization } = await generatePullCreds({ accountId, apiToken });
         const res = await fetch(`https://${registry_host}/v2/_catalog`, { headers: { authorization } });
-        console.log(res, await res.text());
+        console.log(await res.json());
+    });
+
+    addCc(ccCommand('list-tags', 'List tags').arg('repo', 'string', 'Repository')
+        , async (accountId, apiToken, { repo }) => {
+        const { registry_host, authorization } = await generatePullCreds({ accountId, apiToken });
+        const res = await fetch(`https://${registry_host}/v2/${repo}/tags/list`, { headers: { authorization } });
+        console.log(await res.json());
+    });
+
+    addCc(ccCommand('generate-registry-credentials', 'Generate credentials for managed cf registry')
+            .option('expirationMinutes', 'integer', 'Minutes for which the credentials are valid (default: 5)')
+            .option('permissions', 'enum', 'Permitted actions (default: pull)', { value: 'pull', default: true }, { value: 'push' }, { value: 'both' })
+        , async (accountId, apiToken, { expirationMinutes: expiration_minutes = 5, permissions = 'pull' }) => {
+        const permissionsArr: CloudchamberImageRegistryCredentialPermission[] = permissions === 'both' ? [ 'push', 'pull' ] : permissions === 'push' ? [ 'push' ] : [ 'pull' ];
+        const credentials = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes, permissions: permissionsArr });
+        console.log(credentials);
     });
 
     addCc(ccCommand('create-registry', 'Create a new image registry')

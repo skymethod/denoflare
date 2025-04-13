@@ -1161,7 +1161,7 @@ export interface DurableObjectContainer {
     monitor(): Promise<void>;
     destroy(error?: unknown): Promise<void>;
     signal(signo: number): void;
-    getTcpPort(port: number): typeof fetch;
+    getTcpPort(port: number): { fetch: typeof fetch };
 }
 
 declare class WebSocketRequestResponsePair {
