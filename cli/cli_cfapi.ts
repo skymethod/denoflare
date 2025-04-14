@@ -1350,7 +1350,7 @@ function cfapiCommand() {
 
         if (typeof pushTag === 'string') {
             console.log(`pushing: ${pushTag}`);
-            const { registry_host: host,  username, password } = await generateRegistryCreds({ accountId, apiToken, push: true });
+            const { registry_host: host, username, password } = await generateRegistryCreds({ accountId, apiToken, push: true });
             await dockerLogin({ username, password, host });
             await dockerPush(pushTag);
             console.log(`pushed`);

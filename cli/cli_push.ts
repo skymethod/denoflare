@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listCloudchamberApplications, createCloudchamberApplication, CloudchamberApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ByteUnits, CloudchamberApplicationUpdate, updateCloudchamberApplication, deleteCloudchamberDeployment, listCloudchamberDeployments } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listCloudchamberApplications, createCloudchamberApplication, CloudchamberApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ByteUnits, CloudchamberApplicationUpdate, updateCloudchamberApplication, deleteCloudchamberDeployment, listCloudchamberDeployments, generateCloudchamberImageRegistryCredentials } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -9,6 +9,7 @@ import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { parseCryptoKeyDef } from '../common/crypto_keys.ts';
+import { dockerBuild, dockerLogin, dockerPush } from './docker_cli.ts';
 
 export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare worker script to Cloudflare')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
@@ -228,9 +229,30 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
         const instances = typeof instancesParam === 'string' ? parseInt(instancesParam) : 0;
         const max_instances = typeof maxInstancesParam === 'string' ? parseInt(maxInstancesParam) : undefined;
         const scheduling_policy = 'regional';
-        let image = imageParam;
-        if (typeof image !== 'string') throw new Error(`Must specific 'image' container param`);
-        if (!image.includes('/')) image = `${CLOUDFLARE_MANAGED_REGISTRY}/${image}`;
+        if (typeof imageParam !== 'string') throw new Error(`Must specify 'image' container param`);
+        const image = await (async () => {
+            const [ _, prefix, suffix ] = checkMatchesReturnMatcher('image', imageParam, /^([^:]+):([^:]+)$/);
+            const local = !prefix.includes('/');
+            const imageBase = local ? `${CLOUDFLARE_MANAGED_REGISTRY}/${prefix}` : prefix;
+            if (suffix.startsWith('.') || suffix.startsWith('/')) {
+                if (!local) throw new Error(`Can only local develop with cf-managed repo`);
+                const dockerfile = suffix;
+                const latestTag = `${imageBase}:latest`;
+                const buildId = new Date().toISOString().replaceAll(/[^\d]+/g, '').padEnd(17, '0');
+                const buildTag = `${imageBase}:${buildId}`;
+                console.log('docker building...');
+                await dockerBuild(dockerfile, { tag: latestTag, otherTags: [ buildTag ] });
+                const { registry_host: host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: [ 'pull', 'push' ] }); // TODO keep around if watching
+                if (!password) throw new Error();
+                console.log('docker pushing...');
+                await dockerLogin({ username, password, host });
+                await dockerPush(buildTag);
+                return buildTag;
+            } else {
+                return `${imageBase}:${suffix}`;
+            }
+        })();
+      
         const parseByteUnits = (paramName: string, paramValue: string): ByteUnits => {
             const upper = paramValue.toUpperCase();
             if (!/^\d+(MB|GB)$/.test(upper)) throw new Error(`Invalid container ${paramName}: ${paramValue}`);
