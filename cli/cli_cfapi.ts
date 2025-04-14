@@ -11,6 +11,7 @@ import { AiImageClassificationInput, AiImageToTextInput, AiModelInput, AiObjectD
 import { TextLineStream, sortBy } from './deps_cli.ts';
 import { pullQueueMessages } from '../common/cloudflare_api.ts';
 import { ByteUnits } from '../common/cloudflare_api.ts';
+import { dockerFetch, isManifest } from './docker_registry_api.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -1257,24 +1258,60 @@ function cfapiCommand() {
         }
     });
 
-    const generatePullCreds = async ({ accountId, apiToken }: { accountId: string, apiToken: string }) => {
-        const { registry_host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: [ 'pull' ] });
+    const generateRegistryCreds = async ({ accountId, apiToken, push }: { accountId: string, apiToken: string, push?: boolean }) => {
+        const { registry_host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: push ? [ 'pull', 'push' ] : [ 'pull' ] });
         const authorization = `Basic ${Bytes.ofUtf8(`${username}:${password}`).base64()}`;
         return { registry_host, authorization };
     }
 
     addCc(ccCommand('list-images', 'List images')
         , async (accountId, apiToken) => {
-        const { registry_host, authorization } = await generatePullCreds({ accountId, apiToken });
+        const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
         const res = await fetch(`https://${registry_host}/v2/_catalog`, { headers: { authorization } });
         console.log(await res.json());
     });
 
     addCc(ccCommand('list-tags', 'List tags').arg('repo', 'string', 'Repository')
         , async (accountId, apiToken, { repo }) => {
-        const { registry_host, authorization } = await generatePullCreds({ accountId, apiToken });
+        const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
         const res = await fetch(`https://${registry_host}/v2/${repo}/tags/list`, { headers: { authorization } });
         console.log(await res.json());
+    });
+
+    addCc(ccCommand('dump-tag', 'Dump information about a tag').arg('repo', 'string', 'Repository name').arg('tag', 'string', 'Tag name')
+        , async (accountId, apiToken, { repo, tag }) => {
+        const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
+        const tagManifest = await dockerFetch(`https://${registry_host}/v2/${repo}/manifests/${tag}`, { authorization });
+        console.log(tagManifest);
+        if (isManifest(tagManifest)) {
+            const config = await dockerFetch(`https://${registry_host}/v2/${repo}/blobs/${tagManifest.config.digest}`, { authorization });
+            console.log(config);
+        }
+    });
+
+    addCc(ccCommand('dump-blob', 'Dump blob by digest').arg('repo', 'string', 'Repository name').arg('digest', 'string', 'Digest string')
+        , async (accountId, apiToken, { repo, digest }) => {
+        const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
+        const value = await dockerFetch(`https://${registry_host}/v2/${repo}/blobs/${digest}`, { authorization });
+        console.log(value instanceof Bytes ? `<${value.length} bytes>` : value);
+    });
+
+    addCc(ccCommand('delete-tag', 'Delete a tag').arg('repo', 'string', 'Repository name').arg('tag', 'string', 'Tag name')
+        , async (accountId, apiToken, { repo, tag }) => {
+        const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken, push: true });
+        const tagManifest = await dockerFetch(`https://${registry_host}/v2/${repo}/manifests/${tag}`, { authorization });
+        if (!tagManifest) throw new Error(`${repo}:${tag} does not exist!`);
+        {
+            const res = await fetch(`https://${registry_host}/v2/${repo}/manifests/${tag}`, { method: 'DELETE', headers: { authorization } });
+            if (!res.ok) throw new Error(`Unexpected status ${res.status} deleting tag: ${await res.text()}`);
+            console.log('Deleted tag, triggering gc...');
+        }
+
+        {
+            const res = await fetch(`https://${registry_host}/v2/gc/layers`, { method: 'PUT', headers: { authorization } });
+            if (!res.ok) throw new Error(`Unexpected status ${res.status} triggering gc: ${await res.text()}`);
+            console.log('...triggered gc');
+        }
     });
 
     addCc(ccCommand('generate-registry-credentials', 'Generate credentials for managed cf registry')
