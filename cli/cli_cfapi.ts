@@ -12,7 +12,7 @@ import { TextLineStream, sortBy } from './deps_cli.ts';
 import { pullQueueMessages } from '../common/cloudflare_api.ts';
 import { ByteUnits } from '../common/cloudflare_api.ts';
 import { dockerFetch, isManifest } from './docker_registry_api.ts';
-import { dockerBuild } from './docker_cli.ts';
+import { dockerBuild, dockerLogin, dockerPush } from './docker_cli.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -1266,8 +1266,9 @@ function cfapiCommand() {
 
     const generateRegistryCreds = async ({ accountId, apiToken, push }: { accountId: string, apiToken: string, push?: boolean }) => {
         const { registry_host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: push ? [ 'pull', 'push' ] : [ 'pull' ] });
+        if (!password) throw new Error();
         const authorization = `Basic ${Bytes.ofUtf8(`${username}:${password}`).base64()}`;
-        return { registry_host, authorization };
+        return { registry_host, authorization, username, password };
     }
 
     addCc(ccCommand('list-images', 'List images')
@@ -1338,15 +1339,23 @@ function cfapiCommand() {
     });
 
     addCc(ccCommand('build', 'Docker build').arg('repo', 'string', 'Local repo name within the cf managed registry').arg('dockerfile', 'string', 'Path to dockerfile')
-        , async (_accountId, _apiToken, { repo, dockerfile }) => {
+            .option('pushTag', 'string', 'Push to registry using this tag')
+        , async (accountId, apiToken, { repo, dockerfile, pushTag: pushTagParam }) => {
 
         checkMatches('repo', repo, /^[a-z0-9-]+$/);
+        const pushTag = pushTagParam ? `${CLOUDFLARE_MANAGED_REGISTRY}/${repo}:${pushTagParam}` : undefined;
         const latestTag = `${CLOUDFLARE_MANAGED_REGISTRY}/${repo}:latest`;
-        const { digest } = await dockerBuild(dockerfile, { tag: latestTag });
-        console.log({ digest });
-        
-    });
+        const { digest } = await dockerBuild(dockerfile, { tag: latestTag, otherTags: pushTag ? [ pushTag ] : undefined });
+        console.log(`digest: ${digest}`);
 
+        if (typeof pushTag === 'string') {
+            console.log(`pushing: ${pushTag}`);
+            const { registry_host: host,  username, password } = await generateRegistryCreds({ accountId, apiToken, push: true });
+            await dockerLogin({ username, password, host });
+            await dockerPush(pushTag);
+            console.log(`pushed`);
+        }
+    });
 
     rt.subcommand(cc, (args, options) => {
         cc.routeSubcommand(args, options);
