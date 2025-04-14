@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -12,6 +12,7 @@ import { TextLineStream, sortBy } from './deps_cli.ts';
 import { pullQueueMessages } from '../common/cloudflare_api.ts';
 import { ByteUnits } from '../common/cloudflare_api.ts';
 import { dockerFetch, isManifest } from './docker_registry_api.ts';
+import { dockerBuild } from './docker_cli.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -1246,6 +1247,11 @@ function cfapiCommand() {
         console.log(value);
     });
 
+    addCc(ccCommand('delete-deployment', 'Delete a deployment').arg('deploymentId', 'string', 'Deployment ID')
+        , async (accountId, apiToken, { deploymentId }) => {
+        await deleteCloudchamberDeployment({ accountId, apiToken, deploymentId });
+    });
+
     addCc(ccCommand('get-customer', 'Get customer info')
         , async (accountId, apiToken) => {
         const { locations, ...customer } = await getCloudchamberCustomer({ accountId, apiToken });
@@ -1330,6 +1336,17 @@ function cfapiCommand() {
         const registry = await createCloudchamberImageRegistry({ accountId, apiToken, config: { domain, is_public } });
         console.log(registry);
     });
+
+    addCc(ccCommand('build', 'Docker build').arg('repo', 'string', 'Local repo name within the cf managed registry').arg('dockerfile', 'string', 'Path to dockerfile')
+        , async (_accountId, _apiToken, { repo, dockerfile }) => {
+
+        checkMatches('repo', repo, /^[a-z0-9-]+$/);
+        const latestTag = `${CLOUDFLARE_MANAGED_REGISTRY}/${repo}:latest`;
+        const { digest } = await dockerBuild(dockerfile, { tag: latestTag });
+        console.log({ digest });
+        
+    });
+
 
     rt.subcommand(cc, (args, options) => {
         cc.routeSubcommand(args, options);
