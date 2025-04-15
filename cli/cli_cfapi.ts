@@ -11,7 +11,7 @@ import { AiImageClassificationInput, AiImageToTextInput, AiModelInput, AiObjectD
 import { TextLineStream, sortBy } from './deps_cli.ts';
 import { pullQueueMessages } from '../common/cloudflare_api.ts';
 import { ByteUnits } from '../common/cloudflare_api.ts';
-import { dockerFetch, isManifest } from './docker_registry_api.ts';
+import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
 import { dockerBuild, dockerLogin, dockerPush } from './docker_cli.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
@@ -1267,7 +1267,7 @@ function cfapiCommand() {
     const generateRegistryCreds = async ({ accountId, apiToken, push }: { accountId: string, apiToken: string, push?: boolean }) => {
         const { registry_host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: push ? [ 'pull', 'push' ] : [ 'pull' ] });
         if (!password) throw new Error();
-        const authorization = `Basic ${Bytes.ofUtf8(`${username}:${password}`).base64()}`;
+        const authorization = computeBasicAuthorization({ username, password });
         return { registry_host, authorization, username, password };
     }
 

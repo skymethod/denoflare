@@ -37,21 +37,22 @@ export type ImageIndex = {
     }[],
 }
 
-export async function dockerFetch(url: string, { authorization }: { authorization?: string }): Promise<Manifest | ImageIndex | Record<string, unknown> | Bytes | undefined> {
-    const res = await fetch(url, { headers: { ...(authorization && { authorization }), accept: 'application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json' } });
+export async function dockerFetch(url: string, { authorization, outDockerContentDigest = [] }: { authorization?: string, outDockerContentDigest?: string[] }): Promise<Manifest | ImageIndex | Record<string, unknown> | Bytes | undefined> {
+    const res = await fetch(url, { headers: { ...(authorization && { authorization }) } });
     if (res.status === 404) return undefined;
  
     if (!res.ok) throw new Error(`Unexpected status ${res.status} for ${url}`);
     const [ contentType, dockerContentDigest ] = [ 'content-type', 'docker-content-digest' ].map(v => res.headers.get(v));
 
     if (typeof dockerContentDigest !== 'string') throw new Error(`No docker-content-digest for ${url}`);
+    outDockerContentDigest.push(dockerContentDigest);
     const expectedSha256 = /^sha256:([0-9a-f]{64})$/.exec(dockerContentDigest)?.at(1);
     if (!expectedSha256) throw new Error(`Unexpected docker-content-digest ${dockerContentDigest} for ${url}`);
     const bytes = new Bytes(new Uint8Array(await res.arrayBuffer()));
     const computedSha256 = (await bytes.sha256()).hex();
     if (expectedSha256 !== computedSha256) throw new Error(`Invalid docker-content-digest ${dockerContentDigest} (computed sha256:${computedSha256}) for ${url}`);
     
-    if (contentType === 'application/vnd.oci.image.index.v1+json') {
+    if (contentType === 'application/vnd.oci.image.index.v1+json' || contentType === 'application/vnd.docker.distribution.manifest.v2+json') {
         return JSON.parse(bytes.utf8()) as ImageIndex;
     } else if (contentType === 'application/vnd.oci.image.manifest.v1+json') {
         return JSON.parse(bytes.utf8()) as Manifest;
@@ -60,4 +61,8 @@ export async function dockerFetch(url: string, { authorization }: { authorizatio
         return bytes;
     }
     throw new Error();
+}
+
+export function computeBasicAuthorization({ username, password }: { username: string, password: string }): string {
+    return `Basic ${Bytes.ofUtf8(`${username}:${password}`).base64()}`;
 }

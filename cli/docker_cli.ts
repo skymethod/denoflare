@@ -27,22 +27,35 @@ export async function dockerBuild(dockerfile: string, { tag, dockerBin = 'docker
         if (!output.success) throw new Error(`Docker build failed`);
     }
 
-    {
-        const output = await new Deno.Command(dockerBin, {
-            args: [ 
-                'images',
-                '--no-trunc',
-                '--quiet',
-                tag
-            ],
-        }).output();
-        if (!output.success) throw new Error(`Docker images failed`);
+    const digest = await dockerImageDigest(tag, { dockerBin });
+    return { digest };
+}
 
-        const digest = new TextDecoder().decode(output.stdout).trim();
-        checkMatches('digest', digest, /^sha256:[0-9a-f]{64}$/);
-        return { digest };
-    }
+export async function dockerImageDigest(tag: string, { dockerBin = 'docker' }: { dockerBin?: string } = {}): Promise<string> {
+    const output = await new Deno.Command(dockerBin, {
+        args: [ 
+            'images',
+            '--no-trunc',
+            '--quiet',
+            tag
+        ],
+    }).output();
+    if (!output.success) throw new Error(`Docker images failed`);
 
+    const digest = new TextDecoder().decode(output.stdout).trim();
+    checkMatches('digest', digest, /^sha256:[0-9a-f]{64}$/);
+    return digest;
+}
+
+export async function dockerTag(sourceTag: string, targetTag: string, { dockerBin = 'docker' }: { dockerBin?: string } = {}): Promise<void> {
+    const output = await new Deno.Command(dockerBin, {
+        args: [ 
+            'tag',
+            sourceTag,
+            targetTag,
+        ],
+    }).output();
+    if (!output.success) throw new Error(`Docker tag failed`);
 }
 
 export async function dockerPush(image: string, { dockerBin = 'docker' }: { dockerBin?: string } = {}) {

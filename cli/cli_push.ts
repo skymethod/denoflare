@@ -9,7 +9,8 @@ import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { parseCryptoKeyDef } from '../common/crypto_keys.ts';
-import { dockerBuild, dockerLogin, dockerPush } from './docker_cli.ts';
+import { dockerBuild, dockerImageDigest, dockerLogin, dockerPush, dockerTag } from './docker_cli.ts';
+import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
 
 export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare worker script to Cloudflare')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
@@ -81,7 +82,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
         if (containers?.length ?? 0 > 0) {
-            await ensureContainerApplicationsExist({ scriptName, accountId, apiToken, doNamespaces });
+            await ensureContainerApplicationsExist({ scriptName, accountId, apiToken, doNamespaces, initial: pushNumber === 1 });
         }
 
         // only perform migrations on first upload, not on subsequent --watch uploads
@@ -205,7 +206,7 @@ async function rewriteScriptContents(scriptContents: string, rootSpecifier: stri
     })
 }
 
-async function ensureContainerApplicationsExist({ scriptName, accountId, apiToken,  doNamespaces }: { scriptName: string, accountId: string, apiToken: string, doNamespaces: DurableObjectNamespaces }) {
+async function ensureContainerApplicationsExist({ scriptName, accountId, apiToken,  doNamespaces, initial }: { scriptName: string, accountId: string, apiToken: string, doNamespaces: DurableObjectNamespaces, initial: boolean }) {
     console.log('ensuring container applications exist...');
     for (const [ namespaceId, containerSpec ] of doNamespaces.namespaceIdsToContainerSpecs) {
         const namespaceName = doNamespaces.namespaceIdsToNamespaceNames.get(namespaceId);
@@ -236,17 +237,48 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
             const imageBase = local ? `${CLOUDFLARE_MANAGED_REGISTRY}/${prefix}` : prefix;
             if (suffix.startsWith('.') || suffix.startsWith('/')) {
                 if (!local) throw new Error(`Can only local develop with cf-managed repo`);
+
                 const dockerfile = suffix;
                 const latestTag = `${imageBase}:latest`;
-                const buildId = new Date().toISOString().replaceAll(/[^\d]+/g, '').padEnd(17, '0');
-                const buildTag = `${imageBase}:${buildId}`;
-                console.log('docker building...');
-                await dockerBuild(dockerfile, { tag: latestTag, otherTags: [ buildTag ] });
+                let initialDigest: string | undefined;
+                if (initial) {
+                    console.log('docker building...');
+                    initialDigest = (await dockerBuild(dockerfile, { tag: latestTag })).digest;
+                }
                 const { registry_host: host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: [ 'pull', 'push' ] }); // TODO keep around if watching
                 if (!password) throw new Error();
+                const authorization = computeBasicAuthorization({ username, password });
+                
+                // may not need to push at all if remote digest = current local digest
+                if (existing?.configuration.image && existing.configuration.image.startsWith(imageBase + ':')) {
+                    const tagUrl = `https://${host}/v2/${prefix}/manifests/${existing.configuration.image.split(':')[1]}`;
+                    const outDockerContentDigest: string[] = []
+                    const tagManifest = await dockerFetch(tagUrl, { authorization, outDockerContentDigest });
+                    const [ remoteDigest ] = outDockerContentDigest;
+                    if (isManifest(tagManifest) && remoteDigest) {
+                        const localDigest = await dockerImageDigest(latestTag);
+                        if (localDigest === remoteDigest) {
+                            console.log(`...latest local image digest matches existing remote`);
+                            return existing.configuration.image;
+                        }
+                    }
+                }
+
+                // build and push
+                const buildId = [ new Date().toISOString().replaceAll(/[^\d]+/g, '').padEnd(17, '0') ].map(v => `${v.substring(0, 8)}.${v.substring(8, 14)}.${v.substring(14)}` )[0];
+                const buildTag = `${imageBase}:${buildId}`;
+                if (initialDigest) {
+                    // we already built
+                    await dockerTag(initialDigest, buildTag);
+                } else {
+                    console.log('docker building...');
+                    await dockerBuild(dockerfile, { tag: latestTag, otherTags: [ buildTag ] });
+                }
+                
                 console.log('docker pushing...');
                 await dockerLogin({ username, password, host });
                 await dockerPush(buildTag);
+                
                 return buildTag;
             } else {
                 return `${imageBase}:${suffix}`;
