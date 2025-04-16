@@ -2584,6 +2584,12 @@ export type CloudchamberPlacement = {
 	durable_object_actor_id?: string,
 }
 
+export async function listCloudchamberPlacements(opts: { accountId: string, apiToken: string, deploymentId: string }): Promise<unknown[]> {
+    const { accountId, apiToken, deploymentId } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/cloudchamber/deployments/${deploymentId}/placements`);
+    return (await execute<unknown[]>('listCloudchamberPlacements', 'GET', url.toString(), apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
+}
+
 export async function getCloudchamberCustomer(opts: { accountId: string, apiToken: string }): Promise<CloudchamberCustomer> {
     const { accountId, apiToken } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/me`;
