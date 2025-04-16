@@ -103,7 +103,6 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
     // deno bundle is finally going away in deno 2
     // the way forward is esbuild and esbuild-deno-loader
     if (backend === 'esbuild' || versionCompare(Deno.version.deno, '2.0.0') >= 0) {
-        // TODO verify existing transformations or include in custom plugin?
         // TODO other esbuild options?
 
         // deno bundle type-checked by default, so we will too (not handled by esbuild or esbuild deno loader)
@@ -133,11 +132,70 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
             const { denoPlugins } = await import(loaderModuleUrl);
 
             type OutputFile = { path: string, contents: Uint8Array, hash: string, text: string };
-            type BuildResult = { errors: unknown[], warnings: unknown[], outputFiles: OutputFile[], metafile: unknown, mangleCache: unknown};
+            type BuildResult = { errors: unknown[], warnings: unknown[], outputFiles: OutputFile[], metafile: unknown, mangleCache: unknown };
+            type LoadArgs = { namespace: string, path: string };  // https, //deno.land/std/...  or file, /abs/path/to/file.ts
+            type Build = { onLoad: (opts: { filter: RegExp }, fn: (args: LoadArgs) => unknown) => void };
+            
+            // we need to swap out import.meta when necessary, like deno bundle, to support our importText/etc magic
+            // first, collect all input entries
+            const inputHttpsUrls: string[] = [];
+            const inputFiles: string[] = [];
+            const collectionLoader = {
+                name: 'collection',
+                setup(build: Build) {
+                    build.onLoad({ filter: /.*/ }, ({ namespace, path }: LoadArgs) => {
+                        if (namespace === 'https') {
+                            if (!path.startsWith('//')) throw new Error(`Unexpected esbuild https path: ${path}`);
+                            inputHttpsUrls.push(`${namespace}:${path}`);
+                        } else if (namespace === 'file') {
+                            if (!isAbsolute(path)) throw new Error(`Unexpected esbuild file path: ${path}`);
+                            inputFiles.push(path);
+                        } else {
+                            if (!path.startsWith('//')) throw new Error(`Unexpected esbuild namespace: ${namespace}`);
+                        }
+                        return undefined; // keep going, let the Deno loader actually load
+                    });
+                }
+            }
+            // after the bundle, transform every import.meta.url reference -> importMeta(n).url
+            /*
+                const importMeta = {
+                    url: "file:///path/to/file.ts",
+                    main: import.meta.main
+                };
+                const assetTxt = await importText(importMeta.url, './asset.txt');
+            */
+            const transformOutput = (script: string): string => {
+                if (script.indexOf('import.meta.url') < 0) return script;
+                const lines = script.split('\n');
+                let importMetaNum = 1;
+                let currentImportMetaVarName = '';
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i];
+                    if (line.startsWith('// ') && lines[i - 1] === '') {
+                        const suffix = line.substring(3);
+                        let importMetaUrl: string | undefined;
+                        if (inputHttpsUrls.includes(suffix)) {
+                            importMetaUrl = suffix;
+                        } else if (inputFiles.includes('/' + suffix)) {
+                            importMetaUrl = `file:///${suffix}`;
+                        }
+                        if (importMetaUrl !== undefined) {
+                            // TODO only spit these out for files that need them
+                            currentImportMetaVarName = `importMeta${importMetaNum++}`;
+                            lines[i] = `const ${currentImportMetaVarName} = { url: "${importMetaUrl}" }; ${line}`;
+                        }
+                    } else {
+                        lines[i] = lines[i].replaceAll('import.meta.url', `${currentImportMetaVarName}.url`);
+                    }
+                }
+                return lines.join('\n');
+            }
             const result = await esbuild.build({
-                plugins: [ ...denoPlugins({ loader, configPath }) ],
+                plugins: [ collectionLoader, ...denoPlugins({ loader, configPath }) ],
                 entryPoints: [ rootSpecifier ],
                 outfile: 'output.esm.js',
+                absWorkingDir: '/', // ensures boundary comments contain absolute file paths (minus leading /)
                 write: false,
                 bundle: true,
                 platform: 'browser',
@@ -145,7 +203,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
             }) as BuildResult;
             if (result.errors.length > 0 || result.warnings.length > 0 || result.outputFiles.length !== 1) throw new Error(`Unexpected esbuild result: ${JSON.stringify(result)}`);
 
-            const code = result.outputFiles[0].text;
+            const code = transformOutput(result.outputFiles[0].text);
             return { code, backend: 'esbuild' };
         } finally {
             if (configPath) {
