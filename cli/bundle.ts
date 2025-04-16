@@ -122,7 +122,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
                 configPath = await Deno.makeTempFile({ prefix: 'denoflare-esbuild-bundle', suffix: '.json'});
                 await Deno.writeTextFile(configPath, JSON.stringify({ compilerOptions, lock: false }));
             }
-            const { loader = 'native', loaderModule = '^0.11.0', esbuildModule = '0.23.0', ...unknownOptions } = rest;
+            const { loader = 'native', loaderModule = '^0.11.1', esbuildModule = '0.25.2', ...unknownOptions } = rest;
             if (Object.keys(unknownOptions).length > 0) throw new Error(`Unknown esbuild bundler option${Object.keys(unknownOptions).length === 1 ? '' : 's'}: ${JSON.stringify(unknownOptions)}`);
 
             if (loader !== 'native' && loader !== 'portable') throw new Error(`Invalid esbuild loader: expected 'native' or 'portable'`);
