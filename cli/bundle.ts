@@ -170,6 +170,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
                 const lines = script.split('\n');
                 let importMetaNum = 1;
                 let currentImportMetaVarName = '';
+                let currentBoundary: { index: number, importMetaUrl: string, tweaked?: boolean } | undefined;
                 for (let i = 1; i < lines.length; i++) {
                     const line = lines[i];
                     if (line.startsWith('// ') && lines[i - 1] === '') {
@@ -181,12 +182,18 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
                             importMetaUrl = `file:///${suffix}`;
                         }
                         if (importMetaUrl !== undefined) {
-                            // TODO only spit these out for files that need them
-                            currentImportMetaVarName = `importMeta${importMetaNum++}`;
-                            lines[i] = `const ${currentImportMetaVarName} = { url: "${importMetaUrl}" }; ${line}`;
+                            currentBoundary = { index: i, importMetaUrl };
                         }
                     } else {
-                        lines[i] = lines[i].replaceAll('import.meta.url', `${currentImportMetaVarName}.url`);
+                        lines[i] = lines[i].replaceAll('import.meta.url', (substring: string) => {
+                            if (!currentBoundary) return substring;
+                            if (!currentBoundary.tweaked) {
+                                currentImportMetaVarName = `importMeta${importMetaNum++}`;
+                                lines[currentBoundary.index] = `const ${currentImportMetaVarName} = { url: "${currentBoundary.importMetaUrl}" }; ${lines[currentBoundary.index]}`;
+                                currentBoundary.tweaked = true;
+                            }
+                            return `${currentImportMetaVarName}.url`;
+                        });
                     }
                 }
                 return lines.join('\n');
