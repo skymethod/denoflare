@@ -165,7 +165,7 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
 export type ReplacerOpts = { line: string, variableName: string, importMetaVariableName: string, unquotedModuleSpecifier: string, relativePath: string, value: Blob, valueBytes: Uint8Array };
 
 export async function replaceImports(scriptContents: string, rootSpecifier: string, replacer: (opts: ReplacerOpts) => Promise<string> | string) : Promise<string> {
-    const p = /const\s+([a-zA-Z0-9_]+)\s*=\s*await\s+import(Wasm|Text|Binary)\d*\(\s*(importMeta\d*)\.url\s*,\s*(['"`])((https:\/|\.|\.\.)\/[\/.a-zA-Z0-9_@-]+)\4\s*\)\s*;?/g;
+    const p = /(const|var)\s+([a-zA-Z0-9_]+)\s*=\s*await\s+import(Wasm|Text|Binary)\d*\(\s*(importMeta\d*)\.url\s*,\s*(['"`])((https:\/|\.|\.\.)\/[\/.a-zA-Z0-9_@-]+)\5\s*\)\s*;?/g;
     let m: RegExpExecArray | null;
     let i = 0;
     const pieces = [];
@@ -173,10 +173,10 @@ export async function replaceImports(scriptContents: string, rootSpecifier: stri
         const { index } = m;
         pieces.push(scriptContents.substring(i, index));
         const line = m[0];
-        const variableName = m[1];
-        const importType = m[2];
-        const importMetaVariableName = m[3];
-        const unquotedModuleSpecifier = m[5];
+        const variableName = m[2];
+        const importType = m[3];
+        const importMetaVariableName = m[4];
+        const unquotedModuleSpecifier = m[6];
 
         const importMetaUrl = findImportMetaUrl(importMetaVariableName, scriptContents);
         const { relativePath, valueBytes, valueType } = await resolveImport({ importType, importMetaUrl, unquotedModuleSpecifier, rootSpecifier });
