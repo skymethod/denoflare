@@ -107,6 +107,7 @@ export type PutScriptOpts = {
     compatibilityFlags?: string[],
     observability?: Observability,
     containers?: { class_name: string }[],
+    limits?: { cpu_ms: number },
 };
 
 export async function putScript(opts: PutScriptOpts): Promise<Script> {
@@ -161,7 +162,7 @@ export interface ScriptVersionResourcesScript {
 }
 
 function computeUploadForm(opts: PutScriptOpts): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers } = opts;
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -173,6 +174,7 @@ function computeUploadForm(opts: PutScriptOpts): FormData {
         compatibility_flags: compatibilityFlags,
         observability,
         containers,
+        limits,
     };
 
     if (isModule) {

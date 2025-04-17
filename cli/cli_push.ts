@@ -24,6 +24,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('compatibilityFlag', 'strings', 'Specific compatibility flags for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags')
     .option('observability', 'boolean', 'Enable or disable observability for the worker')
     .option('observabilitySampleRate', 'string', 'Observability sample rate, from 0 (0%) to 1 (100%)')
+    .option('cpuLimit', 'integer', 'Maximum CPU time this worker is allowed to run, in milliseconds. default = 30000 (30 seconds)')
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
     .option('versionTag', 'string', 'If set, push a new version with this tag')
     .include(commandOptionsForInputBindings)
@@ -36,7 +37,23 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (PUSH_COMMAND.dumpHelp(args, options)) return;
 
     const opt = PUSH_COMMAND.parse(args, options);
-    const { scriptSpec, verbose, name: nameOpt, customDomain: customDomainOpt, workersDev: workersDevOpt, logpush: logpushOpt, compatibilityDate: compatibilityDateOpt, compatibilityFlag: compatibilityFlagOpt, deleteClass: deleteClassOpt, watch, watchInclude, versionTag, observability: observabilityOpt, observabilitySampleRate } = opt;
+    const {
+        scriptSpec,
+        verbose, 
+        name: nameOpt,
+        customDomain: customDomainOpt, 
+        workersDev: workersDevOpt, 
+        logpush: logpushOpt, 
+        compatibilityDate: compatibilityDateOpt, 
+        compatibilityFlag: compatibilityFlagOpt, 
+        deleteClass: deleteClassOpt, 
+        watch, 
+        watchInclude, 
+        versionTag, 
+        observability: observabilityOpt, 
+        observabilitySampleRate,
+        cpuLimit: cpuLimitOpt,
+     } = opt;
 
     if (verbose) {
         // in cli
@@ -79,6 +96,8 @@ export async function push(args: (string | number)[], options: Record<string, un
             : undefined;
         const { bindings, parts } = await computeBindings(inputBindings, scriptName, doNamespaces, pushId);
         const containers = doNamespaces.containerClassNames.length > 0 ? doNamespaces.containerClassNames.map(v => ({ class_name: v })) : undefined;
+        const cpuLimit = cpuLimitOpt ?? script?.cpuLimit;
+        const limits = cpuLimit !== undefined ? { cpu_ms: cpuLimit } : undefined;
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
         if (containers?.length ?? 0 > 0) {
@@ -100,7 +119,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits };
         if (typeof versionTag === 'string') {
             await putScriptVersion({ ...putScriptOpts, tagAnnotation: versionTag });
         } else {

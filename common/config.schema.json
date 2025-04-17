@@ -288,6 +288,10 @@
                             "description": "If specified, set the rate of observability sampling for this worker. From 0 (0%) to 1 (100%)",
                             "type": "number"
                         },
+                        "cpuLimit": {
+                            "description": "If specified, the maximum CPU time this worker is allowed to run, in milliseconds. default = 30000 (30 seconds)",
+                            "type": "number"
+                        },
                         "lambda": {
                             "description": "Name-value pairs to use when pushing to AWS Lambda.",
                             "type": "string"

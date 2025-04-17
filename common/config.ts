@@ -110,6 +110,9 @@ export interface Script {
     /** Observability sample rate, from 0 to 1 (100%, default) */
     readonly observabilitySampleRate?: number;
 
+    /** Maximum CPU time this worker is allowed to run, in milliseconds. default = 30000 (30 seconds) */
+    readonly cpuLimit?: number;
+
     /** Name-value pairs to use when pushing to AWS Lambda. */
     readonly lambda?: string;
 

@@ -65,6 +65,10 @@ function isValidLocalPort(localPort: number): boolean {
     return Math.round(localPort) === localPort && localPort >= 0 && localPort <= 65535;
 }
 
+function isValidCpuLimit(cpuLimit: number): boolean {
+    return Number.isSafeInteger(cpuLimit) && cpuLimit >= 0;
+}
+
 function isValidAccountId(accountId: string): boolean {
     return /^[0-9a-f]{32}$/.test(accountId)
 }
@@ -80,7 +84,7 @@ function isValidCustomDomain(customDomain: string): boolean {
 // deno-lint-ignore no-explicit-any
 function checkScript(name: string, script: any): Script {
     checkObject(name, script);
-    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev, logpush, compatibilityDate, compatibilityFlags, lambda, deploy, supabase } = script;
+    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev, logpush, compatibilityDate, compatibilityFlags, lambda, deploy, supabase, cpuLimit } = script;
     if (path !== undefined && typeof path !== 'string') throw new Error(`Bad ${name}.path: expected string, found ${typeof path}`);
     if (bindings !== undefined) {
         checkObject(`${name}.bindings`, bindings);
@@ -109,6 +113,10 @@ function checkScript(name: string, script: any): Script {
     if (lambda !== undefined && typeof lambda !== 'string') throw new Error(`Bad ${name}.lambda: expected string, found ${typeof lambda} ${lambda}`);
     if (deploy !== undefined && typeof deploy !== 'string') throw new Error(`Bad ${name}.deploy: expected string, found ${typeof deploy} ${deploy}`);
     if (supabase !== undefined && typeof supabase !== 'string') throw new Error(`Bad ${name}.supabase: expected string, found ${typeof supabase} ${supabase}`);
+    if (cpuLimit !== undefined) {
+        if (typeof cpuLimit !== 'number') throw new Error(`Bad ${name}.cpuLimit: expected number, found ${typeof cpuLimit}`);
+        if (!isValidCpuLimit(cpuLimit)) throw new Error(`Bad ${name}.cpuLimit: ${cpuLimit}`);
+    }
 
     return script as Script;
 }
