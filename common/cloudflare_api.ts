@@ -184,10 +184,10 @@ function computeUploadForm(opts: PutScriptOpts): FormData {
     const metadataBlob = new Blob([ JSON.stringify(metadata) ], { type: APPLICATION_JSON });
     formData.set('metadata', metadataBlob);
     if (isModule) {
-        const scriptBlob = new Blob([ scriptContents.buffer ], { type: 'application/javascript+module' });
+        const scriptBlob = new Blob([ scriptContents.buffer as ArrayBuffer ], { type: 'application/javascript+module' });
         formData.set('script', scriptBlob, 'main');
     } else {
-        const scriptBlob = new Blob([ scriptContents.buffer ], { type: 'application/javascript' });
+        const scriptBlob = new Blob([ scriptContents.buffer as ArrayBuffer ], { type: 'application/javascript' });
         formData.set('script', scriptBlob);
     }
    

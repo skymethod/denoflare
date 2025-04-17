@@ -95,7 +95,7 @@ export async function runScript(script: ScriptDef, channel: RpcChannel) {
     const len = script.scriptContents.length;
     await channel.sendRequest('run-script', script, _responseData => {
         return {};
-    }, [ script.scriptContents.buffer ]);
+    }, [ script.scriptContents.buffer as ArrayBuffer ]);
     if (verbose) console.log(`runScript scriptContents.length=${len} took ${Date.now() - start}ms`);
 }
 

@@ -106,7 +106,7 @@ export type DurableObjectStorageProvider = (className: string, id: DurableObject
 //
 
 function computeSha1HexForStringInput(input: string): string {
-    return new Sha1().update(Bytes.ofUtf8(input).array()).hex();
+    return new Sha1().update(Bytes.ofUtf8(input).array().buffer as ArrayBuffer).hex();
 }
 
 //

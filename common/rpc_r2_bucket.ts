@@ -354,7 +354,7 @@ class RpcR2ObjectBody implements R2ObjectBody {
     }
 
     async arrayBuffer(): Promise<ArrayBuffer> {
-        return (await Bytes.ofStream(this.body)).array().buffer;
+        return (await Bytes.ofStream(this.body)).array().buffer as ArrayBuffer;
     }
 
     async text(): Promise<string> {

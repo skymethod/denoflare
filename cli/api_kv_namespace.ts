@@ -52,7 +52,7 @@ export class ApiKVNamespace implements KVNamespace {
         if (bytes === undefined) return null;
         const metadata = await getKeyMetadata(this.accountId, this.namespaceId, key, this.apiToken);
         if (opts && opts.type === 'arrayBuffer') {
-            const rt: KVValueAndMetadata<ArrayBuffer> = { value: bytes.buffer, metadata: metadata || null };
+            const rt: KVValueAndMetadata<ArrayBuffer> = { value: bytes.buffer as ArrayBuffer, metadata: metadata || null };
             return rt;
         }
         if (opts && opts.type === 'json') {

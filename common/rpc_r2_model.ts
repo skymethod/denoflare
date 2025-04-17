@@ -285,5 +285,5 @@ function packHash(hash: string | ArrayBuffer | undefined): string | undefined {
 
 function unpackArrayBuffer(hex: string | undefined): ArrayBuffer | undefined {
     if (hex === undefined) return undefined;
-    return Bytes.ofHex(hex).array().buffer;
+    return Bytes.ofHex(hex).array().buffer as ArrayBuffer;
 }

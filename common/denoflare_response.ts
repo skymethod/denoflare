@@ -53,7 +53,7 @@ export class DenoflareResponse {
 
     async arrayBuffer(): Promise<ArrayBuffer> {
         if (this.bodyInit instanceof ReadableStream) {
-            return (await Bytes.ofStream(this.bodyInit)).array().buffer;
+            return (await Bytes.ofStream(this.bodyInit)).array().buffer as ArrayBuffer;
         }
         throw new Error(`DenoflareResponse.arrayBuffer() bodyInit=${this.bodyInit}`);
     }

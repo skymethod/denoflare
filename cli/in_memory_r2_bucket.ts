@@ -146,7 +146,7 @@ class InMemoryR2ObjectBody extends InMemoryR2Object implements R2ObjectBody {
     async arrayBuffer(): Promise<ArrayBuffer> {
         await Promise.resolve();
         this.bodyUsed_ = true;
-        return this.bytes.buffer;
+        return this.bytes.buffer as ArrayBuffer;
     }
 
     async text(): Promise<string> {
