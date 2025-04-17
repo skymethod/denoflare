@@ -208,6 +208,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
                 platform: 'browser',
                 format: 'esm',
             }) as BuildResult;
+            if (esbuildModuleUrl.includes('wasm')) esbuild.stop();  // required for wasm to allow calling process to exit
             if (result.errors.length > 0 || result.warnings.length > 0 || result.outputFiles.length !== 1) throw new Error(`Unexpected esbuild result: ${JSON.stringify(result)}`);
 
             const code = transformOutput(result.outputFiles[0].text);
