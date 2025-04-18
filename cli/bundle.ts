@@ -198,9 +198,10 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
                 }
                 return lines.join('\n');
             }
+            const absRootSpecifier = !rootSpecifier.startsWith('https://') && !isAbsolute(rootSpecifier) ? resolve(rootSpecifier) : rootSpecifier;
             const result = await esbuild.build({
                 plugins: [ collectionLoader, ...denoPlugins({ loader, configPath }) ],
-                entryPoints: [ rootSpecifier ],
+                entryPoints: [ absRootSpecifier ],
                 outfile: 'output.esm.js',
                 absWorkingDir: '/', // ensures boundary comments contain absolute file paths (minus leading /)
                 write: false,
