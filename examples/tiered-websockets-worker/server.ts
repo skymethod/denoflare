@@ -36,7 +36,7 @@ export class Server {
                     this.broadcast({ t: 'opened', clientId, clients: this.sockets.size, debug });
                 }
             } catch (e) {
-                this.broadcast({ t: 'messageError', clientId, msg: `Error handling event.data: ${event.data}, ${e.stack || e}` });
+                this.broadcast({ t: 'messageError', clientId, msg: `Error handling event.data: ${event.data}, ${(e as Error).stack || e}` });
             }
         })
         socket.addEventListener('close', event => {

@@ -69,7 +69,7 @@ export default {
     
             return new Response(`not found: ${url}`, { status: 404 });
         } catch (e) {
-            return new Response(`${e.stack || e}`, { status: 500 });
+            return new Response(`${(e as Error).stack || e}`, { status: 500 });
         }
     }
 

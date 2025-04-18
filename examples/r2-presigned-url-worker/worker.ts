@@ -8,10 +8,10 @@ export default {
         try {
             return await computeResponse(request, env);
         } catch (e) {
-            if (typeof e === 'object' && tryParseMessageCode(e.message) === 10039) { // The requested range is not satisfiable (10039)
-                return new Response(e.message, { status: 416 });
+            if (typeof e === 'object' && tryParseMessageCode((e as Error).message) === 10039) { // The requested range is not satisfiable (10039)
+                return new Response((e as Error).message, { status: 416 });
             }
-            return new Response(`${e.stack || e}`, { status: 500 });
+            return new Response(`${(e as Error).stack || e}`, { status: 500 });
         }
     }
 
@@ -347,7 +347,7 @@ https://<host>/<bucket-name>/<key>
         // authorized!
         return credential;
     } catch (e) {
-        console.log(`isPresignedUrlAuthorized error: ${e.message}`);
+        console.log(`isPresignedUrlAuthorized error: ${(e as Error).message}`);
         return undefined;
     }
 }
