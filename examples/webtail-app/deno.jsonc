@@ -3,6 +3,8 @@
         "lib": [
             "dom", "dom.iterable", "esnext"
         ]
-    }
+    },
+    "lock": false,
+    "fmt": { "singleQuote": true }
     
 }

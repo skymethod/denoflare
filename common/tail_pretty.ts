@@ -109,6 +109,12 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
             }
         }
     }
+    if (message?.cpuTime ?? 0 > 0) {
+        logger(` %c|%c [%ccpu%c] %c${message.cpuTime}ms`, 'color: gray', '', `color: gray`, '', 'color: gray');
+    }
+    if (message?.wallTime ?? 0 > 0) {
+        logger(` %c|%c [%cwal%c] %c${message.wallTime}ms`, 'color: gray', '', `color: gray`, '', 'color: gray');
+    }
     if (message.diagnosticsChannelEvents && message.diagnosticsChannelEvents.length > 0) {
         logger(` diagnosticsChannelEvents: ${JSON.stringify(message.diagnosticsChannelEvents)}`);
     }

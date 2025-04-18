@@ -1181,7 +1181,7 @@ async function execute(op, method, url, apiToken, body, responseType = 'json', r
     }
     const response = await fetchResponse.json();
     if (nonStandardResponse) {
-        if (fetchResponse.status === 200) {
+        if (fetchResponse.ok) {
             const synthetic = {
                 success: true,
                 result: response,
@@ -1198,6 +1198,12 @@ async function execute(op, method, url, apiToken, body, responseType = 'json', r
             'bytes?',
             'json?'
         ].includes(responseType)) return undefined;
+        if ('error' in apiResponse && typeof apiResponse.error === 'string') throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, error=${apiResponse.error}`, fetchResponse.status, [
+            {
+                code: fetchResponse.status,
+                message: apiResponse.error
+            }
+        ]);
         throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map((v)=>`${v.code} ${v.message}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
     }
     return apiResponse;
@@ -1275,7 +1281,9 @@ const ALL_TAIL_MESSAGE_KEYS = new Set([
     'diagnosticsChannelEvents',
     'scriptVersion',
     'truncated',
-    'executionModel'
+    'executionModel',
+    'wallTime',
+    'cpuTime'
 ]);
 const KNOWN_OUTCOMES = new Set([
     'ok',
@@ -1288,7 +1296,7 @@ function parseTailMessage(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     const objAsAny = obj;
-    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated, executionModel } = objAsAny;
+    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated, executionModel, wallTime, cpuTime } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (scriptVersion !== undefined && !(isStringRecord1(scriptVersion) && typeof scriptVersion.id === 'string')) throw new Error(`Unexpected scriptVersion: ${JSON.stringify(scriptVersion)}`);
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[
@@ -1297,6 +1305,8 @@ function parseTailMessage(obj) {
     if (scriptName !== null && typeof scriptName !== 'string') throw new Error(`Bad scriptName: expected string or null, found ${JSON.stringify(scriptName)}`);
     if (!(truncated === undefined || typeof truncated === 'boolean')) throw new Error(`Bad truncated: expected boolean, found ${JSON.stringify(truncated)}`);
     if (!(executionModel === undefined || typeof executionModel === 'string')) throw new Error(`Bad executionModel: expected string, found ${JSON.stringify(executionModel)}`);
+    if (!(wallTime === undefined || typeof wallTime === 'number')) throw new Error(`Bad wallTime: expected number, found ${JSON.stringify(wallTime)}`);
+    if (!(cpuTime === undefined || typeof cpuTime === 'number')) throw new Error(`Bad cpuTime: expected number, found ${JSON.stringify(cpuTime)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);
     if (eventTimestamp === null && objAsAny.event === null) {
@@ -1320,7 +1330,9 @@ function parseTailMessage(obj) {
         event,
         diagnosticsChannelEvents,
         truncated,
-        executionModel
+        executionModel,
+        wallTime,
+        cpuTime
     };
 }
 function parseLogs(obj) {
@@ -1692,6 +1704,12 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
                 logger(` %c|%c [%cres%c] %c${response.status}`, 'color: gray', '', `color: gray`, '', 'color: gray');
             }
         }
+    }
+    if (message?.cpuTime ?? 0 > 0) {
+        logger(` %c|%c [%ccpu%c] %c${message.cpuTime}ms`, 'color: gray', '', `color: gray`, '', 'color: gray');
+    }
+    if (message?.wallTime ?? 0 > 0) {
+        logger(` %c|%c [%cwal%c] %c${message.wallTime}ms`, 'color: gray', '', `color: gray`, '', 'color: gray');
     }
     if (message.diagnosticsChannelEvents && message.diagnosticsChannelEvents.length > 0) {
         logger(` diagnosticsChannelEvents: ${JSON.stringify(message.diagnosticsChannelEvents)}`);
@@ -5828,3 +5846,4 @@ vm.onChange = ()=>{
 CloudflareApi.URL_TRANSFORMER = CfGqlClient.URL_TRANSFORMER = (v)=>`/fetch/${v.substring('https://'.length)}`;
 vm.start();
 setAppState('started');
+
