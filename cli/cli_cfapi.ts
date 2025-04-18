@@ -1152,6 +1152,12 @@ function cfapiCommand() {
         console.log(value);
     });
 
+    if ((Deno.permissions.querySync({ name: 'env', variable: 'CC' })).state === 'granted' && Deno.env.get('CC') === '1') cc(rt);
+
+    return rt;
+}
+
+function cc(rt: CliCommand<unknown>) {
     rt.subcommandGroup();
 
     const ccCommand = (name: string, description: string) => denoflareCliCommand([ 'cfapi', 'cc', name ], description);
@@ -1366,8 +1372,6 @@ function cfapiCommand() {
     rt.subcommand(cc, (args, options) => {
         cc.routeSubcommand(args, options);
     });
-
-    return rt;
 }
 
 function parseHyperdriveOriginFromConnectionString(connectionString: string): HyperdriveOriginInput {
