@@ -86,7 +86,7 @@ export async function computeImg(searchParams: URLSearchParams, opts: { colo: st
         return new Response(outputPng, { headers: makeHeaders('image/png', timings) });
     } catch (e) {
         console.error(e);
-        return new Response(`${e.stack || e}`, { status: 500,  headers: makeHeaders('application/json', timings) });
+        return new Response(`${(e as Error).stack || e}`, { status: 500,  headers: makeHeaders('application/json', timings) });
     } finally {
         if (inputImage && inputImage.ptr !== 0) inputImage.free();
         if (outputImage && outputImage.ptr !== 0) outputImage.free();

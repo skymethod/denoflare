@@ -163,17 +163,19 @@ function apply() {
                 }
                 throw new Error(`Unexpected status ${res.status}`);
             }
-            const serverTiming = res.headers.get('server-timing');
             const serverVars = [];
-            if (serverTiming) {
-                for (const piece of serverTiming.split(',')) {
-                    const m = /^([a-z-]+);(dur=(\d+);)?desc="(.*?)"$/.exec(piece);
-                    if (!m) throw new Error(`Unexpected server timing: ${piece}`);
-                    const [ _line, name, _, dur, desc ] = m;
-                    if (dur) {
-                        serverTimes.set(desc, parseInt(dur));
-                    } else {
-                        serverVars.push(`${name}: ${desc.replaceAll('x', '×')}`);
+            const serverTimings = (res.headers.get('server-timing') ?? '').split(', ').filter(v => v !== '');
+            for (const serverTiming of serverTimings) {
+                if (!serverTiming.startsWith('cf')) { // cf started adding server-timing headers in late 2024: cfL4;desc="?proto=QUIC&
+                    for (const piece of serverTiming.split(',')) {
+                        const m = /^([a-z-]+);(dur=(\d+);)?desc="(.*?)"$/.exec(piece);
+                        if (!m) throw new Error(`Unexpected server timing: ${piece}`);
+                        const [ _line, name, _, dur, desc ] = m;
+                        if (dur) {
+                            serverTimes.set(desc, parseInt(dur));
+                        } else {
+                            serverVars.push(`${name}: ${desc.replaceAll('x', '×')}`);
+                        }
                     }
                 }
             }
