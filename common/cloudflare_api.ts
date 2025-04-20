@@ -2671,6 +2671,7 @@ export type CloudchamberImageRegistry = {
 
 //#region Browser Rendering
 
+/** Fetches rendered HTML content from provided URL or HTML. Check available options like gotoOptions and waitFor* to control page load behaviour. */
 export async function getBrowserContent(opts: { accountId: string, apiToken: string, request: BrowserContentRequest }): Promise<string> {
     const { accountId, apiToken, request } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/content`;
@@ -2768,6 +2769,23 @@ export type BrowserContentRequest = {
 type ResourceType = 'document' | 'stylesheet' | 'image' | 'media' | 'font' | 'script' | 'texttrack' | 'xhr' | 'fetch' | 'prefetch' | 'eventsource' | 'websocket' | 'manifest' | 'signedexchange' | 'ping' | 'cspviolationreport' | 'preflight' | 'other';
 
 type WaitUntil = 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+
+/** Gets json from a webpage from a provided URL or HTML. Pass prompt or schema in the body. Control page loading with gotoOptions and waitFor* options. */
+export async function getBrowserJson(opts: { accountId: string, apiToken: string, request: BrowserContentRequest }): Promise<Record<string, unknown>> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/json`;
+    return (await execute<Record<string, unknown>>('getBrowserJson', 'POST', url, apiToken, request)).result;
+}
+
+export type BrowserJsonRequest = BrowserContentRequest & {
+    prompt?: string,
+    response_format?: {
+        type: string, // json_object or json_schema
+        
+        /** Schema for the response format. More information here: https://developers.cloudflare.com/workers-ai/json-mode/ */
+        schema?: Record<string, unknown>
+    }
+}
 
 //#endregion
 

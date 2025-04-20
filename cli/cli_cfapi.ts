@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY, listCloudchamberPlacements, getBrowserContent, BrowserContentRequest } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY, listCloudchamberPlacements, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1176,6 +1176,31 @@ function cfapiCommand() {
         }
         const html = await getBrowserContent({ accountId, apiToken, request });
         console.log(html);
+    });
+
+    add(apiCommand('get-browser-json', 'Gets json from a webpage from a provided URL or HTML')
+            .arg('urlOrHtml', 'string', 'URL or HTML')
+            .option('userAgent', 'string', 'User-agent to send with the request')
+            .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
+            .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
+            .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
+            .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
+            .option('prompt', 'string', 'Prompt to run on the page')
+            // TODO response format
+        , async (accountId, apiToken, { urlOrHtml, userAgent, javascript: setJavaScriptEnabled, header: headerOpt, emulateMediaType, waitForTimeout, prompt }) => {
+
+        const setExtraHTTPHeaders = headerOpt === undefined ? undefined : Object.fromEntries(headerOpt.map(v => { const [ _, name, value ] = checkMatchesReturnMatcher('header', v, /^([^=]+?)=(.+?)$/); return [ name, value ]}));
+        const request: BrowserJsonRequest = {
+            url: urlOrHtml,
+            userAgent,
+            setJavaScriptEnabled,
+            setExtraHTTPHeaders,
+            emulateMediaType,
+            waitForTimeout,
+            prompt,
+        }
+        const obj = await getBrowserJson({ accountId, apiToken, request });
+        console.log(obj);
     });
 
     return rt;
