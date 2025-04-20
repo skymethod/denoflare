@@ -2669,6 +2669,108 @@ export type CloudchamberImageRegistry = {
 
 //#endregion
 
+//#region Browser Rendering
+
+export async function getBrowserContent(opts: { accountId: string, apiToken: string, request: BrowserContentRequest }): Promise<string> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/content`;
+    return (await execute<string>('getBrowserContent', 'POST', url, apiToken, request)).result;
+}
+
+export type BrowserContentRequest = {
+    /** Set the content of the page, eg: <h1>Hello World!!</h1>. Either html or url must be set. */
+    html?: string,
+
+    /** URL to navigate to, eg. https://example.com. Either html or url must be set */
+    url?: string,
+
+    /** Adds a <script> tag into the page with the desired URL or content. */
+    addScriptTag?: { id?: string, content?: string, type?: string, url?: string }[],
+
+    /** Adds a <link rel="stylesheet"> tag into the page with the desired URL or a <style type="text/css"> tag with the content. */
+    addStyleTag?: { content?: string, url?: string }[],
+
+    /** Only allow requests that match the provided regex patterns, eg. '/^.*.(css)'. */
+    allowRequestPattern?: string[],
+
+    /** Only allow requests that match the provided resource types, eg. 'image' or 'script'. */
+    allowResourceTypes?: ResourceType[],
+
+    /** Provide credentials for HTTP authentication. */
+    authenticate?: { username: string, password: string },
+
+    /** Attempt to proceed when 'awaited' events fail or timeout. */
+    bestAttempt?: boolean,
+
+    /** Check options (https://pptr.dev/api/puppeteer.page.setcookie). */
+    cookies?: {
+        name: string,
+        value: string,
+        domain?: string,
+        expires?: number,
+        httpOnly?: boolean,
+        partitionKey?: string,
+        path?: string,
+        priority?: 'Low' | 'Medium' | 'High',
+        sameParty?: boolean,
+        sameSite?: 'Strict' | 'Lax' | 'None',
+        secure?: boolean,
+        sourcePort?: number,
+        sourceScheme?: 'Unset' | 'NonSecure' | 'Secure',
+        url?: string,
+    }[],
+
+    /** Changes the CSS media type of the page (screen or print) */
+    emulateMediaType?: string,
+
+    /** Check options (https://pptr.dev/api/puppeteer.gotooptions). */
+    gotoOptions?: {
+        referer?: string,
+        referrerPolicy?: string,
+        timeout?: number,
+        waitUntil?: WaitUntil | WaitUntil[],
+    },
+
+    /** Block undesired requests that match the provided regex patterns, eg. '/^.*.(css)'. */
+    rejectRequestPattern?: string[],
+
+    /** Block undesired requests that match the provided resource types, eg. 'image' or 'script'. */
+    rejectResourceTypes?: ResourceType[],
+
+    setExtraHTTPHeaders?: Record<string, string>,
+
+    setJavaScriptEnabled?: boolean,
+
+    userAgent?: string,
+
+    /** Check options (https://pptr.dev/api/puppeteer.page.setviewport). */
+    viewport?: {
+        height: number,
+        width: number,
+        deviceScaleFactor?: number,
+        hasTouch?: boolean,
+        isLandscape?: boolean,
+        isMobile?: boolean,
+    },
+
+    /** Wait for the selector to appear in page. Check options (https://pptr.dev/api/puppeteer.page.waitforselector). */
+    waitForSelector?: {
+        selector: string,
+        hidden?: boolean,
+        timeout?: number,
+        visible?: boolean,
+    },
+
+    /** Waits for a specified timeout before continuing. */
+    waitForTimeout?: number,
+}
+
+type ResourceType = 'document' | 'stylesheet' | 'image' | 'media' | 'font' | 'script' | 'texttrack' | 'xhr' | 'fetch' | 'prefetch' | 'eventsource' | 'websocket' | 'manifest' | 'signedexchange' | 'ping' | 'cspviolationreport' | 'preflight' | 'other';
+
+type WaitUntil = 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
@@ -2770,7 +2872,7 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (!apiResponse.success) {
         if (fetchResponse.status === 404 && [ 'bytes?', 'json?' ].includes(responseType)) return undefined;
         if ('error' in apiResponse && typeof apiResponse.error === 'string') throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, error=${apiResponse.error}`, fetchResponse.status, [ { code: fetchResponse.status, message: apiResponse.error } ]);
-        throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
+        throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map(v => `${v.code} ${v.message}${v.detail ? ` ${v.detail}` : ''}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
     }
     return apiResponse;
 }
@@ -2791,6 +2893,7 @@ export class CloudflareApiError extends Error {
 export interface Message {
     readonly code: number;
     readonly message: string;
+    readonly detail?: string;
 }
 
 export interface CloudflareApiResponse<Result> {
