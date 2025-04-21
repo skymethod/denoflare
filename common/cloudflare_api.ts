@@ -2671,7 +2671,6 @@ export type CloudchamberImageRegistry = {
 
 //#region Browser Rendering
 
-/** Fetches rendered HTML content from provided URL or HTML. Check available options like gotoOptions and waitFor* to control page load behaviour. */
 export async function getBrowserContent(opts: { accountId: string, apiToken: string, request: BrowserContentRequest }): Promise<string> {
     const { accountId, apiToken, request } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/content`;
@@ -2770,7 +2769,6 @@ type ResourceType = 'document' | 'stylesheet' | 'image' | 'media' | 'font' | 'sc
 
 type WaitUntil = 'load' | 'domcontentloaded' | 'networkidle0' | 'networkidle2';
 
-/** Gets json from a webpage from a provided URL or HTML. Pass prompt or schema in the body. Control page loading with gotoOptions and waitFor* options. */
 export async function getBrowserJson(opts: { accountId: string, apiToken: string, request: BrowserContentRequest }): Promise<Record<string, unknown>> {
     const { accountId, apiToken, request } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/json`;
@@ -2787,6 +2785,48 @@ export type BrowserJsonRequest = BrowserContentRequest & {
     }
 }
 
+export async function getBrowserLinks(opts: { accountId: string, apiToken: string, request: BrowserLinksRequest }): Promise<string[]> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/links`;
+    return (await execute<string[]>('getBrowserLinks', 'POST', url, apiToken, request)).result;
+}
+
+export type BrowserLinksRequest = BrowserContentRequest & {
+    visibleLinksOnly?: boolean,
+}
+
+export async function getBrowserMarkdown(opts: { accountId: string, apiToken: string, request: BrowserContentRequest }): Promise<string> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/markdown`;
+    return (await execute<string>('getBrowserMarkdown', 'POST', url, apiToken, request)).result;
+}
+
+export async function getBrowserPdf(opts: { accountId: string, apiToken: string, request: BrowserContentRequest }): Promise<Uint8Array> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/pdf`;
+    return await execute('getBrowserPdf', 'POST', url, apiToken, request, 'bytes');
+}
+
+export async function getBrowserElements(opts: { accountId: string, apiToken: string, request: BrowserElementsRequest }): Promise<BrowserElementsResponse[]> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/scrape`;
+    return (await execute<BrowserElementsResponse[]>('getBrowserElements', 'POST', url, apiToken, request)).result;
+}
+
+export type BrowserElementsRequest = BrowserContentRequest & {
+    elements: { selector: string }[],
+}
+
+export type BrowserElementsResponse = {
+    selector: string,
+    results: {
+        attributes: { name: string, value: string }[],
+        html: string,
+        left: number,
+        top: number,
+    }[],
+}
+
 //#endregion
 
 export class CloudflareApi {
@@ -2799,6 +2839,7 @@ export class CloudflareApi {
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=utf-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
+const APPLICATION_PDF = 'application/pdf';
 const IMAGE_PNG = 'image/png';
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 
@@ -2845,7 +2886,7 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (CloudflareApi.DEBUG) console.log(`${fetchResponse.status} ${fetchResponse.url}`);
     if (CloudflareApi.DEBUG) console.log([...fetchResponse.headers].map(v => v.join(': ')).join('\n'));
     const contentType = fetchResponse.headers.get('Content-Type') || '';
-    const knownBinaryContentType = [ APPLICATION_OCTET_STREAM, IMAGE_PNG ].includes(contentType);
+    const knownBinaryContentType = [ APPLICATION_OCTET_STREAM, IMAGE_PNG, APPLICATION_PDF ].includes(contentType);
     if (responseType === 'empty' && fetchResponse.status >= 200 && fetchResponse.status < 300) {
         if (contentType !== '') throw new Error(`Unexpected content-type (expected none): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
         const text = await fetchResponse.text();

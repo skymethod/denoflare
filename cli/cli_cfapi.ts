@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY, listCloudchamberPlacements, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY, listCloudchamberPlacements, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1156,26 +1156,32 @@ function cfapiCommand() {
 
     rt.subcommandGroup();
 
-    add(apiCommand('get-browser-content', 'Fetches rendered HTML content from provided URL or HTML')
+    const parseCommonBrowserParams = ({ urlOrHtml, header }: { urlOrHtml: string, header: string[] | undefined }) => {
+        const setExtraHTTPHeaders = header === undefined ? undefined : Object.fromEntries(header.map(v => { const [ _, name, value ] = checkMatchesReturnMatcher('header', v, /^([^=]+?)=(.+?)$/); return [ name, value ]}));
+        const { url, html } = urlOrHtml.startsWith('<') ? ({ url: undefined, html: urlOrHtml }) : ({ url: urlOrHtml, html: undefined })
+        return { url, html, setExtraHTTPHeaders };
+    }
+
+    add(apiCommand('get-browser-html', 'Fetches rendered HTML content from provided URL or HTML')
             .arg('urlOrHtml', 'string', 'URL or HTML')
             .option('userAgent', 'string', 'User-agent to send with the request')
             .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
             .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
             .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
             .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
-        , async (accountId, apiToken, { urlOrHtml, userAgent, javascript: setJavaScriptEnabled, header: headerOpt, emulateMediaType, waitForTimeout }) => {
-       
-        const setExtraHTTPHeaders = headerOpt === undefined ? undefined : Object.fromEntries(headerOpt.map(v => { const [ _, name, value ] = checkMatchesReturnMatcher('header', v, /^([^=]+?)=(.+?)$/); return [ name, value ]}));
+        , async (accountId, apiToken, { urlOrHtml, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout }) => {
+
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
         const request: BrowserContentRequest = {
-            url: urlOrHtml,
+            url, html,
             userAgent,
             setJavaScriptEnabled,
             setExtraHTTPHeaders,
             emulateMediaType,
             waitForTimeout,
         }
-        const html = await getBrowserContent({ accountId, apiToken, request });
-        console.log(html);
+        const outputHtml = await getBrowserContent({ accountId, apiToken, request });
+        console.log(outputHtml);
     });
 
     add(apiCommand('get-browser-json', 'Gets json from a webpage from a provided URL or HTML')
@@ -1186,21 +1192,124 @@ function cfapiCommand() {
             .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
             .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
             .option('prompt', 'string', 'Prompt to run on the page')
-            // TODO response format
-        , async (accountId, apiToken, { urlOrHtml, userAgent, javascript: setJavaScriptEnabled, header: headerOpt, emulateMediaType, waitForTimeout, prompt }) => {
+            .option('schema', 'string', 'Path to JSON schema to use for output')
+        , async (accountId, apiToken, { urlOrHtml, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout, prompt, schema: schemaOpt }) => {
 
-        const setExtraHTTPHeaders = headerOpt === undefined ? undefined : Object.fromEntries(headerOpt.map(v => { const [ _, name, value ] = checkMatchesReturnMatcher('header', v, /^([^=]+?)=(.+?)$/); return [ name, value ]}));
+        const schema = typeof schemaOpt === 'string' ? JSON.parse(await Deno.readTextFile(schemaOpt)) : undefined;
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
         const request: BrowserJsonRequest = {
-            url: urlOrHtml,
+            url, html,
             userAgent,
             setJavaScriptEnabled,
             setExtraHTTPHeaders,
             emulateMediaType,
             waitForTimeout,
             prompt,
+            response_format: schema ? { type: 'json_schema', schema } :  { type: 'json_object' },
         }
         const obj = await getBrowserJson({ accountId, apiToken, request });
         console.log(obj);
+    });
+
+    add(apiCommand('get-browser-links', 'Gets links from a webpage from a provided URL or HTML')
+            .arg('urlOrHtml', 'string', 'URL or HTML')
+            .option('userAgent', 'string', 'User-agent to send with the request')
+            .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
+            .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
+            .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
+            .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
+            .option('visibleOnly', 'boolean', 'Only include visible links')
+        , async (accountId, apiToken, { urlOrHtml, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout, visibleOnly: visibleLinksOnly }) => {
+
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
+        const request: BrowserLinksRequest = {
+            url, html,
+            userAgent,
+            setJavaScriptEnabled,
+            setExtraHTTPHeaders,
+            emulateMediaType,
+            waitForTimeout,
+            visibleLinksOnly,
+        }
+        const links = await getBrowserLinks({ accountId, apiToken, request });
+        links.forEach(v => console.log(v));
+    });
+
+    add(apiCommand('get-browser-markdown', 'Fetches content as markdown from provided URL or HTML')
+            .arg('urlOrHtml', 'string', 'URL or HTML')
+            .option('userAgent', 'string', 'User-agent to send with the request')
+            .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
+            .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
+            .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
+            .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
+        , async (accountId, apiToken, { urlOrHtml, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout }) => {
+       
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
+        const request: BrowserContentRequest = {
+            url, html,
+            userAgent,
+            setJavaScriptEnabled,
+            setExtraHTTPHeaders,
+            emulateMediaType,
+            waitForTimeout,
+        }
+        const markdown = await getBrowserMarkdown({ accountId, apiToken, request });
+        console.log(markdown);
+    });
+
+    add(apiCommand('get-browser-pdf', 'Fetches content as pdf from provided URL or HTML')
+            .arg('urlOrHtml', 'string', 'URL or HTML')
+            .arg('outputPath', 'string', 'Path to write the output pdf')
+            .option('userAgent', 'string', 'User-agent to send with the request')
+            .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
+            .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
+            .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
+            .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
+        , async (accountId, apiToken, { urlOrHtml, outputPath, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout }) => {
+       
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
+        const request: BrowserContentRequest = {
+            url, html,
+            userAgent,
+            setJavaScriptEnabled,
+            setExtraHTTPHeaders,
+            emulateMediaType,
+            waitForTimeout,
+        }
+        const bytes = await getBrowserPdf({ accountId, apiToken, request });
+        await Deno.writeFile(outputPath, bytes);
+    });
+
+    add(apiCommand('get-browser-elements', 'Scrapes element info from provided URL or HTML')
+            .arg('urlOrHtml', 'string', 'URL or HTML')
+            .arg('selector', 'strings', 'Element selector')
+            .option('userAgent', 'string', 'User-agent to send with the request')
+            .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
+            .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
+            .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
+            .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
+        , async (accountId, apiToken, { urlOrHtml, selector, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout }) => {
+       
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
+        const request: BrowserElementsRequest = {
+            elements: selector.map(v => ({ selector: v })),
+            url, html,
+            userAgent,
+            setJavaScriptEnabled,
+            setExtraHTTPHeaders,
+            emulateMediaType,
+            waitForTimeout,
+        }
+        const responses = await getBrowserElements({ accountId, apiToken, request });
+        for (const { selector, results } of responses) {
+            console.log(selector);
+            console.log();
+            for (const { html, ...rest } of results) {
+                console.log(rest);
+                console.log(html);
+            }
+            console.log();
+        }
     });
 
     return rt;
