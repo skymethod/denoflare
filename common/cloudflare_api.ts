@@ -2827,6 +2827,62 @@ export type BrowserElementsResponse = {
     }[],
 }
 
+export async function getBrowserScreenshot(opts: { accountId: string, apiToken: string, request: BrowserScreenshotRequest }): Promise<Uint8Array | string> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/screenshot`;
+    if (request.screenshotOptions?.encoding === 'base64') {
+        return await execute('getBrowserScreenshot', 'POST', url, apiToken, request, 'text');
+    } else {
+        return await execute('getBrowserScreenshot', 'POST', url, apiToken, request, 'bytes');
+    }
+}
+
+export type BrowserScreenshotRequest = BrowserContentRequest & {
+    /** Check options (https://pptr.dev/api/puppeteer.screenshotoptions). */
+    screenshotOptions?: {
+        captureBeyondViewport?: boolean,
+        clip?: { height: number, width: number, x: number, y: number, scale?: number },
+        encoding?: 'binary' | 'base64',
+        fromSurface?: boolean,
+        fullPage?: boolean,
+        omitBackground?: boolean,
+        optimizeForSpeed?: boolean,
+        quality?: number,
+        type?: 'png' | 'jpeg' | 'webp',
+    },
+    scrollPage?: boolean,
+    selector?: string,
+}
+
+export async function getBrowserSnapshot(opts: { accountId: string, apiToken: string, request: BrowserSnapshotRequest }): Promise<BrowserSnapshotResponse> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/browser-rendering/snapshot`;
+    return (await execute<BrowserSnapshotResponse>('getBrowserSnapshot', 'POST', url, apiToken, request)).result;
+}
+
+export type BrowserSnapshotRequest = BrowserContentRequest & {
+    /** Check options (https://pptr.dev/api/puppeteer.screenshotoptions). */
+    screenshotOptions?: {
+        captureBeyondViewport?: boolean,
+        clip?: { height: number, width: number, x: number, y: number, scale?: number },
+        encoding?: 'binary' | 'base64',
+        fromSurface?: boolean,
+        fullPage?: boolean,
+        omitBackground?: boolean,
+        optimizeForSpeed?: boolean,
+        quality?: number,
+        type?: 'png' | 'jpeg' | 'webp',
+    },
+}
+
+export type BrowserSnapshotResponse = {
+    /** HTML content */
+    content: string,
+
+    /** Base64 encoded image */
+    screenshot: string,
+}
+
 //#endregion
 
 export class CloudflareApi {
@@ -2841,6 +2897,8 @@ const APPLICATION_JSON_UTF8 = 'application/json; charset=utf-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
 const APPLICATION_PDF = 'application/pdf';
 const IMAGE_PNG = 'image/png';
+const IMAGE_JPEG = 'image/jpeg';
+const IMAGE_WEBP = 'image/webp';
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 
 function computeBaseUrl(): string {
@@ -2886,7 +2944,7 @@ async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DEL
     if (CloudflareApi.DEBUG) console.log(`${fetchResponse.status} ${fetchResponse.url}`);
     if (CloudflareApi.DEBUG) console.log([...fetchResponse.headers].map(v => v.join(': ')).join('\n'));
     const contentType = fetchResponse.headers.get('Content-Type') || '';
-    const knownBinaryContentType = [ APPLICATION_OCTET_STREAM, IMAGE_PNG, APPLICATION_PDF ].includes(contentType);
+    const knownBinaryContentType = [ APPLICATION_OCTET_STREAM, IMAGE_PNG, APPLICATION_PDF, IMAGE_JPEG, IMAGE_WEBP ].includes(contentType);
     if (responseType === 'empty' && fetchResponse.status >= 200 && fetchResponse.status < 300) {
         if (contentType !== '') throw new Error(`Unexpected content-type (expected none): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
         const text = await fetchResponse.text();

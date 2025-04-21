@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY, listCloudchamberPlacements, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY, listCloudchamberPlacements, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1309,6 +1309,85 @@ function cfapiCommand() {
                 console.log(html);
             }
             console.log();
+        }
+    });
+
+    add(apiCommand('get-browser-screenshot', 'Takes a screenshot of a webpage from provided URL or HTML')
+            .arg('urlOrHtml', 'string', 'URL or HTML')
+            .option('output', 'string', 'Path to write the output screenshot')
+            .option('type', 'enum', 'Screenshot file type', { value: 'png', default: true }, { value: 'jpeg' }, { value: 'webp' })
+            .option('full', 'boolean', 'Extend screenshot to the end of the page')
+            .option('selector', 'string', 'Limit to specific selector')
+            .option('userAgent', 'string', 'User-agent to send with the request')
+            .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
+            .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
+            .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
+            .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
+        , async (accountId, apiToken, { urlOrHtml, output, type: typeOpt, full, selector, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout }) => {
+
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
+        const type = typeOpt as ('png' | 'jpeg' | 'webp') ?? (output?.endsWith('.jpeg') || output?.endsWith('.jpg') ? 'jpeg' : output?.endsWith('.webp') ? 'webp' : 'png');
+        const request: BrowserScreenshotRequest = {
+            url, html,
+            userAgent,
+            setJavaScriptEnabled,
+            setExtraHTTPHeaders,
+            emulateMediaType,
+            waitForTimeout,
+            screenshotOptions: {
+                type,
+                encoding: output === undefined ? 'base64' : 'binary',
+                fullPage: full,
+            },
+            selector,
+        }
+        const result = await getBrowserScreenshot({ accountId, apiToken, request });
+        if (typeof result === 'string') {
+            console.log(result);
+        } else {
+            await Deno.writeFile(output!, result);
+        }
+    });
+
+    add(apiCommand('get-browser-snapshot', 'Return both a screenshot of a webpage and the content from provided URL or HTML')
+            .arg('urlOrHtml', 'string', 'URL or HTML')
+            .option('htmlOutput', 'string', 'Path to write the html')
+            .option('screenshotOutput', 'string', 'Path to write the output screenshot')
+            .option('type', 'enum', 'Screenshot file type', { value: 'png', default: true }, { value: 'jpeg' }, { value: 'webp' })
+            .option('full', 'boolean', 'Extend screenshot to the end of the page')
+            .option('userAgent', 'string', 'User-agent to send with the request')
+            .option('header', 'strings', 'Additional http headers to send with the request (name=value)')
+            .option('javascript', 'boolean', 'Whether or not to enable JavaScript')
+            .option('emulateMediaType', 'enum', 'Changes the CSS media type of the page', { value: 'screen' }, { value: 'print' })
+            .option('waitForTimeout', 'integer', 'Waits for a specified timeout before continuing')
+        , async (accountId, apiToken, { urlOrHtml, htmlOutput, screenshotOutput, type: typeOpt, full, userAgent, javascript: setJavaScriptEnabled, header, emulateMediaType, waitForTimeout }) => {
+
+        const { url, html, setExtraHTTPHeaders } = parseCommonBrowserParams({ urlOrHtml, header });
+        const type = typeOpt as ('png' | 'jpeg' | 'webp') ?? (screenshotOutput?.endsWith('.jpeg') || screenshotOutput?.endsWith('.jpg') ? 'jpeg' : screenshotOutput?.endsWith('.webp') ? 'webp' : 'png');
+        const request: BrowserScreenshotRequest = {
+            url, html,
+            userAgent,
+            setJavaScriptEnabled,
+            setExtraHTTPHeaders,
+            emulateMediaType,
+            waitForTimeout,
+            screenshotOptions: {
+                type,
+                fullPage: full,
+            },
+        }
+        const { content, screenshot } = await getBrowserSnapshot({ accountId, apiToken, request });
+        
+        if (htmlOutput) {
+            await Deno.writeTextFile(htmlOutput, content);
+        } else {
+            console.log(content);
+        }
+
+        if (screenshotOutput) {
+            await Deno.writeFile(screenshotOutput, Bytes.ofBase64(screenshot).array());
+        } else {
+            console.log(screenshot);
         }
     });
 
