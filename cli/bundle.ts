@@ -198,12 +198,24 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
                 }
                 return lines.join('\n');
             }
-            const absRootSpecifier = !rootSpecifier.startsWith('https://') && !isAbsolute(rootSpecifier) ? resolve(rootSpecifier) : rootSpecifier;
+            let absRootSpecifier = !rootSpecifier.startsWith('https://') && !isAbsolute(rootSpecifier) ? resolve(rootSpecifier) : rootSpecifier;
+            let absWorkingDir: string | undefined = '/'; // ensures boundary comments contain absolute file paths (minus leading /)
+            if (Deno.build.os === 'windows') {
+                // esbuild can't handle c:\\path\\to\\script.ts paths, and / is an invalid absRootSpecifier on windows
+                const m = /^([a-z]:)(\\.+)$/i.exec(absRootSpecifier);
+                if (m) {
+                    const [ _, drive, suffix ] = m;
+                    absWorkingDir = `${drive}\\`;
+                    absRootSpecifier = suffix;
+                } else {
+                    absWorkingDir = undefined;
+                }
+            }
             const result = await esbuild.build({
                 plugins: [ collectionLoader, ...denoPlugins({ loader, configPath }) ],
                 entryPoints: [ absRootSpecifier ],
                 outfile: 'output.esm.js',
-                absWorkingDir: '/', // ensures boundary comments contain absolute file paths (minus leading /)
+                absWorkingDir,
                 write: false,
                 bundle: true,
                 platform: 'browser',
