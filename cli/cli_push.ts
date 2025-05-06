@@ -27,6 +27,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('cpuLimit', 'integer', 'Maximum CPU time this worker is allowed to run, in milliseconds. default = 30000 (30 seconds)')
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
     .option('versionTag', 'string', 'If set, push a new version with this tag')
+    .option('sourcemap', 'boolean', 'If set, upload a sourcemap')
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
@@ -53,6 +54,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         observability: observabilityOpt, 
         observabilitySampleRate,
         cpuLimit: cpuLimitOpt,
+        sourcemap: sourcemapOpt,
      } = opt;
 
     if (verbose) {
@@ -66,18 +68,23 @@ export async function push(args: (string | number)[], options: Record<string, un
     if (!isValidScriptName(scriptName)) throw new Error(`Bad scriptName: ${scriptName}`);
     const { accountId, apiToken } = await resolveProfile(config, options, script);
     const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
-    const bundleOpts = parseBundleOpts(options);
+    const bundleOpts = {...parseBundleOpts(options), createSourceMap: sourcemapOpt };
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
     const buildAndPutScript = async () => {
         const isModule = !rootSpecifier.endsWith('.js');
         let scriptContentsStr = '';
+        let sourceMapContents: string | undefined;
         if (isModule) {
             console.log(`bundling ${scriptName} into bundle.js...`);
             const start = Date.now();
             const output = await bundle(rootSpecifier, bundleOpts);
             scriptContentsStr = output.code;
+            if (output.sourceMap) {
+                console.log('  including sourcemap...');
+                sourceMapContents = output.sourceMap;
+            }
             console.log(`bundle finished (${output.backend}) in ${Date.now() - start}ms`);
         } else {
             scriptContentsStr = await Deno.readTextFile(rootSpecifier);
@@ -119,7 +126,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents };
         if (typeof versionTag === 'string') {
             await putScriptVersion({ ...putScriptOpts, tagAnnotation: versionTag });
         } else {

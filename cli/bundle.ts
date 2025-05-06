@@ -61,7 +61,7 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
     // 1.22+
     // Deno.emit is gone
 
-    if (backend === 'module' || createSourceMap) {
+    if (backend === 'module') {
         // the new deno_emit module is the official replacement, but is not nearly as functional as Deno.emit
         //  - no type checking, and none planned: https://github.com/denoland/deno_emit/issues/27
         //  - fails with some remote imports: https://github.com/denoland/deno_emit/issues/17
@@ -220,12 +220,18 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
                 bundle: true,
                 platform: 'browser',
                 format: 'esm',
+                sourcemap: createSourceMap ? 'external' : undefined,
             }) as BuildResult;
             if (esbuildModuleUrl.includes('wasm')) esbuild.stop();  // required for wasm to allow calling process to exit
-            if (result.errors.length > 0 || result.warnings.length > 0 || result.outputFiles.length !== 1) throw new Error(`Unexpected esbuild result: ${JSON.stringify(result)}`);
+            // /output.esm.js.map [ "version", "sources", "sourcesContent", "mappings", "names" ]
+            // /output.esm.js
+            const [ jsFile, sourceMapFile ] = [ '/output.esm.js', '/output.esm.js.map' ].map(v => result.outputFiles.find(u => u.path === v));
+            
+            if (result.errors.length > 0 || result.warnings.length > 0 || result.outputFiles.length !== (createSourceMap ? 2 : 1) || !jsFile) throw new Error(`Unexpected esbuild result: ${JSON.stringify(result)}`);
 
-            const code = transformOutput(result.outputFiles[0].text);
-            return { code, backend: 'esbuild' };
+            const code = transformOutput(jsFile.text);
+            const sourceMap = sourceMapFile?.text;
+            return { code, sourceMap, backend: 'esbuild' };
         } finally {
             if (configPath) {
                 await Deno.remove(configPath);

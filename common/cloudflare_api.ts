@@ -108,6 +108,7 @@ export type PutScriptOpts = {
     observability?: Observability,
     containers?: { class_name: string }[],
     limits?: { cpu_ms: number },
+    sourceMapContents?: string,
 };
 
 export async function putScript(opts: PutScriptOpts): Promise<Script> {
@@ -162,7 +163,7 @@ export interface ScriptVersionResourcesScript {
 }
 
 function computeUploadForm(opts: PutScriptOpts): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits } = opts;
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -178,7 +179,7 @@ function computeUploadForm(opts: PutScriptOpts): FormData {
     };
 
     if (isModule) {
-        metadata['main_module'] = 'main';
+        metadata['main_module'] = 'main.js';
     } else {
         metadata['body_part'] = 'script';   
     }
@@ -187,7 +188,17 @@ function computeUploadForm(opts: PutScriptOpts): FormData {
     formData.set('metadata', metadataBlob);
     if (isModule) {
         const scriptBlob = new Blob([ scriptContents.buffer as ArrayBuffer ], { type: 'application/javascript+module' });
-        formData.set('script', scriptBlob, 'main');
+        formData.set('main.js', scriptBlob, 'main.js');
+        if (sourceMapContents) {
+            const obj = JSON.parse(sourceMapContents);
+            if (!obj.file) {
+                obj.file = 'main.js';
+                obj.sourceRoot = '';
+            }
+            // TODO: upload succeeds, but still not getting picked up
+            const sourceMapBlob = new Blob([ JSON.stringify(obj) ], { type: 'application/source-map' });
+            formData.set('main.js.map', sourceMapBlob, 'main.js.map');
+        }
     } else {
         const scriptBlob = new Blob([ scriptContents.buffer as ArrayBuffer ], { type: 'application/javascript' });
         formData.set('script', scriptBlob);
