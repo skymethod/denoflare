@@ -10,11 +10,22 @@ export function validateXml(xml: string): true | XmlValidationError {
 export function parseXml(xml: string, opts: { additionalEntities?: { [char: string]: string } } = {}): ExtendedXmlNode {
     const { additionalEntities } = opts;
     const tagValueProcessor = (tagName: string) => decodeXml(tagName, additionalEntities);
-    const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false, tagValueProcessor }) as XmlNode;
-    const namespaces = new XmlNamespaces();
-    applyQnames(rt, namespaces);
-    checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
-    return rt as ExtendedXmlNode;
+
+    const parse = (xml: string) => {
+        const rt = getTraversalObj(xml, { ignoreAttributes: false, parseAttributeValue: false, parseNodeValue: false, tagValueProcessor }) as XmlNode;
+        const namespaces = new XmlNamespaces();
+        applyQnames(rt, namespaces);
+        checkEqual('namespaces.stackSize', namespaces.stackSize, 0);
+        return rt as ExtendedXmlNode;
+    }
+    try {
+        return parse(xml);
+    } catch (e) {
+        if (e instanceof NewlineInTagnameError) { // workaround known valid xml that fast-xml-parser does not parse correctly, namely <tagname\natt=...
+            return parse(xml.split('\n').map(v => `${v} `).join('\n'));
+        }
+        throw e;
+    }
 }
 
 export function computeAttributeMap(attrsMap: Record<string, string> | undefined): ReadonlyMap<string, string> {
@@ -114,7 +125,14 @@ export interface XmlValidationError {
 const EMPTY_STRING_MAP: ReadonlyMap<string, string> = new Map<string, string>();
 const EMPTY_XML_NODE_ARRAY: readonly ExtendedXmlNode[] = [];
 
+class NewlineInTagnameError extends Error {
+    constructor(tagname: string) {
+        super(`NewlineInTagnameError: ${tagname.replaceAll('\n', '\\n')}`)
+    }
+}
+
 function applyQnames(node: XmlNode, namespaces: XmlNamespaces) {
+    if (node.tagname.includes('\n')) throw new NewlineInTagnameError(node.tagname);
     try {
         const atts = namespaces.push(node.attrsMap);
         // deno-lint-ignore no-explicit-any
