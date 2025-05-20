@@ -53,6 +53,10 @@
 			"name": "examples/keyspace-worker"
 		},
 		{
+			"path": "examples/raw-worker",
+			"name": "examples/raw-worker"
+		},
+		{
 			"path": "npm/denoflare-mqtt",
 			"name": "npm/denoflare-mqtt"
 		}
