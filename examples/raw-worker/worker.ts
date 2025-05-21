@@ -1,5 +1,6 @@
 import type { KVNamespace } from 'https://raw.githubusercontent.com/skymethod/denoflare/v0.7.0/common/cloudflare_workers_types.d.ts'; // ironic
 
+// https://github.blog/changelog/2025-05-08-updated-rate-limits-for-unauthenticated-requests/
 // https://github.com/orgs/community/discussions/159123
 
 export default {
