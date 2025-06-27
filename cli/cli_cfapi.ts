@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listCloudchamberApplications, getCloudchamberApplication, getCloudchamberCustomer, generateCloudchamberImageRegistryCredentials, createCloudchamberApplication, createCloudchamberImageRegistry, CloudchamberApplicationSchedulingPolicy, CloudchamberApplicationInput, listCloudchamberDeployments, CloudchamberDeploymentState, deleteCloudchamberApplication, CloudchamberImageRegistryCredentialPermission, deleteCloudchamberDeployment, CLOUDFLARE_MANAGED_REGISTRY, listCloudchamberPlacements, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1152,7 +1152,7 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    if ((Deno.permissions.querySync({ name: 'env', variable: 'CC' })).state === 'granted' && Deno.env.get('CC') === '1') cc(rt);
+    cc(rt);
 
     rt.subcommandGroup();
 
@@ -1397,9 +1397,9 @@ function cfapiCommand() {
 function cc(rt: CliCommand<unknown>) {
     rt.subcommandGroup();
 
-    const ccCommand = (name: string, description: string) => denoflareCliCommand([ 'cfapi', 'cc', name ], description);
+    const ccCommand = (name: string, description: string) => denoflareCliCommand([ 'cfapi', 'containers', name ], description);
 
-    const cc = denoflareCliCommand([ 'cfapi', 'cc' ], 'Cloudchamber-specific APIs');
+    const cc = denoflareCliCommand([ 'cfapi', 'containers' ], 'Containers-specific APIs');
 
     function addCc<T>(c: CliCommand<T>, handler: ApiHandler<T>) {
         cc.subcommand(c.include(commandOptionsForConfig), makeSubcommandHandler(c, handler));
@@ -1411,14 +1411,14 @@ function cc(rt: CliCommand<unknown>) {
             .option('label', 'strings', 'Filter by label')
         , async (accountId, apiToken, opts) => {
         const { name, image, label: labels } = opts;
-        const value = await listCloudchamberApplications({ accountId, apiToken, name, image, labels });
+        const value = await listContainersApplications({ accountId, apiToken, name, image, labels });
         console.log(value);
     });
 
     addCc(ccCommand('get-application', 'Get a single application').arg('applicationId', 'string', 'Application ID')
         , async (accountId, apiToken, opts) => {
         const { applicationId } = opts;
-        const value = await getCloudchamberApplication({ accountId, apiToken, applicationId });
+        const value = await getContainersApplication({ accountId, apiToken, applicationId });
         console.log(value);
     });
 
@@ -1426,12 +1426,12 @@ function cc(rt: CliCommand<unknown>) {
         , async (accountId, apiToken, { applicationIdOrUniqueName }) => {
         const applicationId = isValidUuid(applicationIdOrUniqueName) ? applicationIdOrUniqueName : await (async () => {
             const name = applicationIdOrUniqueName;
-            const apps = await listCloudchamberApplications({ accountId, apiToken, name });
+            const apps = await listContainersApplications({ accountId, apiToken, name });
             if (apps.length === 0) throw new Error(`No applications found with name: ${name}`);
             if (apps.length > 1) throw new Error(`Multiple applications found with name: ${name}`);
             return apps[0].id;
         })();
-        await deleteCloudchamberApplication({ accountId, apiToken, applicationId });
+        await deleteContainersApplication({ accountId, apiToken, applicationId });
         console.log(`Deleted ${applicationId}`);
     });
 
@@ -1449,7 +1449,7 @@ function cc(rt: CliCommand<unknown>) {
             .option('namespaceId', 'string', 'Durable object namespace ID')
         , async (accountId, apiToken, opts) => {
         const { name, image, instances = 0, maxInstances: max_instances, schedulingPolicy = 'regional', network, tier, city, region, memory, namespaceId } = opts;
-        const input: CloudchamberApplicationInput = {
+        const input: ContainersApplicationInput = {
             name,
             instances,
             max_instances,
@@ -1462,7 +1462,7 @@ function cc(rt: CliCommand<unknown>) {
                 },
                 memory: memory as ByteUnits,
             },
-            scheduling_policy: schedulingPolicy as CloudchamberApplicationSchedulingPolicy,
+            scheduling_policy: schedulingPolicy as ContainersApplicationSchedulingPolicy,
             constraints: {
                 tier,
                 cities: city,
@@ -1474,47 +1474,18 @@ function cc(rt: CliCommand<unknown>) {
                 }
             } : {})
         };
-        const application = await createCloudchamberApplication({ accountId, apiToken, input });
+        const application = await createContainersApplication({ accountId, apiToken, input });
         console.log(application);
-    });
-
-    addCc(ccCommand('list-deployments', 'List deployments')
-            .option('appId', 'string', 'Application ID (guid)')
-            .option('image', 'string', 'Container image')
-            .option('ipv4', 'string', 'IP address (v4)')
-            .option('label', 'strings', 'Label')
-            .option('location', 'string', 'Location')
-            .option('state', 'string', 'Deployment state')
-        , async (accountId, apiToken, { appId: app_id, image, ipv4, label, location, state }) => {
-        const value = await listCloudchamberDeployments({ accountId, apiToken, app_id, image, ipv4, label, location, state: state as CloudchamberDeploymentState });
-        console.log(value);
-    });
-
-    addCc(ccCommand('delete-deployment', 'Delete a deployment').arg('deploymentId', 'string', 'Deployment ID')
-        , async (accountId, apiToken, { deploymentId }) => {
-        await deleteCloudchamberDeployment({ accountId, apiToken, deploymentId });
-    });
-
-    addCc(ccCommand('list-placements', 'List placements').arg('deploymentId', 'string', 'Deployment ID')
-        , async (accountId, apiToken, { deploymentId }) => {
-        const value = await listCloudchamberPlacements({ accountId, apiToken, deploymentId });
-        console.log(value);
     });
 
     addCc(ccCommand('get-customer', 'Get customer info')
         , async (accountId, apiToken) => {
-        const { locations, ...customer } = await getCloudchamberCustomer({ accountId, apiToken });
+        const customer = await getContainersCustomer({ accountId, apiToken });
         console.log(customer);
-        let prevRegion: string | undefined;
-        for (const { name, region, location, limits: { memory_per_deployment, total_memory, total_vcpu, vcpu_per_deployment } } of sortBy(locations, v => v.region + ' ' + v.location)) {
-            if (typeof prevRegion === 'string' && prevRegion !== region) console.log();
-            console.log(`${location} ${region.padEnd(4)} vcpu:${vcpu_per_deployment}/${total_vcpu} mem:${memory_per_deployment}/${total_memory} ${name}`);
-            prevRegion = region;
-        }
     });
 
     const generateRegistryCreds = async ({ accountId, apiToken, push }: { accountId: string, apiToken: string, push?: boolean }) => {
-        const { registry_host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: push ? [ 'pull', 'push' ] : [ 'pull' ] });
+        const { registry_host, username, password } = await generateContainersImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: push ? [ 'pull', 'push' ] : [ 'pull' ] });
         if (!password) throw new Error();
         const authorization = computeBasicAuthorization({ username, password });
         return { registry_host, authorization, username, password };
@@ -1524,23 +1495,28 @@ function cc(rt: CliCommand<unknown>) {
         , async (accountId, apiToken) => {
         const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
         const res = await fetch(`https://${registry_host}/v2/_catalog`, { headers: { authorization } });
-        console.log(await res.json());
+        const obj = await res.json() as { repositories: string[] }
+        const prefix = `/${accountId}/`;
+        obj.repositories.forEach((v, i) => {
+            if (v.startsWith(prefix)) obj.repositories[i] = v.substring(prefix.length);
+        })
+        console.log(obj);
     });
 
     addCc(ccCommand('list-tags', 'List tags').arg('repo', 'string', 'Repository')
         , async (accountId, apiToken, { repo }) => {
         const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
-        const res = await fetch(`https://${registry_host}/v2/${repo}/tags/list`, { headers: { authorization } });
+        const res = await fetch(`https://${registry_host}/v2/${accountId}/${repo}/tags/list`, { headers: { authorization } });
         console.log(await res.json());
     });
 
     addCc(ccCommand('dump-tag', 'Dump information about a tag').arg('repo', 'string', 'Repository name').arg('tag', 'string', 'Tag name')
         , async (accountId, apiToken, { repo, tag }) => {
         const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
-        const tagManifest = await dockerFetch(`https://${registry_host}/v2/${repo}/manifests/${tag}`, { authorization });
+        const tagManifest = await dockerFetch(`https://${registry_host}/v2/${accountId}/${repo}/manifests/${tag}`, { authorization });
         console.log(tagManifest);
         if (isManifest(tagManifest)) {
-            const config = await dockerFetch(`https://${registry_host}/v2/${repo}/blobs/${tagManifest.config.digest}`, { authorization });
+            const config = await dockerFetch(`https://${registry_host}/v2/${accountId}/${repo}/blobs/${tagManifest.config.digest}`, { authorization });
             console.log(config);
         }
     });
@@ -1548,17 +1524,17 @@ function cc(rt: CliCommand<unknown>) {
     addCc(ccCommand('dump-blob', 'Dump blob by digest').arg('repo', 'string', 'Repository name').arg('digest', 'string', 'Digest string')
         , async (accountId, apiToken, { repo, digest }) => {
         const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken });
-        const value = await dockerFetch(`https://${registry_host}/v2/${repo}/blobs/${digest}`, { authorization });
+        const value = await dockerFetch(`https://${registry_host}/v2/${accountId}/${repo}/blobs/${digest}`, { authorization });
         console.log(value instanceof Bytes ? `<${value.length} bytes>` : value);
     });
 
     addCc(ccCommand('delete-tag', 'Delete a tag').arg('repo', 'string', 'Repository name').arg('tag', 'string', 'Tag name')
         , async (accountId, apiToken, { repo, tag }) => {
         const { registry_host, authorization } = await generateRegistryCreds({ accountId, apiToken, push: true });
-        const tagManifest = await dockerFetch(`https://${registry_host}/v2/${repo}/manifests/${tag}`, { authorization });
+        const tagManifest = await dockerFetch(`https://${registry_host}/v2/${accountId}/${repo}/manifests/${tag}`, { authorization });
         if (!tagManifest) throw new Error(`${repo}:${tag} does not exist!`);
         {
-            const res = await fetch(`https://${registry_host}/v2/${repo}/manifests/${tag}`, { method: 'DELETE', headers: { authorization } });
+            const res = await fetch(`https://${registry_host}/v2/${accountId}/${repo}/manifests/${tag}`, { method: 'DELETE', headers: { authorization } });
             if (!res.ok) throw new Error(`Unexpected status ${res.status} deleting tag: ${await res.text()}`);
             console.log('Deleted tag, triggering gc...');
         }
@@ -1574,8 +1550,8 @@ function cc(rt: CliCommand<unknown>) {
             .option('expirationMinutes', 'integer', 'Minutes for which the credentials are valid (default: 5)')
             .option('permissions', 'enum', 'Permitted actions (default: pull)', { value: 'pull', default: true }, { value: 'push' }, { value: 'both' })
         , async (accountId, apiToken, { expirationMinutes: expiration_minutes = 5, permissions = 'pull' }) => {
-        const permissionsArr: CloudchamberImageRegistryCredentialPermission[] = permissions === 'both' ? [ 'push', 'pull' ] : permissions === 'push' ? [ 'push' ] : [ 'pull' ];
-        const credentials = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes, permissions: permissionsArr });
+        const permissionsArr: ContainersImageRegistryCredentialPermission[] = permissions === 'both' ? [ 'push', 'pull' ] : permissions === 'push' ? [ 'push' ] : [ 'pull' ];
+        const credentials = await generateContainersImageRegistryCredentials({ accountId, apiToken, expiration_minutes, permissions: permissionsArr });
         console.log(credentials);
     });
 
@@ -1583,7 +1559,7 @@ function cc(rt: CliCommand<unknown>) {
             .arg('domain', 'string', 'Registry domain (hostname) e.g. docker.io')
             .option('public', 'boolean', 'true if registry does not require auth, like docker.io')
         , async (accountId, apiToken, { domain, public: is_public }) => {
-        const registry = await createCloudchamberImageRegistry({ accountId, apiToken, config: { domain, is_public } });
+        const registry = await createContainersImageRegistry({ accountId, apiToken, config: { domain, is_public } });
         console.log(registry);
     });
 

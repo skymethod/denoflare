@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listCloudchamberApplications, createCloudchamberApplication, CloudchamberApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ByteUnits, CloudchamberApplicationUpdate, updateCloudchamberApplication, deleteCloudchamberDeployment, listCloudchamberDeployments, generateCloudchamberImageRegistryCredentials } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ByteUnits, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -242,25 +242,24 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
             instances: instancesParam,
             'max-instances': maxInstancesParam,
             image: imageParam,
-            'disk-size': diskSizeParam,
-            memory: memoryParam,
-            vcpu: vcpuParam,
             tier: tierParam,
             name: nameParam,
+            'instance-type': instance_type,
+            logs: logsParam,
             ...rest
         } = Object.fromEntries(params) as Record<string, string>;
 
-        const applications = await listCloudchamberApplications({ accountId, apiToken });
+        const applications = await listContainersApplications({ accountId, apiToken });
         const existing = applications.find(v => v.durable_objects?.namespace_id === namespaceId);
 
         const instances = typeof instancesParam === 'string' ? parseInt(instancesParam) : 0;
         const max_instances = typeof maxInstancesParam === 'string' ? parseInt(maxInstancesParam) : undefined;
-        const scheduling_policy = 'regional';
+        const scheduling_policy = 'default';
         if (typeof imageParam !== 'string') throw new Error(`Must specify 'image' container param`);
         const image = await (async () => {
             const [ _, prefix, suffix ] = checkMatchesReturnMatcher('image', imageParam, /^([^:]+):([^:]+)$/);
             const local = !prefix.includes('/');
-            const imageBase = local ? `${CLOUDFLARE_MANAGED_REGISTRY}/${prefix}` : prefix;
+            const imageBase = local ? `${CLOUDFLARE_MANAGED_REGISTRY}/${accountId}/${prefix}` : prefix;
             if (suffix.startsWith('.') || suffix.startsWith('/')) {
                 if (!local) throw new Error(`Can only local develop with cf-managed repo`);
 
@@ -271,13 +270,13 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
                     console.log('docker building...');
                     initialDigest = (await dockerBuild(dockerfile, { tag: latestTag })).digest;
                 }
-                const { registry_host: host, username, password } = await generateCloudchamberImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: [ 'pull', 'push' ] }); // TODO keep around if watching
+                const { registry_host: host, username, password } = await generateContainersImageRegistryCredentials({ accountId, apiToken, expiration_minutes: 5, permissions: [ 'pull', 'push' ] }); // TODO keep around if watching
                 if (!password) throw new Error();
                 const authorization = computeBasicAuthorization({ username, password });
                 
                 // may not need to push at all if remote digest = current local digest
                 if (existing?.configuration.image && existing.configuration.image.startsWith(imageBase + ':')) {
-                    const tagUrl = `https://${host}/v2/${prefix}/manifests/${existing.configuration.image.split(':')[1]}`;
+                    const tagUrl = `https://${host}/v2/${accountId}/${prefix}/manifests/${existing.configuration.image.split(':')[1]}`;
                     const outDockerContentDigest: string[] = []
                     const tagManifest = await dockerFetch(tagUrl, { authorization, outDockerContentDigest });
                     const [ remoteDigest ] = outDockerContentDigest;
@@ -311,14 +310,6 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
             }
         })();
       
-        const parseByteUnits = (paramName: string, paramValue: string): ByteUnits => {
-            const upper = paramValue.toUpperCase();
-            if (!/^\d+(MB|GB)$/.test(upper)) throw new Error(`Invalid container ${paramName}: ${paramValue}`);
-            return upper as ByteUnits;
-        }
-        const disk = typeof diskSizeParam === 'string' ? { size: parseByteUnits('disk-size', diskSizeParam) } : undefined;
-        const memory = typeof memoryParam === 'string' ? parseByteUnits('memory', memoryParam) : undefined;
-        const vcpu = typeof vcpuParam === 'string' ? parseInt(vcpuParam) : undefined;
         const environment_variables = Object.entries(rest).filter(v => v[0].startsWith('env-')).map(v => ({ name: v[0].substring(4), value: v[1] }));
         const tier = typeof tierParam === 'string' ? parseInt(tierParam) : undefined;
         const getMulti = (name: string): string[] | undefined => {
@@ -331,10 +322,11 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
             return `${scriptName}-${namespaceName}-${namespaceId}`;
         };
         const name = typeof nameParam === 'string' ? nameParam : computeAutogeneratedName();
+        const enableLogs = logsParam === 'true';
 
         if (existing) {
             if (existing.name !== name) throw new Error(`This DO namespace is already associated with application '${existing.name}'. Delete the application and then push again.`);
-            const input: CloudchamberApplicationUpdate = { };
+            const input: ContainersApplicationUpdate = { };
             const changes: string[] = [];
             if (instances && existing.instances !== instances) {
                 changes.push(`instances: ${existing.instances} -> ${instances}`);
@@ -355,24 +347,6 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
                 input.configuration.image = image;
                 configurationChanged = true;
             }
-            if (disk && existing.configuration.disk && existing.configuration.disk.size !== disk.size) {
-                changes.push(`disk-size: ${existing.configuration.disk.size} -> ${disk.size}`);
-                if (!input.configuration) input.configuration = {};
-                input.configuration.disk = disk;
-                configurationChanged = true;
-            }
-            if (memory && existing.configuration.memory !== memory) {
-                changes.push(`memory: ${existing.configuration.memory} -> ${memory}`);
-                if (!input.configuration) input.configuration = {};
-                input.configuration.memory = memory;
-                configurationChanged = true;
-            }
-            if (vcpu && existing.configuration.vcpu !== vcpu) {
-                changes.push(`vcpu: ${existing.configuration.vcpu} -> ${vcpu}`);
-                if (!input.configuration) input.configuration = {};
-                input.configuration.vcpu = vcpu;
-                configurationChanged = true;
-            }
             if (environment_variables) {
                 const existingEnvVars = existing.configuration.environment_variables ?? [];
                 let envChanged = false;
@@ -389,6 +363,13 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
                     input.configuration.environment_variables = environment_variables;
                     configurationChanged = true;
                 }
+            }
+            const existingLogsEnabled = existing.configuration.observability?.logs?.enabled === true;
+            if (enableLogs !== existingLogsEnabled) {
+                changes.push(`enableLogs: ${existingLogsEnabled} -> ${enableLogs}`);
+                if (!input.configuration) input.configuration = {};
+                input.configuration.observability = enableLogs ? { logs: { enabled: true } } : undefined;
+                configurationChanged = true;
             }
             if (tier && existing.constraints?.tier !== tier) {
                 changes.push(`tier: ${existing.constraints?.tier} -> ${tier}`);
@@ -408,42 +389,28 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
                 input.constraints.cities = cities;
             }
 
-            if (changes.length > 0) {
+            if (configurationChanged) {
                 console.log('updating existing container application...');
                 for (const change of changes) {
                     console.log(change);
                 }
-                await updateCloudchamberApplication({ accountId, apiToken, applicationId: existing.id, input });
+                await updateContainersApplication({ accountId, apiToken, applicationId: existing.id, input });
                 console.log(`...updated existing container application: ${name}`);
-                if (configurationChanged) {
-                    console.log('configuration changed, delete existing deployments...');
-                    const deployments = await listCloudchamberDeployments({ accountId, apiToken, app_id: existing.id });
-                    if (deployments.length > 0) {
-                        for (const deployment of deployments) {
-                            await deleteCloudchamberDeployment({ accountId, apiToken, deploymentId: deployment.id });
-                            console.log(`  deleted ${deployment.id}`);
-                        }
-                        console.log(`...deleted ${deployments.length} existing deployment${deployments.length > 0 ? 's' : ''}`);
-                    } else {
-                        console.log(`...no existing deployments to delete`);
-                    }
-                }
             } else {
                 console.log(`...no changes to existing container application: ${name}`);
             }
         } else {
             console.log('creating new container application...')
-            const input: CloudchamberApplicationInput = {
+            const input: ContainersApplicationInput = {
                 name,
                 instances,
                 max_instances,
                 scheduling_policy,
                 configuration: {
                     image,
-                    disk,
-                    memory,
-                    vcpu,
                     environment_variables,
+                    instance_type,
+                    observability: enableLogs ? { logs: { enabled: true } } : undefined,
                 },
                 constraints: {
                     tier,
@@ -454,7 +421,7 @@ async function ensureContainerApplicationsExist({ scriptName, accountId, apiToke
                     namespace_id: namespaceId,
                 },
             }
-            await createCloudchamberApplication({ accountId, apiToken, input });
+            await createContainersApplication({ accountId, apiToken, input });
             console.log(`...created new container application: ${name}`);
         }
     }

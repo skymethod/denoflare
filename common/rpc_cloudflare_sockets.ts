@@ -1,4 +1,5 @@
-import { CloudflareSockets, parseSocketAddress, Socket, SocketAddress, SocketOptions } from './cloudflare_sockets.ts';
+import { parseSocketAddress } from './cloudflare_sockets.ts';
+import { CloudflareSockets, Socket, SocketAddress, SocketOptions } from './cloudflare_workers_types.d.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { Signal } from './signal.ts';
 

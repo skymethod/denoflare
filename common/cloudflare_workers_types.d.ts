@@ -1161,7 +1161,49 @@ export interface DurableObjectContainer {
     monitor(): Promise<void>;
     destroy(error?: unknown): Promise<void>;
     signal(signo: number): void;
-    getTcpPort(port: number): { fetch: typeof fetch };
+    getTcpPort(port: number): { fetch: typeof fetch } & CloudflareSockets;
+}
+
+export interface CloudflareSockets {
+    connect(address: SocketAddress | string, options?: SocketOptions): Socket;
+}
+
+export interface SocketAddress {
+    /** The hostname to connect to. Example: cloudflare.com */
+    readonly hostname: string;
+
+    /** The port number to connect to. Example: 5432  */
+    readonly port: number;
+}
+
+export interface SocketOptions {
+    /** Specifies whether or not to use TLS when creating the TCP socket. Defaults to off */
+    readonly secureTransport?: 'off' | 'on' | 'starttls';
+
+    /** Defines whether the writable side of the TCP socket will automatically close on end-of-file (EOF).
+     * 
+     * When set to false, the writable side of the TCP socket will automatically close on EOF. When set to true, the writable side of the TCP socket will remain open on EOF.*/
+    readonly allowHalfOpen?: boolean;
+}
+
+export interface Socket {
+
+    /** Returns the readable side of the TCP socket. */
+    readonly readable: ReadableStream<Uint8Array>;
+
+    /** Returns the writable side of the TCP socket. */
+    readonly writable: WritableStream<Uint8Array>;
+
+    /** This promise is resolved when the socket is closed and is rejected if the socket encounters an error. */
+    readonly closed: Promise<void>;
+
+    /** Closes the TCP socket. Both the readable and writable streams are forcibly closed. */
+    close(): Promise<void>;
+
+    /** Upgrades an insecure socket to a secure one that uses TLS, returning a new Socket.
+     * 
+     * Note that in order to call startTls(), you must set secureTransport to starttls when initially calling connect() to create the socket. */
+    startTls(): Socket;
 }
 
 declare class WebSocketRequestResponsePair {

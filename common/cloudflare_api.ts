@@ -345,13 +345,13 @@ export interface NewMigrations {
     readonly old_tag?: string;
     readonly new_tag: string;
     readonly steps: {
-		readonly new_classes?: string[];
-		readonly new_sqlite_classes?: string[];
-		readonly renamed_classes?: {
-			readonly from: string;
-			readonly to: string;
-		}[];
-		readonly deleted_classes?: string[];
+        readonly new_classes?: string[];
+        readonly new_sqlite_classes?: string[];
+        readonly renamed_classes?: {
+            readonly from: string;
+            readonly to: string;
+        }[];
+        readonly deleted_classes?: string[];
     }[];
 }
 
@@ -2051,9 +2051,9 @@ export async function listHyperdriveConfigs(opts: { accountId: string, apiToken:
 }
 
 export interface HyperdriveCachingOpts {
-	readonly disabled?: boolean;
-	readonly maxAge?: number;
-	readonly staleWhileRevalidate?: number;
+    readonly disabled?: boolean;
+    readonly maxAge?: number;
+    readonly staleWhileRevalidate?: number;
 }
 
 export interface HyperdriveOrigin {
@@ -2255,64 +2255,64 @@ export async function deletePipeline(opts: { accountId: string, apiToken: string
 }
 
 export type HttpPipelineSource = {
-	readonly type: 'http';
-	readonly format: string;
-	readonly schema?: string;
+    readonly type: 'http';
+    readonly format: string;
+    readonly schema?: string;
     /** Require authentication (Cloudflare API Token) to send data to the HTTPS endpoint */
-	readonly authentication?: boolean;
+    readonly authentication?: boolean;
 }
 
 export type BindingPipelineSource = {
-	readonly type: 'binding';
-	readonly format: string;
-	readonly schema?: string;
+    readonly type: 'binding';
+    readonly format: string;
+    readonly schema?: string;
 }
 
 export type PipelineSource = HttpPipelineSource | BindingPipelineSource;
 
 export type PipelineTransformConfig = {
-	readonly script: string;
-	readonly entrypoint: string;
+    readonly script: string;
+    readonly entrypoint: string;
 }
 
 export type PipelineCompressionType = 'none' | 'gzip' | 'deflate';
 
 export type PipelineConfig = {
     readonly name: string;
-	readonly metadata: Record<string, string>;
-	readonly source: PipelineSource[];
+    readonly metadata: Record<string, string>;
+    readonly source: PipelineSource[];
     /** The worker and entrypoint of the PipelineTransform implementation in the format "worker.entrypoint" */
-	readonly transforms: PipelineTransformConfig[];
-	readonly destination: {
-		readonly type: string;
-		readonly format: string;
-		readonly compression: {
+    readonly transforms: PipelineTransformConfig[];
+    readonly destination: {
+        readonly type: string;
+        readonly format: string;
+        readonly compression: {
             /** Sets the compression format of output files (default: gzip) */
-			readonly type: PipelineCompressionType;
-		};
-		readonly batch: {
+            readonly type: PipelineCompressionType;
+        };
+        readonly batch: {
             /** The approximate maximum age (in seconds) of a batch before flushing (range: 1 - 300) */
-			readonly max_duration_s?: number;
+            readonly max_duration_s?: number;
             /** The approximate maximum size for each batch before flushing (range: 1mb - 100mb, default: 100mb) */
-			readonly max_bytes?: number;
+            readonly max_bytes?: number;
             /** The approximate maximum number of rows in a batch before flushing (range: 100 - 10_000_000, default: 10_000_000) */
-			readonly max_rows?: number;
-		};
-		readonly path: {
-			readonly bucket: string;
+            readonly max_rows?: number;
+        };
+        readonly path: {
+            readonly bucket: string;
             /** Optional base path to store files in the destination bucket */
-			readonly prefix?: string;
+            readonly prefix?: string;
             /** The path to store partitioned files in the destination bucket. (default: event_date=${date}/hr=${hr}) */
-			readonly filepath?: string;
+            readonly filepath?: string;
             /** The name of each unique file in the bucket. Must contain "${slug}". File extension is optional. (default: ${slug}${extension}) */
-			readonly filename?: string;
-		};
-		readonly credentials: {
-			readonly endpoint: string;
-			readonly secret_access_key: string;
-			readonly access_key_id: string;
-		};
-	};
+            readonly filename?: string;
+        };
+        readonly credentials: {
+            readonly endpoint: string;
+            readonly secret_access_key: string;
+            readonly access_key_id: string;
+        };
+    };
 }
 
 // https://stackoverflow.com/a/51365037
@@ -2336,20 +2336,20 @@ export type PipelineInfo = Pick<Pipeline, 'id' | 'name' | 'endpoint'>;
 
 //#endregion
 
-//#region Cloudchamber
+//#region Containers
 
-export async function listCloudchamberApplications(opts: { accountId: string, apiToken: string, name?: string, image?: string, labels?: string[] }): Promise<CloudchamberApplication[]> {
+export async function listContainersApplications(opts: { accountId: string, apiToken: string, name?: string, image?: string, labels?: string[] }): Promise<ContainersApplication[]> {
     const { accountId, apiToken, name, image, labels } = opts;
-    const url = new URL(`${computeAccountBaseUrl(accountId)}/cloudchamber/applications`);
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/containers/applications`);
     if (typeof name === 'string') url.searchParams.set('name', name);
     if (typeof image === 'string') url.searchParams.set('image', image);
     if (labels) labels.forEach(v => url.searchParams.append('label', v));
-    return (await execute<CloudchamberApplication[]>('listCloudchamberApplications', 'GET', url.toString(), apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
+    return (await execute<ContainersApplication[]>('listContainersApplications', 'GET', url.toString(), apiToken)).result;
 }
 
-export type CloudchamberApplicationSchedulingPolicy = 'moon' | 'gpu' | 'regional';
+export type ContainersApplicationSchedulingPolicy = 'moon' | 'gpu' | 'regional' | 'fill_metals' | 'default';
 
-type CloudchamberSecretDef = {
+type ContainersSecretDef = {
     name: string, // name of secret within container
     type: 'env',
     secret: string, // secret name from the account
@@ -2360,16 +2360,17 @@ type NameValuePair = {
     value: string,
 }
 
-export type CloudchamberDisk = {
+export type ContainersDisk = {
     size: ByteUnits, // min 512MB
+    size_mb?: number,
 }
 
-type CloudchamberDnsConfig = {
+type ContainersDnsConfig = {
     servers?: string[], // max 3
     searches?: string[], // max 6
 }
 
-type CloudchamberDeploymentCheck = {
+type ContainersDeploymentCheck = {
     name?: string,
     type: 'tcp' | 'http',
     tls?: boolean,
@@ -2387,42 +2388,45 @@ type CloudchamberDeploymentCheck = {
     grace_period?: Duration,
 }
 
-type CloudchamberObservability = {
-    logging: {
+type ContainersObservability = {
+    logs?: {
         enabled?: boolean,
     }
 }
 
-export type CloudchamberApplicationConfiguration = {
-    image: string,
-    ssh_public_key_ids?: string[], // ssh public key id
-    secrets?: CloudchamberSecretDef[],
+export type ContainersApplicationConfiguration = {
+    image: string, // e.g. <registry-host>/<image-name>:<tag>
     vcpu?: number,
     memory?: ByteUnits, // min 128MB
-    disk?: CloudchamberDisk,
+    memory_mib?: number,
+    disk?: ContainersDisk,
     environment_variables?: NameValuePair[],
-    labels?: NameValuePair[],
     network?: {
         assign_ipv4?: IpAssignment,
         assign_ipv6?: IpAssignment,
-        mode?: 'public' | 'private', // public: assigned at least an IPv6, and an IPv4 if "assign_ipv4": true. private: no accessible public IPs, however it will be able to access the internet.
+        mode?: 'public' | 'private' | 'public-by-port', // public: assigned at least an IPv6, and an IPv4 if "assign_ipv4": true. public-by-port: same, but constrain to one or more ports. private: no accessible public IPs, however it will be able to access the internet.
     },
+    runtime?: string, // e.g. firecracker
     command?: string[],
     entrypoint?: string[],
-    dns?: CloudchamberDnsConfig,
+    ssh_public_key_ids?: string[], // ssh public key ids
+    secrets?: ContainersSecretDef[],
+    instance_type?: string, // dev, basic, standard
+    labels?: NameValuePair[],
+    dns?: ContainersDnsConfig,
     ports?: {
         name: string,
         port?: number,
-        network: string, // must be 'host-internal' for now
+        assign_port?: { start: number, end: number }[], // inclusive ranges
     }[],
-    checks?: CloudchamberDeploymentCheck[],
+    checks?: ContainersDeploymentCheck[],
     provisioner?: 'none' | 'cloudinit',
-    observability?: CloudchamberObservability,
+    observability?: ContainersObservability,
 };
 
-type CloudchamberApplicationCommon = {
+type ContainersApplicationCommon = {
     instances?: number,
-	max_instances?: number,
+    max_instances?: number,
     affinities?: {
         colocation?: 'datacenter',
     },
@@ -2434,47 +2438,48 @@ type CloudchamberApplicationCommon = {
         tier?: number,
         regions?: string[],
         cities?: string[], // city code like MAD
+        pops?: string[], // requires specific entitlements
     },
 }
 
-export type CloudchamberApplicationInput = CloudchamberApplicationCommon & {
+export type ContainersApplicationInput = ContainersApplicationCommon & {
     name: string,
-    instances: number,
-	max_instances?: number,
-    scheduling_policy: CloudchamberApplicationSchedulingPolicy,
-	configuration: CloudchamberApplicationConfiguration,
+    configuration: ContainersApplicationConfiguration,
+    scheduling_policy: ContainersApplicationSchedulingPolicy,
     jobs?: boolean,
     durable_objects?: {
         namespace_id: string,
     },
 }
 
-export type CloudchamberApplicationUpdate = CloudchamberApplicationCommon & {
-	scheduling_policy?: CloudchamberApplicationSchedulingPolicy,
-	configuration?: Partial<CloudchamberApplicationConfiguration>,
+export type ContainersApplicationUpdate = ContainersApplicationCommon & {
+    scheduling_policy?: ContainersApplicationSchedulingPolicy,
+    configuration?: Partial<ContainersApplicationConfiguration>,
 }
 
-export type CloudchamberApplication = CloudchamberApplicationInput & {
-	id: string, // guid
-	created_at: string,
-	account_id: string,
-	version: number, // starts at 1
+export type ContainersApplication = ContainersApplicationInput & {
+    id: string, // guid
+    created_at: string, // e.g. 2025-04-13T17:55:33.886000128Z
+    account_id: string,
+    version: number, // starts at 1
     runtime: string, // 'firecracker'
-	scheduling_hint?: {
+    instances: number,
+    scheduling_hint?: {
         current: {
             instances: number,
-            configuration: unknown, // TODO
+            configuration: ContainersApplicationConfiguration,
             version: number,
         };
         target: {
             instances: number,
-            configuration: unknown, // TODO
+            configuration: ContainersApplicationConfiguration,
             version: number,
         };
     },
-	active_rollout_id?: string,
-	health?: {
+    active_rollout_id?: string,
+    health?: {
         instances: {
+            durable_objects_active: number,
             healthy: number,
             failed: number,
             starting: number,
@@ -2483,199 +2488,105 @@ export type CloudchamberApplication = CloudchamberApplicationInput & {
     },
 }
 
-export async function getCloudchamberApplication(opts: { accountId: string, apiToken: string, applicationId: string }): Promise<CloudchamberApplication> {
+export async function getContainersApplication(opts: { accountId: string, apiToken: string, applicationId: string }): Promise<ContainersApplication> {
     const { accountId, apiToken, applicationId } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications/${applicationId}`;
-    return (await execute<CloudchamberApplication>('getCloudchamberApplication', 'GET', url, apiToken)).result;
+    const url = `${computeAccountBaseUrl(accountId)}/containers/applications/${applicationId}`;
+    return (await execute<ContainersApplication>('getContainersApplication', 'GET', url, apiToken)).result;
 }
 
-export async function createCloudchamberApplication(opts: { accountId: string, apiToken: string, input: CloudchamberApplicationInput }): Promise<CloudchamberApplication> {
+export async function createContainersApplication(opts: { accountId: string, apiToken: string, input: ContainersApplicationInput }): Promise<ContainersApplication> {
     const { accountId, apiToken, input } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications`;
-    return (await execute<CloudchamberApplication>('createCloudchamberApplication', 'POST', url, apiToken, input, undefined, undefined, { nonStandardResponse: true })).result;
+    const url = `${computeAccountBaseUrl(accountId)}/containers/applications`;
+    return (await execute<ContainersApplication>('createContainersApplication', 'POST', url, apiToken, input)).result;
 }
 
-export async function deleteCloudchamberApplication(opts: { accountId: string, apiToken: string, applicationId: string }): Promise<void> {
+export async function deleteContainersApplication(opts: { accountId: string, apiToken: string, applicationId: string }): Promise<void> {
     const { accountId, apiToken, applicationId } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications/${applicationId}`;
-    await execute('deleteCloudchamberApplication', 'DELETE', url, apiToken, undefined, undefined, undefined, { nonStandardResponse: true });
+    const url = `${computeAccountBaseUrl(accountId)}/containers/applications/${applicationId}`;
+    await execute('deleteContainersApplication', 'DELETE', url, apiToken);
 }
 
-export async function updateCloudchamberApplication(opts: { accountId: string, apiToken: string, applicationId: string, input: CloudchamberApplicationUpdate }): Promise<CloudchamberApplication> {
+export async function updateContainersApplication(opts: { accountId: string, apiToken: string, applicationId: string, input: ContainersApplicationUpdate }): Promise<ContainersApplication> {
     const { accountId, apiToken, applicationId, input } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/applications/${applicationId}`;
-    return (await execute<CloudchamberApplication>('updateCloudchamberApplication', 'PATCH', url, apiToken, input, undefined, undefined, { nonStandardResponse: true })).result;
+    const url = `${computeAccountBaseUrl(accountId)}/containers/applications/${applicationId}`;
+    return (await execute<ContainersApplication>('updateContainersApplication', 'PATCH', url, apiToken, input)).result;
 }
 
 type IpAssignment = 'none' | 'predefined' | 'account';
 
 type Duration = 'string'; //  in the form "3d1h3m". Leading zero units are omitted. As a special case, durations less than one second format use a smaller unit (milli-, micro-, or nanoseconds) to ensure that the leading digit is non-zero.
 
-export type CloudchamberDeploymentState = 'running' | 'stopped' | 'starting' | 'stopping';
-
-export async function listCloudchamberDeployments(opts: { accountId: string, apiToken: string, app_id?: string, location?: string, image?: string, state?: CloudchamberDeploymentState, ipv4?: string, label?: string[] }): Promise<CloudchamberDeployment[]> {
-    const { accountId, apiToken, app_id, location, image, state, ipv4, label } = opts;
-    const url = new URL(`${computeAccountBaseUrl(accountId)}/cloudchamber/deployments/v2`);
-    for (const [ name, value ] of Object.entries({ app_id, location, image, state, ipv4, label })) {
-        if (typeof value === 'string') {
-            url.searchParams.set(name, value);
-        } else if (Array.isArray(value)) {
-            value.forEach(v => url.searchParams.append(name, v));
-        }
-    }
-    return (await execute<CloudchamberDeployment[]>('listCloudchamberDeployments', 'GET', url.toString(), apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
-}
-
-export async function deleteCloudchamberDeployment(opts: { accountId: string, apiToken: string, deploymentId: string }): Promise<void> {
-    const { accountId, apiToken, deploymentId } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/deployments/${deploymentId}/v2`;
-    await execute('deleteCloudchamberDeployment', 'DELETE', url, apiToken, undefined, undefined, undefined, { nonStandardResponse: true });
-}
-
-type CloudchamberDeploymentQueuedReason = 'unknown' | 'location_overprovisioned';
-
-export type CloudchamberDeployment = {
-	id: string, // guid
-	app_id?: string, // guid
-	app_version?: number,
-	created_at: string,
-	account_id: string,
-	version: number,
-	type: 'default' | 'jobs' | 'durable_object',
-	image: string, // e.g. docker.io/cloudflare/hello-world:1.0
-	location: {
-        name: string, // e.g. jog01
-        enabled: boolean,
-        region?: string,
-    },
-	ssh_public_key_ids?: string[],
-	secrets?: CloudchamberSecretDef[],
-    environment_variables?: NameValuePair[],
-    labels?: NameValuePair[],
-	current_placement?: CloudchamberPlacement,
-	placements_ref: string, // e.g. /deployments/<guid>/placement
-	vcpu: number,
-	memory: ByteUnits,
-	node_group: CloudchamberNodeGroup,
-	disk?: CloudchamberDisk,
-	network?: {
-        ipv4?: string,
-        ipv6?: string,
-    },
-	gpu_memory?: ByteUnits,
-	command?: string[],
-	entrypoint?: string[],
-	dns?: CloudchamberDnsConfig,
-    checks?: CloudchamberDeploymentCheck[],
-    runtime: string, // 'firecracker'
-	state?: {
-        current: 'scheduled' | 'placed',
-        last_updated: string,
-        queued_details?: {
-            gpu?: CloudchamberDeploymentQueuedReason,
-            cpu?: CloudchamberDeploymentQueuedReason,
-            memory?: CloudchamberDeploymentQueuedReason,
-            disk?: CloudchamberDeploymentQueuedReason,
-            unknown?: CloudchamberDeploymentQueuedReason,
-        },
-    },
-	observability?: CloudchamberObservability,
-}
-
-export type CloudchamberPlacement = {
-	id: string, // guid
-	created_at: string,
-	deployment_id: string,
-	deployment_version: number,
-	terminate: boolean,
-	status: {
-        health: 'placed' | 'stopping' | 'running' | 'failed' | 'stopped' | 'unhealthy' | 'do_connected',
-        ready?: boolean,
-        durable_object?: 'connected' | 'disconnected',
-    } & Record<string, unknown>,
-	last_update?: string,
-	durable_object_actor_id?: string,
-}
-
-export async function listCloudchamberPlacements(opts: { accountId: string, apiToken: string, deploymentId: string }): Promise<unknown[]> {
-    const { accountId, apiToken, deploymentId } = opts;
-    const url = new URL(`${computeAccountBaseUrl(accountId)}/cloudchamber/deployments/${deploymentId}/placements`);
-    return (await execute<unknown[]>('listCloudchamberPlacements', 'GET', url.toString(), apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
-}
-
-export async function getCloudchamberCustomer(opts: { accountId: string, apiToken: string }): Promise<CloudchamberCustomer> {
+export async function getContainersCustomer(opts: { accountId: string, apiToken: string }): Promise<ContainersCustomer> {
     const { accountId, apiToken } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/me`;
-    return (await execute<CloudchamberCustomer>('getCloudchamberCustomer', 'GET', url, apiToken, undefined, undefined, undefined, { nonStandardResponse: true })).result;
+    const url = `${computeAccountBaseUrl(accountId)}/containers/me`;
+    return (await execute<ContainersCustomer>('getContainersCustomer', 'GET', url, apiToken)).result;
 }
 
 export type ByteUnits = `${number}${'MB' | 'GB'}`; // e.g. 2GB or 40GB
 
-type CloudchamberNodeGroup = 'metal' | 'cloudchamber';
+type ContainersNodeGroup = 'metal' | 'cloudchamber';
+type ContainersNetworkMode = 'uso' | 'vhost' | 'xdp';
 
-export type CloudchamberCustomer = {
-    legacy_identity: string,
+export type ContainersCustomer = {
+    account_id: string, // cf account id
     external_account_id: string, // cf account id
+    legacy_identity: string, // "<email>'s Account"
+    capabilities: string[], // e.g. CLOUDFLARE_REGISTRY, V3_ONLY_ACCOUNT, DURABLE_OBJECTS, PIPEFITTER, PRIVATE_NETWORK_ONLY, THROTTLED_EGRESS, REQUIRE_INSTANCE_TYPE
+    limits: {
+        account_id: string, // cf account id
+        vcpu_per_deployment: number,
+        memory_mib_per_deployment: number,
+        memory_per_deployment: ByteUnits,
+        disk_per_deployment: ByteUnits,
+        disk_mb_per_deployment: number,
+        total_vcpu: number,
+        total_memory: ByteUnits,
+        total_memory_mib: number,
+        ipv4s: number,
+        network_modes: ContainersNetworkMode[],
+        node_group: ContainersNodeGroup,
+    },
     defaults: {
         vcpus: number,
         memory: ByteUnits,
+        memory_mib: number,
+        disk_mb: number,
     },
-    limits: {
-        ipv4s: number,
-        account_id: string, // cf account id
-        vcpu_per_deployment: number,
-        total_vcpu: number,
-        node_group: CloudchamberNodeGroup,
-        disk_per_deployment: ByteUnits,
-        memory_per_deployment: ByteUnits,
-        total_memory: ByteUnits,
-        network_modes: unknown[],
-    },
-    locations: {
-        location: string, // e.g. atl01
-        name: string,
-        region: string, // e.g. ENAM
-        limits: {
-            memory_per_deployment: ByteUnits,
-            total_memory: ByteUnits,
-            vcpu_per_deployment: number,
-            total_vcpu: number,
-        },
-    }[],
+    locations: unknown[],
 }
 
-export type CloudchamberImageRegistryCredentialPermission = 'push' | 'pull';
+export type ContainersImageRegistryCredentialPermission = 'push' | 'pull';
 
-export const CLOUDFLARE_MANAGED_REGISTRY = 'registry.cloudchamber.cfdata.org';
+export const CLOUDFLARE_MANAGED_REGISTRY = 'registry.cloudflare.com';
 
-export async function generateCloudchamberImageRegistryCredentials(opts: { accountId: string, apiToken: string, expiration_minutes: number, permissions: CloudchamberImageRegistryCredentialPermission[], domain?: string  }): Promise<CloudchamberImageRegistryCredentials> {
+export async function generateContainersImageRegistryCredentials(opts: { accountId: string, apiToken: string, expiration_minutes: number, permissions: ContainersImageRegistryCredentialPermission[], domain?: string  }): Promise<ContainersImageRegistryCredentials> {
     const { accountId, apiToken, expiration_minutes, permissions, domain = CLOUDFLARE_MANAGED_REGISTRY } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/registries/${domain}/credentials`;
-    return (await execute<CloudchamberImageRegistryCredentials>('generateCloudchamberImageRegistryCredentials', 'POST', url, apiToken, { expiration_minutes, permissions }, undefined, undefined, { nonStandardResponse: true })).result;
+    const url = `${computeAccountBaseUrl(accountId)}/containers/registries/${domain}/credentials`;
+    return (await execute<ContainersImageRegistryCredentials>('generateContainersImageRegistryCredentials', 'POST', url, apiToken, { expiration_minutes, permissions })).result;
 }
 
-export type CloudchamberImageRegistryCredentials = {
-	account_id: string,
-	registry_host: string,
-	username: string,
-	password?: string,  // undefined if public
+export type ContainersImageRegistryCredentials = {
+    account_id: string,
+    registry_host: string,
+    username: string,
+    password?: string,  // undefined if public
 }
 
-export type CloudchamberImageRegistryConfig = {
+export type ContainersImageRegistryConfig = {
     domain: string, // hostname
     is_public?: boolean, // true for docker.io
 }
 
-export async function createCloudchamberImageRegistry(opts: { accountId: string, apiToken: string, config: CloudchamberImageRegistryConfig }): Promise<CloudchamberImageRegistry> {
+export async function createContainersImageRegistry(opts: { accountId: string, apiToken: string, config: ContainersImageRegistryConfig }): Promise<ContainersImageRegistry> {
     const { accountId, apiToken, config } = opts;
-    const url = `${computeAccountBaseUrl(accountId)}/cloudchamber/registries`;
-    return (await execute<CloudchamberImageRegistry>('createCloudchamberImageRegistry', 'POST', url, apiToken, config, undefined, undefined, { nonStandardResponse: true })).result;
+    const url = `${computeAccountBaseUrl(accountId)}/containers/registries`;
+    return (await execute<ContainersImageRegistry>('createContainersImageRegistry', 'POST', url, apiToken, config)).result;
 }
 
-export type CloudchamberImageRegistry = {
-	public_key?: string,
-	domain: string,
-	created_at: string,
+export type ContainersImageRegistry = {
+    public_key?: string,
+    domain: string,
+    created_at: string,
 }
 
 //#endregion

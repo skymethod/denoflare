@@ -1,3 +1,4 @@
+import { CloudflareSockets, SocketAddress, Socket, SocketOptions } from './cloudflare_workers_types.d.ts';
 import { Signal } from './signal.ts';
 
 // https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/
@@ -8,48 +9,6 @@ export function cloudflareSockets(): CloudflareSockets {
     const provider = (globalThis as any).__cloudflareSocketsProvider;
     if (typeof provider === 'function') return provider();
     return { connect: DenoSocket.connect };
-}
-
-export interface CloudflareSockets {
-    connect(address: SocketAddress | string, options?: SocketOptions): Socket;
-}
-
-export interface SocketAddress {
-    /** The hostname to connect to. Example: cloudflare.com */
-    readonly hostname: string;
-
-    /** The port number to connect to. Example: 5432  */
-    readonly port: number;
-}
-
-export interface SocketOptions {
-    /** Specifies whether or not to use TLS when creating the TCP socket. Defaults to off */
-    readonly secureTransport?: 'off' | 'on' | 'starttls';
-
-    /** Defines whether the writable side of the TCP socket will automatically close on end-of-file (EOF).
-     * 
-     * When set to false, the writable side of the TCP socket will automatically close on EOF. When set to true, the writable side of the TCP socket will remain open on EOF.*/
-    readonly allowHalfOpen?: boolean;
-}
-
-export interface Socket {
-
-    /** Returns the readable side of the TCP socket. */
-    readonly readable: ReadableStream<Uint8Array>;
-
-    /** Returns the writable side of the TCP socket. */
-    readonly writable: WritableStream<Uint8Array>;
-
-    /** This promise is resolved when the socket is closed and is rejected if the socket encounters an error. */
-    readonly closed: Promise<void>;
-
-    /** Closes the TCP socket. Both the readable and writable streams are forcibly closed. */
-    close(): Promise<void>;
-
-    /** Upgrades an insecure socket to a secure one that uses TLS, returning a new Socket.
-     * 
-     * Note that in order to call startTls(), you must set secureTransport to starttls when initially calling connect() to create the socket. */
-    startTls(): Socket;
 }
 
 export function parseSocketAddress(address: string | SocketAddress): SocketAddress {

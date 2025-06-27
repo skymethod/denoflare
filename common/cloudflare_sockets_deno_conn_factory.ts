@@ -1,6 +1,7 @@
-import { Socket, cloudflareSockets } from './cloudflare_sockets.ts';
+import { cloudflareSockets } from './cloudflare_sockets.ts';
 import { copy } from 'https://deno.land/std@0.224.0/bytes/copy.ts'; // intended to be self-contained, don't use shared deps
 import { Uint8Array_ } from './uint8array_.ts';
+import { Socket } from './cloudflare_workers_types.d.ts';
 
 const { connect } = cloudflareSockets();
 
