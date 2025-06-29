@@ -8,7 +8,7 @@ import { getScriptSettings } from '../common/cloudflare_api.ts';
 import { listZoneRulesets } from '../common/cloudflare_api.ts';
 import { updateZoneEntrypointRuleset } from '../common/cloudflare_api.ts';
 import { AiImageClassificationInput, AiImageToTextInput, AiModelInput, AiObjectDetectionInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiSummarizationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiTextGenerationInput, AiTextToImageInput, AiTranslationInput } from '../common/cloudflare_workers_types.d.ts';
-import { TextLineStream, sortBy } from './deps_cli.ts';
+import { TextLineStream } from './deps_cli.ts';
 import { pullQueueMessages } from '../common/cloudflare_api.ts';
 import { ByteUnits } from '../common/cloudflare_api.ts';
 import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';

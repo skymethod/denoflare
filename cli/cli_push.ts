@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ByteUnits, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -107,12 +107,8 @@ export async function push(args: (string | number)[], options: Record<string, un
         const limits = cpuLimit !== undefined ? { cpu_ms: cpuLimit } : undefined;
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
-        if (containers?.length ?? 0 > 0) {
-            await ensureContainerApplicationsExist({ scriptName, accountId, apiToken, doNamespaces, initial: pushNumber === 1 });
-        }
-
         // only perform migrations on first upload, not on subsequent --watch uploads
-        const migrations = pushNumber === 1 ? computeMigrations(deleteClassOpt) : undefined;
+        const migrations = pushNumber === 1 ? computeMigrations(deleteClassOpt, doNamespaces) : undefined;
 
         if (isModule) {
             scriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, parts);
@@ -139,6 +135,9 @@ export async function push(args: (string | number)[], options: Record<string, un
             start = Date.now();
             await doNamespaces.flushPendingUpdates();
             console.log(`updated durable object namespaces in ${Date.now() - start}ms`);
+        }
+         if (containers?.length ?? 0 > 0) {
+            await ensureContainerApplicationsExist({ scriptName, accountId, apiToken, doNamespaces, initial: pushNumber === 1 });
         }
 
         // only perform custom domain and/or workers dev setup on first upload, not on subsequent --watch uploads
@@ -203,10 +202,13 @@ async function ensureCustomDomainExists(customDomain: string, opts: { zones: rea
     await putWorkersDomain({ accountId, apiToken, hostname: customDomain, zoneId: zone.id, service: scriptName, environment: 'production' });
 }
 
-function computeMigrations(deleteClassOpt: string[] | undefined): Migrations | undefined {
+function computeMigrations(deleteClassOpt: string[] | undefined, doNamespaces: DurableObjectNamespaces): Migrations | undefined {
     const deleted_classes = deleteClassOpt ?? [];
     if (deleted_classes.length > 0) {
         return { tag: `delete-${deleted_classes.join('-')}`, deleted_classes };
+    }
+    if (doNamespaces.newSqlClasses.length > 0) {
+        return { steps: [ { new_sqlite_classes: doNamespaces.newSqlClasses } ] };
     }
 }
 
@@ -434,23 +436,26 @@ class DurableObjectNamespaces {
     private readonly apiToken: string;
 
     private readonly pendingUpdates: { id: string, name?: string, script?: string, class?: string }[] = [];
+    private readonly pendingContainerUpdates: { scriptName: string, doNamespaceName: string, className: string, containerSpec: string }[] = [];
 
     readonly containerClassNames: string[] = [];
     readonly namespaceIdsToContainerSpecs = new Map<string, string>();
     readonly namespaceIdsToNamespaceNames = new Map<string, string>();
+    readonly newSqlClasses: string[] = [];
 
     constructor(accountId: string, apiToken: string) {
         this.accountId = accountId;
         this.apiToken = apiToken;
     }
 
-    async getOrCreateNamespaceId(namespaceSpec: string, scriptName: string, containerSpec: string | undefined): Promise<string> {
+    async getOrCreateNamespaceId(namespaceSpec: string, scriptName: string, containerSpec: string | undefined): Promise<{ namespace_id?: string, class_name?: string }> {
         const tokens = namespaceSpec.split(':');
         if (tokens.length !== 2 && tokens.length !== 3) throw new Error(`Bad durable object namespace spec: ${namespaceSpec}`);
         const name = tokens[0];
         if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error(`Bad durable object namespace name: ${name}`);
         const className = tokens[1];
         let useSqlite: boolean | undefined;
+        let useExperimentalBinding = false;
         const opts = tokens[2];
         if (typeof opts === 'string') {
             for (const pair of opts.split(',')) {
@@ -462,38 +467,79 @@ class DurableObjectNamespaces {
                         throw new Error(`Bad 'backend' option value: ${value} (must be 'sql' or 'kv')`);
                     }
                 }
+                if (name === 'binding') {
+                    if (value === 'experimental') useExperimentalBinding = true;
+                }
             }
         }
-        const { accountId, apiToken,containerClassNames, namespaceIdsToContainerSpecs, namespaceIdsToNamespaceNames } = this;
+        if (typeof containerSpec === 'string' && !useSqlite) throw new Error(`DOs with containers must use backend=sql`);
+        const { accountId, apiToken, containerClassNames, namespaceIdsToContainerSpecs, namespaceIdsToNamespaceNames, pendingContainerUpdates, newSqlClasses } = this;
+        if (typeof containerSpec === 'string') {
+            if (!containerClassNames.includes(className)) containerClassNames.push(className);
+            if (useExperimentalBinding) {
+                pendingContainerUpdates.push({ scriptName, doNamespaceName: name, className, containerSpec });
+                if (!newSqlClasses.includes(className)) newSqlClasses.push(className);
+                return { class_name: className };
+            }
+        }
+      
         const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken, perPage: 1000 });
+        const useContainers = typeof containerSpec === 'string';
         let namespace = namespaces.find(v => v.name === name);
         if (!namespace)  {
             console.log(`Creating new durable object namespace: ${name}`);
-            namespace = await createDurableObjectsNamespace({ accountId, apiToken, name, useSqlite });
+            namespace = await createDurableObjectsNamespace({ accountId, apiToken, name, useSqlite, useContainers });
         }
         if (namespace.class !== className || namespace.script !== scriptName) {
             this.pendingUpdates.push({ id: namespace.id, name, script: scriptName, class: className });
         }
         if (typeof containerSpec === 'string') {
-            if (!containerClassNames.includes(className)) containerClassNames.push(className);
             namespaceIdsToContainerSpecs.set(namespace.id, containerSpec);
         }
         namespaceIdsToNamespaceNames.set(namespace.id, name);
-        return namespace.id;
+        return { namespace_id: namespace.id };
     }
 
     hasPendingUpdates() {
-        return this.pendingUpdates.length > 0;
+        return this.pendingUpdates.length > 0 || this.pendingContainerUpdates.length > 0;
     }
 
     async flushPendingUpdates() {
-        const { accountId, apiToken } = this;
-        for (const { id, name, script, class: className } of this.pendingUpdates) {
+        const { accountId, apiToken, pendingUpdates, pendingContainerUpdates, namespaceIdsToContainerSpecs, namespaceIdsToNamespaceNames } = this;
+
+        for (const { id, name, script, class: className } of pendingUpdates) {
             console.log(`Updating durable object namespace ${name}: script=${script}, class=${className}`);
             await updateDurableObjectsNamespace({ accountId, apiToken, id, name, script, className });
         }
-        this.pendingUpdates.splice(0);
+        pendingUpdates.splice(0);
+
+        const scriptSettings = new Map<string, ScriptSettings>();
+        for (const { scriptName, doNamespaceName, className, containerSpec } of pendingContainerUpdates) {
+            const settings = await (async () => {
+                let rt = scriptSettings.get(scriptName);
+                if (!rt) {
+                    rt = await getScriptSettings({ accountId, apiToken, scriptName });
+                    scriptSettings.set(scriptName, rt);
+                }
+                return rt;
+            })();
+            let found = false;
+            for (const binding of settings.bindings) {
+                if (binding.type === 'durable_object_namespace' && binding.class_name === className && typeof binding.namespace_id === 'string') {
+                    const namespaceId = binding.namespace_id;
+                    await updateDurableObjectsNamespace({ accountId, apiToken, id: namespaceId, name: doNamespaceName, script: scriptName, className });
+                    namespaceIdsToContainerSpecs.set(namespaceId, containerSpec);
+                    namespaceIdsToNamespaceNames.set(namespaceId, doNamespaceName);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) throw new Error(`DO namespace binding not found for: ${scriptName} ${className}`);
+
+        }
+        pendingContainerUpdates.splice(0);
     }
+
 }
 
 //
@@ -516,7 +562,7 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
     } else if (isKVNamespaceBinding(binding)) {
         return { type: 'kv_namespace', name, namespace_id: binding.kvNamespace };
     } else if (isDONamespaceBinding(binding)) {
-        return { type: 'durable_object_namespace', name, namespace_id: await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName, binding.container) };
+        return { type: 'durable_object_namespace', name, ...await doNamespaces.getOrCreateNamespaceId(binding.doNamespace, scriptName, binding.container) };
     } else if (isWasmModuleBinding(binding)) {
         return { type: 'wasm_module', name, part: await computeWasmModulePart(binding.wasmModule, parts, name) };
     } else if (isServiceBinding(binding)) {
