@@ -1164,7 +1164,7 @@ export interface DurableObjectContainer {
     /** Boots a container.
      * 
      * This method does not block until the container is fully started. You may want to confirm the container is ready to accept requests before using it. */
-    start(options?: { entrypoint?: string[], enableInternet: boolean, env?: Record<string, string> }): void;
+    start(options?: { entrypoint?: string[], enableInternet?: boolean, env?: Record<string, string> }): void;
 
     /** Returns a promise that resolves when a container exits and errors if a container errors.
      * 
