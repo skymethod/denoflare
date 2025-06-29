@@ -474,20 +474,26 @@ class DurableObjectNamespaces {
         }
         if (typeof containerSpec === 'string' && !useSqlite) throw new Error(`DOs with containers must use backend=sql`);
         const { accountId, apiToken, containerClassNames, namespaceIdsToContainerSpecs, namespaceIdsToNamespaceNames, pendingContainerUpdates, newSqlClasses } = this;
+
+        const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken, perPage: 1000 });
+       
+        let namespace = namespaces.find(v => v.name === name);
+
         if (typeof containerSpec === 'string') {
             if (!containerClassNames.includes(className)) containerClassNames.push(className);
             if (useExperimentalBinding) {
-                pendingContainerUpdates.push({ scriptName, doNamespaceName: name, className, containerSpec });
-                if (!newSqlClasses.includes(className)) newSqlClasses.push(className);
-                return { class_name: className };
+                if (!namespace) {
+                    // instead of creating the DO namespace up front (no way of pre-creating container-enabled DO namespaces), we'll use class_name for the binding and look up the new namespace_id post-putScript
+                    pendingContainerUpdates.push({ scriptName, doNamespaceName: name, className, containerSpec });
+                    if (!newSqlClasses.includes(className)) newSqlClasses.push(className);
+                    return { class_name: className };
+                }
             }
         }
       
-        const namespaces = await listDurableObjectsNamespaces({ accountId, apiToken, perPage: 1000 });
-        const useContainers = typeof containerSpec === 'string';
-        let namespace = namespaces.find(v => v.name === name);
         if (!namespace)  {
             console.log(`Creating new durable object namespace: ${name}`);
+            const useContainers = typeof containerSpec === 'string';
             namespace = await createDurableObjectsNamespace({ accountId, apiToken, name, useSqlite, useContainers });
         }
         if (namespace.class !== className || namespace.script !== scriptName) {

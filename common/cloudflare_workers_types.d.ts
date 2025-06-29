@@ -1156,11 +1156,38 @@ export interface DurableObjectState {
 }
 
 export interface DurableObjectContainer {
+    /** True if the container is currently running.
+     * 
+     * It does not ensure that the container has fully started and ready to accept requests. */
     get running(): boolean;
+
+    /** Boots a container.
+     * 
+     * This method does not block until the container is fully started. You may want to confirm the container is ready to accept requests before using it. */
     start(options?: { entrypoint?: string[], enableInternet: boolean, env?: Record<string, string> }): void;
+
+    /** Returns a promise that resolves when a container exits and errors if a container errors.
+     * 
+     * This is useful for setting up callbacks to handle container status changes in your Workers code.
+     * @returns a promise that resolves when the container exits.
+     * 
+     * */
     monitor(): Promise<void>;
+
+    /** Stops the container and optionally returns a custom error message to the monitor() error callback.
+     * 
+     * @returns a promise that returns once the container is destroyed.
+    */
     destroy(error?: unknown): Promise<void>;
+
+    /** Sends an IPC signal to the container, such as SIGKILL (15) or SIGTERM (9).
+     * 
+     * This is useful for stopping the container gracefully or forcefully. */
     signal(signo: number): void;
+
+    /** Returns a TCP port from the container.
+     * 
+     * This can be used to communicate with the container over TCP and HTTP. */
     getTcpPort(port: number): { fetch: typeof fetch } & CloudflareSockets;
 }
 
