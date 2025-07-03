@@ -33,6 +33,7 @@ export interface CompletedPart {
     readonly checksumCrc32C?: string;
     readonly checksumSha1?: string;
     readonly checksumSha256?: string;
+    readonly checksumCrc64Nvme?: string;
 }
 
 export interface CompleteMultipartUploadResult {
@@ -44,6 +45,7 @@ export interface CompleteMultipartUploadResult {
     readonly checksumCrc32C?: string;
     readonly checksumSha1?: string;
     readonly checksumSha256?: string;
+    readonly checksumCrc64Nvme?: string;
 }
 
 //
@@ -63,9 +65,10 @@ function parseCompleteMultipartUploadResult(element: KnownElement): CompleteMult
     const checksumCrc32 = element.getOptionalElementText('ChecksumCRC32');
     const checksumCrc32C = element.getOptionalElementText('ChecksumCRC32C');
     const checksumSha1 = element.getOptionalElementText('ChecksumSHA1');
-    const checksumSha256 = element.getOptionalElementText('ChecksumSHA256>');
+    const checksumSha256 = element.getOptionalElementText('ChecksumSHA256');
+    const checksumCrc64Nvme = element.getOptionalElementText('ChecksumCRC64NVME');
     element.check();
-    return { location, bucket, key, etag, checksumCrc32, checksumCrc32C, checksumSha1, checksumSha256 };
+    return { location, bucket, key, etag, checksumCrc32, checksumCrc32C, checksumSha1, checksumSha256, checksumCrc64Nvme };
 }
 
 const computePayload = (parts: CompletedPart[]) => `<?xml version="1.0" encoding="UTF-8"?>
@@ -81,4 +84,5 @@ ${part.checksumCrc32 ? `   <ChecksumCRC32>${part.checksumCrc32}</ChecksumCRC32>`
 ${part.checksumCrc32C ? `   <ChecksumCRC32C>${part.checksumCrc32C}</ChecksumCRC32C>` : ''}
 ${part.checksumSha1 ? `   <ChecksumSHA1>${part.checksumSha1}</ChecksumSHA1>` : ''}
 ${part.checksumSha256 ? `   <ChecksumSHA256>${part.checksumSha256}</ChecksumSHA256>` : ''}
+${part.checksumCrc64Nvme ? `   <ChecksumCRC64NVME>${part.checksumCrc64Nvme}</ChecksumCRC64NVME>` : ''}
   </Part>`;

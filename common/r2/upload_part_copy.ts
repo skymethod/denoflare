@@ -43,6 +43,7 @@ export interface CopyPartResult {
     readonly checksumCrc32C?: string;
     readonly checksumSha1?: string;
     readonly checksumSha256?: string;
+    readonly checksumCrc64Nvme?: string;
 }
 
 //
@@ -60,7 +61,8 @@ function parseCopyPartResult(element: KnownElement): CopyPartResult {
     const checksumCrc32 = element.getOptionalElementText('ChecksumCRC32');
     const checksumCrc32C = element.getOptionalElementText('ChecksumCRC32C');
     const checksumSha1 = element.getOptionalElementText('ChecksumSHA1');
-    const checksumSha256 = element.getOptionalElementText('ChecksumSHA256>');
+    const checksumSha256 = element.getOptionalElementText('ChecksumSHA256');
+    const checksumCrc64Nvme = element.getOptionalElementText('ChecksumCRC64NVME');
     element.check();
-    return { etag, lastModified, checksumCrc32, checksumCrc32C, checksumSha1, checksumSha256 };
+    return { etag, lastModified, checksumCrc32, checksumCrc32C, checksumSha1, checksumSha256, checksumCrc64Nvme };
 }
