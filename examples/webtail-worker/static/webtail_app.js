@@ -1108,7 +1108,10 @@ class CloudflareApi {
 const APPLICATION_JSON = 'application/json';
 const APPLICATION_JSON_UTF8 = 'application/json; charset=utf-8';
 const APPLICATION_OCTET_STREAM = 'application/octet-stream';
+const APPLICATION_PDF = 'application/pdf';
 const IMAGE_PNG = 'image/png';
+const IMAGE_JPEG = 'image/jpeg';
+const IMAGE_WEBP = 'image/webp';
 const TEXT_PLAIN_UTF8 = 'text/plain; charset=utf-8';
 function computeAccountBaseUrl(accountId) {
     return CloudflareApi.URL_TRANSFORMER(`https://api.cloudflare.com/client/v4/accounts/${accountId}`);
@@ -1150,7 +1153,10 @@ async function execute(op, method, url, apiToken, body, responseType = 'json', r
     const contentType = fetchResponse.headers.get('Content-Type') || '';
     const knownBinaryContentType = [
         APPLICATION_OCTET_STREAM,
-        IMAGE_PNG
+        IMAGE_PNG,
+        APPLICATION_PDF,
+        IMAGE_JPEG,
+        IMAGE_WEBP
     ].includes(contentType);
     if (responseType === 'empty' && fetchResponse.status >= 200 && fetchResponse.status < 300) {
         if (contentType !== '') throw new Error(`Unexpected content-type (expected none): ${contentType}, fetchResponse=${fetchResponse}, body=${await fetchResponse.text()}`);
@@ -1204,7 +1210,7 @@ async function execute(op, method, url, apiToken, body, responseType = 'json', r
                 message: apiResponse.error
             }
         ]);
-        throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map((v)=>`${v.code} ${v.message}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
+        throw new CloudflareApiError(`${op} failed: status=${fetchResponse.status}, errors=${apiResponse.errors.map((v)=>`${v.code} ${v.message}${v.detail ? ` ${v.detail}` : ''}`).join(', ')}`, fetchResponse.status, apiResponse.errors);
     }
     return apiResponse;
 }
@@ -1283,7 +1289,8 @@ const ALL_TAIL_MESSAGE_KEYS = new Set([
     'truncated',
     'executionModel',
     'wallTime',
-    'cpuTime'
+    'cpuTime',
+    'entrypoint'
 ]);
 const KNOWN_OUTCOMES = new Set([
     'ok',
@@ -1296,7 +1303,7 @@ function parseTailMessage(obj) {
     if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new Error(`Bad tailMessage: Expected object, found ${JSON.stringify(obj)}`);
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     const objAsAny = obj;
-    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated, executionModel, wallTime, cpuTime } = objAsAny;
+    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated, executionModel, wallTime, cpuTime, entrypoint } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (scriptVersion !== undefined && !(isStringRecord1(scriptVersion) && typeof scriptVersion.id === 'string')) throw new Error(`Unexpected scriptVersion: ${JSON.stringify(scriptVersion)}`);
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[
@@ -1307,6 +1314,7 @@ function parseTailMessage(obj) {
     if (!(executionModel === undefined || typeof executionModel === 'string')) throw new Error(`Bad executionModel: expected string, found ${JSON.stringify(executionModel)}`);
     if (!(wallTime === undefined || typeof wallTime === 'number')) throw new Error(`Bad wallTime: expected number, found ${JSON.stringify(wallTime)}`);
     if (!(cpuTime === undefined || typeof cpuTime === 'number')) throw new Error(`Bad cpuTime: expected number, found ${JSON.stringify(cpuTime)}`);
+    if (!(entrypoint === undefined || typeof entrypoint === 'string')) throw new Error(`Bad entrypoint: expected string, found ${JSON.stringify(entrypoint)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);
     if (eventTimestamp === null && objAsAny.event === null) {
@@ -1332,7 +1340,8 @@ function parseTailMessage(obj) {
         truncated,
         executionModel,
         wallTime,
-        cpuTime
+        cpuTime,
+        entrypoint
     };
 }
 function parseLogs(obj) {
@@ -1710,6 +1719,9 @@ function dumpMessagePretty(message, logger, additionalLogs = []) {
     }
     if (message?.wallTime ?? 0 > 0) {
         logger(` %c|%c [%cwal%c] %c${message.wallTime}ms`, 'color: gray', '', `color: gray`, '', 'color: gray');
+    }
+    if (typeof message?.entrypoint === 'string') {
+        logger(` %c|%c [%cent%c] %c${message.entrypoint}`, 'color: gray', '', `color: gray`, '', 'color: gray');
     }
     if (message.diagnosticsChannelEvents && message.diagnosticsChannelEvents.length > 0) {
         logger(` diagnosticsChannelEvents: ${JSON.stringify(message.diagnosticsChannelEvents)}`);
@@ -5846,4 +5858,3 @@ vm.onChange = ()=>{
 CloudflareApi.URL_TRANSFORMER = CfGqlClient.URL_TRANSFORMER = (v)=>`/fetch/${v.substring('https://'.length)}`;
 vm.start();
 setAppState('started');
-

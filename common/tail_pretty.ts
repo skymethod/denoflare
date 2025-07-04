@@ -115,6 +115,9 @@ export function dumpMessagePretty(message: TailMessage, logger: (...data: any[])
     if (message?.wallTime ?? 0 > 0) {
         logger(` %c|%c [%cwal%c] %c${message.wallTime}ms`, 'color: gray', '', `color: gray`, '', 'color: gray');
     }
+    if (typeof message?.entrypoint === 'string') {
+        logger(` %c|%c [%cent%c] %c${message.entrypoint}`, 'color: gray', '', `color: gray`, '', 'color: gray');
+    }
     if (message.diagnosticsChannelEvents && message.diagnosticsChannelEvents.length > 0) {
         logger(` diagnosticsChannelEvents: ${JSON.stringify(message.diagnosticsChannelEvents)}`);
     }

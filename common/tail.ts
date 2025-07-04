@@ -57,12 +57,13 @@ export interface TailMessage {
     readonly executionModel?: string; // e.g. stateless
     readonly cpuTime?: number;
     readonly wallTime?: number;
+    readonly entrypoint?: string;
 }
 
 export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | TailMessageQueueEvent | TailMessageAlarmEvent | TailMessageEmailEvent | TailMessageOverloadEvent | TailMessageGetWebSocketEvent;
 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
-const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents', 'scriptVersion', 'truncated', 'executionModel', 'wallTime', 'cpuTime' ]);
+const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents', 'scriptVersion', 'truncated', 'executionModel', 'wallTime', 'cpuTime', 'entrypoint' ]);
 
 const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'unknown']);
 
@@ -72,7 +73,7 @@ export function parseTailMessage(obj: unknown): TailMessage {
     checkKeys(obj, REQUIRED_TAIL_MESSAGE_KEYS, ALL_TAIL_MESSAGE_KEYS);
     // deno-lint-ignore no-explicit-any
     const objAsAny = obj as any;
-    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated, executionModel, wallTime, cpuTime } = objAsAny;
+    const { outcome, scriptName, scriptVersion, eventTimestamp, diagnosticsChannelEvents, truncated, executionModel, wallTime, cpuTime, entrypoint } = objAsAny;
     if (diagnosticsChannelEvents !== undefined && !Array.isArray(diagnosticsChannelEvents)) throw new Error(JSON.stringify(diagnosticsChannelEvents));
     if (scriptVersion !== undefined && !(isStringRecord(scriptVersion) && typeof scriptVersion.id === 'string')) throw new Error(`Unexpected scriptVersion: ${JSON.stringify(scriptVersion)}`); // scriptVersion: { id: "a5802a95-358d-4b4c-b570-44c57314fd01" },
     if (!KNOWN_OUTCOMES.has(outcome)) throw new Error(`Bad outcome: expected one of [${[...KNOWN_OUTCOMES].join(', ')}], found ${JSON.stringify(outcome)}`);
@@ -81,6 +82,7 @@ export function parseTailMessage(obj: unknown): TailMessage {
     if (!(executionModel === undefined || typeof executionModel === 'string')) throw new Error(`Bad executionModel: expected string, found ${JSON.stringify(executionModel)}`);
     if (!(wallTime === undefined || typeof wallTime === 'number')) throw new Error(`Bad wallTime: expected number, found ${JSON.stringify(wallTime)}`);
     if (!(cpuTime === undefined || typeof cpuTime === 'number')) throw new Error(`Bad cpuTime: expected number, found ${JSON.stringify(cpuTime)}`);
+    if (!(entrypoint === undefined || typeof entrypoint === 'string')) throw new Error(`Bad entrypoint: expected string, found ${JSON.stringify(entrypoint)}`);
     const logs = parseLogs(objAsAny.logs);
     const exceptions = parseExceptions(objAsAny.exceptions);
     if (eventTimestamp === null && objAsAny.event === null) {
@@ -96,7 +98,7 @@ export function parseTailMessage(obj: unknown): TailMessage {
         : objAsAny.event && objAsAny.event.getWebSocketEvent ? parseTailMessageGetWebSocketEvent(objAsAny.event)
         : parseTailMessageAlarmEvent(objAsAny.event);
 
-    return { outcome, scriptName, exceptions, logs, eventTimestamp, event, diagnosticsChannelEvents, truncated, executionModel, wallTime, cpuTime };
+    return { outcome, scriptName, exceptions, logs, eventTimestamp, event, diagnosticsChannelEvents, truncated, executionModel, wallTime, cpuTime, entrypoint };
 }
 
 function parseLogs(obj: unknown): readonly TailMessageLog[] {
