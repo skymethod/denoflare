@@ -217,6 +217,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Dispatch Namespace environment variable binding",
+                                            "required": [ "dispatchNamespace" ],
+                                            "properties": {
+                                                "dispatchNamespace": {
+                                                    "description": "Workers for Platforms dispatch namespace name.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }

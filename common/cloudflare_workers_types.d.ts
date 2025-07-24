@@ -1188,12 +1188,14 @@ export interface DurableObjectContainer {
     /** Returns a TCP port from the container.
      * 
      * This can be used to communicate with the container over TCP and HTTP. */
-    getTcpPort(port: number): { fetch: typeof fetch } & CloudflareSockets;
+    getTcpPort(port: number): CloudflareFetcher;
 }
 
 export interface CloudflareSockets {
     connect(address: SocketAddress | string, options?: SocketOptions): Socket;
 }
+
+export type CloudflareFetcher = { fetch: typeof fetch } & CloudflareSockets;
 
 export interface SocketAddress {
     /** The hostname to connect to. Example: cloudflare.com */
@@ -1841,6 +1843,35 @@ export interface Pipeline {
 
 export interface PipelineTransform {
     transformJson(data: object[]): Promise<object[]>;
+}
+
+//#endregion
+
+//#region Workers for Platforms
+
+export interface DispatchNamespace {
+    /**
+     * Get a dispatcher for a given user worker script in this dispatch namespace.
+     * 
+     * @param name User worker script name.
+     * @param args Args to the worker script, if any.
+     * @param options Options and limits for the returned dispatcher.
+     */
+    get(name: string, args?: Record<string, unknown>, options?: DispatchOptions): CloudflareFetcher;
+}
+
+export interface DispatchOptions {
+    /** Limit resources of invoked Worker script. */
+    readonly limits?: {
+        /** Limit CPU time in milliseconds */
+        readonly cpuMs?: number;
+
+        /** Limit number of subrequests. */
+        readonly subRequests?: number;
+    }
+
+    /** Arguments for outbound Worker script, if configured. */
+    readonly outbound?: Record<string, unknown>;
 }
 
 //#endregion

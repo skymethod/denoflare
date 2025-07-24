@@ -4,7 +4,7 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding, isDispatchNamespaceBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
@@ -613,6 +613,8 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         const limit = parseInt(limitStr);
         const period = parseInt(periodStr);
         return { type: 'ratelimit', name, namespace_id, simple: { limit, period } };
+    } else if (isDispatchNamespaceBinding(binding)) {
+        return { type: 'dispatch_namespace', name, namespace: binding.dispatchNamespace };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

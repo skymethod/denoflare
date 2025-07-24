@@ -127,7 +127,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -275,6 +275,13 @@ export interface RatelimitBinding {
     readonly ratelimit: string;
 }
 
+/** Dispatch Namespace environment variable binding */
+export interface DispatchNamespaceBinding {
+
+    /** Workers for Platforms dispatch namespace name. */
+    readonly dispatchNamespace: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -382,4 +389,9 @@ export function isSendEmailBinding(binding: Binding): binding is SendEmailBindin
 export function isRatelimitBinding(binding: Binding): binding is RatelimitBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).ratelimit === 'string';
+}
+
+export function isDispatchNamespaceBinding(binding: Binding): binding is DispatchNamespaceBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).dispatchNamespace === 'string';
 }

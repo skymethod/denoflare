@@ -105,6 +105,7 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('queueBinding', 'strings', 'Queue environment variable binding, overrides config', { hint: 'name:queue-name'})
         .option('secretKeyBinding', 'strings', 'Secret key environment variable binding, overrides config', { hint: 'name:{"algorithm":{"name":"HMAC"...'})
         .option('ratelimitBinding', 'strings', 'Ratelimit environment variable binding, overrides config', { hint: 'name:namespace-id:limit:period'})
+        .option('dispatchNamespaceBinding', 'strings', 'Dispatch namespace (Workers for Platforms) environment variable binding, overrides config', { hint: 'name:dispatch-namespace-name'})
         ;
 }
 
@@ -158,6 +159,10 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
     for (const ratelimitBinding of parseOptionalStringOptions('ratelimit-binding', options) || []) {
         const [ _, name, ratelimit ] = checkMatchesReturnMatcher('ratelimit-binding', ratelimitBinding, pattern);
         rt[name] = { ratelimit };
+    }
+    for (const dispatchNamespaceBinding of parseOptionalStringOptions('dispatch-namespace-binding', options) || []) {
+        const [ _, name, dispatchNamespace ] = checkMatchesReturnMatcher('dispatch-namespace-binding', dispatchNamespaceBinding, pattern);
+        rt[name] = { dispatchNamespace };
     }
     return rt;
 }
