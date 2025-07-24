@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1152,8 +1152,6 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    cc(rt);
-
     rt.subcommandGroup();
 
     const parseCommonBrowserParams = ({ urlOrHtml, header }: { urlOrHtml: string, header: string[] | undefined }) => {
@@ -1391,12 +1389,14 @@ function cfapiCommand() {
         }
     });
 
+    rt.subcommandGroup();
+    cc(rt);
+    wfp(rt);
+
     return rt;
 }
 
 function cc(rt: CliCommand<unknown>) {
-    rt.subcommandGroup();
-
     const ccCommand = (name: string, description: string) => denoflareCliCommand([ 'cfapi', 'containers', name ], description);
 
     const cc = denoflareCliCommand([ 'cfapi', 'containers' ], 'Containers-specific APIs');
@@ -1586,6 +1586,46 @@ function cc(rt: CliCommand<unknown>) {
 
     rt.subcommand(cc, (args, options) => {
         cc.routeSubcommand(args, options);
+    });
+}
+
+function wfp(rt: CliCommand<unknown>) {
+    const wfpCommand = (name: string, description: string) => denoflareCliCommand([ 'cfapi', 'wfp', name ], description);
+
+    const wfp = denoflareCliCommand([ 'cfapi', 'wfp' ], 'Workers-for-Platforms-specific APIs');
+
+    function addWfp<T>(c: CliCommand<T>, handler: ApiHandler<T>) {
+        wfp.subcommand(c.include(commandOptionsForConfig), makeSubcommandHandler(c, handler));
+    }
+
+    addWfp(wfpCommand('list-dispatch-namespaces', 'List dispatch namespaces')
+        , async (accountId, apiToken) => {
+        const value = await listDispatchNamespaces({ accountId, apiToken });
+        console.log(value);
+    });
+
+    addWfp(wfpCommand('create-dispatch-namespace', 'Create a dispatch namespace')
+            .arg('name', 'string', 'The name of the dispatch namespace')
+        , async (accountId, apiToken, { name }) => {
+        const value = await createDispatchNamespace({ accountId, apiToken, name });
+        console.log(value);
+    });
+
+    addWfp(wfpCommand('get-dispatch-namespace', 'Get a dispatch namespace')
+            .arg('name', 'string', 'The name of the dispatch namespace')
+        , async (accountId, apiToken, { name }) => {
+        const value = await getDispatchNamespace({ accountId, apiToken, name });
+        console.log(value);
+    });
+
+    addWfp(wfpCommand('delete-dispatch-namespace', 'Delete a dispatch namespace')
+            .arg('name', 'string', 'The name of the dispatch namespace')
+        , async (accountId, apiToken, { name }) => {
+        await deleteDispatchNamespace({ accountId, apiToken, name });
+    });
+    
+    rt.subcommand(wfp, (args, options) => {
+        wfp.routeSubcommand(args, options);
     });
 }
 

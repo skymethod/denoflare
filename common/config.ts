@@ -88,6 +88,9 @@ export interface Script {
     /** If specified, enable or disable the workers.dev route for this worker when deploying to Cloudflare. */
     readonly workersDev?: boolean;
 
+    /** If specified, use this Workers for Platforms dispatch namespace for this worker when deploying to Cloudflare. */
+    readonly dispatchNamespace?: string;
+
     /** If specified, enable or disable logpush for this worker.
      * 
      * See https://blog.cloudflare.com/workers-logpush-ga/

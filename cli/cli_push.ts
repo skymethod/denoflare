@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -19,6 +19,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('watchInclude', 'strings', 'If watching, watch this additional path as well (e.g. for dynamically-imported static resources)', { hint: 'path' })
     .option('customDomain', 'strings', 'Bind worker to one or more Custom Domains for Workers', { hint: 'domain-or-subdomain-name' })
     .option('workersDev', 'boolean', 'Enable or disable the worker workers.dev route')
+    .option('dispatchNamespace', 'string', 'If set, push to this Workers for Platforms dispatch namespace')
     .option('logpush', 'boolean', 'Enable or disable logpush for the worker')
     .option('compatibilityDate', 'string', 'Specific compatibility environment for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/')
     .option('compatibilityFlag', 'strings', 'Specific compatibility flags for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags')
@@ -55,6 +56,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         observabilitySampleRate,
         cpuLimit: cpuLimitOpt,
         sourcemap: sourcemapOpt,
+        dispatchNamespace: dispatchNamespaceOpt,
      } = opt;
 
     if (verbose) {
@@ -105,10 +107,12 @@ export async function push(args: (string | number)[], options: Record<string, un
         const containers = doNamespaces.containerClassNames.length > 0 ? doNamespaces.containerClassNames.map(v => ({ class_name: v })) : undefined;
         const cpuLimit = cpuLimitOpt ?? script?.cpuLimit;
         const limits = cpuLimit !== undefined ? { cpu_ms: cpuLimit } : undefined;
+        const dispatchNamespace = dispatchNamespaceOpt ?? script?.dispatchNamespace;
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
         // only perform migrations on first upload, not on subsequent --watch uploads
         const migrations = pushNumber === 1 ? computeMigrations(deleteClassOpt, doNamespaces) : undefined;
+        if (dispatchNamespace !== undefined && (doNamespaces.hasPendingUpdates() || doNamespaces.containerClassNames.length > 0 || doNamespaces.namespaceIdsToNamespaceNames.size > 0 || migrations)) throw new Error(`Durable objects not supported for WFP scripts`);
 
         if (isModule) {
             scriptContentsStr = await rewriteScriptContents(scriptContentsStr, rootSpecifier, parts);
@@ -123,13 +127,15 @@ export async function push(args: (string | number)[], options: Record<string, un
         start = Date.now();
 
         const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents };
-        if (typeof versionTag === 'string') {
+        if (typeof dispatchNamespace === 'string') {
+            await putScriptInDispatchNamespace({ ...putScriptOpts, dispatchNamespace });
+        } else if (typeof versionTag === 'string') {
             await putScriptVersion({ ...putScriptOpts, tagAnnotation: versionTag });
         } else {
             await putScript(putScriptOpts);
         }
         
-        console.log(`put script ${scriptName}${pushIdSuffix} in ${Date.now() - start}ms`);
+        console.log(`put script ${scriptName}${pushIdSuffix}${typeof dispatchNamespace === 'string' ? ` (in WFP dispatch namespace ${dispatchNamespace})` : ''} in ${Date.now() - start}ms`);
        
         if (doNamespaces.hasPendingUpdates()) {
             start = Date.now();
@@ -141,7 +147,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
 
         // only perform custom domain and/or workers dev setup on first upload, not on subsequent --watch uploads
-        if (pushNumber === 1) {
+        if (pushNumber === 1 && dispatchNamespace === undefined) {
             const customDomains = customDomainOpt || script?.customDomains || [];
             if (customDomains.length > 0) {
                 start = Date.now();

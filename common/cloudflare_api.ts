@@ -2809,6 +2809,51 @@ export type BrowserSnapshotResponse = {
 
 //#endregion
 
+//#region Workers for Platforms
+
+export async function listDispatchNamespaces(opts: { accountId: string, apiToken: string }): Promise<DispatchNamespace[]> {
+    const { accountId, apiToken } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces`);
+    return (await execute<DispatchNamespace[]>('listDispatchNamespaces', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function createDispatchNamespace(opts: { accountId: string, apiToken: string, name: string }): Promise<DispatchNamespace> {
+    const { accountId, apiToken, name } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces`;
+    return (await execute<DispatchNamespace>('createDispatchNamespace', 'POST', url, apiToken, { name })).result;
+}
+
+export type DispatchNamespace = {
+    namespace_id: string, // guid
+    namespace_name: string,
+    script_count: number, // 0
+    created_on: string, // "2025-07-24T20:47:09.617367Z",
+    created_by: string, // account id
+    modified_on: string, // "2025-07-24T20:47:09.617367Z",
+    modified_by: string, // account id
+}
+
+export async function getDispatchNamespace(opts: { accountId: string, apiToken: string, name: string }): Promise<DispatchNamespace> {
+    const { accountId, apiToken, name } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${name}`;
+    return (await execute<DispatchNamespace>('getDispatchNamespace', 'GET', url, apiToken)).result;
+}
+
+export async function deleteDispatchNamespace(opts: { accountId: string, apiToken: string, name: string }): Promise<void> {
+    const { accountId, apiToken, name } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${name}`;
+    await execute<null>('deleteDispatchNamespace', 'DELETE', url, apiToken, { name });
+}
+
+export async function putScriptInDispatchNamespace(opts: PutScriptOpts & { dispatchNamespace: string }): Promise<Script> {
+    const { accountId, scriptName, apiToken, dispatchNamespace } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts/${scriptName}/`;
+    const formData = computeUploadForm(opts);
+    return (await execute<Script>('putScriptInDispatchNamespace', 'PUT', url, apiToken, formData)).result;
+}
+
+//#endregion
+
 export class CloudflareApi {
     static DEBUG = false;
     static URL_TRANSFORMER: (url: string) => string = v => v;
