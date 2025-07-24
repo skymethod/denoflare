@@ -1516,6 +1516,8 @@ function cc(rt: CliCommand<unknown>) {
         const tagManifest = await dockerFetch(`https://${registry_host}/v2/${accountId}/${repo}/manifests/${tag}`, { authorization });
         console.log(tagManifest);
         if (isManifest(tagManifest)) {
+            const totalLayerSize = tagManifest.layers.reduce((prev, cur) => prev + cur.size, 0);
+            console.log({ totalLayerSize });
             const config = await dockerFetch(`https://${registry_host}/v2/${accountId}/${repo}/blobs/${tagManifest.config.digest}`, { authorization });
             console.log(config);
         }
