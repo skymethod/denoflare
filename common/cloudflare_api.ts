@@ -2865,6 +2865,24 @@ export async function putScriptInDispatchNamespace(opts: PutScriptOpts & { dispa
     return (await execute<Script>('putScriptInDispatchNamespace', 'PUT', url, apiToken, formData)).result;
 }
 
+export async function getScriptTags(opts: { accountId: string, apiToken: string, dispatchNamespace: string, scriptName: string }): Promise<string[]> {
+    const { accountId, apiToken, dispatchNamespace, scriptName } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts/${scriptName}/tags`;
+    return (await execute<string[]>('getScriptTags', 'GET', url, apiToken)).result;
+}
+
+export async function putScriptTags(opts: { accountId: string, apiToken: string, dispatchNamespace: string, scriptName: string, tags: string[] }): Promise<string[]> {
+    const { accountId, scriptName, apiToken, dispatchNamespace, tags } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts/${scriptName}/tags`;
+    return (await execute<string[]>('putScriptTags', 'PUT', url, apiToken, tags)).result;
+}
+
+export async function deleteScriptTag(opts: { accountId: string, apiToken: string, dispatchNamespace: string, scriptName: string, tag: string }): Promise<void> {
+    const { accountId, scriptName, apiToken, dispatchNamespace, tag } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts/${scriptName}/tags/${tag}`;
+    await execute<null>('deleteScriptTag', 'DELETE', url, apiToken);
+}
+
 //#endregion
 
 export class CloudflareApi {
@@ -2896,7 +2914,7 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
-type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | FormData | Uint8Array;
+type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | string[] | FormData | Uint8Array;
 
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json', requestContentType?: string, opts?: { nonStandardResponse?: boolean }): Promise<CloudflareApiResponse<Result>>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'form'): Promise<FormData>;
@@ -2909,7 +2927,7 @@ async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | '
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'sse' | 'text' | 'empty' | 'form' = 'json', requestContentType?: string, { nonStandardResponse }: { nonStandardResponse?: boolean } = {}): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined | FormData | ReadableStream<Uint8Array>> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
-    let bodyObj: Record<string, unknown> | Record<string, unknown>[] | undefined;
+    let bodyObj: Record<string, unknown> | Record<string, unknown>[] | string[] | undefined;
     if (typeof body === 'string') {
         headers.set('Content-Type', TEXT_PLAIN_UTF8);
     } else if (body instanceof Uint8Array) {
