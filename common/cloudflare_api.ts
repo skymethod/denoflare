@@ -1794,12 +1794,22 @@ export async function previewQueueMessages(opts: { accountId: string, apiToken: 
     return (await execute<PreviewQueueMessagesResponse>('previewQueueMessages', 'POST', url, apiToken, payload)).result;
 }
 
-// undocumented
-export async function sendQueueMessage(opts: { accountId: string, apiToken: string, queueId: string, message: Record<string, string> }): Promise<void> {
+// https://developers.cloudflare.com/api/resources/queues/subresources/messages/methods/push/
+export async function sendQueueMessage(opts: { accountId: string, apiToken: string, queueId: string, message: QueueMessagePayload }): Promise<void> {
     const { accountId, apiToken, queueId, message } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages`;
     await execute('sendQueueMessage', 'POST', url, apiToken, message);
     // 200 result: null
+}
+
+export type QueueMessagePayload = {
+    content_type: 'text',
+    body: string,
+    delay_seconds?: number,
+} | {
+    content_type: 'json',
+    body: unknown,
+    delay_seconds?: number,
 }
 
 export interface NewQueue {
@@ -1911,7 +1921,7 @@ export interface QueueMessage {
     readonly timestamp_ms: number; // e.g. 1736608302662
     readonly body: string;
     readonly attempts: number; // e.g. 1
-    readonly metadata?: Record<string, string>; // e.g. { "CF-Content-Type": "json", "CF-msg-delay-secs": "20" }
+    readonly metadata?: Record<string, string>; // e.g. { "CF-Content-Type": "json", "CF-msg-delay-secs": "20", "CF-sourceMessageSource": "api" }
     readonly lease_id: string;
 }
 
