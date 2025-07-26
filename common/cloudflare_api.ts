@@ -163,8 +163,8 @@ export interface ScriptVersionResourcesScript {
     readonly last_deployed_from: string; // e.g. api
 }
 
-function computeUploadForm(opts: PutScriptOpts): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents } = opts;
+function computeUploadForm(opts: PutScriptOpts & { tags?: string[] }): FormData {
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, tags } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -177,6 +177,7 @@ function computeUploadForm(opts: PutScriptOpts): FormData {
         observability,
         containers,
         limits,
+        tags,
     };
 
     if (isModule) {
@@ -2858,7 +2859,7 @@ export async function deleteDispatchNamespace(opts: { accountId: string, apiToke
     await execute<null>('deleteDispatchNamespace', 'DELETE', url, apiToken, { name });
 }
 
-export async function putScriptInDispatchNamespace(opts: PutScriptOpts & { dispatchNamespace: string }): Promise<Script> {
+export async function putScriptInDispatchNamespace(opts: PutScriptOpts & { dispatchNamespace: string, tags?: string[] }): Promise<Script> {
     const { accountId, scriptName, apiToken, dispatchNamespace } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts/${scriptName}/`;
     const formData = computeUploadForm(opts);
@@ -2881,6 +2882,20 @@ export async function deleteScriptTag(opts: { accountId: string, apiToken: strin
     const { accountId, scriptName, apiToken, dispatchNamespace, tag } = opts;
     const url = `${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts/${scriptName}/tags/${tag}`;
     await execute<null>('deleteScriptTag', 'DELETE', url, apiToken);
+}
+
+export async function listScriptsInDispatchNamespace(opts: { accountId: string, apiToken: string, dispatchNamespace: string, tags?: string }): Promise<Script[]> {
+    const { accountId, apiToken, dispatchNamespace, tags } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts`);
+    if (tags) url.searchParams.set('tags', tags);
+    return (await execute<Script[]>('listScriptsInDispatchNamespace', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function deleteScriptsInDispatchNamespace(opts: { accountId: string, apiToken: string, dispatchNamespace: string, tags: string }): Promise<unknown> {
+    const { accountId, apiToken, dispatchNamespace, tags } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts`);
+    if (tags) url.searchParams.set('tags', tags);
+    return (await execute<unknown>('deleteScriptsInDispatchNamespace', 'DELETE', url.toString(), apiToken)).result;
 }
 
 //#endregion

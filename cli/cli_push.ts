@@ -20,6 +20,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('customDomain', 'strings', 'Bind worker to one or more Custom Domains for Workers', { hint: 'domain-or-subdomain-name' })
     .option('workersDev', 'boolean', 'Enable or disable the worker workers.dev route')
     .option('dispatchNamespace', 'string', 'If set, push to this Workers for Platforms dispatch namespace')
+    .option('tag', 'strings', 'A string tag associated with this script (Workers for Platforms only)')
     .option('logpush', 'boolean', 'Enable or disable logpush for the worker')
     .option('compatibilityDate', 'string', 'Specific compatibility environment for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/')
     .option('compatibilityFlag', 'strings', 'Specific compatibility flags for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags')
@@ -57,6 +58,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         cpuLimit: cpuLimitOpt,
         sourcemap: sourcemapOpt,
         dispatchNamespace: dispatchNamespaceOpt,
+        tag: tags,
      } = opt;
 
     if (verbose) {
@@ -128,7 +130,7 @@ export async function push(args: (string | number)[], options: Record<string, un
 
         const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents };
         if (typeof dispatchNamespace === 'string') {
-            await putScriptInDispatchNamespace({ ...putScriptOpts, dispatchNamespace });
+            await putScriptInDispatchNamespace({ ...putScriptOpts, dispatchNamespace, tags });
         } else if (typeof versionTag === 'string') {
             await putScriptVersion({ ...putScriptOpts, tagAnnotation: versionTag });
         } else {
