@@ -105,7 +105,7 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('queueBinding', 'strings', 'Queue environment variable binding, overrides config', { hint: 'name:queue-name'})
         .option('secretKeyBinding', 'strings', 'Secret key environment variable binding, overrides config', { hint: 'name:{"algorithm":{"name":"HMAC"...'})
         .option('ratelimitBinding', 'strings', 'Ratelimit environment variable binding, overrides config', { hint: 'name:namespace-id:limit:period'})
-        .option('dispatchNamespaceBinding', 'strings', 'Dispatch namespace (Workers for Platforms) environment variable binding, overrides config', { hint: 'name:dispatch-namespace-name'})
+        .option('dispatchNamespaceBinding', 'strings', 'Dispatch namespace (Workers for Platforms) environment variable binding, overrides config', { hint: 'name:dispatch-namespace-name:(outbound:service=my-script-name,...)'})
         ;
 }
 
@@ -161,8 +161,8 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
         rt[name] = { ratelimit };
     }
     for (const dispatchNamespaceBinding of parseOptionalStringOptions('dispatch-namespace-binding', options) || []) {
-        const [ _, name, dispatchNamespace ] = checkMatchesReturnMatcher('dispatch-namespace-binding', dispatchNamespaceBinding, pattern);
-        rt[name] = { dispatchNamespace };
+        const [ _, name, dispatchNamespace, __, outboundWorker ] = checkMatchesReturnMatcher('dispatch-namespace-binding', dispatchNamespaceBinding, /^([^:]+):([^:]+)(:outbound:([^:]+))?$/);
+        rt[name] = { dispatchNamespace, outboundWorker };
     }
     return rt;
 }

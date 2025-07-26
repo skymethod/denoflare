@@ -280,6 +280,9 @@ export interface DispatchNamespaceBinding {
 
     /** Workers for Platforms dispatch namespace name. */
     readonly dispatchNamespace: string;
+
+    /* Outbound worker config as slash-delimited parameters: service=my-script-name(/environment=my-environment)(/params=param1,param2). */
+    readonly outboundWorker?: string;
 }
 
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */

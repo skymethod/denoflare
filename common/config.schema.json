@@ -226,7 +226,12 @@
                                                 "dispatchNamespace": {
                                                     "description": "Workers for Platforms dispatch namespace name.",
                                                     "type": "string"
-                                                }
+                                                },
+                                                "outboundWorker": {
+                                                    "description": "Outbound worker config as slash-delimited parameters: service=my-script-name(/environment=my-environment)(/params=param1,param2).",
+                                                    "type": "string"
+                                                },
+                                                
                                             }
                                         }
                                     ]

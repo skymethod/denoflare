@@ -616,7 +616,15 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         const period = parseInt(periodStr);
         return { type: 'ratelimit', name, namespace_id, simple: { limit, period } };
     } else if (isDispatchNamespaceBinding(binding)) {
-        return { type: 'dispatch_namespace', name, namespace: binding.dispatchNamespace };
+        const outbound = (() => {
+            if (typeof binding.outboundWorker !== 'string') return undefined;
+            const { service, environment, params } = Object.fromEntries(binding.outboundWorker.split('/').map(v => v.split('=')).filter(v => v.length === 2).map(v => v as [ string, string ]));
+            if (typeof service === 'string' && (params === undefined || /^\w+(,\w+)*$/.test(params))) {
+                return { worker: { service, environment}, ...(params && { params: params.split(',').map(v => ({ name: v })) }) };
+            }
+            throw new Error(`Bad outboundWorker: ${binding.outboundWorker}`);
+        })();
+        return { type: 'dispatch_namespace', name, namespace: binding.dispatchNamespace, ...(outbound && { outbound }) };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }
