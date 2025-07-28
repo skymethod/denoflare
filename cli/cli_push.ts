@@ -1,17 +1,17 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace, WorkerAssetsOpts } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace, WorkerAssetsOpts, WorkersAssetsConfiguration } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
 import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding, isDispatchNamespaceBinding, isAssetsBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
-import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
+import { checkEqual, checkMatchesReturnMatcher, isOptional, isOptionalString, isStringArray, isStringRecord } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { parseCryptoKeyDef } from '../common/crypto_keys.ts';
 import { dockerBuild, dockerImageDigest, dockerLogin, dockerPush, dockerTag } from './docker_cli.ts';
 import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
-import { directoryExists } from './fs_util.ts';
+import { directoryExists, fileExists } from './fs_util.ts';
 
 export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare worker script to Cloudflare')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
@@ -135,7 +135,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, ...assetManager.computeAssets({ pushNumber }) };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, ...await assetManager.computeAssets({ pushNumber }) };
         if (typeof dispatchNamespace === 'string') {
             await putScriptInDispatchNamespace({ ...putScriptOpts, dispatchNamespace, tags });
         } else if (typeof versionTag === 'string') {
@@ -647,6 +647,13 @@ async function computeWasmModulePart(wasmModule: string, parts: Record<string, P
 }
 
 function newAssetManager({ assets: assetsOpt, assetsConfiguration }: { assets?: string, assetsConfiguration?: string }): { computeAssets: (opts: { pushNumber: number }) => Promise<{ keep_assets?: boolean, assets?: WorkerAssetsOpts } | undefined> } {
+    const isWorkersAssetsConfiguration = (obj: unknown): obj is WorkersAssetsConfiguration => isStringRecord(obj)
+        && isOptionalString(obj._headers)
+        && isOptionalString(obj._redirects)
+        && isOptionalString(obj.html_handling)
+        && isOptionalString(obj.not_found_handling)
+        && isOptional(obj.run_worker_first, v => typeof v === 'boolean' || isStringArray(v))
+        ;
     return {
         computeAssets: async ({ pushNumber }) => {
             if (assetsOpt === undefined) return undefined;
@@ -656,10 +663,16 @@ function newAssetManager({ assets: assetsOpt, assetsConfiguration }: { assets?: 
                 if (assetsOpt === 'keep') {
                     keep_assets = true;
                 } else {
-                    if (await directoryExists(assetsOpt)) {
+                    let dirExists = false;
+                    try {
+                        dirExists = await directoryExists(assetsOpt);
+                    } catch {
+                        // noop
+                    }
+                    if (dirExists) {
                         // TODO
                     } else {
-                        if (/^\w+\.\w+\.\w+$/.test(assetsOpt)) {
+                        if (/^[^\s.]+\.[^\s.]+\.[^\s.]+$/.test(assetsOpt)) {
                             assets = { jwt: assetsOpt };
                         } else {
                             throw new Error(`Bad assets: ${assetsOpt}, expected 'keep' or an existing local directory, or a JWT`);
@@ -668,6 +681,20 @@ function newAssetManager({ assets: assetsOpt, assetsConfiguration }: { assets?: 
                 }
             } else {
                 keep_assets = true;
+            }
+            if (assetsConfiguration !== undefined) {
+                if (!await fileExists(assetsConfiguration)) throw new Error(`Bad assetsConfiguration: ${assetsConfiguration}, file does not exist`);
+                const obj = await (async () => {
+                    try {
+                        const text = await Deno.readTextFile(assetsConfiguration);
+                        return JSON.parse(text);
+                    } catch {
+                        throw new Error(`Bad assetsConfiguration: ${assetsConfiguration}, not a json file`);
+                    }
+                })();
+                if (!isWorkersAssetsConfiguration(obj))  throw new Error(`Bad assetsConfiguration: ${assetsConfiguration}, not a WorkersAssetsConfiguration`);
+                if (!assets) assets = {};
+                assets.config = obj;
             }
             return { keep_assets, assets };
         }

@@ -205,7 +205,7 @@ export interface ScriptVersionResourcesScript {
 }
 
 function computeUploadForm(opts: PutScriptOpts & { tags?: string[] }): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, tags } = opts;
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, keep_assets, assets, tags } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -218,6 +218,8 @@ function computeUploadForm(opts: PutScriptOpts & { tags?: string[] }): FormData 
         observability,
         containers,
         limits,
+        keep_assets,
+        assets,
         tags,
     };
 
