@@ -91,6 +91,12 @@ export interface Script {
     /** If specified, use this Workers for Platforms dispatch namespace for this worker when deploying to Cloudflare. */
     readonly dispatchNamespace?: string;
 
+    /** Static assets: 'keep' to maintain existing assets, a completion JWT from a successful upload request, or a local directory name. */
+    readonly assets?: string;
+
+    /** Static assets configuration: local path to a JSON file conforming to WorkersAssetsConfiguration. */
+    readonly assetsConfiguration?: string;
+
     /** If specified, enable or disable logpush for this worker.
      * 
      * See https://blog.cloudflare.com/workers-logpush-ga/
@@ -127,7 +133,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -285,6 +291,13 @@ export interface DispatchNamespaceBinding {
     readonly outboundWorker?: string;
 }
 
+/** Assets environment variable binding */
+export interface AssetsBinding {
+
+    /** Type indicator only, value is ignored. */
+    readonly assets: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -397,4 +410,9 @@ export function isRatelimitBinding(binding: Binding): binding is RatelimitBindin
 export function isDispatchNamespaceBinding(binding: Binding): binding is DispatchNamespaceBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).dispatchNamespace === 'string';
+}
+
+export function isAssetsBinding(binding: Binding): binding is AssetsBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).assets === 'string';
 }

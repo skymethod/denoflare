@@ -1,16 +1,17 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace, WorkerAssetsOpts } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding, isDispatchNamespaceBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding, isDispatchNamespaceBinding, isAssetsBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
 import { parseCryptoKeyDef } from '../common/crypto_keys.ts';
 import { dockerBuild, dockerImageDigest, dockerLogin, dockerPush, dockerTag } from './docker_cli.ts';
 import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
+import { directoryExists } from './fs_util.ts';
 
 export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare worker script to Cloudflare')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
@@ -20,6 +21,8 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('customDomain', 'strings', 'Bind worker to one or more Custom Domains for Workers', { hint: 'domain-or-subdomain-name' })
     .option('workersDev', 'boolean', 'Enable or disable the worker workers.dev route')
     .option('dispatchNamespace', 'string', 'If set, push to this Workers for Platforms dispatch namespace')
+    .option('assets', 'string', 'Static assets: \'keep\' to maintain existing assets, a completion JWT from a successful upload request, or a local directory name')
+    .option('assetsConfiguration', 'string', 'Static assets configuration: local path to a JSON file conforming to WorkersAssetsConfiguration')
     .option('tag', 'strings', 'A string tag associated with this script (Workers for Platforms only)')
     .option('logpush', 'boolean', 'Enable or disable logpush for the worker')
     .option('compatibilityDate', 'string', 'Specific compatibility environment for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/')
@@ -58,6 +61,8 @@ export async function push(args: (string | number)[], options: Record<string, un
         cpuLimit: cpuLimitOpt,
         sourcemap: sourcemapOpt,
         dispatchNamespace: dispatchNamespaceOpt,
+        assets: assetsOpt,
+        assetsConfiguration: assetsConfigurationOpt,
         tag: tags,
      } = opt;
 
@@ -73,6 +78,8 @@ export async function push(args: (string | number)[], options: Record<string, un
     const { accountId, apiToken } = await resolveProfile(config, options, script);
     const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
     const bundleOpts = {...parseBundleOpts(options), createSourceMap: sourcemapOpt };
+
+    const assetManager = newAssetManager({ assets: assetsOpt ?? script?.assets, assetsConfiguration: assetsConfigurationOpt ?? script?.assetsConfiguration });
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -128,7 +135,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, ...assetManager.computeAssets({ pushNumber }) };
         if (typeof dispatchNamespace === 'string') {
             await putScriptInDispatchNamespace({ ...putScriptOpts, dispatchNamespace, tags });
         } else if (typeof versionTag === 'string') {
@@ -625,6 +632,8 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
             throw new Error(`Bad outboundWorker: ${binding.outboundWorker}`);
         })();
         return { type: 'dispatch_namespace', name, namespace: binding.dispatchNamespace, ...(outbound && { outbound }) };
+    } else if (isAssetsBinding(binding)) {
+        return { type: 'assets', name };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }
@@ -635,4 +644,32 @@ async function computeWasmModulePart(wasmModule: string, parts: Record<string, P
     const part = name;
     parts[part] = { name, value: new Blob([ valueBytes ], { type: 'application/wasm' }), valueBytes };
     return part;
+}
+
+function newAssetManager({ assets: assetsOpt, assetsConfiguration }: { assets?: string, assetsConfiguration?: string }): { computeAssets: (opts: { pushNumber: number }) => Promise<{ keep_assets?: boolean, assets?: WorkerAssetsOpts } | undefined> } {
+    return {
+        computeAssets: async ({ pushNumber }) => {
+            if (assetsOpt === undefined) return undefined;
+            let keep_assets: boolean | undefined;
+            let assets: WorkerAssetsOpts | undefined;
+            if (pushNumber === 1) {
+                if (assetsOpt === 'keep') {
+                    keep_assets = true;
+                } else {
+                    if (await directoryExists(assetsOpt)) {
+                        // TODO
+                    } else {
+                        if (/^\w+\.\w+\.\w+$/.test(assetsOpt)) {
+                            assets = { jwt: assetsOpt };
+                        } else {
+                            throw new Error(`Bad assets: ${assetsOpt}, expected 'keep' or an existing local directory, or a JWT`);
+                        }
+                    }
+                }
+            } else {
+                keep_assets = true;
+            }
+            return { keep_assets, assets };
+        }
+    };
 }

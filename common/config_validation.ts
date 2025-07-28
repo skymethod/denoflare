@@ -125,8 +125,8 @@ function checkScript(name: string, script: any): Script {
 // deno-lint-ignore no-explicit-any
 function checkBinding(name: string, binding: any) {
     checkObject(name, binding);
-    const { value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace } = binding;
-    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace ].filter(v => v !== undefined).length;
+    const { value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace, assets } = binding;
+    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace, assets ].filter(v => v !== undefined).length;
     if (definedCount === 1) {
         if (value !== undefined && typeof value !== 'string') throw new Error(`Bad ${name}.value: expected string, found ${typeof value}`);
         else if (secret !== undefined && typeof secret !== 'string') throw new Error(`Bad ${name}.secret: expected string, found ${typeof secret}`);
@@ -146,6 +146,7 @@ function checkBinding(name: string, binding: any) {
         else if (sendEmailDestinationAddresses !== undefined && typeof sendEmailDestinationAddresses !== 'string') throw new Error(`Bad ${name}.sendEmailDestinationAddresses: expected string, found ${typeof sendEmailDestinationAddresses}`);
         else if (ratelimit !== undefined && typeof ratelimit !== 'string') throw new Error(`Bad ${name}.ratelimit: expected string, found ${typeof ratelimit}`);
         else if (dispatchNamespace !== undefined && typeof dispatchNamespace !== 'string') throw new Error(`Bad ${name}.dispatchNamespace: expected string, found ${typeof dispatchNamespace}`);
+        else if (assets !== undefined && typeof assets !== 'string') throw new Error(`Bad ${name}.assets: expected string, found ${typeof assets}`);
     } else {
         throw new Error(`Bad ${name}: ${binding}`);
     }

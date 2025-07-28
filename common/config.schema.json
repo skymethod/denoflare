@@ -233,6 +233,17 @@
                                                 },
                                                 
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Assets binding",
+                                            "required": [ "assets" ],
+                                            "properties": {
+                                                "assets": {
+                                                    "description": "Type indicator only, value is ignored.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }
@@ -283,6 +294,14 @@
                         },
                         "dispatchNamespace": {
                             "description": "If specified, use this Workers for Platforms dispatch namespace for this worker when deploying to Cloudflare.",
+                            "type": "string"
+                        },
+                        "assets": {
+                            "description": "Static assets: 'keep' to maintain existing assets, a completion JWT from a successful upload request, or a local directory name.",
+                            "type": "string"
+                        },
+                        "assetsConfiguration": {
+                            "description": "Static assets configuration: local path to a JSON file conforming to WorkersAssetsConfiguration.",
                             "type": "string"
                         },
                         "logpush": {

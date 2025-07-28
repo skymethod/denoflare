@@ -1875,3 +1875,11 @@ export interface DispatchOptions {
 }
 
 //#endregion
+
+//#region Workers static assets
+
+export interface Assets {
+    fetch: typeof fetch;
+}
+
+//#endregion

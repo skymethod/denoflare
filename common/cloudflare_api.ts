@@ -104,13 +104,54 @@ export type PutScriptOpts = {
     isModule: boolean,
     usageModel?: 'bundled' | 'unbound',
     logpush?: boolean,
+
+    /** Date indicating targeted support in the Workers runtime. Backwards incompatible fixes to the runtime following this date will not affect this Worker. */
     compatibilityDate?: string,
+
+    /** Flags that enable or disable certain features in the Workers runtime. Used to enable upcoming features or opt in or out of specific changes not included in a compatibility_date. */
     compatibilityFlags?: string[],
+
     observability?: Observability,
     containers?: { class_name: string }[],
     limits?: { cpu_ms: number },
     sourceMapContents?: string,
+
+    /** Retain assets which exist for a previously uploaded Worker version; used in lieu of providing a completion token. */
+    keep_assets?: boolean,
+
+    assets?: WorkerAssetsOpts,
 };
+
+export type WorkerAssetsOpts = {
+    /** Completion token provided upon successful upload of all files from a registered manifest. */
+    jwt?: string,
+
+    config?: WorkersAssetsConfiguration,
+}
+
+export type WorkersAssetsConfiguration = {
+
+    /** The contents of a _headers file (used to attach custom headers on asset responses). */
+    _headers?: string,
+
+    /** The contents of a _redirects file (used to apply redirects or proxy paths ahead of asset serving). */
+    _redirects?: string,
+
+    /** Determines the redirects and rewrites of requests for HTML content. */
+    html_handling?: 'auto-trailing-slash' | 'force-trailing-slash' | 'drop-trailing-slash' | 'none',
+
+    /** Determines the response when a request does not match a static asset, and there is no Worker script. */
+    not_found_handling?: 'none' | '404-page' | 'single-page-application',
+
+    /** Contains a list of path rules to control routing to either the Worker or assets.
+     * 
+     * Glob (*) and negative (!) rules are supported. Rules must start with either '/' or '!/'. At least one non-negative rule must be provided, and negative rules have higher precedence than non-negative rules.
+     * 
+     * If boolean, enables routing to always invoke the Worker script ahead of all requests. When true, this is equivalent to ["/*"] in the string array version of this field.
+     */
+    run_worker_first?: boolean | string[],
+
+}
 
 export async function putScript(opts: PutScriptOpts): Promise<Script> {
     const { accountId, scriptName, apiToken } = opts;
@@ -230,7 +271,7 @@ export interface ScriptVersionAllocationResult {
     readonly id: string; // versioned-deployment id
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -349,6 +390,11 @@ export interface DispatchNamespaceBinding {
         };
         readonly params?: { name: string }[];
     };
+}
+
+export interface AssetsBinding {
+    readonly type: 'assets';
+    readonly name: string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least
@@ -2906,6 +2952,46 @@ export async function deleteScriptsInDispatchNamespace(opts: { accountId: string
     const url = new URL(`${computeAccountBaseUrl(accountId)}/workers/dispatch/namespaces/${dispatchNamespace}/scripts`);
     if (tags) url.searchParams.set('tags', tags);
     return (await execute<unknown>('deleteScriptsInDispatchNamespace', 'DELETE', url.toString(), apiToken)).result;
+}
+
+//#endregion
+
+//#region Workers static assets
+
+// https://developers.cloudflare.com/api/resources/workers/subresources/scripts/subresources/assets/subresources/upload/methods/create/
+// https://developers.cloudflare.com/workers/static-assets/direct-upload/
+export async function createAssetsUploadSession(opts: { accountId: string, apiToken: string, scriptName: string, request: AssetsUploadSessionRequest }): Promise<AssetsUploadSessionResult> {
+    const { accountId, apiToken, scriptName, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/scripts/${scriptName}/assets-upload-session`;
+    return (await execute<AssetsUploadSessionResult>('createAssetsUploadSession', 'POST', url, apiToken, request)).result;
+}
+
+export type AssetsUploadSessionRequest = {
+    manifest: Record<string, { hash: string, size: number }>,
+}
+
+export type AssetsUploadSessionResult = {
+    jwt?: string,
+    buckets?: string[][],
+}
+
+// https://developers.cloudflare.com/api/resources/workers/subresources/assets/subresources/upload/methods/create/
+export async function uploadAssets(opts: { accountId: string, apiToken: string, scriptName: string, request: UploadAssetsRequest }): Promise<UploadAssetsResult> {
+    const { accountId, apiToken, request } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/workers/assets/upload?base64=true`;
+
+    const form = new FormData();
+    for (const [ hash, { base64, contentType } ] of Object.entries(request)) {
+        form.append(hash, new Blob([ base64 ], { type: contentType ?? 'application/null' }), hash);
+    }
+    return (await execute<UploadAssetsResult>('uploadAssets', 'POST', url, apiToken, form)).result;
+}
+
+export type UploadAssetsRequest = Record<string, { base64: string, contentType?: string }>; // key = hash
+
+export type UploadAssetsResult = {
+    jwt?: string,
+    buckets?: string[][],
 }
 
 //#endregion

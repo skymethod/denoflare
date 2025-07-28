@@ -164,6 +164,10 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
         const [ _, name, dispatchNamespace, __, outboundWorker ] = checkMatchesReturnMatcher('dispatch-namespace-binding', dispatchNamespaceBinding, /^([^:]+):([^:]+)(:outbound:([^:]+))?$/);
         rt[name] = { dispatchNamespace, outboundWorker };
     }
+    for (const assetsBinding of parseOptionalStringOptions('assets-binding', options) || []) {
+        const [ _, name ] = checkMatchesReturnMatcher('assets-binding', assetsBinding, /^([^:]+)$/);
+        rt[name] = { assets: '' };
+    }
     return rt;
 }
 
