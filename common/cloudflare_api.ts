@@ -1848,6 +1848,21 @@ export async function sendQueueMessage(opts: { accountId: string, apiToken: stri
     // 200 result: null
 }
 
+// https://developers.cloudflare.com/api/resources/queues/subresources/messages/methods/bulk_push/
+export async function sendQueueMessageBatch(opts: { accountId: string, apiToken: string, queueId: string, batch: QueueMessageBatchPayload }): Promise<void> {
+    const { accountId, apiToken, queueId, batch } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/messages/batch`;
+    await execute('sendQueueMessageBatch', 'POST', url, apiToken, batch);
+    // 200 result: null
+}
+
+export type QueueMessageBatchPayload = {
+    /** The number of seconds to wait for attempting to deliver this batch to consumers */
+    delay_seconds?: number,
+    
+    messages: QueueMessagePayload[],
+}
+
 export type QueueMessagePayload = {
     content_type: 'text',
     body: string,
