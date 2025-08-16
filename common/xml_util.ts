@@ -5,8 +5,9 @@ export function encodeXml(unencoded: string): string {
 }
 
 export function decodeXml(encoded: string, additionalEntities: { [char: string]: string } = {}): string {
-    return encoded.replaceAll(/&(#(\d+)|[a-z]+);/g, (str, entity, decimal) => {
+    return encoded.replaceAll(/&(#(\d+)|#x([a-f0-9]+)|[a-z]+);/g, (str, entity, decimal, hex) => { 
         if (typeof decimal === 'string') return String.fromCharCode(parseInt(decimal));
+        if (typeof hex === 'string') return String.fromCodePoint(parseInt(hex, 16)); // &#x1f525;
         if (typeof entity === 'string') {
             const additional = additionalEntities[entity];
             if (additional) return additional;
