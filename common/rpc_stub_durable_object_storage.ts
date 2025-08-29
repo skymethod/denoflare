@@ -1,5 +1,5 @@
 import { isStringArray } from './check.ts';
-import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions, SqlStorage } from './cloudflare_workers_types.d.ts';
+import { DurableObjectGetAlarmOptions, DurableObjectId, DurableObjectSetAlarmOptions, DurableObjectStorage, DurableObjectStorageListOptions, DurableObjectStorageReadOptions, DurableObjectStorageTransaction, DurableObjectStorageValue, DurableObjectStorageWriteOptions, Jurisdiction, LocationHint, SqlStorage } from './cloudflare_workers_types.d.ts';
 import { DurableObjectStorageProvider } from './local_durable_objects.ts';
 import { RpcChannel } from './rpc_channel.ts';
 import { InMemoryAlarms } from './storage/in_memory_alarms.ts';
@@ -7,7 +7,7 @@ import { InMemoryDurableObjectStorage } from './storage/in_memory_durable_object
 import { SqliteDurableObjectStorage } from './storage/sqlite_durable_object_storage.ts';
 
 export function makeRpcStubDurableObjectStorageProvider(channel: RpcChannel): DurableObjectStorageProvider {
-    return (className, id, options, dispatchAlarm) => {
+    return (className, id, options, dispatchAlarm, locationHint, jurisdiction) => {
         // optimization, right now memory impl functions the same in either isolate
         if ((options.storage || 'memory') === 'memory') return new InMemoryDurableObjectStorage();
         // sqlite needs to run in the worker isolate, since SqlStorage is sync and cannot be proxied over the async rpc channel
@@ -20,7 +20,7 @@ export function makeRpcStubDurableObjectStorageProvider(channel: RpcChannel): Du
             });
         });
         // otherwise rpc stub
-        return new RpcStubDurableObjectStorage(channel, { className, id, options }, dispatchAlarm);
+        return new RpcStubDurableObjectStorage(channel, { className, id, options, locationHint, jurisdiction }, dispatchAlarm);
     }
 }
 
@@ -39,6 +39,8 @@ export interface DurableObjectStorageReference {
     readonly className: string;
     readonly id: DurableObjectId;
     readonly options: Record<string, string>;
+    readonly locationHint: LocationHint | undefined;
+    readonly jurisdiction: Jurisdiction | undefined;
 }
 
 //

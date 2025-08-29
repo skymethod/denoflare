@@ -1,4 +1,4 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage, WebSocketRequestResponsePair } from './cloudflare_workers_types.d.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, DurableObjectState, DurableObjectStorage, WebSocketRequestResponsePair, Jurisdiction, LocationHint } from './cloudflare_workers_types.d.ts';
 import { Bytes } from './bytes.ts';
 import { UnimplementedDurableObjectNamespace } from './unimplemented_cloudflare_stubs.ts';
 import { consoleWarn } from './console.ts';
@@ -40,10 +40,10 @@ export class LocalDurableObjects {
         return new UnimplementedDurableObjectNamespace(doNamespace);
     }
 
-    static newDurableObjectStorage(className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) {
+    static newDurableObjectStorage(className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void, locationHint: LocationHint | undefined, jurisdiction: Jurisdiction | undefined) {
         const storage = options.storage || 'memory';
         const rt = LocalDurableObjects.storageProviderFactories.get(storage);
-        if (rt) return rt(className, id, options, dispatchAlarm);
+        if (rt) return rt(className, id, options, dispatchAlarm, locationHint, jurisdiction);
         throw new Error(`Bad storage: ${storage}`);
     }
 
@@ -55,7 +55,7 @@ export class LocalDurableObjects {
         return ctor;
     }
 
-    private async resolveDurableObject(className: string, id: DurableObjectId, options: Record<string, string>): Promise<DurableObject> {
+    private async resolveDurableObject(className: string, id: DurableObjectId, options: Record<string, string>, locationHint: LocationHint | undefined, jurisdiction: Jurisdiction | undefined): Promise<DurableObject> {
         const idStr = id.toString();
         let classObjects = this.durableObjects.get(className);
         if (classObjects !== undefined) {
@@ -74,7 +74,7 @@ export class LocalDurableObjects {
                 console.error(`LocalDurableObjects: error dispatching alarm`, e);
             }
         }
-        const storage = await this.storageProvider(className, id, options, dispatchAlarm);
+        const storage = await this.storageProvider(className, id, options, dispatchAlarm, locationHint, jurisdiction);
         const mutex = new Mutex();
         const state: DurableObjectState = new LocalDurableObjectState(id, storage, mutex);
         const durableObject = new ctor(state, this.moduleWorkerEnv);
@@ -101,7 +101,7 @@ export interface DurableObject {
     alarm?(): Promise<void>;
 }
 
-export type DurableObjectStorageProvider = (className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void) => DurableObjectStorage | Promise<DurableObjectStorage>;
+export type DurableObjectStorageProvider = (className: string, id: DurableObjectId, options: Record<string, string>, dispatchAlarm: () => void, locationHint: LocationHint | undefined, jurisdiction: Jurisdiction | undefined) => DurableObjectStorage | Promise<DurableObjectStorage>;
 
 //
 
@@ -137,13 +137,15 @@ class LocalDurableObjectNamespace implements DurableObjectNamespace {
     private readonly resolver: DurableObjectResolver;
     private readonly namesToIds = new Map<string, DurableObjectId>();
 
+    private jurisdiction_?: Jurisdiction;
+
     constructor(className: string, options: Record<string, string>, resolver: DurableObjectResolver) {
         this.className = className;
         this.options = options;
         this.resolver = resolver;
     }
 
-    newUniqueId(_opts?: { jurisdiction: 'eu' }): DurableObjectId {
+    newUniqueId(_opts?: { jurisdiction: Jurisdiction }): DurableObjectId {
         // 64 hex chars
         return new LocalDurableObjectId(new Bytes(globalThis.crypto.getRandomValues(new Uint8Array(32))).hex());
     }
@@ -162,24 +164,37 @@ class LocalDurableObjectNamespace implements DurableObjectNamespace {
         return new LocalDurableObjectId(hexStr);
     }
 
-    get(id: DurableObjectId): DurableObjectStub {
-        return new LocalDurableObjectStub(this.className, id, this.options, this.resolver);
+    get(id: DurableObjectId, opts?: { locationHint?: LocationHint }): DurableObjectStub {
+        return new LocalDurableObjectStub(this.className, id, this.options, this.resolver, opts?.locationHint, this.jurisdiction_);
+    }
+
+    getByName(name: string, opts?: { locationHint?: LocationHint }): DurableObjectStub {
+        return this.get(this.idFromName(name), opts);
+    }
+
+    jurisdiction(jurisdiction: Jurisdiction): DurableObjectNamespace {
+        this.jurisdiction_ = jurisdiction;
+        return this;
     }
 }
 
-type DurableObjectResolver = (className: string, id: DurableObjectId, options: Record<string, string>) => DurableObject | Promise<DurableObject>;
+type DurableObjectResolver = (className: string, id: DurableObjectId, options: Record<string, string>, locationHint: LocationHint | undefined, jurisdiction: Jurisdiction | undefined) => DurableObject | Promise<DurableObject>;
 
 class LocalDurableObjectStub implements DurableObjectStub {
     private readonly className: string;
     private readonly id: DurableObjectId;
     private readonly options: Record<string, string>;
     private readonly resolver: DurableObjectResolver;
+    private readonly locationHint: LocationHint | undefined;
+    private readonly jurisdiction: Jurisdiction | undefined;
 
-    constructor(className: string, id: DurableObjectId, options: Record<string, string>, resolver: DurableObjectResolver) {
+    constructor(className: string, id: DurableObjectId, options: Record<string, string>, resolver: DurableObjectResolver, locationHint: LocationHint | undefined, jurisdiction: Jurisdiction | undefined) {
         this.className = className;
         this.id = id;
         this.options = options;
         this.resolver = resolver;
+        this.locationHint = locationHint;
+        this.jurisdiction = jurisdiction;
     }
 
     async fetch(url: RequestInfo, init?: RequestInit): Promise<Response> {
@@ -187,7 +202,7 @@ class LocalDurableObjectStub implements DurableObjectStub {
             url = 'https://fake-host' + url;
         }
         const req = typeof url === 'string' ? new Request(url, init) : init ? new Request(url, init) : url;
-        const resolver = await this.resolver(this.className, this.id, this.options);
+        const resolver = await this.resolver(this.className, this.id, this.options, this.locationHint, this.jurisdiction);
         return resolver.fetch(req);
     }
 

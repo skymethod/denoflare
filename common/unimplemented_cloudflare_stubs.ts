@@ -1,4 +1,4 @@
-import { DurableObjectNamespace, DurableObjectId, DurableObjectStub } from './cloudflare_workers_types.d.ts';
+import { DurableObjectNamespace, DurableObjectId, DurableObjectStub, Jurisdiction, LocationHint } from './cloudflare_workers_types.d.ts';
 
 export class UnimplementedDurableObjectNamespace implements DurableObjectNamespace {
     readonly doNamespace: string;
@@ -7,7 +7,7 @@ export class UnimplementedDurableObjectNamespace implements DurableObjectNamespa
         this.doNamespace = doNamespace;
     }
 
-    newUniqueId(_opts?: { jurisdiction: 'eu' }): DurableObjectId {
+    newUniqueId(_opts?: { jurisdiction: Jurisdiction }): DurableObjectId {
         throw new Error(`UnimplementedDurableObjectNamespace.newUniqueId not implemented.`);
     }
 
@@ -19,8 +19,16 @@ export class UnimplementedDurableObjectNamespace implements DurableObjectNamespa
         throw new Error(`UnimplementedDurableObjectNamespace.idFromString not implemented.`);
     }
 
-    get(_id: DurableObjectId): DurableObjectStub {
+    get(_id: DurableObjectId, _opts?: { locationHint?: LocationHint }): DurableObjectStub {
         throw new Error(`UnimplementedDurableObjectNamespace.get not implemented.`);
+    }
+
+    getByName(_name: string, _opts?: { locationHint?: LocationHint }): DurableObjectStub {
+        throw new Error(`UnimplementedDurableObjectNamespace.getByName not implemented.`);
+    }
+
+    jurisdiction(_jurisdiction: Jurisdiction): DurableObjectNamespace {
+        throw new Error(`UnimplementedDurableObjectNamespace.jurisdiction not implemented.`);
     }
 
 }

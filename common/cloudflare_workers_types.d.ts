@@ -765,7 +765,7 @@ export interface DurableObjectNamespace {
      * 
      * https://developers.cloudflare.com/workers/runtime-apis/durable-objects#generating-ids-randomly
      *  */
-    newUniqueId(opts?: { jurisdiction: 'eu' }): DurableObjectId;
+    newUniqueId(opts?: { jurisdiction: Jurisdiction }): DurableObjectId;
 
     /** This method derives a unique object ID from the given name string. 
      * 
@@ -822,9 +822,20 @@ export interface DurableObjectNamespace {
      * https://developers.cloudflare.com/workers/runtime-apis/durable-objects#obtaining-an-object-stub
      * */
     get(id: DurableObjectId, opts?: { locationHint?: LocationHint }): DurableObjectStub;
+
+    /** This method obtains a DurableObjectStub from a provided name, which can be used to invoke methods on a Durable Object.
+     * 
+     * Convenience for calling .idFromName, then .get
+     */
+    getByName(name: string, opts?: { locationHint?: LocationHint }): DurableObjectStub;
+
+    /** Creates a subnamespace from a namespace where all Durable Object IDs and references created from that subnamespace will be restricted to the specified jurisdiction. */
+    jurisdiction(jurisdiction: Jurisdiction): DurableObjectNamespace;
 }
 
 export type LocationHint = 'wnam' | 'enam' | 'sam' | 'weur' | 'eeur' | 'apac' | 'oc' | 'afr' | 'me';
+
+export type Jurisdiction = 'eu' | 'fedramp' | 'fedramp-high';
 
 // https://developers.cloudflare.com/workers/runtime-apis/durable-objects#obtaining-an-object-stub
 

@@ -110,7 +110,7 @@ export function makeRpcHostDurableObjectStorage(channel: RpcChannel) {
 //
 
 async function locateStorage(reference: DurableObjectStorageReference, cache: Map<string, DurableObjectStorage>): Promise<DurableObjectStorage> {
-    const { className, id, options } = reference;
+    const { className, id, options, locationHint, jurisdiction } = reference;
     const optionsKey = Object.keys(options).sort().map(v => `${v}=${options[v]}`).join(',');
     const cacheKey = `${optionsKey}:${className}:${id.toString()}`;
     let storage = cache.get(cacheKey);
@@ -119,7 +119,7 @@ async function locateStorage(reference: DurableObjectStorageReference, cache: Ma
             // TODO implement
             console.log(`RpcHostDurableObjectStorage: dispatchAlarm`, { className, id });
         }
-        storage = await LocalDurableObjects.newDurableObjectStorage(className, id, options, dispatchAlarm);
+        storage = await LocalDurableObjects.newDurableObjectStorage(className, id, options, dispatchAlarm, locationHint, jurisdiction);
         console.log(`RpcHostDurableObjectStorage: created: ${cacheKey} -> ${storage}`);
         cache.set(cacheKey, storage);
     }
