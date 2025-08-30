@@ -1297,6 +1297,7 @@ const KNOWN_OUTCOMES = new Set([
     'exception',
     'exceededCpu',
     'canceled',
+    'responseStreamDisconnected',
     'unknown'
 ]);
 function parseTailMessage(obj) {

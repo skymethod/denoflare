@@ -65,7 +65,7 @@ export type TailMessageEvent = TailMessageCronEvent | TailMessageRequestEvent | 
 const REQUIRED_TAIL_MESSAGE_KEYS = new Set(['outcome', 'scriptName', 'exceptions', 'logs', 'eventTimestamp', 'event']);
 const ALL_TAIL_MESSAGE_KEYS = new Set([ ...REQUIRED_TAIL_MESSAGE_KEYS, 'diagnosticsChannelEvents', 'scriptVersion', 'truncated', 'executionModel', 'wallTime', 'cpuTime', 'entrypoint' ]);
 
-const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'unknown']);
+const KNOWN_OUTCOMES = new Set(['ok', 'exception', 'exceededCpu', 'canceled', 'responseStreamDisconnected', 'unknown']);
 
 export function parseTailMessage(obj: unknown): TailMessage {
    
