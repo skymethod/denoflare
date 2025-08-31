@@ -2983,8 +2983,10 @@ export async function createAssetsUploadSession(opts: { accountId: string, apiTo
     return (await execute<AssetsUploadSessionResult>('createAssetsUploadSession', 'POST', url, apiToken, request)).result;
 }
 
+export type AssetManifest = Record<string, { hash: string, size: number }>;
+
 export type AssetsUploadSessionRequest = {
-    manifest: Record<string, { hash: string, size: number }>,
+    manifest: AssetManifest,
 }
 
 export type AssetsUploadSessionResult = {

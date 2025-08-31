@@ -1,14 +1,14 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, createAssetsUploadSession, AssetsUploadSessionRequest, UploadAssetsRequest, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, uploadAssets, QueueMessageBatchPayload, sendQueueMessageBatch } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, QueueMessageBatchPayload, sendQueueMessageBatch, AssetManifest } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand, SubcommandHandler } from './cli_command.ts';
 import { AiImageClassificationInput, AiImageToTextInput, AiModelInput, AiObjectDetectionInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiSummarizationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiTextGenerationInput, AiTextToImageInput, AiTranslationInput } from '../common/cloudflare_workers_types.d.ts';
-import { sortBy, TextLineStream, walk, relative, toFileUrl, systemSeparator, computeContentType, extname } from './deps_cli.ts';
+import { TextLineStream } from './deps_cli.ts';
 import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
 import { dockerBuild, dockerLogin, dockerPush } from './docker_cli.ts';
-import { computeMd5 } from './wasm_crypto.ts';
+import { isAssetManifest, uploadAssetsFromDirectory } from './assets_uploader.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -177,41 +177,19 @@ function cfapiCommand() {
     add(apiCommand('upload-script-assets', `Upload a local directory of static assets for a script, returning the JWT completion token`)
         .arg('scriptName', 'string', 'Local directory')
         .arg('directory', 'string', 'Local directory')
+        .option('inputManifest', 'string', `Input path to read a manifest file of already known uploaded assets. Can be useful if you want to clear local files without deleting the remote assets.`)
+        .option('outputManifest', 'string', 'Output path to save the resulting manifest file.')
     , async (accountId, apiToken, opts) => {
-        const { scriptName, directory } = opts;
-        const allAssetsRequest: UploadAssetsRequest = {};
-        const request: AssetsUploadSessionRequest = { manifest: {} };
-        const fileEntries = sortBy(await Array.fromAsync(walk(directory)), v => v.path).filter(v => v.isFile);
-        let i = 0;
-        for (const { path, name } of fileEntries) {
-            const filename = toFileUrl(systemSeparator + relative(directory, path)).pathname;
-            const contentType = computeContentType(extname(name));
-            const bytes = await Deno.readFile(path);
-            const size = bytes.length;
-            console.log(`compute ${++i} of ${fileEntries.length}: ${path} ${size} ${contentType}`);
-            const bytesObj = new Bytes(bytes);
-            const base64 = bytesObj.base64();
-            const hash = (await computeMd5(bytesObj)).hex();
-            request.manifest[filename] = { hash, size };
-            
-            allAssetsRequest[hash] = { base64, contentType };
-        }
-        console.log('Creating upload session...');
-        const res = await createAssetsUploadSession({ accountId, apiToken, scriptName, request });
-        if (!res) throw new Error(`Failed to create new upload session`);
-        if (!res.jwt) throw new Error(`No upload JWT returned`);
-        let completionJwt = res.jwt;
-        const uploadJwt = res.jwt;
-        if (res.buckets && res.buckets.length > 0) {
-            let i = 0;
-            for (const hashes of res.buckets) {
-                const request = Object.fromEntries(Object.entries(allAssetsRequest).filter(v => hashes.includes(v[0])));
-                console.log(`upload ${++i} of ${res.buckets.length}: ${hashes.length} file${res.buckets.length === 1 ? '' : 's'}`); // TODO display size as well
-                const result = await uploadAssets({ accountId, apiToken: uploadJwt, scriptName, request });
-                if (result.jwt) completionJwt = result.jwt;
-            }
-        }
+        const { scriptName, directory, inputManifest: inputManifestFile, outputManifest: outputManifestFile } = opts;
+        const inputManifest: AssetManifest | undefined = await (async () => {
+            if (!inputManifestFile) return undefined;
+            const obj = JSON.parse(await Deno.readTextFile(inputManifestFile));
+            if (!isAssetManifest(obj)) throw new Error(`Invalid input manifest, expected Record<string, { hash: string, size: number }>`);
+            return obj;
+        })();
+        const { completionJwt, manifest: outputManifest } = await uploadAssetsFromDirectory({ directory, accountId, apiToken, scriptName, manifest: inputManifest });
         console.log({ completionJwt });
+        if (outputManifestFile) await Deno.writeTextFile(outputManifestFile, JSON.stringify(outputManifest, undefined, 2));
     });
 
     rt.subcommandGroup();

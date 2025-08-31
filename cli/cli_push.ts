@@ -12,6 +12,7 @@ import { parseCryptoKeyDef } from '../common/crypto_keys.ts';
 import { dockerBuild, dockerImageDigest, dockerLogin, dockerPush, dockerTag } from './docker_cli.ts';
 import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
 import { directoryExists, fileExists } from './fs_util.ts';
+import { uploadAssetsFromDirectory } from './assets_uploader.ts';
 
 export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare worker script to Cloudflare')
     .arg('scriptSpec', 'string', 'Name of script defined in .denoflare config, file path to bundled js worker, or an https url to a module-based worker .ts, e.g. https://path/to/worker.ts')
@@ -79,7 +80,7 @@ export async function push(args: (string | number)[], options: Record<string, un
     const inputBindings = { ...(script?.bindings || {}), ...parseInputBindingsFromOptions(options) };
     const bundleOpts = {...parseBundleOpts(options), createSourceMap: sourcemapOpt };
 
-    const assetManager = newAssetManager({ assets: assetsOpt ?? script?.assets, assetsConfiguration: assetsConfigurationOpt ?? script?.assetsConfiguration });
+    const assetManager = newAssetManager({ assets: assetsOpt ?? script?.assets, assetsConfiguration: assetsConfigurationOpt ?? script?.assetsConfiguration, accountId, apiToken, scriptName });
 
     const pushStart = new Date().toISOString().substring(0, 19) + 'Z';
     let pushNumber = 1;
@@ -646,7 +647,7 @@ async function computeWasmModulePart(wasmModule: string, parts: Record<string, P
     return part;
 }
 
-function newAssetManager({ assets: assetsOpt, assetsConfiguration }: { assets?: string, assetsConfiguration?: string }): { computeAssets: (opts: { pushNumber: number }) => Promise<{ keep_assets?: boolean, assets?: WorkerAssetsOpts } | undefined> } {
+function newAssetManager({ assets: assetsOpt, assetsConfiguration, accountId, apiToken, scriptName }: { assets?: string, assetsConfiguration?: string, accountId: string, apiToken: string, scriptName: string }): { computeAssets: (opts: { pushNumber: number }) => Promise<{ keep_assets?: boolean, assets?: WorkerAssetsOpts } | undefined> } {
     const isWorkersAssetsConfiguration = (obj: unknown): obj is WorkersAssetsConfiguration => isStringRecord(obj)
         && isOptionalString(obj._headers)
         && isOptionalString(obj._redirects)
@@ -670,7 +671,8 @@ function newAssetManager({ assets: assetsOpt, assetsConfiguration }: { assets?: 
                         // noop
                     }
                     if (dirExists) {
-                        // TODO
+                        const { completionJwt } = await uploadAssetsFromDirectory({ directory: assetsOpt, accountId, apiToken, scriptName });
+                        assets = { jwt: completionJwt };
                     } else {
                         if (/^[^\s.]+\.[^\s.]+\.[^\s.]+$/.test(assetsOpt)) {
                             assets = { jwt: assetsOpt };
