@@ -1894,3 +1894,11 @@ export interface Assets {
 }
 
 //#endregion
+
+//#region Workers VPC Services
+
+export interface VpcService {
+    fetch: typeof fetch;
+}
+
+//#endregion

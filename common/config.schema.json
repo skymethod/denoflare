@@ -230,8 +230,7 @@
                                                 "outboundWorker": {
                                                     "description": "Outbound worker config as slash-delimited parameters: service=my-script-name(/environment=my-environment)(/params=param1,param2).",
                                                     "type": "string"
-                                                },
-                                                
+                                                }
                                             }
                                         },
                                         {
@@ -241,6 +240,17 @@
                                             "properties": {
                                                 "assets": {
                                                     "description": "Type indicator only, value is ignored.",
+                                                    "type": "string"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "VPC Service environment variable binding",
+                                            "required": [ "vpcService" ],
+                                            "properties": {
+                                                "vpcService": {
+                                                    "description": "VPC Service ID.",
                                                     "type": "string"
                                                 }
                                             }

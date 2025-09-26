@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, QueueMessageBatchPayload, sendQueueMessageBatch, AssetManifest } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, QueueMessageBatchPayload, sendQueueMessageBatch, AssetManifest, listVpcServices, listCloudflaredTunnels, createCloudflaredTunnel, getCloudflaredTunnel, createVpcService, VpcServiceInput, getVpcService, deleteVpcService, updateVpcService } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -1420,6 +1420,98 @@ function cfapiCommand() {
         } else {
             console.log(screenshot);
         }
+    });
+
+    rt.subcommandGroup();
+
+    add(apiCommand('list-cloudflared-tunnels', 'Lists Cloudflared tunnels').option('name', 'string', 'Filter by name'), async (accountId, apiToken, { name }) => {
+        const value = await listCloudflaredTunnels({ apiToken, accountId, name });
+        console.log(value);
+    });
+
+    add(apiCommand('get-cloudflared-tunnel', 'Gets a single Cloudflared tunnel').arg('tunnelId', 'string', 'Tunnel ID'), async (accountId, apiToken, opts) => {
+        const { tunnelId } = opts;
+        const value = await getCloudflaredTunnel({ apiToken, accountId, tunnelId });
+        console.log(value);
+    });
+
+    add(apiCommand('create-cloudflared-tunnel', 'Creates a new Cloudflared tunnel')
+            .arg('name', 'string', 'Tunnel name')
+            .option('configSource', 'enum', 'Tunnel type', { value: 'local', default: true, description: 'Manage the tunnel using a YAML file on the origin machine' }, { value: 'cloudflare', description: 'Manage the tunnel on the Zero Trust dashboard or the API' })
+            .option('secret', 'string', 'Sets the password required to run a locally-managed tunnel. Must be at least 32 bytes and encoded as a base64 string.')
+        , async (accountId, apiToken, opts) => {
+
+        const { name, configSource: config_src, secret: tunnel_secret } = opts;
+        const result = await createCloudflaredTunnel({ accountId, apiToken, name, config_src: config_src as 'local' | 'cloudflare' | undefined, tunnel_secret });
+        console.log(result);
+    });
+
+    add(apiCommand('list-vpc-services', 'Lists VPC services'), async (accountId, apiToken, _opts) => {
+        const value = await listVpcServices({ apiToken, accountId });
+        console.log(value);
+    });
+
+    add(apiCommand('get-vpc-service', 'Gets a single VPC service').arg('serviceId', 'string', 'Service ID'), async (accountId, apiToken, opts) => {
+        const { serviceId } = opts;
+        const value = await getVpcService({ apiToken, accountId, serviceId });
+        console.log(value);
+    });
+
+    add(apiCommand('delete-vpc-service', 'Deletes a VPC service').arg('serviceId', 'string', 'Service ID'), async (accountId, apiToken, opts) => {
+        const { serviceId } = opts;
+        await deleteVpcService({ apiToken, accountId, serviceId });
+    });
+
+    add(apiCommand('create-vpc-service', 'Creates a new VPC service')
+            .option('name', 'required-string', 'Service name')
+            .option('tunnelId', 'required-string', 'Tunnel ID')
+            .option('ipv4', 'string', 'IP Address (v4)')
+            .option('hostname', 'string', 'Hostname')
+            .option('httpPort', 'integer', 'HTTP port')
+            .option('httpsPort', 'integer', 'HTTPS port')
+        , async (accountId, apiToken, opts) => {
+
+        const { name, tunnelId: tunnel_id, ipv4, hostname, httpPort, httpsPort } = opts;
+        const input: VpcServiceInput = {
+            name,
+            type: 'http',
+            http_port: httpPort,
+            https_port: httpsPort,
+            host: {
+                ipv4,
+                hostname,
+                network: hostname ? undefined : { tunnel_id },
+                resolver_network: hostname ? { tunnel_id } : undefined,
+            },
+        };
+        const result = await createVpcService({ accountId, apiToken, input });
+        console.log(result);
+    });
+
+    add(apiCommand('update-vpc-service', 'Updates an existing VPC service').arg('serviceId', 'string', 'Service ID')
+            .option('name', 'required-string', 'Service name')
+            .option('tunnelId', 'required-string', 'Tunnel ID')
+            .option('ipv4', 'string', 'IP address (v4)')
+            .option('hostname', 'string', 'Hostname')
+            .option('httpPort', 'integer', 'HTTP port')
+            .option('httpsPort', 'integer', 'HTTPS port')
+        , async (accountId, apiToken, opts) => {
+
+        const { serviceId, name, tunnelId: tunnel_id, ipv4, hostname, httpPort, httpsPort } = opts;
+        const input: VpcServiceInput = {
+            name,
+            type: 'http',
+            http_port: httpPort,
+            https_port: httpsPort,
+            host: {
+                ipv4,
+                hostname,
+                network: hostname ? undefined : { tunnel_id },
+                resolver_network: hostname ? { tunnel_id } : undefined,
+            },
+        };
+        const result = await updateVpcService({ accountId, apiToken, serviceId, input });
+        console.log(result);
     });
 
     rt.subcommandGroup();

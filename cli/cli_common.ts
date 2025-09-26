@@ -104,8 +104,10 @@ export function commandOptionsForInputBindings(command: CliCommand<unknown>) {
         .option('aeDatasetBinding', 'strings', 'Analytics Engine dataset environment variable binding, overrides config', { hint: 'name:dataset-name'})
         .option('queueBinding', 'strings', 'Queue environment variable binding, overrides config', { hint: 'name:queue-name'})
         .option('secretKeyBinding', 'strings', 'Secret key environment variable binding, overrides config', { hint: 'name:{"algorithm":{"name":"HMAC"...'})
+        .option('hyperdriveBinding', 'strings', 'Hyperdrive environment variable binding, overrides config', { hint: 'name:hyperdrive-config-id'})
         .option('ratelimitBinding', 'strings', 'Ratelimit environment variable binding, overrides config', { hint: 'name:namespace-id:limit:period'})
         .option('dispatchNamespaceBinding', 'strings', 'Dispatch namespace (Workers for Platforms) environment variable binding, overrides config', { hint: 'name:dispatch-namespace-name:(outbound:service=my-script-name,...)'})
+        .option('vpcServiceBinding', 'strings', 'VPC Service environment variable binding, overrides config', { hint: 'name:vpc-service-id'})
         ;
 }
 
@@ -167,6 +169,10 @@ export function parseInputBindingsFromOptions(options: Record<string, unknown>):
     for (const assetsBinding of parseOptionalStringOptions('assets-binding', options) || []) {
         const [ _, name ] = checkMatchesReturnMatcher('assets-binding', assetsBinding, /^([^:]+)$/);
         rt[name] = { assets: '' };
+    }
+    for (const vpcServiceBinding of parseOptionalStringOptions('vpc-service-binding', options) || []) {
+        const [ _, name, vpcService ] = checkMatchesReturnMatcher('vpc-service-binding', vpcServiceBinding, pattern);
+        rt[name] = { vpcService };
     }
     return rt;
 }

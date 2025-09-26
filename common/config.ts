@@ -133,7 +133,7 @@ export interface Script {
 }
 
 /** Binding definition for a worker script environment variable */
-export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding;
+export type Binding = TextBinding | SecretBinding | KVNamespaceBinding | DONamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding | VpcServiceBinding;
 
 /** Plain-text environment variable binding */
 export interface TextBinding {
@@ -298,6 +298,13 @@ export interface AssetsBinding {
     readonly assets: string;
 }
 
+/** VPC Service environment variable binding */
+export interface VpcServiceBinding {
+
+    /** VPC Service ID. */
+    readonly vpcService: string;
+}
+
 /** Profile definition, Cloudflare credentials to use when deploying via `push`, or running locally with `serve` using real KV storage. */
 export interface Profile {
 
@@ -415,4 +422,9 @@ export function isDispatchNamespaceBinding(binding: Binding): binding is Dispatc
 export function isAssetsBinding(binding: Binding): binding is AssetsBinding {
     // deno-lint-ignore no-explicit-any
     return typeof (binding as any).assets === 'string';
+}
+
+export function isVpcServiceBinding(binding: Binding): binding is VpcServiceBinding {
+    // deno-lint-ignore no-explicit-any
+    return typeof (binding as any).vpcService === 'string';
 }

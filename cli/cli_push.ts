@@ -4,7 +4,7 @@ import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createD
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
-import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding, isDispatchNamespaceBinding, isAssetsBinding } from '../common/config.ts';
+import { Binding, isTextBinding, isSecretBinding, isKVNamespaceBinding, isDONamespaceBinding, isWasmModuleBinding, isServiceBinding, isR2BucketBinding, isAnalyticsEngineBinding, isD1DatabaseBinding, isQueueBinding, isSecretKeyBinding, isBrowserBinding, isAiBinding, isHyperdriveBinding, isVersionMetadataBinding, isSendEmailBinding, isRatelimitBinding, isDispatchNamespaceBinding, isAssetsBinding, isVpcServiceBinding } from '../common/config.ts';
 import { ModuleWatcher } from './module_watcher.ts';
 import { checkEqual, checkMatchesReturnMatcher, isOptional, isOptionalString, isStringArray, isStringRecord } from '../common/check.ts';
 import { commandOptionsForBundle, bundle, parseBundleOpts } from './bundle.ts';
@@ -635,6 +635,8 @@ async function computeBinding(name: string, binding: Binding, doNamespaces: Dura
         return { type: 'dispatch_namespace', name, namespace: binding.dispatchNamespace, ...(outbound && { outbound }) };
     } else if (isAssetsBinding(binding)) {
         return { type: 'assets', name };
+    } else if (isVpcServiceBinding(binding)) {
+        return { type: 'vpc_service', name, service_id: binding.vpcService };
     } else {
         throw new Error(`Unsupported binding ${name}: ${binding}`);
     }

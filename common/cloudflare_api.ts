@@ -1,6 +1,7 @@
-//#region Durable objects
 
 import { AiModelInput, AiModelOutput, D1QueryMetadata } from './cloudflare_workers_types.d.ts';
+
+//#region Durable objects
 
 export async function listDurableObjectsNamespaces(opts: { accountId: string, apiToken: string, perPage?: number }): Promise<readonly DurableObjectsNamespace[]> {
     const { accountId, apiToken, perPage } = opts;
@@ -273,7 +274,7 @@ export interface ScriptVersionAllocationResult {
     readonly id: string; // versioned-deployment id
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding | VpcServiceBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -397,6 +398,12 @@ export interface DispatchNamespaceBinding {
 export interface AssetsBinding {
     readonly type: 'assets';
     readonly name: string;
+}
+
+export interface VpcServiceBinding {
+    readonly type: 'vpc_service';
+    readonly name: string;
+    readonly service_id: string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least
@@ -3011,6 +3018,171 @@ export type UploadAssetsRequest = Record<string, { base64: string, contentType?:
 export type UploadAssetsResult = {
     jwt?: string,
     buckets?: string[][],
+}
+
+//#endregion
+
+//#region Cloudflared Tunnels
+
+export type CloudflaredTunnel = {
+    /** UUID of the tunnel. */
+    id: string, // guid
+
+    account_tag: string,
+
+    created_at: string, // e.g. 2021-04-24T22:22:58.444213Z
+
+    deleted_at: string | null,
+
+    /** A user-friendly name for a tunnel. */
+    name: string,
+
+    /** The Cloudflare Tunnel connections between your origin and Cloudflare's edge. */
+    connections: {
+
+        /** The Cloudflare data center used for this connection. */
+        colo_name: string, // e.g. ewr01
+        
+        /** UUID of the Cloudflare Tunnel connection. */
+        id: string, // guid
+
+        uuid: string, // same as id
+
+        /** Cloudflare continues to track connections for several minutes after they disconnect. This is an optimization to improve latency and reliability of reconnecting. If true, the connection has disconnected but is still being tracked. If false, the connection is actively serving traffic. */
+        is_pending_reconnect: boolean,
+
+        /** The public IP address of the host running cloudflared. */
+        origin_ip: string,
+
+        /** Timestamp of when the connection was established. */
+        opened_at: string, // e.g. 2025-09-17T21:30:18.229277Z
+
+        /** UUID of the Cloudflare Tunnel connector. */
+        client_id: string, // guid
+
+        /** The cloudflared version used to establish this connection. */
+        client_version: string, // e.g. 2025.8.1
+    }[],
+
+    /** Timestamp of when the tunnel established at least one connection to Cloudflare's edge. If null, the tunnel is inactive. */
+    conns_active_at: string | null, // e.g. 2025-09-23T16:04:35.323963Z
+
+    /** Timestamp of when the tunnel became inactive (no connections to Cloudflare's edge). If null, the tunnel is active. */
+    conns_inactive_at: string | null, // either conns_active_at or conns_inactive_at is not null
+
+    tun_type: string, // cfd_tunnel
+
+    metadata: Record<string, string>,
+
+    /** The status of the tunnel.
+     * 
+     * Valid values are inactive (tunnel has never been run), degraded (tunnel is active and able to serve traffic but in an unhealthy state), healthy (tunnel is active and able to serve traffic), or down (tunnel can not serve traffic as it has no connections to the Cloudflare Edge). */
+    status: string,
+
+    /** (deprecated) If true, the tunnel can be configured remotely from the Zero Trust dashboard. If false, the tunnel must be configured locally on the origin machine. */
+    remote_config: boolean,
+
+    /** Indicates if this is a locally or remotely configured tunnel. If local, manage the tunnel using a YAML file on the origin machine. If cloudflare, manage the tunnel on the Zero Trust dashboard. */
+    config_src?: string, // local, cloudflare
+}
+
+export type NewCloudflaredTunnel = CloudflaredTunnel & {
+    credentials_file: {
+        AccountTag: string,
+        TunnelID: string, // same as tunnel.id
+        TunnelName: string, // same as tunnel.name
+        TunnelSecret: string, // b64
+    },
+    token: string, // b64
+}
+
+export async function listCloudflaredTunnels(opts: { accountId: string, apiToken: string, name?: string }): Promise<CloudflaredTunnel[]> {
+    const { accountId, apiToken, name } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/cfd_tunnel`);
+    if (typeof name === 'string') url.searchParams.set('name', name);
+    return (await execute<CloudflaredTunnel[]>('listCloudflaredTunnels', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function getCloudflaredTunnel(opts: { accountId: string, apiToken: string, tunnelId: string }): Promise<CloudflaredTunnel> {
+    const { accountId, apiToken, tunnelId } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/cfd_tunnel/${tunnelId}`);
+    return (await execute<CloudflaredTunnel>('getCloudflaredTunnel', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function createCloudflaredTunnel(opts: { accountId: string, apiToken: string, name: string, config_src?: 'local' | 'cloudflare', tunnel_secret?: string }): Promise<NewCloudflaredTunnel> {
+    const { accountId, apiToken, name, config_src, tunnel_secret } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/cfd_tunnel`;
+    return (await execute<NewCloudflaredTunnel>('createCloudflaredTunnel', 'POST', url, apiToken, { name, config_src, tunnel_secret })).result;
+}
+
+//#endregion
+
+//#region Workers VPC
+
+export type VpcServiceInput = {
+	name: string,
+	type: string, // http or tcp
+	tcp_port?: number,
+	app_protocol?: string,
+	http_port?: number,
+	https_port?: number,
+	host: { // Either a hostname with resolver network or IP address(es) with network must be specified
+        ipv4?: string,
+        ipv6?: string,
+        hostname?: string,
+        network?: { tunnel_id: string },
+        resolver_network?: {
+            tunnel_id: string,
+	        resolver_ips?: string[],
+        },
+    },
+}
+
+export type VpcService = {
+    service_id: string,
+    name: string,
+	type: string,
+    http_port: number,
+    https_port: number,
+    host: {
+        ipv4: string | null,
+        ipv6: string | null,
+        hostname: string | null,
+        network: { tunnel_id: string } | null,
+        resolver_network: { tunnel_id: string, resolver_ips?: string[] } | null,
+    },
+    created_at: string,
+    updated_at: string,
+}
+
+export async function listVpcServices(opts: { accountId: string, apiToken: string }): Promise<VpcService[]> {
+    const { accountId, apiToken } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/connectivity/directory/services`);
+    return (await execute<VpcService[]>('listVpcServices', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function getVpcService(opts: { accountId: string, apiToken: string, serviceId: string }): Promise<VpcService> {
+    const { accountId, apiToken, serviceId } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/connectivity/directory/services/${serviceId}`);
+    return (await execute<VpcService>('getVpcService', 'GET', url.toString(), apiToken)).result;
+}
+
+export async function deleteVpcService(opts: { accountId: string, apiToken: string, serviceId: string }): Promise<void> {
+    const { accountId, apiToken, serviceId } = opts;
+    const url = new URL(`${computeAccountBaseUrl(accountId)}/connectivity/directory/services/${serviceId}`);
+    await execute<void>('deleteVpcService', 'DELETE', url.toString(), apiToken);
+}
+
+export async function createVpcService(opts: { accountId: string, apiToken: string, input: VpcServiceInput }): Promise<VpcService> {
+    const { accountId, apiToken, input } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/connectivity/directory/services`;
+    return (await execute<VpcService>('createVpcService', 'POST', url, apiToken, input)).result;
+}
+
+export async function updateVpcService(opts: { accountId: string, apiToken: string, serviceId: string, input: VpcServiceInput }): Promise<VpcService> {
+    const { accountId, apiToken, serviceId, input } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/connectivity/directory/services/${serviceId}`;
+    return (await execute<VpcService>('updateVpcService', 'PUT', url, apiToken, input)).result;
 }
 
 //#endregion

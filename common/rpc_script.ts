@@ -25,6 +25,7 @@ import { makeRpcCloudflareSockets } from './rpc_cloudflare_sockets.ts';
 import { makeRpcStubD1DatabaseProvider } from './rpc_stub_d1_database.ts';
 import { NoopEmailSender } from './noop_email_sender.ts';
 import { NoopQueue } from './noop_queue.ts';
+import { NoopVpcService } from './noop_vpc_service.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -84,6 +85,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
             secretKeyProvider: cryptoKeyProvider,
             emailSenderProvider: NoopEmailSender.provider,
             queueProvider: NoopQueue.provider,
+            vpcServiceProvider: NoopVpcService.provider,
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });
     });

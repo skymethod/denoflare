@@ -1,5 +1,5 @@
-import { Binding, isAnalyticsEngineBinding, isD1DatabaseBinding, isDONamespaceBinding, isKVNamespaceBinding, isR2BucketBinding, isSecretBinding, isSecretKeyBinding, isSendEmailBinding, isTextBinding, isQueueBinding } from './config.ts';
-import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair, R2Bucket, AnalyticsEngine, D1Database, EmailSender, Queue } from './cloudflare_workers_types.d.ts';
+import { Binding, isAnalyticsEngineBinding, isD1DatabaseBinding, isDONamespaceBinding, isKVNamespaceBinding, isR2BucketBinding, isSecretBinding, isSecretKeyBinding, isSendEmailBinding, isTextBinding, isQueueBinding, isVpcServiceBinding } from './config.ts';
+import { KVNamespace, DurableObjectNamespace, CfGlobalCaches, CloudflareWebSocketExtensions, WebSocketPair, R2Bucket, AnalyticsEngine, D1Database, EmailSender, Queue, VpcService } from './cloudflare_workers_types.d.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 
 export type GlobalCachesProvider = () => CfGlobalCaches;
@@ -12,6 +12,7 @@ export type SecretKeyProvider = (secretKey: string) => Promise<CryptoKey>;
 export type WebSocketPairProvider = () => { server: WebSocket & CloudflareWebSocketExtensions, client: WebSocket };
 export type EmailSenderProvider = (destinationAddresses: string) => EmailSender;
 export type QueueProvider = (queueName: string) => Queue;
+export type VpcServiceProvider = (vpcService: string) => VpcService;
 
 export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider, webSocketPairProvider: WebSocketPairProvider) {
     defineGlobalCaches(globalCachesProvider);
@@ -20,14 +21,14 @@ export function defineModuleGlobals(globalCachesProvider: GlobalCachesProvider, 
     patchGlobalRequest();
 }
 
-export async function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider, queueProvider: QueueProvider) {
+export async function applyWorkerEnv(target: Record<string, unknown>, bindings: Record<string, Binding>, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider, queueProvider: QueueProvider, vpcServiceProvider: VpcServiceProvider) {
     for (const [ name, binding ] of Object.entries(bindings)) {
-        target[name] = await computeBindingValue(binding, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider, queueProvider);
+        target[name] = await computeBindingValue(binding, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider, queueProvider, vpcServiceProvider);
     }
 }
 
-export async function defineScriptGlobals(bindings: Record<string, Binding>, globalCachesProvider: GlobalCachesProvider, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider, queueProvider: QueueProvider) {
-    await applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider, queueProvider);
+export async function defineScriptGlobals(bindings: Record<string, Binding>, globalCachesProvider: GlobalCachesProvider, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider, queueProvider: QueueProvider, vpcServiceProvider: VpcServiceProvider) {
+    await applyWorkerEnv(globalThisAsAny(), bindings, kvNamespaceProvider, doNamespaceProvider, r2BucketProvider, analyticsEngineProvider, d1DatabaseProvider, secretKeyProvider, emailSenderProvider, queueProvider, vpcServiceProvider);
     defineGlobalCaches(globalCachesProvider);
     redefineGlobalResponse();
     patchGlobalRequest();
@@ -66,7 +67,7 @@ function globalThisAsAny(): any {
     return globalThis;
 }
 
-async function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider, queueProvider: QueueProvider): Promise<string | KVNamespace | DurableObjectNamespace | R2Bucket | AnalyticsEngine | D1Database | CryptoKey | EmailSender | Queue> {
+async function computeBindingValue(binding: Binding, kvNamespaceProvider: KVNamespaceProvider, doNamespaceProvider: DONamespaceProvider, r2BucketProvider: R2BucketProvider, analyticsEngineProvider: AnalyticsEngineProvider, d1DatabaseProvider: D1DatabaseProvider, secretKeyProvider: SecretKeyProvider, emailSenderProvider: EmailSenderProvider, queueProvider: QueueProvider, vpcServiceProvider: VpcServiceProvider): Promise<string | KVNamespace | DurableObjectNamespace | R2Bucket | AnalyticsEngine | D1Database | CryptoKey | EmailSender | Queue | VpcService> {
     if (isTextBinding(binding)) return binding.value;
     if (isSecretBinding(binding)) return binding.secret;
     if (isKVNamespaceBinding(binding)) return kvNamespaceProvider(binding.kvNamespace);
@@ -77,6 +78,7 @@ async function computeBindingValue(binding: Binding, kvNamespaceProvider: KVName
     if (isSecretKeyBinding(binding)) return await secretKeyProvider(binding.secretKey);
     if (isSendEmailBinding(binding)) return emailSenderProvider(binding.sendEmailDestinationAddresses);
     if (isQueueBinding(binding)) return queueProvider(binding.queueName);
+    if (isVpcServiceBinding(binding)) return vpcServiceProvider(binding.vpcService);
     throw new Error(`TODO implement binding ${JSON.stringify(binding)}`);
 }
 
