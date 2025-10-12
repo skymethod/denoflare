@@ -31,6 +31,7 @@ import { NoopQueue } from '../common/noop_queue.ts';
 import { SqliteDurableObjectStorage } from '../common/storage/sqlite_durable_object_storage.ts';
 import { sqliteDbPathForInstance } from './sqlite_dbpath_for_instance.ts';
 import { NoopVpcService } from '../common/noop_vpc_service.ts';
+import { NoopAI } from '../common/noop_ai.ts';
 
 const DEFAULT_PORT = 8080;
 
@@ -161,6 +162,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
                 emailSenderProvider: NoopEmailSender.provider,
                 queueProvider: NoopQueue.provider,
                 vpcServiceProvider: NoopVpcService.provider,
+                aiProvider: NoopAI.provider,
                 incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
             };
            

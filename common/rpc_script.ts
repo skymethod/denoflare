@@ -26,6 +26,7 @@ import { makeRpcStubD1DatabaseProvider } from './rpc_stub_d1_database.ts';
 import { NoopEmailSender } from './noop_email_sender.ts';
 import { NoopQueue } from './noop_queue.ts';
 import { NoopVpcService } from './noop_vpc_service.ts';
+import { NoopAI } from './noop_ai.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -86,6 +87,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
             emailSenderProvider: NoopEmailSender.provider,
             queueProvider: NoopQueue.provider,
             vpcServiceProvider: NoopVpcService.provider,
+            aiProvider: NoopAI.provider,
             incomingRequestCfPropertiesProvider: () => makeIncomingRequestCfProperties(),
         });
     });

@@ -1902,3 +1902,12 @@ export interface VpcService {
 }
 
 //#endregion
+
+//#region Workers AI
+
+export interface AI {
+    // deno-lint-ignore no-explicit-any
+    run(model: string, options: unknown): Promise<any>;
+}
+
+//#endregion
