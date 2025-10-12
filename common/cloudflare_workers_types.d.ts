@@ -1907,7 +1907,7 @@ export interface VpcService {
 
 export interface AI {
     // deno-lint-ignore no-explicit-any
-    run(model: string, options: unknown): Promise<any>;
+    run(model: string, input: unknown, options?: { returnRawResponse?: boolean, websocket?: boolean }): Promise<any>;
 }
 
 //#endregion

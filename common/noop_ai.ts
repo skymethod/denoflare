@@ -9,7 +9,7 @@ export class NoopAI implements AI {
     }
 
     // deno-lint-ignore no-explicit-any
-    run(_model: string, _options: unknown): Promise<any> {
+    run(_model: string, _input: unknown, _options?: { returnRawResponse?: boolean, websocket?: boolean }): Promise<any> {
         return Promise.resolve({});
     }
 
