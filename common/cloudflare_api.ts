@@ -2136,6 +2136,39 @@ export async function runAiModel(opts: { apiToken: string, accountId: string, mo
     return (await execute<AiModelOutput>('runAiModel', 'POST', url.toString(), apiToken, input, responseType, APPLICATION_JSON)).result;
 }
 
+export interface FileFormat {
+    readonly extension: string; // e.g. .pdf
+    readonly mimeType: string; // e.g. application/pdf
+}
+
+export async function listFormatsSupportedForMarkdownConversion(opts: { accountId: string, apiToken: string }): Promise<FileFormat[]> {
+    const { accountId, apiToken } = opts;
+    return (await execute<FileFormat[]>('listFormatsSupportedForMarkdownConversion', 'GET', `${computeAccountBaseUrl(accountId)}/ai/tomarkdown/supported`, apiToken)).result;
+}
+
+export interface DocumentInput {
+    readonly name: string;
+    readonly bytes: Uint8Array;
+    readonly contentType: string;
+}
+
+export interface DocumentOutput {
+    readonly name: string; // file name, otherwise "blob"
+    readonly mimeType: string; // e.g. text/html
+    readonly format: string; // markdown
+    readonly tokens: number;
+    readonly data: string; // output markdown
+}
+
+export async function convertToMarkdown(opts: { documents: DocumentInput[], accountId: string, apiToken: string }): Promise<DocumentOutput[]> {
+    const { accountId, apiToken, documents } = opts;
+    const form = new FormData();
+    for (const { name, bytes, contentType } of documents) {
+        form.append('files', new Blob([ bytes ], { type: contentType }), name);
+    }
+    return (await execute<DocumentOutput[]>('convertToMarkdown', 'POST', `${computeAccountBaseUrl(accountId)}/ai/tomarkdown`, apiToken, form, 'json')).result;
+}
+
 //#endregion
 
 //#region Hyperdrive

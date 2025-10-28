@@ -288,22 +288,31 @@ export async function pushLambda(args: (string | number)[], options: Record<stri
             
             const awsAccountId = checkMatchesReturnMatcher('role', role, /^arn:aws:iam::(\d{12}):role\//)[1];
             const functionArn = `arn:aws:lambda:${region}:${awsAccountId}:function:${functionName}`;
-            console.log(`checking if resource-based policy exists...`);
+
+            // https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html#urls-auth-none
+            console.log(`checking if resource-based policies exist...`);
             const policyResponse = await getPolicy({ functionName, region, context });
-            let found = false;
-            let policy: Policy | undefined;
+            let found1 = false;
+            let found2 = false;
             if (policyResponse) {
-                policy = JSON.parse(policyResponse.Policy) as Policy;
+                const policy = JSON.parse(policyResponse.Policy) as Policy;
                 for (const statement of policy.Statement) {
                     const { Resource, Effect, Action, Principal, Condition } = statement;
                     if (Resource === functionArn && Effect === 'Allow' && Action === 'lambda:InvokeFunctionUrl' && Principal === '*' && (Condition === undefined || (Condition.StringEquals !== undefined && Condition.StringEquals['lambda:FunctionUrlAuthType'] === 'NONE'))) {
-                        found = true;
+                        found1 = true;
+                    }
+                    if (Resource === functionArn && Effect === 'Allow' && Action === 'lambda:InvokeFunction' && Principal === '*' && (Condition === undefined || (Condition.Bool !== undefined && Condition.Bool['lambda:InvokedViaFunctionUrl'] === 'true'))) {
+                        found2 = true;
                     }
                 }
             }
-            if (!found) {
-                console.log(`adding resource-based policy...`);
+            if (!found1) {
+                console.log(`adding resource-based policy FunctionURLAllowPublicAccess...`);
                 await addPermission({ functionName, context, region, request: { Action: 'lambda:InvokeFunctionUrl', Principal: '*', StatementId: 'FunctionURLAllowPublicAccess', FunctionUrlAuthType: 'NONE' } });
+            }
+            if (!found2) {
+                console.log(`adding resource-based policy FunctionURLInvokeAllowPublicAccess...`);
+                await addPermission({ functionName, context, region, request: { Action: 'lambda:InvokeFunction', Principal: '*', StatementId: 'FunctionURLInvokeAllowPublicAccess', InvokedViaFunctionUrl: true } });
             }
         }
 

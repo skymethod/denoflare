@@ -1,11 +1,11 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, QueueMessageBatchPayload, sendQueueMessageBatch, AssetManifest, listVpcServices, listCloudflaredTunnels, createCloudflaredTunnel, getCloudflaredTunnel, createVpcService, VpcServiceInput, getVpcService, deleteVpcService, updateVpcService } from '../common/cloudflare_api.ts';
-import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid } from '../common/check.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, QueueMessageBatchPayload, sendQueueMessageBatch, AssetManifest, listVpcServices, listCloudflaredTunnels, createCloudflaredTunnel, getCloudflaredTunnel, createVpcService, VpcServiceInput, getVpcService, deleteVpcService, updateVpcService, listFormatsSupportedForMarkdownConversion, convertToMarkdown, DocumentInput } from '../common/cloudflare_api.ts';
+import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid, tryParseUrl } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
 import { CliCommand, SubcommandHandler } from './cli_command.ts';
 import { AiImageClassificationInput, AiImageToTextInput, AiModelInput, AiObjectDetectionInput, AiSentenceSimilarityInput, AiSpeechRecognitionInput, AiSummarizationInput, AiTextClassificationInput, AiTextEmbeddingsInput, AiTextGenerationInput, AiTextToImageInput, AiTranslationInput } from '../common/cloudflare_workers_types.d.ts';
-import { TextLineStream } from './deps_cli.ts';
+import { computeContentType, extname, TextLineStream } from './deps_cli.ts';
 import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
 import { dockerBuild, dockerLogin, dockerPush } from './docker_cli.ts';
 import { isAssetManifest, uploadAssetsFromDirectory } from './assets_uploader.ts';
@@ -1113,12 +1113,44 @@ function cfapiCommand() {
         }
     });
 
-    add(apiCommand('list-hyperdrive-configs', ''), async (accountId, apiToken, _opts) => {
+    add(apiCommand('list-markdown-conversion-formats', 'List file formats supported for markdown conversion'), async (accountId, apiToken, _opts) => {
+        const value = await listFormatsSupportedForMarkdownConversion({ apiToken, accountId });
+        console.log(value);
+    });
+
+    add(apiCommand('convert-to-markdown', 'Convert one or more local files or URLs to markdown').arg('urlOrFile', 'strings', 'URL or local file path'), async (accountId, apiToken, { urlOrFile: urlOrFiles }) => {
+        const documents: DocumentInput[] = [];
+        for (const urlOrFile of urlOrFiles) {
+            documents.push(await (async () => {
+                const name = urlOrFile;
+                const url = tryParseUrl(urlOrFile);
+                if (url && /^https?:$/.test(url.protocol)) {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`Unable to fetch contents for url: ${urlOrFile}`);
+                    const contentType = res.headers.get('content-type') ?? undefined;
+                    if (!contentType) throw new Error(`Unable to determine content-type for url: ${urlOrFile}`);
+                    const bytes = new Uint8Array(await res.arrayBuffer());
+                    return { name, bytes, contentType };
+                } else {
+                    const contentType = computeContentType(extname(urlOrFile));
+                    if (!contentType) throw new Error(`Unable to determine content-type for file: ${urlOrFile}`);
+                    const bytes = await Deno.readFile(urlOrFile);
+                    return { name, bytes, contentType };
+                }
+            })());
+        }
+        const value = await convertToMarkdown({ documents, apiToken, accountId });
+        console.log(value);
+    });
+
+    rt.subcommandGroup();
+
+    add(apiCommand('list-hyperdrive-configs', 'List Hyperdrive configs'), async (accountId, apiToken, _opts) => {
         const value = await listHyperdriveConfigs({ apiToken, accountId });
         console.log(value);
     });
     
-    add(apiCommand('create-hyperdrive-config', '')
+    add(apiCommand('create-hyperdrive-config', 'Create a Hyperdrive config')
             .arg('name', 'string', 'Name of the config')
             .arg('connectionString', 'string', 'Connection string to the database')
             .option('disabled', 'boolean', '')
@@ -1131,7 +1163,7 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    add(apiCommand('update-hyperdrive-config', '')
+    add(apiCommand('update-hyperdrive-config', 'Update a Hyperdrive config')
             .arg('id', 'string', 'ID of the config')
             .arg('name', 'string', 'Name of the config')
             .arg('connectionString', 'string', 'Connection string to the database')
@@ -1145,7 +1177,7 @@ function cfapiCommand() {
         console.log(value);
     });
 
-    add(apiCommand('delete-hyperdrive-config', '')
+    add(apiCommand('delete-hyperdrive-config', 'Delete a Hyperdrive config')
             .arg('id', 'string', 'ID of the config')
         , async (accountId, apiToken, opts) => {
         const { id } = opts;
