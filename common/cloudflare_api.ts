@@ -2195,6 +2195,8 @@ export interface HyperdriveOrigin {
 export interface HyperdriveOriginInput extends HyperdriveOrigin {
     readonly scheme: string;
     readonly password: string;
+    readonly access_client_id?: string;
+    readonly access_client_secret?: string;
 }
 
 export interface HyperdriveConfig {
