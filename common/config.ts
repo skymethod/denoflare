@@ -103,6 +103,9 @@ export interface Script {
      */
     readonly logpush?: boolean;
 
+    /** If set, determines worker placement. e.g. smart, smart:wnam, targeted:region:aws:us-east-1. */
+    readonly placement?: string;
+
     /** If specified, the specific compatibility environment for this worker.
      * 
      * See https://developers.cloudflare.com/workers/platform/compatibility-dates/ */

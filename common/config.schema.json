@@ -318,6 +318,10 @@
                             "description": "If specified, enable or disable logpush for this worker.",
                             "type": "boolean"
                         },
+                        "placement": {
+                            "description": "If set, determines worker placement. e.g. smart, smart:wnam, targeted:region:aws:us-east-1.",
+                            "type": "string"
+                        },
                         "compatibilityDate": {
                             "description": "If specified, the specific compatibility environment for this worker.\n\nSee https://developers.cloudflare.com/workers/platform/compatibility-dates/",
                             "type": "string"

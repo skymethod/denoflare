@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace, WorkerAssetsOpts, WorkersAssetsConfiguration } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace, WorkerAssetsOpts, WorkersAssetsConfiguration, Placement } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -26,6 +26,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('assetsConfiguration', 'string', 'Static assets configuration: local path to a JSON file conforming to WorkersAssetsConfiguration')
     .option('tag', 'strings', 'A string tag associated with this script (Workers for Platforms only)')
     .option('logpush', 'boolean', 'Enable or disable logpush for the worker')
+    .option('placement', 'string', 'If set, determines worker placement. e.g. smart, smart:wnam, targeted:region:aws:us-east-1')
     .option('compatibilityDate', 'string', 'Specific compatibility environment for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/')
     .option('compatibilityFlag', 'strings', 'Specific compatibility flags for the worker, see https://developers.cloudflare.com/workers/platform/compatibility-dates/#compatibility-flags')
     .option('observability', 'boolean', 'Enable or disable observability for the worker')
@@ -50,7 +51,8 @@ export async function push(args: (string | number)[], options: Record<string, un
         name: nameOpt,
         customDomain: customDomainOpt, 
         workersDev: workersDevOpt, 
-        logpush: logpushOpt, 
+        logpush: logpushOpt,
+        placement: placementOpt,
         compatibilityDate: compatibilityDateOpt, 
         compatibilityFlag: compatibilityFlagOpt, 
         deleteClass: deleteClassOpt, 
@@ -108,6 +110,15 @@ export async function push(args: (string | number)[], options: Record<string, un
         const pushIdSuffix = pushId ? ` ${pushId}` : '';
         const usageModel = script?.usageModel;
         const logpush = typeof logpushOpt === 'boolean' ? logpushOpt : script?.logpush;
+        const placement: Placement | undefined = (() => {
+            const placement = placementOpt ?? script?.placement;
+            if (placement === undefined) return undefined;
+            if (typeof placement !== 'string') throw new Error(`Bad placement: ${placement}`);
+            let m: RegExpExecArray | null;
+            m = /^smart(?::([a-z]+))?$/.exec(placement); if (m) return { mode: 'smart', hint: m[1] };
+            m = /^targeted:(region|host|hostname):([^\s]+)$/.exec(placement); if (m) return m[1] === 'host' ? { mode: 'targeted', host: m[2] } : m[2] === 'hostname' ? { mode: 'targeted', hostname: m[2] } : { mode: 'targeted', region: m[2] };
+            throw new Error(`Unexpected placement: ${placement}`);
+        })();
         const compatibilityDate = typeof compatibilityDateOpt === 'string' ? compatibilityDateOpt : script?.compatibilityDate;
         const compatibilityFlags = compatibilityFlagOpt || script?.compatibilityFlags;
         const observability: Observability | undefined = (typeof observabilityOpt === 'boolean' || typeof observabilitySampleRate === 'string') ? { enabled: observabilityOpt ?? true, head_sampling_rate: typeof observabilitySampleRate === 'string' ? parseFloat(observabilitySampleRate) : undefined } 
@@ -136,7 +147,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, ...await assetManager.computeAssets({ pushNumber }) };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, placement, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, ...await assetManager.computeAssets({ pushNumber }) };
         if (typeof dispatchNamespace === 'string') {
             await putScriptInDispatchNamespace({ ...putScriptOpts, dispatchNamespace, tags });
         } else if (typeof versionTag === 'string') {

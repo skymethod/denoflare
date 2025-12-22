@@ -79,7 +79,7 @@ export async function getScriptSettings(opts: { accountId: string, scriptName: s
 }
 
 export interface ScriptSettings {
-    readonly placement: { mode?: string };
+    readonly placement: Record<string | number | symbol, never> | { mode: 'smart' } | { mode: 'targeted', target: number[] }; // aws:us-east-1 = [ 1 ]
     readonly compatibility_date: string;
     readonly compatibility_flags: string[];
     readonly usage_model: string;
@@ -94,6 +94,20 @@ export type Observability = {
     head_sampling_rate?: number, // between 0 and 1 (default)
 }
 
+export type Placement = {
+    mode: 'smart',
+    /** e.g. wnam */ hint?: string,
+} | {
+    mode: 'targeted',
+    /** e.g. aws:us-east-1 */ region: string,
+} | {
+    mode: 'targeted',
+    host: string,
+} | {
+    mode: 'targeted',
+    hostname: string,
+}
+
 export type PutScriptOpts = { 
     accountId: string,
     scriptName: string,
@@ -105,6 +119,7 @@ export type PutScriptOpts = {
     isModule: boolean,
     usageModel?: 'bundled' | 'unbound',
     logpush?: boolean,
+    placement?: Placement,
 
     /** Date indicating targeted support in the Workers runtime. Backwards incompatible fixes to the runtime following this date will not affect this Worker. */
     compatibilityDate?: string,
@@ -206,7 +221,7 @@ export interface ScriptVersionResourcesScript {
 }
 
 function computeUploadForm(opts: PutScriptOpts & { tags?: string[] }): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, keep_assets, assets, tags } = opts;
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, placement, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, keep_assets, assets, tags } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -214,6 +229,7 @@ function computeUploadForm(opts: PutScriptOpts & { tags?: string[] }): FormData 
         usage_model: usageModel,
         migrations,
         logpush,
+        placement,
         compatibility_date: compatibilityDate,
         compatibility_flags: compatibilityFlags,
         observability,
