@@ -1245,7 +1245,7 @@ export type ListDnsRecordsOpts = {
 
 export type DnsRecordType = 'A' | 'AAAA' | 'CAA' | 'CERT' | 'CNAME' | 'DNSKEY' | 'DS' | 'HTTPS' | 'LOC' | 'MX' | 'NAPTR' | 'NS' | 'OPENPGPKEY' | 'PTR' | 'SMIMEA' | 'SRV' | 'SSHFP' | 'SVCB' | 'TLSA' | 'TXT' | 'URI';
 
-export async function listDnsRecords(opts: { apiToken: string, zoneId: string } & ListDnsRecordsOpts) {
+export async function listDnsRecords(opts: { apiToken: string, zoneId: string } & ListDnsRecordsOpts): Promise<ListDnsRecordsResponse> {
     const { apiToken, zoneId, name, comment, content, direction, match, order, page, per_page, proxied, search, tag, tag_match, type } = opts;
     const url = new URL(`${computeBaseUrl()}/zones/${zoneId}/dns_records`);
 
@@ -1285,7 +1285,7 @@ export async function listDnsRecords(opts: { apiToken: string, zoneId: string } 
     if (typeof tag_match === 'string') url.searchParams.set('tag_match', tag_match);
     if (typeof type === 'string') url.searchParams.set('type', type);
 
-    return await execute('listDnsRecords', 'GET', url.toString(), apiToken);
+    return await execute('listDnsRecords', 'GET', url.toString(), apiToken) as ListDnsRecordsResponse;
 }
 
 export interface ListDnsRecordsResponse extends CloudflareApiResponse<readonly DnsRecord[]> {
