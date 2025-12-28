@@ -1,5 +1,5 @@
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, QueueMessageBatchPayload, sendQueueMessageBatch, AssetManifest, listVpcServices, listCloudflaredTunnels, createCloudflaredTunnel, getCloudflaredTunnel, createVpcService, VpcServiceInput, getVpcService, deleteVpcService, updateVpcService, listFormatsSupportedForMarkdownConversion, convertToMarkdown, DocumentInput } from '../common/cloudflare_api.ts';
+import { CloudflareApi, HyperdriveOriginInput, createHyperdriveConfig, createLogpushJob, createPubsubBroker, createPubsubNamespace, createQueue, createR2Bucket, deleteHyperdriveConfig, deleteLogpushJob, deletePubsubBroker, deletePubsubNamespace, deletePubsubRevocations, deleteQueue, deleteR2Bucket, deleteTraceWorker, deleteWorkersDomain, generatePubsubCredentials, getAccountDetails, getAsnOverview, getAsns, getKeyMetadata, getKeyValue, getPubsubBroker, getQueue, getR2BucketUsageSummary, getUser, getWorkerAccountSettings, getWorkerServiceMetadata, getWorkerServiceScript, getWorkerServiceSubdomainEnabled, getWorkersSubdomain, listAccounts, listDurableObjects, listDurableObjectsNamespaces, listFlags, listHyperdriveConfigs, listKVNamespaces, listKeys, listLogpushJobs, listMemberships, listAiModels, listPubsubBrokerPublicKeys, listPubsubBrokers, listPubsubNamespaces, listPubsubRevocations, listQueues, listR2Buckets, listScripts, listTraceWorkers, listUserBillingHistory, listWorkerDeployments, listWorkersDomains, listZones, putKeyValue, putWorkerAccountSettings, putWorkersDomain, queryAnalyticsEngine, revokePubsubCredentials, runAiModel, setTraceWorker, setWorkerServiceSubdomainEnabled, updateHyperdriveConfig, updateLogpushJob, updatePubsubBroker, verifyToken, listWorkerVersionedDeployments, updateScriptVersionAllocation, Rule, ackQueueMessages, queryKvRequestAnalytics, queryKvStorageAnalytics, updateQueue, createQueueConsumer, NewQueueConsumer, listQueueConsumers, updateQueueConsumer, deleteQueueConsumer, previewQueueMessages, sendQueueMessage, listR2EventNotificationRules, createR2EventNotificationRule, EventNotificationRuleInput, deleteR2EventNotificationRule, R2EvenNotificationAction, listPipelines, createPipeline, PipelineConfig, PipelineCompressionType, getPipeline, updatePipeline, Pipeline, deletePipeline, PipelineTransformConfig, listContainersApplications, getContainersApplication, getContainersCustomer, generateContainersImageRegistryCredentials, createContainersApplication, createContainersImageRegistry, ContainersApplicationSchedulingPolicy, ContainersApplicationInput, deleteContainersApplication, ContainersImageRegistryCredentialPermission, CLOUDFLARE_MANAGED_REGISTRY, getBrowserContent, BrowserContentRequest, BrowserJsonRequest, getBrowserJson, BrowserLinksRequest, getBrowserLinks, getBrowserMarkdown, getBrowserPdf, BrowserElementsRequest, getBrowserElements, getBrowserScreenshot, BrowserScreenshotRequest, getBrowserSnapshot, listDispatchNamespaces, createDispatchNamespace, getDispatchNamespace, deleteDispatchNamespace, getScriptTags, putScriptTags, deleteScriptTag, listScriptsInDispatchNamespace, deleteScriptsInDispatchNamespace, QueueMessagePayload, getScriptSettings, listZoneRulesets, updateZoneEntrypointRuleset, pullQueueMessages, ByteUnits, QueueMessageBatchPayload, sendQueueMessageBatch, AssetManifest, listVpcServices, listCloudflaredTunnels, createCloudflaredTunnel, getCloudflaredTunnel, createVpcService, VpcServiceInput, getVpcService, deleteVpcService, updateVpcService, listFormatsSupportedForMarkdownConversion, convertToMarkdown, DocumentInput, listDnsRecords, createDnsRecord, CreateDnsRecordOpts } from '../common/cloudflare_api.ts';
 import { check, checkMatches, checkMatchesReturnMatcher, isValidUuid, tryParseUrl } from '../common/check.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoflareCliCommand, parseOptionalIntegerOption, parseOptionalStringOption } from './cli_common.ts';
@@ -9,6 +9,7 @@ import { computeContentType, extname, TextLineStream } from './deps_cli.ts';
 import { computeBasicAuthorization, dockerFetch, isManifest } from './docker_registry_api.ts';
 import { dockerBuild, dockerLogin, dockerPush } from './docker_cli.ts';
 import { isAssetManifest, uploadAssetsFromDirectory } from './assets_uploader.ts';
+import { ListDnsRecordsOpts } from '../common/cloudflare_api.ts';
 
 export const CFAPI_COMMAND = cfapiCommand();
 
@@ -78,6 +79,59 @@ function cfapiCommand() {
         const { name } = opts;
         const { page, perPage, direction } = parsePagingOptions(options);
         const value = await listZones({ accountId, apiToken, match, name, order, page, perPage, status, direction });
+        console.log(value);
+    });
+
+    const computeZoneId = async ({ accountId, apiToken, zone }: { accountId: string, apiToken: string, zone: string }) => {
+        if (/^[0-9a-f]{32}$/.test(zone)) return zone;
+        const zones = await listZones({ accountId, apiToken, name: zone });
+        if (zones.length === 0) throw new Error(`Unable to find zone: ${zone}`);
+        if (zones.length > 1) throw new Error(`Multiple zones for: ${zone}`);
+        return zones[0].id;
+    };
+
+    add(apiCommand('list-dns-records', 'List DNS Records')
+        .arg('zone', 'string', 'Zone ID or domain name')
+        .option('match', 'enum', 'Match type', { value: 'any' }, { value: 'all' })
+        .option('name', 'string', 'Exact name filter')
+        .option('nameContains', 'string', 'Name contains filter')
+        .option('nameStartsWith', 'string', 'Name starts with filter')
+        .option('nameEndsWith', 'string', 'Name ends with filter')
+        .option('content', 'string', 'Exact content filter')
+        .option('contentContains', 'string', 'Content contains filter')
+        .option('contentStartsWith', 'string', 'Content starts with filter')
+        .option('contentEndsWith', 'string', 'Content ends with filter')
+        .option('type', 'string', 'Record type (e.g. CNAME)')
+        .option('search', 'string', 'Allows searching in multiple properties of a DNS record simultaneously')
+        .option('proxied', 'boolean', 'Whether the record is receiving the performance and security benefits of Cloudflare')
+        .include(commandOptionsForParsePagingOptions)
+    , async (accountId, apiToken, opts, options) => {
+        const match = opts.match as ListDnsRecordsOpts['match'];
+        const type = opts.type as ListDnsRecordsOpts['type'];
+        const { zone, name: nameExact, nameContains, nameStartsWith, nameEndsWith, content: contentExact, contentContains, contentStartsWith, contentEndsWith, search, proxied } = opts;
+        const zoneId = await computeZoneId({ accountId, apiToken, zone });
+        const { page, perPage: per_page, direction } = parsePagingOptions(options);
+        const value = await listDnsRecords({ apiToken, zoneId, page, per_page, direction, match, type, search, proxied,
+            name: { contains: nameContains, exact: nameExact, startswith: nameStartsWith, endswith: nameEndsWith },
+            content: { contains: contentContains, exact: contentExact, startswith: contentStartsWith, endswith: contentEndsWith },
+        });
+        console.log(value);
+    });
+
+    add(apiCommand('create-dns-record', 'Create a DNS record')
+        .arg('zone', 'string', 'Zone ID or domain name')
+        .option('name', 'required-string', 'Complete DNS record name, including the zone name, in Punycode')
+        .option('type', 'required-string', 'Record type (e.g. CNAME)')
+        .option('content', 'required-string', 'Content appropriate to the record type')
+        .option('comment', 'string', 'Comments or notes about the DNS record. This field has no effect on DNS responses.')
+        .option('proxied', 'boolean', 'Whether the record is receiving the performance and security benefits of Cloudflare')
+        .option('tag', 'strings', 'Custom tags for the DNS record. This field has no effect on DNS responses')
+        .option('ttl', 'integer', `Time To Live (TTL) of the DNS record in seconds. Setting to 1 (default) means 'automatic'. Value must be between 60 and 86400, with the minimum reduced to 30 for Enterprise zones`)
+    , async (accountId, apiToken, opts) => {
+        const type = opts.type as CreateDnsRecordOpts['type'];
+        const { zone, content, name, comment, proxied, tag: tags, ttl } = opts;
+        const zoneId = await computeZoneId({ accountId, apiToken, zone });
+        const value = await createDnsRecord({ apiToken, zoneId, content, name, type, comment, proxied, tags, ttl });
         console.log(value);
     });
 

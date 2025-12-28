@@ -1146,6 +1146,201 @@ export interface Zone {
     // TODO others as needed
 }
 
+export type ListDnsRecordsOpts = {
+    comment?: {
+        /** If this parameter is present, only records without a comment are returned. */
+        absent?: string,
+
+        /** Substring of the DNS record comment. Comment filters are case-insensitive. */
+        contains?: string,
+
+        /** Suffix of the DNS record comment. Comment filters are case-insensitive. */
+        endswith?: string,
+
+        /** Exact value of the DNS record comment. Comment filters are case-insensitive. */
+        exact?: string,
+
+        /** If this parameter is present, only records with a comment are returned. */
+        present?: string,
+
+        /** Prefix of the DNS record comment. Comment filters are case-insensitive. */
+        startswith?: string,
+    },
+
+    content?: {
+        /** Substring of the DNS record content. Content filters are case-insensitive. */
+        contains?: string,
+
+        /** Suffix of the DNS record content. Content filters are case-insensitive. */
+        endswith?: string,
+
+        /** Exact value of the DNS record content. Content filters are case-insensitive. */
+        exact?: string,
+
+        /** Prefix of the DNS record content. Content filters are case-insensitive. */
+        startswith?: string,
+    },
+
+    /** Direction to order DNS records in. */
+    direction?: 'asc' | 'desc',
+
+    /** Whether to match all search requirements or at least one (any). If set to all, acts like a logical AND between filters. If set to any, acts like a logical OR instead. Note that the interaction between tag filters is controlled by the tag-match parameter instead. */
+    match?: 'any' | 'all',
+
+    name?: {
+        /**Substring of the DNS record name. Name filters are case-insensitive. */
+        contains?: string,
+
+        /** Suffix of the DNS record name. Name filters are case-insensitive. */
+        endswith?: string,
+
+        /** Exact value of the DNS record name. Name filters are case-insensitive. */
+        exact?: string,
+
+        /** Prefix of the DNS record name. Name filters are case-insensitive. */
+        startswith?: string,
+    },
+
+    /** Field to order DNS records by. */
+    order?: 'type' | 'name' | 'content' | 'ttl' | 'proxied',
+
+    /** Page number of paginated results. (minimum: 1, default: 1) */
+    page?: number,
+
+    /** Number of DNS records per page. (maximum: 5000000, minimum: 1, default: 100) */
+    per_page?: number,
+
+    /** Whether the record is receiving the performance and security benefits of Cloudflare. */
+    proxied?: boolean,
+
+    /** Allows searching in multiple properties of a DNS record simultaneously. This parameter is intended for human users, not automation. Its exact behavior is intentionally left unspecified and is subject to change in the future. This parameter works independently of the match setting. For automated searches, please use the other available parameters. */
+    search?: string,
+
+    tag?: {
+        /** Name of a tag which must not be present on the DNS record. Tag filters are case-insensitive. */
+        absent?: string,
+
+        /** A tag and value, of the form <tag-name>:<tag-value>. The API will only return DNS records that have a tag named <tag-name> whose value contains <tag-value>. Tag filters are case-insensitive. */
+        contains?: string,
+        
+        /** A tag and value, of the form <tag-name>:<tag-value>. The API will only return DNS records that have a tag named <tag-name> whose value ends with <tag-value>. Tag filters are case-insensitive. */
+        endswith?: string,
+
+        /** A tag and value, of the form <tag-name>:<tag-value>. The API will only return DNS records that have a tag named <tag-name> whose value is <tag-value>. Tag filters are case-insensitive.. */
+        exact?: string,
+
+        /** Name of a tag which must be present on the DNS record. Tag filters are case-insensitive. */
+        present?: string,
+
+        /** A tag and value, of the form <tag-name>:<tag-value>. The API will only return DNS records that have a tag named <tag-name> whose value starts with <tag-value>. Tag filters are case-insensitive. */
+        startswith?: string,
+    },
+
+    /** Whether to match all tag search requirements or at least one (any). If set to all, acts like a logical AND between tag filters. If set to any, acts like a logical OR instead. Note that the regular match parameter is still used to combine the resulting condition with other filters that aren't related to tags. */
+    tag_match?: 'any' | 'all',
+
+    /** Record type. */
+    type?: DnsRecordType,
+}
+
+export type DnsRecordType = 'A' | 'AAAA' | 'CAA' | 'CERT' | 'CNAME' | 'DNSKEY' | 'DS' | 'HTTPS' | 'LOC' | 'MX' | 'NAPTR' | 'NS' | 'OPENPGPKEY' | 'PTR' | 'SMIMEA' | 'SRV' | 'SSHFP' | 'SVCB' | 'TLSA' | 'TXT' | 'URI';
+
+export async function listDnsRecords(opts: { apiToken: string, zoneId: string } & ListDnsRecordsOpts) {
+    const { apiToken, zoneId, name, comment, content, direction, match, order, page, per_page, proxied, search, tag, tag_match, type } = opts;
+    const url = new URL(`${computeBaseUrl()}/zones/${zoneId}/dns_records`);
+
+    if (typeof comment?.contains === 'string') url.searchParams.set('comment.contains', comment.contains);
+    if (typeof comment?.absent === 'string') url.searchParams.set('comment.absent', comment.absent);
+    if (typeof comment?.endswith === 'string') url.searchParams.set('comment.endswith', comment.endswith);
+    if (typeof comment?.exact === 'string') url.searchParams.set('comment.exact', comment.exact);
+    if (typeof comment?.present === 'string') url.searchParams.set('comment.present', comment.present);
+    if (typeof comment?.startswith === 'string') url.searchParams.set('comment.startswith', comment.startswith);
+
+    if (typeof content?.contains === 'string') url.searchParams.set('content.contains', content.contains);
+    if (typeof content?.endswith === 'string') url.searchParams.set('content.endswith', content.endswith);
+    if (typeof content?.exact === 'string') url.searchParams.set('content.exact', content.exact);
+    if (typeof content?.startswith === 'string') url.searchParams.set('content.startswith', content.startswith);
+
+    if (typeof direction === 'string') url.searchParams.set('direction', direction);
+    if (typeof match === 'string') url.searchParams.set('match', match);
+
+    if (typeof name?.contains === 'string') url.searchParams.set('name.contains', name.contains);
+    if (typeof name?.endswith === 'string') url.searchParams.set('name.endswith', name.endswith);
+    if (typeof name?.exact === 'string') url.searchParams.set('name.exact', name.exact);
+    if (typeof name?.startswith === 'string') url.searchParams.set('name.startswith', name.startswith);
+
+    if (typeof order === 'string') url.searchParams.set('order', order);
+    if (typeof page === 'number') url.searchParams.set('page', String(page));
+    if (typeof per_page === 'number') url.searchParams.set('per_page', String(per_page));
+    if (typeof proxied === 'boolean') url.searchParams.set('proxied', String(proxied));
+    if (typeof search === 'string') url.searchParams.set('search', search);
+
+    if (typeof tag?.contains === 'string') url.searchParams.set('tag.contains', tag.contains);
+    if (typeof tag?.absent === 'string') url.searchParams.set('tag.absent', tag.absent);
+    if (typeof tag?.endswith === 'string') url.searchParams.set('tag.endswith', tag.endswith);
+    if (typeof tag?.exact === 'string') url.searchParams.set('tag.exact', tag.exact);
+    if (typeof tag?.present === 'string') url.searchParams.set('tag.present', tag.present);
+    if (typeof tag?.startswith === 'string') url.searchParams.set('tag.startswith', tag.startswith);
+
+    if (typeof tag_match === 'string') url.searchParams.set('tag_match', tag_match);
+    if (typeof type === 'string') url.searchParams.set('type', type);
+
+    return await execute('listDnsRecords', 'GET', url.toString(), apiToken);
+}
+
+export interface ListDnsRecordsResponse extends CloudflareApiResponse<readonly DnsRecord[]> {
+    readonly result_info: ResultInfo;
+}
+
+export interface DnsRecord {
+    readonly id: string,
+    readonly name: string,
+    readonly type: DnsRecordType,
+    readonly content: string,
+    readonly proxiable: boolean,
+    readonly proxied: boolean,
+    readonly ttl: number,
+    readonly settings: Record<string, unknown>,
+    readonly meta: Record<string, unknown>,
+    readonly comment: string | null,
+    readonly tags: string[],
+    readonly created_on: string, // e.g. 2022-11-19T01:23:15.550767Z
+    readonly modified_on: string, // e.g. 2022-11-19T01:23:15.550767Z
+}
+
+export type CreateDnsRecordOpts = {
+    /** Complete DNS record name, including the zone name, in Punycode. */
+    name: string,
+
+    /** Time To Live (TTL) of the DNS record in seconds. Setting to 1 (default) means 'automatic'. Value must be between 60 and 86400, with the minimum reduced to 30 for Enterprise zones */
+    ttl?: number,
+
+    /** Record type */
+    type: DnsRecordType,
+
+    /** Comments or notes about the DNS record. This field has no effect on DNS responses. */
+    comment?: string,
+
+    /** Content appropriate to the record type. */
+    content: string,
+
+    /** Whether the record is receiving the performance and security benefits of Cloudflare. */
+    proxied?: boolean,
+
+    /** Settings for the DNS record. */
+    settings?: Record<string, unknown>,
+
+    /** Custom tags for the DNS record. This field has no effect on DNS responses. */
+    tags?: string[],
+}
+
+export async function createDnsRecord(opts: { apiToken: string, zoneId: string } & CreateDnsRecordOpts): Promise<unknown> {
+    const { apiToken, zoneId, name, ttl, type, comment, content, proxied, settings, tags } = opts;
+    const url = new URL(`${computeBaseUrl()}/zones/${zoneId}/dns_records`);
+
+    return (await execute<DnsRecord>('createDnsRecord', 'POST', url.toString(), apiToken, { name, ttl, type, comment, content, proxied, settings, tags })).result;
+}
+
 //#endregion
 
 //#region Verify Token
