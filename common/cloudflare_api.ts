@@ -1,5 +1,6 @@
 
 import { AiModelInput, AiModelOutput, D1QueryMetadata } from './cloudflare_workers_types.d.ts';
+import { Uint8Array_ } from './uint8array_.ts';
 
 //#region Durable objects
 
@@ -2359,7 +2360,7 @@ export async function listFormatsSupportedForMarkdownConversion(opts: { accountI
 
 export interface DocumentInput {
     readonly name: string;
-    readonly bytes: Uint8Array;
+    readonly bytes: Uint8Array_;
     readonly contentType: string;
 }
 
@@ -3462,17 +3463,17 @@ function isStringRecord(obj: any): obj is Record<string, unknown> {
     return typeof obj === 'object' && obj !== null && !Array.isArray(obj) && obj.constructor === Object;
 }
 
-type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | string[] | FormData | Uint8Array;
+type ExecuteBody = string | Record<string, unknown> | Record<string, unknown>[] | string[] | FormData | Uint8Array_;
 
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json', requestContentType?: string, opts?: { nonStandardResponse?: boolean }): Promise<CloudflareApiResponse<Result>>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'form'): Promise<FormData>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes', requestContentType?: string): Promise<Uint8Array>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'sse', requestContentType?: string): Promise<ReadableStream<Uint8Array>>;
-async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes?'): Promise<Uint8Array | undefined>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes', requestContentType?: string): Promise<Uint8Array_>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'sse', requestContentType?: string): Promise<ReadableStream<Uint8Array_>>;
+async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'bytes?'): Promise<Uint8Array_ | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'text'): Promise<string>;
 async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'json?'): Promise<CloudflareApiResponse<Result> | undefined>;
 async function execute(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType?: 'empty'): Promise<undefined>;
-async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'sse' | 'text' | 'empty' | 'form' = 'json', requestContentType?: string, { nonStandardResponse }: { nonStandardResponse?: boolean } = {}): Promise<CloudflareApiResponse<Result> | Uint8Array | string | undefined | FormData | ReadableStream<Uint8Array>> {
+async function execute<Result>(op: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH', url: string, apiToken: string, body?: ExecuteBody, responseType: 'json' | 'json?' | 'bytes' | 'bytes?' | 'sse' | 'text' | 'empty' | 'form' = 'json', requestContentType?: string, { nonStandardResponse }: { nonStandardResponse?: boolean } = {}): Promise<CloudflareApiResponse<Result> | Uint8Array_ | string | undefined | FormData | ReadableStream<Uint8Array_>> {
     if (CloudflareApi.DEBUG) console.log(`${op}: ${method} ${url}`);
     const headers = new Headers({ 'Authorization': `Bearer ${apiToken}`});
     let bodyObj: Record<string, unknown> | Record<string, unknown>[] | string[] | undefined;
