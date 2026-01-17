@@ -1903,6 +1903,92 @@ export interface VpcService {
 
 //#endregion
 
+//#region Worker loader
+
+export interface WorkerLoader {
+    /** Loads a Worker with the given ID, returning a WorkerStub which may be used to invoke the Worker. */
+    get(id: string | null, getCodeCallback: () => WorkerCode | Promise<WorkerCode>): WorkerStub;
+}
+
+export interface WorkerLoaderModule {
+    /** A JavaScript module, using ES modules syntax for imports and exports. */
+    readonly js?: string;
+
+    /** A CommonJS module, using require() syntax for imports. */
+    readonly cjs?: string;
+
+    /** An importable string value. */
+    readonly text?: string;
+
+    /** An importable ArrayBuffer value. */
+    readonly data?: ArrayBuffer;
+
+    /** An importable object. The value must be JSON-serializable.
+     * 
+     * However, note that value is provided as a parsed object, and is delivered as a parsed object; neither side actually sees the JSON serialization. */
+    readonly json?: unknown;
+
+    /** A Python module. */
+    readonly py?: string;
+
+    readonly wasm?: ArrayBuffer;
+}
+
+export interface WorkerCode {
+    
+    readonly compatibilityDate: string;
+
+    readonly compatibilityFlags?: string[];
+    
+    /** If true, then experimental compatibility flags will be permitted in compatibilityFlags.
+     * 
+     * In order to set this, the worker calling the loader must itself have the compatibility flag "experimental" set.
+     * Experimental flags cannot be enabled in production. */
+    readonly allowExperimental?: boolean;
+
+    /** The name of the Worker's main module. This must be one of the modules listed in modules. */
+    readonly mainModule: string;
+
+    /** A dictionary object mapping module names to their string contents.
+     * 
+     * If the module content is a plain string, then the module name must have a file extension indicating its type: either .js or .py. */
+    readonly modules: Record<string, string | WorkerLoaderModule>;
+
+    /** The environment object to provide to the dynamic Worker.
+     * 
+     * Using this, you can provide custom bindings to the Worker.
+     * 
+     * env is serialized and transferred into the dynamic Worker, where it is used directly as the value of env there.
+     * It may contain structured cloneable types or service bindings */
+    readonly env?: Record<string, unknown>;
+
+    /** Controls whether the dynamic Worker has access to the network.
+     * 
+     * The global fetch() and connect() functions (for making HTTP requests and TCP connections, respectively) can be blocked or redirected to isolate the Worker.
+     * 
+     * If globalOutbound is not specified, the default is to inherit the parent's network access, which usually means the dynamic Worker will have full access to the public Internet.
+     * 
+     * If globalOutbound is null, then the dynamic Worker will be totally cut off from the network. Both fetch() and connect() will throw exceptions.
+     * globalOutbound can also be set to any service binding, including service bindings in the parent worker's env as well as loopback bindings from ctx.exports.
+     * 
+     * Using ctx.exports is particularly useful as it allows you to customize the binding further for the specific sandbox, by setting the value of ctx.props that should be passed back to it. The props can contain information to identify the specific dynamic Worker that made the request.
+     * */
+    readonly globalOutbound?: Fetcher | null;
+
+    /** One or more Tail Workers which will observe console logs, errors, and other details about the dynamically-loaded worker's execution.
+     * 
+     * A tail event will be delivered to the Tail Worker upon completion of a request to the dynamically-loaded Worker. */
+    readonly tails?: Fetcher[];
+
+    readonly streamingTails?: Fetcher[];
+}
+
+export interface WorkerStub {
+    getEntrypoint(name?: string, options?: { props?: unknown }): Fetcher;
+}
+
+//#endregion
+
 //#region Workers AI
 
 export interface AI {

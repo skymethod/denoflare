@@ -291,7 +291,7 @@ export interface ScriptVersionAllocationResult {
     readonly id: string; // versioned-deployment id
 }
 
-export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding | VpcServiceBinding;
+export type Binding = PlainTextBinding | SecretTextBinding | KvNamespaceBinding | DurableObjectNamespaceBinding | WasmModuleBinding | ServiceBinding | R2BucketBinding | AnalyticsEngineBinding | D1DatabaseBinding | QueueBinding | SecretKeyBinding | BrowserBinding | AiBinding | HyperdriveBinding | VersionMetadataBinding | SendEmailBinding | RatelimitBinding | DispatchNamespaceBinding | AssetsBinding | VpcServiceBinding | WorkerLoaderBinding;
 
 export interface PlainTextBinding {
     readonly type: 'plain_text';
@@ -421,6 +421,11 @@ export interface VpcServiceBinding {
     readonly type: 'vpc_service';
     readonly name: string;
     readonly service_id: string;
+}
+
+export interface WorkerLoaderBinding {
+    readonly type: 'worker_loader';
+    readonly name: string;
 }
 
 // this is likely not correct, but it works to delete obsolete DO classes at least

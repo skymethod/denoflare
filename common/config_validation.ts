@@ -128,8 +128,8 @@ function checkScript(name: string, script: any): Script {
 // deno-lint-ignore no-explicit-any
 function checkBinding(name: string, binding: any) {
     checkObject(name, binding);
-    const { value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace, assets, vpcService } = binding;
-    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace, assets, vpcService ].filter(v => v !== undefined).length;
+    const { value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace, assets, vpcService, workerLoader } = binding;
+    const definedCount = [ value, secret, kvNamespace, doNamespace, wasmModule, serviceEnvironment, bucketName, dataset, d1DatabaseUuid, queueName, secretKey, browser, ai, hyperdrive, versionMetadata, sendEmailDestinationAddresses, ratelimit, dispatchNamespace, assets, vpcService, workerLoader ].filter(v => v !== undefined).length;
     if (definedCount === 1) {
         if (value !== undefined && typeof value !== 'string') throw new Error(`Bad ${name}.value: expected string, found ${typeof value}`);
         else if (secret !== undefined && typeof secret !== 'string') throw new Error(`Bad ${name}.secret: expected string, found ${typeof secret}`);
@@ -151,6 +151,7 @@ function checkBinding(name: string, binding: any) {
         else if (dispatchNamespace !== undefined && typeof dispatchNamespace !== 'string') throw new Error(`Bad ${name}.dispatchNamespace: expected string, found ${typeof dispatchNamespace}`);
         else if (assets !== undefined && typeof assets !== 'string') throw new Error(`Bad ${name}.assets: expected string, found ${typeof assets}`);
         else if (vpcService !== undefined && typeof vpcService !== 'string') throw new Error(`Bad ${name}.vpcService: expected string, found ${typeof vpcService}`);
+        else if (workerLoader !== undefined && typeof workerLoader !== 'string') throw new Error(`Bad ${name}.workerLoader: expected string, found ${typeof workerLoader}`);
     } else {
         throw new Error(`Bad ${name}: ${binding}`);
     }

@@ -254,6 +254,17 @@
                                                     "type": "string"
                                                 }
                                             }
+                                        },
+                                        {
+                                            "type": "object",
+                                            "description": "Worker loader environment variable binding",
+                                            "required": [ "workerLoader" ],
+                                            "properties": {
+                                                "workerLoader": {
+                                                    "description": "Type indicator only, value is ignored.",
+                                                    "type": "string"
+                                                }
+                                            }
                                         }
                                     ]
                                 }
