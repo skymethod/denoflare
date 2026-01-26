@@ -2827,7 +2827,7 @@ export type ContainersApplication = ContainersApplicationInput & {
     active_rollout_id?: string,
     health?: {
         instances: {
-            durable_objects_active: number,
+            active: number,
             healthy: number,
             failed: number,
             starting: number,
