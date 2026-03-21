@@ -84,7 +84,7 @@ function isValidCustomDomain(customDomain: string): boolean {
 // deno-lint-ignore no-explicit-any
 function checkScript(name: string, script: any): Script {
     checkObject(name, script);
-    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev, dispatchNamespace, assets, assetsConfiguration, logpush, placement, compatibilityDate, compatibilityFlags, lambda, deploy, supabase, cpuLimit } = script;
+    const { path, bindings, localPort, localHostname, localIsolation, localCertPem, localKeyPem, profile, usageModel, customDomains, workersDev, dispatchNamespace, assets, assetsConfiguration, logpush, placement, compatibilityDate, compatibilityFlags, lambda, deploy, supabase, cpuLimit, tails } = script;
     if (path !== undefined && typeof path !== 'string') throw new Error(`Bad ${name}.path: expected string, found ${typeof path}`);
     if (bindings !== undefined) {
         checkObject(`${name}.bindings`, bindings);
@@ -121,6 +121,7 @@ function checkScript(name: string, script: any): Script {
         if (typeof cpuLimit !== 'number') throw new Error(`Bad ${name}.cpuLimit: expected number, found ${typeof cpuLimit}`);
         if (!isValidCpuLimit(cpuLimit)) throw new Error(`Bad ${name}.cpuLimit: ${cpuLimit}`);
     }
+    if (tails !== undefined && !(Array.isArray(tails) && tails.every(v => typeof v === 'string'))) throw new Error(`Bad ${name}.tails: expected string array of tails, found ${tails}`);
 
     return script as Script;
 }

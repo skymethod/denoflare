@@ -1,6 +1,6 @@
 import { commandOptionsForConfig, loadConfig, resolveBindings, resolveProfile } from './config_loader.ts';
 import { gzip, isAbsolute, resolve } from './deps_cli.ts';
-import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace, WorkerAssetsOpts, WorkersAssetsConfiguration, Placement } from '../common/cloudflare_api.ts';
+import { putScript, Binding as ApiBinding, listDurableObjectsNamespaces, createDurableObjectsNamespace, updateDurableObjectsNamespace, Part, Migrations, CloudflareApi, listZones, Zone, putWorkersDomain, getWorkerServiceSubdomainEnabled, setWorkerServiceSubdomainEnabled, getWorkersSubdomain, putScriptVersion, PutScriptOpts, Observability, listContainersApplications, createContainersApplication, ContainersApplicationInput, CLOUDFLARE_MANAGED_REGISTRY, ContainersApplicationUpdate, updateContainersApplication, generateContainersImageRegistryCredentials, getScriptSettings, ScriptSettings, putScriptInDispatchNamespace, WorkerAssetsOpts, WorkersAssetsConfiguration, Placement, TailConsumer } from '../common/cloudflare_api.ts';
 import { Bytes } from '../common/bytes.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
 import { commandOptionsForInputBindings, computeContentsForScriptReference, denoflareCliCommand, parseInputBindingsFromOptions, replaceImports } from './cli_common.ts';
@@ -35,6 +35,7 @@ export const PUSH_COMMAND = denoflareCliCommand('push', 'Upload a Cloudflare wor
     .option('deleteClass', 'strings', 'Delete an obsolete Durable Object (and all data!) by class name as part of the update', { hint: 'class-name' })
     .option('versionTag', 'string', 'If set, push a new version with this tag')
     .option('sourcemap', 'boolean', 'If set, upload a sourcemap')
+    .option('tail', 'strings', 'Tail worker: <service>(:<environment>:<namespace>)')
     .include(commandOptionsForInputBindings)
     .include(commandOptionsForConfig)
     .include(commandOptionsForBundle)
@@ -67,6 +68,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         assets: assetsOpt,
         assetsConfiguration: assetsConfigurationOpt,
         tag: tags,
+        tail: tailsOpt,
      } = opt;
 
     if (verbose) {
@@ -128,6 +130,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         const containers = doNamespaces.containerClassNames.length > 0 ? doNamespaces.containerClassNames.map(v => ({ class_name: v })) : undefined;
         const cpuLimit = cpuLimitOpt ?? script?.cpuLimit;
         const limits = cpuLimit !== undefined ? { cpu_ms: cpuLimit } : undefined;
+        const tailConsumers = (tailsOpt ?? script?.tails)?.map(parseTailConsumer);
         const dispatchNamespace = dispatchNamespaceOpt ?? script?.dispatchNamespace;
         console.log(`computed bindings in ${Date.now() - start}ms`);
 
@@ -147,7 +150,7 @@ export async function push(args: (string | number)[], options: Record<string, un
         }
         start = Date.now();
 
-        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, placement, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, ...await assetManager.computeAssets({ pushNumber }) };
+        const putScriptOpts: PutScriptOpts = { accountId, scriptName, apiToken, scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, placement, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, tailConsumers, ...await assetManager.computeAssets({ pushNumber }) };
         if (typeof dispatchNamespace === 'string') {
             await putScriptInDispatchNamespace({ ...putScriptOpts, dispatchNamespace, tags });
         } else if (typeof versionTag === 'string') {
@@ -716,4 +719,10 @@ function newAssetManager({ assets: assetsOpt, assetsConfiguration, accountId, ap
             return { keep_assets, assets };
         }
     };
+}
+
+function parseTailConsumer(tail: string): TailConsumer {
+    const m = /^([^:]+)(?::([^:]+)(?::([^:]+))?)?$/.exec(tail);
+    if (!m) throw new Error(`Unexpected tail: ${tail}`);
+    return { service: m[1], environment: m[2], namespace: m[3] };
 }

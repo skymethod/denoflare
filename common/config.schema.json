@@ -356,6 +356,13 @@
                             "description": "If specified, the maximum CPU time this worker is allowed to run, in milliseconds. default = 30000 (30 seconds)",
                             "type": "number"
                         },
+                        "tails": {
+                            "description": "Tail workers. <service>(:<environment>:<namespace>)",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
                         "lambda": {
                             "description": "Name-value pairs to use when pushing to AWS Lambda.",
                             "type": "string"

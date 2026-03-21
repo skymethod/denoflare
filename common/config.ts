@@ -106,6 +106,9 @@ export interface Script {
     /** If set, determines worker placement. e.g. smart, smart:wnam, targeted:region:aws:us-east-1. */
     readonly placement?: string;
 
+    /** Tail workers. <service>(:<environment>:<namespace>) */
+    readonly tails?: string[];
+
     /** If specified, the specific compatibility environment for this worker.
      * 
      * See https://developers.cloudflare.com/workers/platform/compatibility-dates/ */

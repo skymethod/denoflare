@@ -137,7 +137,15 @@ export type PutScriptOpts = {
     keep_assets?: boolean,
 
     assets?: WorkerAssetsOpts,
+
+    tailConsumers?: TailConsumer[],
 };
+
+export type TailConsumer = {
+    service: string,
+    environment?: string,
+    namespace?: string,
+}
 
 export type WorkerAssetsOpts = {
     /** Completion token provided upon successful upload of all files from a registered manifest. */
@@ -222,7 +230,7 @@ export interface ScriptVersionResourcesScript {
 }
 
 function computeUploadForm(opts: PutScriptOpts & { tags?: string[] }): FormData {
-    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, placement, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, keep_assets, assets, tags } = opts;
+    const { scriptContents, bindings, migrations, parts, isModule, usageModel, logpush, placement, compatibilityDate, compatibilityFlags, observability, containers, limits, sourceMapContents, keep_assets, assets, tags, tailConsumers } = opts;
 
     const formData = new FormData();
     const metadata: Record<string, unknown> = { 
@@ -239,6 +247,7 @@ function computeUploadForm(opts: PutScriptOpts & { tags?: string[] }): FormData 
         keep_assets,
         assets,
         tags,
+        tail_consumers: tailConsumers,
     };
 
     if (isModule) {
