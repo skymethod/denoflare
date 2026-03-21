@@ -1440,13 +1440,13 @@ export type R2Range =
 //#region Analytics Engine
 
 export interface AnalyticsEngine {
-    // limit of 25 writes (writeDataPoint invocations) per client HTTP request
+    // limit of 250 writes (writeDataPoint invocations) per client HTTP request
     writeDataPoint(event: AnalyticsEngineEvent): void;
 }
   
 export interface AnalyticsEngineEvent {
     readonly doubles?: number[]; // up to 20
-    readonly blobs?: (ArrayBuffer | string | null)[]; // up to 20, max sum of all blobs: 5kb
+    readonly blobs?: (ArrayBuffer | string | null)[]; // up to 20, max sum of all blobs: 16kb
     readonly indexes?: string[]; // 0 or 1, max 96 bytes
 }
 
