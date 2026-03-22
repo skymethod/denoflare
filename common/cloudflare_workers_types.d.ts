@@ -88,6 +88,13 @@ interface IncomingRequestCfPropertiesBase {
      * If the incoming request was served over plaintext (without TLS) this field is undefined.
      */
     readonly tlsExportedAuthenticator?: IncomingRequestCfPropertiesExportedAuthenticatorMetadata;
+
+    /**
+     * A string that allows you to segment your verified bot traffic by its type and purpose.
+     * 
+     * https://developers.cloudflare.com/bots/concepts/bot/verified-bots/#categories
+     */
+    readonly verifiedBotCategory?: string,
 }
 
 /**
@@ -214,11 +221,11 @@ type IncomingRequestCfPropertiesGeographicInformation =
          */
         readonly country: string;
         /**
-         * If present, this property indicates that the request originated in the EU
+         * If the country of the incoming request is in the EU, this will return "1". Otherwise, this property is either omitted or false.
          *
          * @example "1"
          */
-        readonly isEUCountry?: '1';
+        readonly isEUCountry?: '1' | false;
         /**
          * A two-letter code indicating the continent the request originated from.
          *
@@ -275,6 +282,7 @@ type IncomingRequestCfPropertiesGeographicInformation =
          * @example "635"
          */
         readonly metroCode?: string;
+        
     };
 
 interface IncomingRequestCfPropertiesCloudflareAccessOrApiShield {
@@ -494,6 +502,7 @@ export default {
     alarm(): Promise<void>;
     queue(batch: QueueMessageBatch, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
     email(message: IncomingEmailMessage, env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
+    tail(events: TailItem[], env: MyWorkerEnv, ctx: ModuleWorkerContext): Promise<void>;
 };
 */
 
@@ -1994,6 +2003,100 @@ export interface WorkerStub {
 export interface AI {
     // deno-lint-ignore no-explicit-any
     run(model: string, input: unknown, options?: { returnRawResponse?: boolean, websocket?: boolean }): Promise<any>;
+}
+
+//#endregion
+
+//#region Tail Workers
+
+export type TailWorker<TEnv> = {
+    /** An array of TailItems. One TailItem is collected for each event that triggers a Worker.
+     * 
+     * For Workers for Platforms customers with a Tail Worker installed on the dynamic dispatch Worker,
+     * events will contain two elements: one for the dynamic dispatch Worker and one for the User Worker. */
+    tail(items: TailItem[], env: TEnv, context: WorkerContextMethods): void | Promise<void>
+}
+
+export type TailItem = {
+    /** The name of the producer script. */
+    scriptName: string,
+
+    /**
+     * The outcome of the Worker invocation, one of:
+     * - unknown: outcome status was not set.
+     * - ok: The worker invocation succeeded.
+     * - exception: An unhandled exception was thrown. This can happen for many reasons, including:
+     *   - An uncaught JavaScript exception.
+     *   - A fetch handler that does not result in a Response.
+     *   - An internal error.
+     * - exceededCpu: The Worker invocation exceeded either its CPU limits.
+     * - exceededMemory: The Worker invocation exceeded memory limits.
+     * - scriptNotFound: An internal error from difficulty retrieving the Worker script.
+     * - canceled: The worker invocation was canceled before it completed. Commonly because the client disconnected before a response could be sent.
+     * - responseStreamDisconnected: The response stream was disconnected during deferred proxying. Happens when either the client or server hangs up early.
+     */
+    outcome: string,
+
+    scriptVersion: {
+        id: string, // guid
+    },
+
+    wallTime: number,
+    cpuTime: number,
+    truncated: boolean,
+    executionModel: string, // stateless
+
+    diagnosticsChannelEvents: unknown[], // []
+
+    /** An array of TailExceptions.
+     * 
+     * A single Worker invocation might result in multiple unhandled exceptions,
+     * since a Worker can register multiple asynchronous tasks. */
+    exceptions: TailException[],
+
+    /** An array of TailLogs. */
+    logs: TailLog[],
+
+    eventTimestamp: number, // epoch millis
+
+    /** Contains information about the Worker’s triggering event. */
+    event: FetchEventInfo | null,
+}
+
+export type TailLog = {
+    timestamp: number, // epoch millis
+    level: string, // A string indicating the console function that was called. One of: debug, info, log, warn, error.
+    message: unknown[], // The array of parameters passed to the console function.
+}
+
+export type TailException = {
+    stack: string, // "    at Object.fetch (main.js:22:54)"
+    name: string, // e.g. Error
+    message: string,
+    timestamp: number, // epoch millis
+}
+
+export type FetchEventInfo = {
+    request: TailRequest,
+    response: TailResponse,
+}
+
+export type TailRequest = {
+    /** The HTTP request URL (redacted by default). */
+    url: string, // https://s.livewire.io/cb
+
+    /** The HTTP request method. */
+    method: string,
+
+    /** Header name/value entries (redacted by default). Header names are lowercased, and the values associated with duplicate header names are concatenated, with the string ", " (comma space) interleaved */
+    headers: Record<string, string>,
+
+    cf: IncomingRequestCfProperties,
+    getUnredacted(): TailRequest,
+}
+
+export type TailResponse = {
+    status: number, // 500
 }
 
 //#endregion
