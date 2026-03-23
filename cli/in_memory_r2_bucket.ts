@@ -1,5 +1,6 @@
 import { Bytes } from '../common/bytes.ts';
 import { R2Bucket, R2Checksums, R2GetOptions, R2HTTPMetadata, R2ListOptions, R2MultipartOptions, R2MultipartUpload, R2Object, R2ObjectBody, R2Objects, R2PutOptions, R2Range } from '../common/cloudflare_workers_types.d.ts';
+import { Uint8Array_ } from '../common/uint8array_.ts';
 
 export class InMemoryR2Bucket implements R2Bucket {
     private readonly records: Record<string, ObjectRecord> = {}; // by key
@@ -136,7 +137,7 @@ class InMemoryR2ObjectBody extends InMemoryR2Object implements R2ObjectBody {
 
     get body(): ReadableStream { 
         this.bodyUsed_ = true;
-        return new Blob([ this.bytes ]).stream();
+        return new Blob([ this.bytes as Uint8Array_ ]).stream();
     }
 
     get bodyUsed(): boolean { 

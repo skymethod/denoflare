@@ -1,5 +1,6 @@
 import { Bytes } from '../common/bytes.ts';
 import { isStringRecord } from '../common/check.ts';
+import { Uint8Array_ } from './uint8array_.ts';
 
 export interface CryptoKeyDef {
     readonly format: string;
@@ -25,7 +26,7 @@ export function parseCryptoKeyDef(json: string): CryptoKeyDef {
 export async function toCryptoKey(def: CryptoKeyDef): Promise<CryptoKey> {
     const { format, base64, algorithm, usages } = def;
     if (format !== 'pkcs8' && format !== 'raw' && format !== 'spki') throw new Error(`Format ${format} not supported`);
-    const keyData: BufferSource = Bytes.ofBase64(base64).array();
+    const keyData: BufferSource = Bytes.ofBase64(base64).array() as Uint8Array_;
     return await crypto.subtle.importKey(format, keyData, algorithm, true, usages);
 }
 

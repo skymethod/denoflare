@@ -4,6 +4,7 @@ import { consoleLog } from './console.ts';
 import { Constants } from './constants.ts';
 import { DenoflareResponse } from './denoflare_response.ts';
 import { RpcChannel } from './rpc_channel.ts';
+import { Uint8Array_ } from './uint8array_.ts';
 
 // ReadableStreamReadResult removed in deno 1.28.3
 // https://github.com/denoland/deno/pull/16191
@@ -110,9 +111,9 @@ export function unpackResponse(packed: PackedResponse, bodyResolver: BodyResolve
     const headers = new Headers(packed.headers);
     const body = bodyNull ? null 
         : bodyText !== undefined ? bodyText
-        : bodyBytes !== undefined ? bodyBytes
+        : bodyBytes !== undefined ? bodyBytes as Uint8Array_
         : bodyId === undefined ? undefined 
-        : bodyResolver(bodyId);
+        : bodyResolver(bodyId) as ReadableStream<Uint8Array_>;
     if (status === 101) {
         if (!webSocketId) throw new Error(`unpackResponse: 101 responses must have a webSocketId`);
         const webSocket = webSocketResolver(webSocketId);
@@ -179,9 +180,9 @@ export function unpackRequest(packedRequest: PackedRequest, bodyResolver: BodyRe
     const headers = new Headers(packedRequest.headers);
     const body = bodyNull ? null 
         : bodyText !== undefined ? bodyText
-        : bodyBytes !== undefined ? bodyBytes
+        : bodyBytes !== undefined ? bodyBytes as Uint8Array_
         : bodyId === undefined ? undefined 
-        : bodyResolver(bodyId);
+        : bodyResolver(bodyId) as ReadableStream<Uint8Array_>;
     return new Request(url, { method, headers, body, redirect });
 }
 

@@ -1,3 +1,4 @@
+import { Uint8Array_ } from '../uint8array_.ts';
 import { ApiCall, executeStreamForEndpoint, executeJsonForEndpoint } from './deno_deploy_common_api.ts';
 
 export const DASH_API_ENDPOINT = `https://dash.deno.com/api`;
@@ -29,7 +30,7 @@ export function deploy(opts: { projectId: string, request: DeployRequest, files:
     const { projectId, request, files } = opts;
     const form = new FormData();
     form.append('request', JSON.stringify(request));
-    files.forEach(v => form.append('file', new Blob([ v ])));
+    files.forEach(v => form.append('file', new Blob([ v as Uint8Array_ ])));
     return executeStreamForEndpoint<DeployMessage>(`/projects/${projectId}/deployment_with_assets`, { ...opts, requestBody: form }, DASH_API_ENDPOINT);
 }
 

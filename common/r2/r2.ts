@@ -1,5 +1,6 @@
 import { Bytes } from '../bytes.ts';
 import { checkMatches } from '../check.ts';
+import { Uint8Array_ } from '../uint8array_.ts';
 import { ExtendedXmlNode, parseXml } from '../xml_parser.ts';
 import { KnownElement } from './known_element.ts';
 export { listObjects } from './list_objects.ts';
@@ -383,7 +384,7 @@ async function computeBodyInfo(body: AwsCallBody, unsignedPayload: boolean | und
     } else if (body instanceof Bytes) {
         if (!unsignedPayload) bodySha256Hex =(await body.sha256()).hex();
         const bodyLength = body.length;
-        return { body: body.array(), bodySha256Hex, bodyLength };
+        return { body: body.array() as Uint8Array_, bodySha256Hex, bodyLength };
     } else {
         if (!unsignedPayload) bodySha256Hex = body.sha256Hex;
         return { body: body.stream, bodySha256Hex: bodySha256Hex, bodyLength: body.length };

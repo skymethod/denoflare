@@ -27,6 +27,7 @@ import { NoopEmailSender } from './noop_email_sender.ts';
 import { NoopQueue } from './noop_queue.ts';
 import { NoopVpcService } from './noop_vpc_service.ts';
 import { NoopAI } from './noop_ai.ts';
+import { Uint8Array_ } from './uint8array_.ts';
 
 export function addRequestHandlerForRunScript(channel: RpcChannel) {
     channel.addRequestHandler('run-script', async requestData => {
@@ -38,7 +39,7 @@ export function addRequestHandlerForRunScript(channel: RpcChannel) {
             FetchUtil.VERBOSE = verbose;
             LocalWebSockets.VERBOSE = verbose;
         }
-        const b = new Blob([ scriptContents ]);
+        const b = new Blob([ scriptContents as Uint8Array_ ]);
         const u = URL.createObjectURL(b);
 
         let objects: LocalDurableObjects | undefined; 

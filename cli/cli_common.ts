@@ -2,6 +2,7 @@ import { Bytes } from '../common/bytes.ts';
 import { checkMatchesReturnMatcher } from '../common/check.ts';
 import { Binding, Config, Script } from '../common/config.ts';
 import { isValidScriptName } from '../common/config_validation.ts';
+import { Uint8Array_ } from '../common/uint8array_.ts';
 import { CliCommand } from './cli_command.ts';
 import { CLI_VERSION } from './cli_version.ts';
 import { basename, extname, dirname, resolve, fromFileUrl, relative, systemSeparator } from './deps_cli.ts';
@@ -196,7 +197,7 @@ export async function replaceImports(scriptContents: string, rootSpecifier: stri
 
         const importMetaUrl = findImportMetaUrl(importMetaVariableName, scriptContents);
         const { relativePath, valueBytes, valueType } = await resolveImport({ importType, importMetaUrl, unquotedModuleSpecifier, rootSpecifier });
-        const value = new Blob([ valueBytes ], { type: valueType });
+        const value = new Blob([ valueBytes as Uint8Array_ ], { type: valueType });
         const newPiece = await replacer({ line, variableName, importMetaVariableName, unquotedModuleSpecifier, relativePath, value, valueBytes });
         pieces.push(newPiece);
         i = index + line.length;

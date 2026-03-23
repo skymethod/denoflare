@@ -1,12 +1,12 @@
 export class Bytes {
     public static EMPTY = new Bytes(new Uint8Array(0));
     
-    private readonly _bytes: Uint8Array;
+    private readonly _bytes: ReturnType<Uint8Array['slice']>;
 
     public readonly length: number;
 
     constructor(bytes: Uint8Array) {
-        this._bytes = bytes;
+        this._bytes = bytes as ReturnType<Uint8Array['slice']>;
         this.length = bytes.length;
     }
 
