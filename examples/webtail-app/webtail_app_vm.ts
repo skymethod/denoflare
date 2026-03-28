@@ -4,7 +4,7 @@ import { AppConstants } from './app_constants.ts';
 import { DemoMode } from './demo_mode.ts';
 import { QpsController } from './qps_controller.ts';
 import { SwitchableTailControllerCallbacks, TailController, TailControllerCallbacks, TailKey, unpackTailKey } from './tail_controller.ts';
-import { isTailMessageAlarmEvent, isTailMessageEmailEvent, isTailMessageGetWebSocketEvent, isTailMessageOverloadEvent, isTailMessageQueueEvent } from '../../common/tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageEmailEvent, isTailMessageGetWebSocketEvent, isTailMessageOverloadEvent, isTailMessageQueueEvent, isTailMessageTailWorkerEvent } from '../../common/tail.ts';
 
 // deno-lint-ignore no-explicit-any
 export type ConsoleLogger = (...data: any[]) => void;
@@ -766,7 +766,7 @@ export class WebtailAppVM {
         const includeUserAgent = this.extraFields.includes('user-agent');
         const includeReferer = this.extraFields.includes('referer');
         if (includeIpAddress || includeUserAgent || includeReferer) {
-            if (message.event !== null && !isTailMessageCronEvent(message.event) && !isTailMessageAlarmEvent(message.event) && !isTailMessageQueueEvent(message.event) && !isTailMessageEmailEvent(message.event) && !isTailMessageOverloadEvent(message.event) && !isTailMessageGetWebSocketEvent(message.event)) {
+            if (message.event !== null && !isTailMessageCronEvent(message.event) && !isTailMessageAlarmEvent(message.event) && !isTailMessageQueueEvent(message.event) && !isTailMessageEmailEvent(message.event) && !isTailMessageOverloadEvent(message.event) && !isTailMessageGetWebSocketEvent(message.event) && !isTailMessageTailWorkerEvent(message.event)) {
                 if (includeIpAddress) {
                     const ipAddress = message.event.request.headers['cf-connecting-ip'] || undefined;
                     if (ipAddress) rt.push(computeAdditionalLogForExtraField('IP address', ipAddress));
@@ -997,6 +997,7 @@ function computeMessagePassesLogPropFilter(message: TailMessage, logprop1?: stri
     if (logprop1 === undefined || logprop1.length === 0) return true;
     const logpropFilters = logprop1.map(parseHeaderFilter);
     const { props } = parseLogProps(message.logs);
+    if (!props.durableObjectId && message.durableObjectId) props.durableObjectId = message.durableObjectId;
     for (const logpropFilter of logpropFilters) {
         if (computePropsPassLogpropFilter(props, logpropFilter)) return true;
     }

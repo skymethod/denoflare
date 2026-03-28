@@ -1,6 +1,6 @@
 import { createTail, sendTailHeartbeat } from '../common/cloudflare_api.ts';
 import { commandOptionsForConfig, loadConfig, resolveProfile } from './config_loader.ts';
-import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage, isTailMessageEmailEvent, isTailMessageOverloadEvent, isTailMessageGetWebSocketEvent } from '../common/tail.ts';
+import { isTailMessageAlarmEvent, isTailMessageCronEvent, isTailMessageQueueEvent, Outcome, parseHeaderFilter, TailFilter, TailMessage, isTailMessageEmailEvent, isTailMessageOverloadEvent, isTailMessageGetWebSocketEvent, isTailMessageTailWorkerEvent } from '../common/tail.ts';
 import { TailConnection, TailConnectionCallbacks } from '../common/tail_connection.ts';
 import { dumpMessagePretty } from '../common/tail_pretty.ts';
 import { denoflareCliCommand } from './cli_common.ts';
@@ -127,6 +127,10 @@ function dumpMessageCompact(message: TailMessage) {
     } else if (isTailMessageGetWebSocketEvent(message.event)) {
         const { getWebSocketEvent } = message.event;
         console.log(` getWebSocketEvent: ${JSON.stringify(getWebSocketEvent)}`);
+    } else if (isTailMessageTailWorkerEvent(message.event)) {
+        const { consumedEvents } = message.event;
+        console.log(` consumedEvents: ${JSON.stringify(consumedEvents)}`);
+        
     } else {
         console.log(`  req: ${time} ${message.event.request.method} ${message.event.request.url}`);
         const userAgent = message.event.request.headers['user-agent'];
@@ -140,7 +144,7 @@ function dumpMessageCompact(message: TailMessage) {
     }
     for (const log of message.logs) {
         const timestamp = new Date(log.timestamp).toISOString();
-        console.log(`      ${[timestamp, log.level, log.message.join(', ')].join(' ')}`);
+        console.log(`      ${[timestamp, log.level, log.message.map(v => typeof v === 'object' ? JSON.stringify(v) : v).join(', ')].join(' ')}`);
     }
     for (const exception of message.exceptions) {
         const timestamp = new Date(exception.timestamp).toISOString();
