@@ -95,15 +95,16 @@ export class Bytes {
         return new Bytes(rt);
     }
 
-    public static formatSize(sizeInBytes: number): string {
+    public static formatSize(sizeInBytes: number, si = false): string {
+        const k = si ? 1000 : 1024;
         const sign = sizeInBytes < 0 ? '-' : '';
         let size = Math.abs(sizeInBytes);
-        if (size < 1024) return `${sign}${size}bytes`;
-        size = size / 1024;
-        if (size < 1024) return `${sign}${roundToOneDecimal(size)}kb`;
-        size = size / 1024;
-        if (size < 1024) return `${sign}${roundToOneDecimal(size)}mb`;
-        size = size / 1024;
+        if (size < k) return `${sign}${size}bytes`;
+        size = size / k;
+        if (size < k) return `${sign}${roundToOneDecimal(size)}kb`;
+        size = size / k;
+        if (size < k) return `${sign}${roundToOneDecimal(size)}mb`;
+        size = size / k;
         return `${sign}${roundToOneDecimal(size)}gb`;
     }
 
