@@ -34,7 +34,7 @@ export async function serve(args: (string | number)[], options: Record<string, u
         console.log(`Built site, took ${Date.now() - start}ms`);
     };
     if (watch) {
-        let timeoutId: number | undefined;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         repoDir.startWatching(_events => {
             clearTimeout(timeoutId);
             timeoutId = setTimeout(async () => {

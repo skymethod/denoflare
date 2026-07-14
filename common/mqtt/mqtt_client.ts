@@ -87,7 +87,7 @@ export class MqttClient {
     /** @internal */ private readonly maxMessagesPerSecond?: number;
 
     /** @internal */ private connection?: MqttConnection;
-    /** @internal */ private pingTimeout = 0;
+    /** @internal */ private pingTimeout?: ReturnType<typeof setTimeout>;
     /** @internal */ private keepAliveSeconds = DEFAULT_KEEP_ALIVE_SECONDS;
     /** @internal */ private pendingConnect?: Signal;
     /** @internal */ private connectionCompletion?: Promise<void>;

@@ -1,3 +1,4 @@
+import { Uint8Array_ } from '../uint8array_.ts';
 
 // List all secrets
 // https://supabase.com/docs/reference/api/list-all-secrets
@@ -112,7 +113,7 @@ export async function deleteFunction({ projectRef, slug, token, fetcher }: { pro
 export type CreateFunctionOpts = { projectRef: string, slug: string, name: string, verify_jwt?: boolean, import_map?: boolean, entrypoint_path?: string, import_map_path?: string, brotliCompressedEszip: Uint8Array, token: string, fetcher?: Fetcher };
 
 export async function createFunction({ projectRef, slug, name, verify_jwt, import_map, entrypoint_path, import_map_path, brotliCompressedEszip, token, fetcher }: CreateFunctionOpts): Promise<ApiResponse<FunctionInfo>> {
-    return await execute(`/v1/projects/${projectRef}/functions`, { token, fetcher, method: 'POST', body: brotliCompressedEszip, bodyContentType: 'application/vnd.denoland.eszip', queryParams: { slug, name, verify_jwt, import_map, entrypoint_path, import_map_path } }, 
+    return await execute(`/v1/projects/${projectRef}/functions`, { token, fetcher, method: 'POST', body: brotliCompressedEszip as Uint8Array_, bodyContentType: 'application/vnd.denoland.eszip', queryParams: { slug, name, verify_jwt, import_map, entrypoint_path, import_map_path } }, 
         async res => checkFunctionInfo(await res.json()));
 }
 
@@ -122,7 +123,7 @@ export async function createFunction({ projectRef, slug, name, verify_jwt, impor
 export type UpdateFunctionOpts = { projectRef: string, slug: string, newSlug?: string, name?: string, verify_jwt?: boolean, import_map?: boolean, entrypoint_path?: string, import_map_path?: string, brotliCompressedEszip: Uint8Array, token: string, fetcher?: Fetcher };
 
 export async function updateFunction({ projectRef, slug, newSlug, name, verify_jwt, import_map, entrypoint_path, import_map_path,brotliCompressedEszip, token, fetcher }: UpdateFunctionOpts): Promise<ApiResponse<FunctionInfo>> {
-    return await execute(`/v1/projects/${projectRef}/functions/${slug}`, { token, fetcher, method: 'PATCH', body: brotliCompressedEszip, bodyContentType: 'application/vnd.denoland.eszip', queryParams: { slug: newSlug, name, verify_jwt, import_map, entrypoint_path, import_map_path } }, 
+    return await execute(`/v1/projects/${projectRef}/functions/${slug}`, { token, fetcher, method: 'PATCH', body: brotliCompressedEszip as Uint8Array_, bodyContentType: 'application/vnd.denoland.eszip', queryParams: { slug: newSlug, name, verify_jwt, import_map, entrypoint_path, import_map_path } }, 
         async res => checkFunctionInfo(await res.json()));
 }
 
@@ -134,14 +135,14 @@ export type Region = 'ap-northeast-1' | 'ap-northeast-2' | 'ap-south-1' | 'ap-so
 export type ExecuteFunctionOpts = { projectRef: string, slug: string, method?: string, pathname?: string, queryParams?: Record<string, string>, headers?: Record<string, string>, body?: Uint8Array | string, region?: Region, fetcher?: Fetcher };
 
 export async function executeFunction({ projectRef, slug, pathname = '/', method, queryParams, headers, body, region, fetcher = fetch }: ExecuteFunctionOpts): Promise<Response> {
-    return await fetcher(makeURL(`https://${projectRef}.supabase.co/functions/v1/${slug}${pathname}`, queryParams).toString(), { method, headers: { ...headers,  ...(region ? { 'x-region': region } : {}) }, body });
+    return await fetcher(makeURL(`https://${projectRef}.supabase.co/functions/v1/${slug}${pathname}`, queryParams).toString(), { method, headers: { ...headers,  ...(region ? { 'x-region': region } : {}) }, body: body as Uint8Array_ });
 }
 
 //
 
 export type ApiResponse<TResult> = {  meta: Record<string, string>, result: TResult };
 
-export type Fetcher = (url: string, opts: { method?: string, headers?: Record<string, string>, body?: Uint8Array | string }) => Promise<Response>;
+export type Fetcher = (url: string, opts: { method?: string, headers?: Record<string, string>, body?: Uint8Array_ | string }) => Promise<Response>;
 
 //
 
@@ -155,7 +156,7 @@ function checkArrayOf<T>(obj: unknown, checkFn: (obj: unknown) => T): readonly T
     return obj.map(checkFn);
 }
 
-type ExecuteOpts = { token: string, method?: 'GET' | 'DELETE' | 'POST' | 'PATCH', queryParams?: Record<string, string | boolean | undefined>, body?: Uint8Array | string, bodyContentType?: string, fetcher?: Fetcher };
+type ExecuteOpts = { token: string, method?: 'GET' | 'DELETE' | 'POST' | 'PATCH', queryParams?: Record<string, string | boolean | undefined>, body?: Uint8Array_ | string, bodyContentType?: string, fetcher?: Fetcher };
 
 async function execute<TResult>(pathname: string, { token, method = 'GET', queryParams, body, bodyContentType, fetcher = fetch }: ExecuteOpts, resultFn: (res: Response) => Promise<TResult> | TResult): Promise<ApiResponse<TResult>> {
     const res = await fetcher(makeURL(`https://api.supabase.com${pathname}`, queryParams).toString(), { method, headers: { authorization: `Bearer ${token}`, ...(bodyContentType ? { 'content-type': bodyContentType } : {}) }, body });

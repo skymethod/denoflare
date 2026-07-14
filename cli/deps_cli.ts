@@ -6,7 +6,7 @@ export { createGraph } from 'https://deno.land/x/deno_graph@0.43.3/mod.ts';
 export type { ModuleGraphJson } from 'https://deno.land/x/deno_graph@0.43.3/lib/types.d.ts';
 export { gzip } from 'https://deno.land/x/compress@v0.4.5/zlib/mod.ts';
 export { parse as _parseJsonc } from 'https://cdn.skypack.dev/jsonc-parser@3.2.0';
-export { default as marked } from 'https://cdn.skypack.dev/marked@3.0.8?dts';
+export { lexer as marked_lexer, Renderer as marked_Renderer, parser as marked_parser } from 'https://cdn.skypack.dev/marked@3.0.8?dts';
 export { html } from 'https://deno.land/x/html_escape@v1.1.5/html.ts';
 export { default as hljs } from 'https://cdn.skypack.dev/highlight.js@11.7.0';
 export { serve } from 'https://deno.land/std@0.224.0/http/server.ts';

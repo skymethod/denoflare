@@ -36,7 +36,7 @@ export async function tail(args: (string | number)[], options: Record<string, un
     const tail = await createTail({ accountId, scriptName, apiToken });
     
     return new Promise((resolve, _reject) => {
-        let sendHeartbeatOnExpiryTimeout = 0;
+        let sendHeartbeatOnExpiryTimeout: ReturnType<typeof setTimeout> | undefined;
 
         const callbacks: TailConnectionCallbacks = {
             onOpen: (_cn, timeStamp) => {

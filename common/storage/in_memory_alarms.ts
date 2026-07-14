@@ -5,7 +5,7 @@ export class InMemoryAlarms {
 
     // alarms not durable, kept in memory only
     private alarm: number | null = null;
-    private alarmTimeoutId = 0;
+    private alarmTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
     constructor(dispatchAlarm: () => void) {
         this.dispatchAlarm = dispatchAlarm;

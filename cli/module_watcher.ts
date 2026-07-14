@@ -35,7 +35,7 @@ export class ModuleWatcher {
         if (ModuleWatcher.VERBOSE) console.log('watching', paths);
         const watcher = Deno.watchFs(paths);
         this.watcher = watcher;
-        let timeoutId: number | undefined;
+        let timeoutId: ReturnType<typeof setTimeout> | undefined;
         for await (const event of watcher) {
             if (event.kind === 'modify') {
                 // a single file modification sends two modify events, so coalesce them

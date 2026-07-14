@@ -9,7 +9,7 @@ export class TailConnection {
     private readonly callbacks: TailConnectionCallbacks;
 
     private options?: TailOptions
-    private heartbeatId?: number;
+    private heartbeatId?: ReturnType<typeof setInterval>; // for 2.8.0+, see https://github.com/denoland/deno/issues/35821
 
     constructor(webSocketUrl: string, callbacks: TailConnectionCallbacks, opts: { websocketPingIntervalSeconds: number }) {
         this.ws = new WebSocket(webSocketUrl, 'trace-v1'); // else 406 Not Acceptable

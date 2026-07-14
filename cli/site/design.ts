@@ -1,5 +1,5 @@
 import { encodeXml } from '../../common/xml_util.ts';
-import { fromFileUrl, html, join, marked, hljs } from '../deps_cli.ts';
+import { fromFileUrl, html, join, hljs, marked_lexer, marked_Renderer, marked_parser } from '../deps_cli.ts';
 import { Page } from './page.ts';
 import { computeBreadcrumbs, SidebarNode } from './sidebar.ts';
 import { SiteConfig, SiteSearchConfig } from './site_config.ts';
@@ -112,11 +112,11 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
         // asides
         .replaceAll(/<Aside(\s+type="warning")?(\s+header="(.*?)")?>(.*?)<\/Aside>/gs, (_, g1, _g2, g3, g4) => computeAsideHtml(!!g1, g3, g4))
         ;
-    const tokens = marked.lexer(markdownResolved);
+    const tokens = marked_lexer(markdownResolved);
     if (verbose) console.log(tokens);
 
     const headings: Heading[] = [];
-    const renderer = new class extends marked.Renderer {
+    const renderer = new class extends marked_Renderer {
         override link(href: string | null, title: string | null, text: string): string {
             if (typeof href === 'string' && /^https?:\/\//.test(href)) {
                 return computeExternalAnchorHtml(href, text);
@@ -168,7 +168,7 @@ ${ themeColor ? html`<meta name="theme-color" content="${themeColor}">` : '' }
             return `<code class="inline-code">${code}</code>`;
         }
     }();
-    const markdownHtml = marked.parser(tokens, { renderer });
+    const markdownHtml = marked_parser(tokens, { renderer });
     outputHtml = outputHtml.replace(/<!-- start: markdown -->.*?<!-- end: markdown -->/s, markdownHtml);
 
     // render toc
