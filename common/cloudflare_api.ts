@@ -1993,6 +1993,13 @@ export async function getQueue(opts: { accountId: string, apiToken: string, queu
     return (await execute<Queue>('getQueue', 'GET', url.toString(), apiToken)).result;
 }
 
+// https://developers.cloudflare.com/api/resources/queues/methods/get_metrics
+export async function getQueueMetrics(opts: { accountId: string, apiToken: string, queueId: string }): Promise<QueueMetrics> {
+    const { accountId, apiToken, queueId } = opts;
+    const url = `${computeAccountBaseUrl(accountId)}/queues/${queueId}/metrics`;
+    return (await execute<QueueMetrics>('getQueueMetrics', 'GET', url.toString(), apiToken)).result;
+}
+
 // https://developers.cloudflare.com/api/resources/queues/methods/delete/
 export async function deleteQueue(opts: { accountId: string, apiToken: string, queueId: string }): Promise<void> {
     const { accountId, apiToken, queueId } = opts;
@@ -2127,6 +2134,12 @@ export interface Queue extends NewQueue {
     readonly producers: QueueProducer[];
     readonly consumers_total_count: number;
     readonly consumers: QueueConsumer[];
+}
+
+export interface QueueMetrics {
+    readonly backlog_bytes: number;
+    readonly backlog_count: number;
+    readonly oldest_message_timestamp_ms: number;
 }
 
 export type QueueProducer = WorkerQueueProducer | R2BucketQueueProducer;
