@@ -6,8 +6,8 @@ export interface DenoCheckResult {
     readonly diagnostics: DenoDiagnostic[];
 }
 
-export async function denoCheck(rootSpecifier: string, opts: { all?: boolean, compilerOptions?: { lib?: string[] } } = {}): Promise<DenoCheckResult> {
-    const { all, compilerOptions } = opts;
+export async function denoCheck(rootSpecifier: string, opts: { all?: boolean, compilerOptions?: { lib?: string[] }, cwd?: string } = {}): Promise<DenoCheckResult> {
+    const { all, compilerOptions, cwd } = opts;
 
     let config: string | undefined;
     try {
@@ -15,7 +15,7 @@ export async function denoCheck(rootSpecifier: string, opts: { all?: boolean, co
             config = await Deno.makeTempFile({ prefix: 'denoflare-deno-check', suffix: '.json'});
             await Deno.writeTextFile(config, JSON.stringify({ compilerOptions }));
         }
-        const { out, err, success } = await runDenoCheck(rootSpecifier, { all, config });
+        const { out, err, success } = await runDenoCheck(rootSpecifier, { all, config, cwd });
         console.log({ out, err, success });
 
         let diagnostics: DenoDiagnostic[] = [];
@@ -43,8 +43,8 @@ export async function denoCheck(rootSpecifier: string, opts: { all?: boolean, co
 
 type RunDenoCheckResult = { code: number, success: boolean, out: string, err: string };
 
-async function runDenoCheck(rootSpecifier: string, opts: { all?: boolean, config?: string } = {}): Promise<RunDenoCheckResult> {
-    const { all, config } = opts;
+async function runDenoCheck(rootSpecifier: string, opts: { all?: boolean, config?: string, cwd?: string } = {}): Promise<RunDenoCheckResult> {
+    const { all, config, cwd } = opts;
     const args = [
         'check',
         '--allow-import',
@@ -57,7 +57,8 @@ async function runDenoCheck(rootSpecifier: string, opts: { all?: boolean, config
         args,
         env: {
             NO_COLOR: '1', // to make parsing the output easier
-        }
+        },
+        cwd,
     });
     const out = new TextDecoder().decode(stdout);
     const err = new TextDecoder().decode(stderr);

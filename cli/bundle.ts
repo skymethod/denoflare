@@ -1,7 +1,7 @@
 import { CliCommand } from './cli_command.ts';
 import { parseNameValuePairsOption } from './cli_common.ts';
 import { denoBundle, DenoDiagnostic } from './deno_bundle.ts';
-import { resolve, toFileUrl, isAbsolute } from './deps_cli.ts';
+import { resolve, toFileUrl, isAbsolute, dirname } from './deps_cli.ts';
 import { fileExists } from './fs_util.ts';
 import { Bytes } from '../common/bytes.ts';
 import { denoCheck } from './deno_check.ts';
@@ -108,7 +108,8 @@ export async function bundle(rootSpecifier: string, opts: BundleOpts = {}): Prom
         // deno bundle type-checked by default, so we will too (not handled by esbuild or esbuild deno loader)
         if (check !== 'none') {
             const all = check === 'all';
-            const { diagnostics } = await denoCheck(rootSpecifier, { all, compilerOptions });
+            const cwd = !/^(file|https):\/\//.test(rootSpecifier) && await fileExists(rootSpecifier) ? dirname(rootSpecifier) : undefined; // so check resolves import map
+            const { diagnostics } = await denoCheck(rootSpecifier, { all, compilerOptions, cwd });
             if (diagnostics.length > 0) {
                 console.warn(diagnostics.map(formatDiagnostic).join('\n\n'));
                 throw new Error('deno check failed');

@@ -9,7 +9,7 @@ export interface SpawnOutput  {
     signal: Deno.Signal | null;
 }
 
-export async function spawn(command: string | URL, options?: { args?: string[], env?: Record<string, string> }): Promise<SpawnOutput> {
+export async function spawn(command: string | URL, options?: { args?: string[], env?: Record<string, string>, cwd?: string }): Promise<SpawnOutput> {
     // use Deno.Command if 1.28+, spawn is deprecated
     if ('Command' in Deno) {
         const c = new (Deno as any).Command(command, options);
