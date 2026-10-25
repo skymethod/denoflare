@@ -271,7 +271,7 @@ function uriEncode(value: string): string {
             const codePoint = value.codePointAt(i);
             if (codePoint === undefined) throw new Error(`No codePoint at ${i}`);
             const str = String.fromCodePoint(codePoint);
-            rt += `%${codePoint.toString(16).toUpperCase()}`;
+            rt += `%${codePoint.toString(16).toUpperCase().padStart(2, '0')}`;
             i += str.length;
         }
     }
